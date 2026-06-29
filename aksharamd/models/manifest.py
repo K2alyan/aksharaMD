@@ -1,0 +1,28 @@
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field
+
+
+class Manifest(BaseModel):
+    source: str
+    file_type: str = ""
+    pages: int = 0
+    chunks: int = 0
+    images: int = 0
+    tables: int = 0
+    original_tokens: int = 0
+    optimized_tokens: int = 0
+    token_reduction_percent: float = 0.0
+    duplicate_blocks_removed: int = 0
+    headers_removed: int = 0
+    footers_removed: int = 0
+    readiness_score: int = 0
+    confidence_notes: list[str] = Field(default_factory=list)
+    elapsed_seconds: float = 0.0
+    stage_timings: dict[str, float] = Field(default_factory=dict)
+    ai_plugins_used: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    compiled_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    aksharamd_version: str = "0.1.0"

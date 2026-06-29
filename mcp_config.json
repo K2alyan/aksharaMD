@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "aksharamd": {
+      "command": "C:\\Users\\kalya\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "args": ["-m", "aksharamd.mcp_server"],
+      "cwd": "C:\\Users\\kalya\\omnimark",
+      "env": {}
+    }
+  }
+}
