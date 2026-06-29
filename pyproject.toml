@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aksharamd"
+version = "0.1.0"
+description = "AksharaMD AI Document Compiler — compile documents into token-efficient, semantically complete representations for LLMs"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1",
+    "pydantic>=2.0",
+    "pymupdf>=1.24",
+    "beautifulsoup4>=4.12",
+    "markdown-it-py>=3.0",
+    "rich>=13.0",
+    "tiktoken>=0.7",
+    "filetype>=1.2",
+    "chardet>=5.0",
+    # document formats
+    "python-docx>=1.1",
+    "python-pptx>=1.0",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "ebooklib>=0.18",
+    "feedparser>=6.0",
+    "extract-msg>=0.50",
+    "Pillow>=10.0",
+    "striprtf>=0.0.26",
+    "py7zr>=0.20",
+    "mcp[cli]>=1.0",
+    # optional heavy deps — install separately for full support:
+    # pip install openai-whisper   (audio transcription; also needs ffmpeg on PATH)
+    # pip install pytesseract      (image OCR; also needs Tesseract binary)
+    # LibreOffice on PATH          (.doc/.ppt legacy Office files)
+]
+
+[project.scripts]
+aksharamd = "aksharamd.cli:main"
+aksharamd-mcp = "aksharamd.mcp_server:serve"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[tool.hatch.envs.default]
+features = ["dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
