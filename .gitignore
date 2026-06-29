@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+
+# Hatch / pip
+.hatch/
+*.dist-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Benchmark artefacts
+benchmark_results/
+benchmarks/__pycache__/
+
+# Output / cache
+output/
+.aksharamd_cache/
+*.omnimark_cache/
+
+# Scratch files
+markitdown_*.md
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
