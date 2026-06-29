@@ -27,6 +27,8 @@ coverage.xml
 # Benchmark artefacts
 benchmark_results/
 benchmarks/__pycache__/
+audit_results/
+audit_scripts/
 
 # Output / cache
 output/
