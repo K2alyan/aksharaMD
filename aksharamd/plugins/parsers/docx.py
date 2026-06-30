@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from pathlib import Path
 
 from ..base import ParserPlugin
@@ -11,6 +12,8 @@ from ...models.document import Document
 _DRAW_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+_LEVEL_SUFFIX_RE = re.compile(r'\s+(\d+)$')
 
 
 def _extract_drawing_bytes(para_el, doc_part) -> list[bytes]:
@@ -36,6 +39,74 @@ def _extract_omml_text(el) -> str:
         if node.tag == f"{{{_OMML_URI}}}t" and node.text and node.text.strip():
             parts.append(node.text.strip())
     return " ".join(parts)
+
+
+def _get_list_props(para, qn) -> tuple[str | None, int, bool | None]:
+    """
+    Return (group_key, ilvl, is_ordered) if this paragraph is a list item, else (None, 0, False).
+
+    group_key  — identifies which list this belongs to (for grouping consecutive items)
+    ilvl       — indent level 0=top
+    is_ordered — True=numbered, False=bullet, None=must look up from numbering XML
+    """
+    # Primary: w:numPr in paragraph XML (authoritative for real Word documents)
+    try:
+        pPr = para._element.find(qn("w:pPr"))
+        if pPr is not None:
+            numPr = pPr.find(qn("w:numPr"))
+            if numPr is not None:
+                numId_el = numPr.find(qn("w:numId"))
+                ilvl_el = numPr.find(qn("w:ilvl"))
+                if numId_el is not None:
+                    numId = numId_el.get(qn("w:val"), "0")
+                    if numId != "0":
+                        ilvl = int(ilvl_el.get(qn("w:val"), "0")) if ilvl_el is not None else 0
+                        return f"num:{numId}", ilvl, None  # is_ordered resolved from numbering XML
+    except Exception:
+        pass
+
+    # Fallback: style name (python-docx-created files and simple Word docs)
+    style_name = (para.style.name or "") if para.style else ""
+    sl = style_name.lower()
+    if "list bullet" in sl:
+        m = _LEVEL_SUFFIX_RE.search(style_name)
+        ilvl = int(m.group(1)) - 1 if m else 0
+        return "style:bullet", ilvl, False
+    if "list number" in sl:
+        m = _LEVEL_SUFFIX_RE.search(style_name)
+        ilvl = int(m.group(1)) - 1 if m else 0
+        return "style:number", ilvl, True
+
+    return None, 0, False
+
+
+def _build_ordered_numids(doc) -> set[str]:
+    """Return the set of numIds whose level-0 format is ordered (not bullet/none)."""
+    ordered: set[str] = set()
+    try:
+        from docx.oxml.ns import qn
+        root = doc.part.numbering_part._element
+        # abstractNumId -> level-0 numFmt value
+        abstract_fmt0: dict[str, str] = {}
+        for a in root.findall(qn("w:abstractNum")):
+            aid = a.get(qn("w:abstractNumId"))
+            for lvl in a.findall(qn("w:lvl")):
+                if lvl.get(qn("w:ilvl")) == "0":
+                    nf = lvl.find(qn("w:numFmt"))
+                    fmt = nf.get(qn("w:val"), "bullet") if nf is not None else "bullet"
+                    abstract_fmt0[aid] = fmt
+                    break
+        for n in root.findall(qn("w:num")):
+            nid = n.get(qn("w:numId"))
+            ref = n.find(qn("w:abstractNumId"))
+            if ref is None:
+                continue
+            fmt = abstract_fmt0.get(ref.get(qn("w:val")), "bullet")
+            if fmt not in ("bullet", "none"):
+                ordered.add(nid)
+    except Exception:
+        pass
+    return ordered
 
 
 _HEADING_STYLES = {
@@ -76,22 +147,46 @@ class DocxParser(ParserPlugin):
         title: str | None = None
         author: str | None = None
 
-        # Core properties
         props = doc.core_properties
         if props.title:
             title = props.title
         if props.author:
             author = props.author
 
-        # Body: interleave paragraphs and tables in document order
-        # python-docx exposes doc.paragraphs and doc.tables separately;
-        # to preserve order we walk the body XML directly.
-        body = doc.element.body
-        para_iter = iter(doc.paragraphs)
-        table_iter = iter(doc.tables)
+        ordered_numIds = _build_ordered_numids(doc)
 
+        body = doc.element.body
         para_map = {p._element: p for p in doc.paragraphs}
         table_map = {t._element: t for t in doc.tables}
+
+        # List accumulator — groups consecutive list paragraphs into one LIST block
+        list_items: list[tuple[int, bool, str]] = []  # (ilvl, is_ordered, text)
+        current_list_key: str | None = None
+
+        def flush_list() -> None:
+            nonlocal idx, current_list_key
+            if not list_items:
+                return
+            counters: dict[int, int] = {}
+            prev_ilvl = -1
+            lines: list[str] = []
+            for ilvl, is_ordered, text in list_items:
+                # Reset deeper-level counters when ascending
+                if ilvl < prev_ilvl:
+                    for k in [k for k in counters if k > ilvl]:
+                        del counters[k]
+                indent = "  " * ilvl
+                if is_ordered:
+                    counters[ilvl] = counters.get(ilvl, 0) + 1
+                    prefix = f"{counters[ilvl]}."
+                else:
+                    prefix = "-"
+                lines.append(f"{indent}{prefix} {text}")
+                prev_ilvl = ilvl
+            blocks.append(Block(type=BlockType.LIST, content="\n".join(lines), index=idx))
+            idx += 1
+            list_items.clear()
+            current_list_key = None
 
         for child in body:
             tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
@@ -99,20 +194,22 @@ class DocxParser(ParserPlugin):
             if tag == "p" and child in para_map:
                 para = para_map[child]
 
-                # Extract any inline images in this paragraph (before processing text)
-                for img_bytes in _extract_drawing_bytes(child, doc.part):
-                    asset_id = f"img_{idx}"
-                    assets.append(Asset(id=asset_id, type="image", image_bytes=img_bytes))
-                    blocks.append(Block(type=BlockType.IMAGE, content="", index=idx,
-                                        metadata={"asset_id": asset_id}))
-                    idx += 1
+                # Inline images flush the current list (images break list continuity)
+                img_list = _extract_drawing_bytes(child, doc.part)
+                if img_list:
+                    flush_list()
+                    for img_bytes in img_list:
+                        asset_id = f"img_{idx}"
+                        assets.append(Asset(id=asset_id, type="image", image_bytes=img_bytes))
+                        blocks.append(Block(type=BlockType.IMAGE, content="", index=idx,
+                                            metadata={"asset_id": asset_id}))
+                        idx += 1
 
-                style_name = (para.style.name or "").lower() if para.style else ""
+                math_text = _extract_omml_text(child)
                 text = para.text.strip()
 
-                # Detect inline OMML equations (paragraphs that are partially/fully equations)
-                math_text = _extract_omml_text(child)
                 if not text and math_text:
+                    flush_list()
                     blocks.append(Block(type=BlockType.PARAGRAPH,
                                         content=f"$${math_text}$$", index=idx))
                     idx += 1
@@ -121,11 +218,26 @@ class DocxParser(ParserPlugin):
                 if not text:
                     continue
 
+                # List item?
+                key, ilvl, is_ordered = _get_list_props(para, qn)
+                if key is not None:
+                    if is_ordered is None:
+                        is_ordered = key[len("num:"):] in ordered_numIds
+                    if key != current_list_key and current_list_key is not None:
+                        flush_list()
+                    current_list_key = key
+                    list_items.append((ilvl, is_ordered, text))
+                    continue
+
+                # Regular paragraph
+                flush_list()
+                style_name = (para.style.name or "").lower() if para.style else ""
                 level = _HEADING_STYLES.get(style_name)
                 if level:
                     if not title and level == 1:
                         title = text
-                    blocks.append(Block(type=BlockType.HEADING, content=text, level=level, index=idx))
+                    blocks.append(Block(type=BlockType.HEADING, content=text,
+                                        level=level, index=idx))
                 elif "code" in style_name or "mono" in style_name:
                     blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, index=idx))
                 else:
@@ -133,6 +245,7 @@ class DocxParser(ParserPlugin):
                 idx += 1
 
             elif tag == "oMathPara":
+                flush_list()
                 math_text = _extract_omml_text(child)
                 if math_text:
                     blocks.append(Block(type=BlockType.PARAGRAPH,
@@ -140,12 +253,14 @@ class DocxParser(ParserPlugin):
                     idx += 1
 
             elif tag == "tbl" and child in table_map:
+                flush_list()
                 table = table_map[child]
                 md = _table_to_markdown(table)
                 if md:
                     blocks.append(Block(type=BlockType.TABLE, content=md, index=idx))
                     idx += 1
 
+        flush_list()
 
         image_count = len([b for b in blocks if b.type == BlockType.IMAGE])
         ctx.document = Document(
