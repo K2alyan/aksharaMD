@@ -40,9 +40,11 @@ class DefaultCleaner(CleanerPlugin):
             # Drop lone page numbers
             if block.type == BlockType.PARAGRAPH and _is_page_number(block.content):
                 continue
-            # Normalize all text content
-            block = block.model_copy(update={"content": _normalize_text(block.content)})
-            if block.content:
+            # Normalize text content — skip LIST/CODE blocks whose indentation is meaningful
+            if block.type not in (BlockType.LIST, BlockType.CODE_BLOCK):
+                block = block.model_copy(update={"content": _normalize_text(block.content)})
+            # Keep block if it has content OR is an IMAGE (images may have empty alt text)
+            if block.content or block.type == BlockType.IMAGE:
                 cleaned.append(block)
 
         ctx.document = ctx.document.model_copy(update={"blocks": cleaned})

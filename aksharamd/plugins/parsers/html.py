@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64 as _b64
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,11 +13,39 @@ from ...models.block import Block, BlockType
 from ...models.asset import Asset
 from ...models.document import Document
 
+_MAX_LOCAL_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB cap for local images
+
+
+def _extract_image_bytes(src: str, source_path: Path | None) -> bytes | None:
+    if not src:
+        return None
+    if src.startswith("data:"):
+        try:
+            _, encoded = src.split(",", 1)
+            # Add padding in case it's missing
+            encoded += "=" * (-len(encoded) % 4)
+            return _b64.b64decode(encoded)
+        except Exception:
+            return None
+    if src.startswith(("http://", "https://")):
+        return None  # don't fetch remote URLs — keeps MCP server lightweight
+    if source_path is not None:
+        try:
+            img_path = (source_path.parent / src).resolve()
+            if img_path.exists() and img_path.is_file():
+                data = img_path.read_bytes()
+                return data if len(data) <= _MAX_LOCAL_IMAGE_BYTES else None
+        except Exception:
+            pass
+    return None
+
 
 _SKIP_TAGS = {
-    "nav", "header", "footer", "aside", "script", "style",
+    "nav", "header", "aside", "script", "style",
     "noscript", "iframe", "form", "menu", "menuitem",
 }
+# footer is NOT skipped — it often contains meaningful metadata (dates, org names,
+# copyright). Navigation noise inside footers is handled by the cleaner stage.
 _HEADING_TAGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
 _CONTAINER_TAGS = {
     "div", "section", "article", "main", "body", "figure",
@@ -45,17 +74,45 @@ def _table_to_markdown(table: Tag) -> str:
     return "\n".join([rows[0], sep] + rows[1:])
 
 
-def _list_to_lines(element: Tag, ordered: bool) -> list[str]:
+def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
     lines = []
+    indent = "  " * depth
     for i, li in enumerate(element.find_all("li", recursive=False)):
-        text = li.get_text(separator=" ", strip=True)
-        if text:
+        # Collect direct text only (skip nested ul/ol content to avoid duplication)
+        direct_parts: list[str] = []
+        for child in li.children:
+            if isinstance(child, NavigableString):
+                t = child.strip()
+                if t:
+                    direct_parts.append(t)
+            elif isinstance(child, Tag) and child.name not in ("ul", "ol"):
+                t = child.get_text(separator=" ", strip=True)
+                if t:
+                    direct_parts.append(t)
+        direct_text = " ".join(direct_parts).strip()
+        if direct_text:
             prefix = f"{i + 1}." if ordered else "-"
-            lines.append(f"{prefix} {text}")
+            lines.append(f"{indent}{prefix} {direct_text}")
+        # Recurse into nested lists
+        for nested in li.find_all(["ul", "ol"], recursive=False):
+            lines.extend(_list_to_lines(nested, ordered=(nested.name == "ol"), depth=depth + 1))
     return lines
 
 
 _MAX_DEPTH = 100  # guard against pathologically nested HTML causing RecursionError
+
+# Tags that are purely inline — never emit as standalone paragraphs
+_INLINE_TAGS = {
+    "a", "em", "strong", "b", "i", "u", "s", "cite", "abbr",
+    "time", "mark", "sup", "sub", "small", "kbd", "var",
+}
+
+# All tags that carry block-level structure (used for leaf-container detection)
+_BLOCK_TAGS = _STRUCTURAL_TAGS | _CONTAINER_TAGS
+
+
+def _has_block_children(el: Tag) -> bool:
+    return any(isinstance(c, Tag) and c.name in _BLOCK_TAGS for c in el.children)
 
 
 def _walk(
@@ -64,6 +121,7 @@ def _walk(
     assets: list[Asset],
     idx: list[int],
     depth: int = 0,
+    source_path: Path | None = None,
 ) -> None:
     """
     Recursive traversal that processes direct children one at a time.
@@ -177,10 +235,12 @@ def _walk(
             alt = child.get("alt", "")
             if src or alt:
                 asset_id = f"img_{idx[0]}"
+                img_bytes = _extract_image_bytes(src, source_path)
                 assets.append(Asset(
                     id=asset_id,
                     type="image",
                     alt_text=alt,
+                    image_bytes=img_bytes,
                     metadata={"src": src},
                 ))
                 blocks.append(Block(
@@ -198,7 +258,20 @@ def _walk(
 
         # ── Container — transparent, recurse ───────────────────────────────────
         elif tag in _CONTAINER_TAGS or tag not in _STRUCTURAL_TAGS:
-            _walk(child, blocks, assets, idx, depth + 1)
+            if tag in _INLINE_TAGS:
+                continue
+            if _has_block_children(child):
+                _walk(child, blocks, assets, idx, depth + 1, source_path)
+            else:
+                # Leaf container: only text + inline tags — emit full text directly
+                text = child.get_text(separator=" ", strip=True)
+                if text and len(text) > 15:
+                    blocks.append(Block(
+                        type=BlockType.PARAGRAPH,
+                        content=text,
+                        index=idx[0],
+                    ))
+                    idx[0] += 1
 
 
 class HTMLParser(ParserPlugin):
@@ -224,7 +297,7 @@ class HTMLParser(ParserPlugin):
         idx = [0]
 
         body = soup.find("body") or soup
-        _walk(body, blocks, assets, idx)
+        _walk(body, blocks, assets, idx, source_path=path)
 
         doc = Document(
             source=str(path),

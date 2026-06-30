@@ -22,7 +22,8 @@ def _block_to_md(block: Block) -> str:
         lines = block.content.splitlines()
         return "\n".join(f"> {line}" for line in lines)
     elif block.type == BlockType.IMAGE:
-        return f"![{block.content}]"
+        label = block.content or block.metadata.get("src", "Image")
+        return f"![{label}]"
     elif block.type == BlockType.PAGE_BREAK:
         return "---"
     else:

@@ -2,7 +2,10 @@ from __future__ import annotations
 import logging
 import re
 import zipfile
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:  # pragma: no cover
+    import xml.etree.ElementTree as ET  # type: ignore[assignment]
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
