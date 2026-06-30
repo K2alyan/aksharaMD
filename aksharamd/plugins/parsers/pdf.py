@@ -117,6 +117,53 @@ def _cells_to_markdown(cells: list[list]) -> str:
     return "\n".join(lines)
 
 
+_PDFPLUMBER_TEXT_SETTINGS = {
+    "vertical_strategy": "text",
+    "horizontal_strategy": "text",
+    "snap_x_tolerance": 3,
+    "snap_y_tolerance": 3,
+    "min_words_vertical": 2,    # at least 2 aligned words needed to declare a column
+    "min_words_horizontal": 1,
+}
+
+
+def _try_pdfplumber_tables(
+    pdf_pl,
+    page_num: int,
+    total_chars: int,
+    page_height: float,
+) -> list[dict]:
+    """Use pdfplumber to detect borderless (whitespace-aligned) tables.
+
+    Called only when PyMuPDF's ruled-line detector found nothing.
+    Uses the text strategy — clusters column boundaries by x-coordinate rather
+    than looking for ruling lines. Catches financial statements, government forms,
+    and any table laid out with tab/space alignment.
+
+    Bboxes are converted from pdfplumber's top-left origin to PyMuPDF's
+    bottom-left origin so _filter_table_spans removes the right text spans.
+    """
+    if total_chars > _PDFPLUMBER_CHAR_LIMIT or total_chars < _OCR_TEXT_THRESHOLD:
+        return []
+    try:
+        pl_page = pdf_pl.pages[page_num - 1]
+        results = []
+        for tbl in pl_page.find_tables(table_settings=_PDFPLUMBER_TEXT_SETTINGS):
+            # Filter entirely-empty rows that pdfplumber inserts for inter-row gaps
+            cells = [row for row in tbl.extract() if any(c for c in row)]
+            md = _cells_to_markdown(cells)
+            if not md or not _is_quality_table(md):
+                continue
+            x0, top, x1, bottom = tbl.bbox
+            # pdfplumber: y measured from top-left; PyMuPDF: y measured from bottom-left
+            pymupdf_bbox = (x0, page_height - bottom, x1, page_height - top)
+            results.append({"markdown": md, "bbox": pymupdf_bbox})
+        return results
+    except Exception:
+        logger.debug("pdfplumber table extraction failed on page %d", page_num, exc_info=True)
+        return []
+
+
 _OCR_TEXT_THRESHOLD = 50    # chars below which a full-page rasterisation is done
 _EMBEDDED_OCR_THRESHOLD = 300  # chars below which embedded images are individually OCR'd
 _OCR_DPI = 150              # rasterization DPI for Tesseract; 150 balances speed and accuracy
@@ -124,6 +171,8 @@ _EMBED_MIN_PX = 100         # ignore embedded images smaller than 100×100 px (d
 _MAX_CONTENT_IMAGE_BYTES = 2 * 1024 * 1024  # skip images > 2 MB (very high-res raw scans)
 _MAX_IMAGES_PER_PAGE = 3
 _MAX_TOTAL_IMAGES = 20
+# pdfplumber fallback: skip pages denser than this (unlikely to have a missed table)
+_PDFPLUMBER_CHAR_LIMIT = 3000
 
 
 class RawPage(NamedTuple):
@@ -138,8 +187,11 @@ class RawPage(NamedTuple):
     content_images: list[tuple[str, bytes]] = []  # (asset_id, bytes) for multimodal output
 
 
-def _extract_raw_page(pdf: fitz.Document, page_num: int) -> RawPage:
-    """Sequential I/O pass — must run in the main thread (PyMuPDF not thread-safe)."""
+def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage:
+    """Sequential I/O pass — must run in the main thread (PyMuPDF not thread-safe).
+
+    pdf_pl: optional open pdfplumber.PDF for borderless-table fallback.
+    """
     page = pdf[page_num - 1]
 
     spans = []
@@ -176,6 +228,12 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int) -> RawPage:
     ]
 
     total_chars = sum(len(s["text"]) for s in spans)
+
+    # pdfplumber fallback: detect borderless (whitespace-aligned) tables when
+    # PyMuPDF found nothing and the page has enough text to plausibly contain one.
+    if not tables and pdf_pl is not None:
+        tables = _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height)
+
     ocr_pixmap: bytes | None = None
     if total_chars < _OCR_TEXT_THRESHOLD:
         try:
@@ -531,8 +589,22 @@ class PDFParser(ParserPlugin):
         pdf = fitz.open(str(path))
         page_count = pdf.page_count
 
+        # Open pdfplumber alongside fitz for borderless-table fallback.
+        # Both must be used in Phase 1 (sequential) since neither is thread-safe.
+        pdf_pl = None
+        try:
+            import pdfplumber
+            pdf_pl = pdfplumber.open(str(path))
+        except Exception:
+            logger.debug("pdfplumber unavailable; borderless-table fallback disabled")
+
         # Phase 1: Sequential I/O — extract raw data from PyMuPDF (not thread-safe)
-        raw_pages = [_extract_raw_page(pdf, i + 1) for i in range(page_count)]
+        try:
+            raw_pages = [_extract_raw_page(pdf, i + 1, pdf_pl) for i in range(page_count)]
+        finally:
+            if pdf_pl is not None:
+                pdf_pl.close()
+
         pdf_metadata = dict(pdf.metadata)
         toc = pdf.get_toc()  # [[level, title, page], ...]
         pdf.close()
