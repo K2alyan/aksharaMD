@@ -36,9 +36,6 @@ _HEADER_ZONE = 0.12
 _FOOTER_ZONE = 0.88
 _FOOTNOTE_ZONE_START = 0.72
 _FOOTNOTE_SIZE_RATIO = 0.72
-_COL_GENERIC_RE = re.compile(r"^Col\d+$")
-
-
 def _is_bold(flags: int) -> bool:
     return bool(flags & 2**4)
 
@@ -82,16 +79,25 @@ def _is_quality_table(markdown: str) -> bool:
     return bool(data_rows)
 
 
-def _clean_table_markdown(markdown: str) -> str:
-    """Replace generic ColN header names with blank cells for readability."""
-    lines = markdown.strip().splitlines()
-    if not lines:
-        return markdown
-    cells = lines[0].split("|")
-    lines[0] = "|".join(
-        "" if _COL_GENERIC_RE.match(c.strip()) else c
-        for c in cells
-    )
+def _cells_to_markdown(cells: list[list]) -> str:
+    """Convert a 2-D cell grid (from tab.extract()) to a Markdown table string."""
+    if not cells:
+        return ""
+
+    def norm(v) -> str:
+        return re.sub(r"\s+", " ", (v or "").replace("|", "\\|")).strip()
+
+    rows = [[norm(c) for c in row] for row in cells]
+    ncols = max((len(r) for r in rows), default=0)
+    if ncols == 0:
+        return ""
+    rows = [r + [""] * (ncols - len(r)) for r in rows]
+    sep = ["---"] * ncols
+    lines = [
+        "| " + " | ".join(rows[0]) + " |",
+        "| " + " | ".join(sep) + " |",
+    ]
+    lines += ["| " + " | ".join(r) + " |" for r in rows[1:]]
     return "\n".join(lines)
 
 
@@ -141,9 +147,10 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int) -> RawPage:
     if _has_ruled_table(page):
         try:
             for tab in page.find_tables():
-                md = tab.to_markdown()
+                cells = tab.extract()
+                md = _cells_to_markdown(cells)
                 if md and _is_quality_table(md):
-                    tables.append({"markdown": _clean_table_markdown(md), "bbox": tuple(tab.bbox)})
+                    tables.append({"markdown": md, "bbox": tuple(tab.bbox)})
         except Exception:
             logger.debug("find_tables() failed on page %d", page_num, exc_info=True)
 
@@ -164,16 +171,29 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int) -> RawPage:
     # Extract bytes for embedded images on image-heavy pages.
     # Only when _OCR_TEXT_THRESHOLD <= chars < _EMBEDDED_OCR_THRESHOLD (if chars < threshold
     # we already OCR the full rasterised page, so per-image OCR would be redundant).
+    _PIL_SUPPORTED_EXTS = {"png", "jpeg", "jpg", "bmp", "tiff", "tif", "webp"}
     embedded_image_bytes: list[bytes] = []
     if _OCR_TEXT_THRESHOLD <= total_chars < _EMBEDDED_OCR_THRESHOLD and images:
         for img_info in page.get_images(full=True):
+            if len(embedded_image_bytes) >= _MAX_IMAGES_PER_PAGE:
+                break
             try:
                 xref = img_info[0]
                 img_dict = pdf.extract_image(xref)
                 w = img_dict.get("width", 0)
                 h = img_dict.get("height", 0)
-                raw_bytes = img_dict.get("image")
-                if w >= _EMBED_MIN_PX and h >= _EMBED_MIN_PX and raw_bytes:
+                if w < _EMBED_MIN_PX or h < _EMBED_MIN_PX:
+                    continue
+                ext = img_dict.get("ext", "").lower()
+                if ext in _PIL_SUPPORTED_EXTS:
+                    raw_bytes = img_dict.get("image")
+                else:
+                    # Unsupported codec (JBIG2, CCITT, etc.) — decode via Pixmap to PNG
+                    pix = fitz.Pixmap(pdf, xref)
+                    if pix.n > 4:
+                        pix = fitz.Pixmap(fitz.csRGB, pix)
+                    raw_bytes = pix.tobytes("png")
+                if raw_bytes:
                     embedded_image_bytes.append(raw_bytes)
             except Exception:
                 logger.debug("Image extraction failed on page %d xref %s",

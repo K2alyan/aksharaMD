@@ -8,7 +8,6 @@ from ..context import CompilationContext
 
 class BasePlugin(ABC):
     name: ClassVar[str]
-    version: ClassVar[str] = "0.1.0"
     priority: ClassVar[int] = 50
     supported_types: ClassVar[list[str]] = ["*"]
 

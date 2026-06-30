@@ -1,4 +1,14 @@
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+
+def _get_version() -> str:
+    try:
+        return _pkg_version("aksharamd")
+    except PackageNotFoundError:
+        return "0.0.0.dev"
+
 
 from pydantic import BaseModel, Field
 
@@ -26,4 +36,4 @@ class Manifest(BaseModel):
     compiled_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
-    aksharamd_version: str = "0.1.0"
+    aksharamd_version: str = Field(default_factory=_get_version)
