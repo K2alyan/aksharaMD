@@ -18,6 +18,28 @@ def _read_file(path: Path) -> str:
     return raw.decode(enc, errors="replace")
 
 
+def _render_list_tokens(tokens: list, start: int, ordered: bool, depth: int = 0) -> tuple[list[str], int]:
+    """Recursively render list tokens to indented lines. Returns (lines, index_after_close)."""
+    lines: list[str] = []
+    j = start
+    item_num = 1
+    while j < len(tokens):
+        ttype = tokens[j].type
+        if ttype in ("bullet_list_close", "ordered_list_close"):
+            return lines, j + 1
+        if ttype in ("bullet_list_open", "ordered_list_open"):
+            nested_lines, j = _render_list_tokens(tokens, j + 1, ttype == "ordered_list_open", depth + 1)
+            lines.extend(nested_lines)
+            continue
+        if ttype == "inline" and j > 0 and tokens[j - 1].type == "paragraph_open":
+            indent = "  " * depth
+            prefix = f"{item_num}." if ordered else "-"
+            lines.append(f"{indent}{prefix} {tokens[j].content}")
+            item_num += 1
+        j += 1
+    return lines, j
+
+
 class MarkdownParser(ParserPlugin):
     name = "markdown_parser"
     supported_types = ["md", "markdown"]
@@ -96,23 +118,17 @@ class MarkdownParser(ParserPlugin):
                     block_index += 1
 
             elif token.type == "bullet_list_open" or token.type == "ordered_list_open":
-                items = []
-                j = i + 1
                 ordered = token.type == "ordered_list_open"
-                item_num = 1
-                while j < len(tokens) and tokens[j].type not in ("bullet_list_close", "ordered_list_close"):
-                    if tokens[j].type == "inline":
-                        prefix = f"{item_num}. " if ordered else "- "
-                        items.append(prefix + tokens[j].content)
-                        item_num += 1
-                    j += 1
-                if items:
+                list_lines, next_i = _render_list_tokens(tokens, i + 1, ordered)
+                if list_lines:
                     blocks.append(Block(
                         type=BlockType.LIST,
-                        content="\n".join(items),
+                        content="\n".join(list_lines),
                         index=block_index,
                     ))
                     block_index += 1
+                i = next_i
+                continue
 
             elif token.type == "blockquote_open":
                 j = i + 1

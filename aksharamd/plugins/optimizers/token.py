@@ -17,7 +17,9 @@ def _remove_duplicates(blocks: list[Block]) -> tuple[list[Block], int]:
     result = []
     removed = 0
     for block in blocks:
-        if block.checksum in seen:
+        if block.type == BlockType.IMAGE:
+            result.append(block)  # images are never duplicates — different charts, same empty content
+        elif block.checksum in seen:
             removed += 1
         else:
             seen.add(block.checksum)

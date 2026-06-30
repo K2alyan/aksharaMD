@@ -40,45 +40,45 @@ for noisy in ("docling", "docling_core", "rapidocr", "transformers",
 # ── tool support matrix ───────────────────────────────────────────────────────
 # Maps file extension → set of tool names that can handle it.
 TOOL_SUPPORT: dict[str, set[str]] = {
-    ".pdf":   {"omnimark", "markitdown", "docling", "unstructured", "pymupdf4llm", "pypdf", "pdfplumber"},
-    ".docx":  {"omnimark", "markitdown", "docling", "unstructured"},
-    ".doc":   {"omnimark", "markitdown", "unstructured"},
-    ".pptx":  {"omnimark", "markitdown", "docling", "unstructured"},
-    ".ppt":   {"omnimark", "markitdown", "unstructured"},
-    ".xlsx":  {"omnimark", "markitdown", "unstructured"},
-    ".xls":   {"omnimark", "markitdown", "unstructured"},
-    ".msg":   {"omnimark", "markitdown"},
-    ".eml":   {"omnimark", "markitdown"},
-    ".epub":  {"omnimark", "markitdown", "unstructured"},
-    ".odt":   {"omnimark"},
-    ".ods":   {"omnimark"},
-    ".odp":   {"omnimark"},
-    ".rtf":   {"omnimark", "markitdown", "unstructured"},
-    ".txt":   {"omnimark", "markitdown", "unstructured"},
-    ".md":    {"omnimark", "markitdown"},
-    ".html":  {"omnimark", "markitdown", "docling", "unstructured"},
-    ".htm":   {"omnimark", "markitdown", "docling", "unstructured"},
-    ".csv":   {"omnimark", "markitdown", "unstructured"},
-    ".json":  {"omnimark", "markitdown"},
-    ".jsonl": {"omnimark", "markitdown"},
-    ".xml":   {"omnimark", "markitdown", "unstructured"},
-    ".rss":   {"omnimark", "markitdown"},
-    ".atom":  {"omnimark", "markitdown"},
-    ".zip":   {"omnimark", "markitdown", "unstructured"},
-    ".tar":   {"omnimark"},
-    ".gz":    {"omnimark"},
-    ".7z":    {"omnimark"},
-    ".ipynb": {"omnimark", "markitdown", "unstructured"},
-    ".jpg":   {"omnimark", "markitdown", "docling", "unstructured"},
-    ".jpeg":  {"omnimark", "markitdown", "docling", "unstructured"},
-    ".png":   {"omnimark", "markitdown", "docling", "unstructured"},
-    ".mp3":   {"omnimark", "markitdown"},
-    ".wav":   {"omnimark", "markitdown"},
-    ".m4a":   {"omnimark", "markitdown"},
-    ".mp4":   {"omnimark", "markitdown"},
+    ".pdf":   {"aksharamd", "naive", "markitdown", "docling", "unstructured", "pymupdf4llm", "pypdf", "pdfplumber"},
+    ".docx":  {"aksharamd", "naive", "markitdown", "docling", "unstructured"},
+    ".doc":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".pptx":  {"aksharamd", "naive", "markitdown", "docling", "unstructured"},
+    ".ppt":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".xlsx":  {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".xls":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".msg":   {"aksharamd", "naive", "markitdown"},
+    ".eml":   {"aksharamd", "naive", "markitdown"},
+    ".epub":  {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".odt":   {"aksharamd"},
+    ".ods":   {"aksharamd"},
+    ".odp":   {"aksharamd"},
+    ".rtf":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".txt":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".md":    {"aksharamd", "naive", "markitdown"},
+    ".html":  {"aksharamd", "naive", "markitdown", "docling", "unstructured"},
+    ".htm":   {"aksharamd", "naive", "markitdown", "docling", "unstructured"},
+    ".csv":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".json":  {"aksharamd", "naive", "markitdown"},
+    ".jsonl": {"aksharamd", "naive", "markitdown"},
+    ".xml":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".rss":   {"aksharamd", "naive", "markitdown"},
+    ".atom":  {"aksharamd", "naive", "markitdown"},
+    ".zip":   {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".tar":   {"aksharamd"},
+    ".gz":    {"aksharamd"},
+    ".7z":    {"aksharamd"},
+    ".ipynb": {"aksharamd", "naive", "markitdown", "unstructured"},
+    ".jpg":   {"aksharamd", "markitdown", "docling", "unstructured"},
+    ".jpeg":  {"aksharamd", "markitdown", "docling", "unstructured"},
+    ".png":   {"aksharamd", "markitdown", "docling", "unstructured"},
+    ".mp3":   {"aksharamd", "markitdown"},
+    ".wav":   {"aksharamd", "markitdown"},
+    ".m4a":   {"aksharamd", "markitdown"},
+    ".mp4":   {"aksharamd", "markitdown"},
 }
 
-ALL_TOOLS = ["omnimark", "markitdown", "docling", "unstructured", "pymupdf4llm", "pypdf", "pdfplumber"]
+ALL_TOOLS = ["naive", "aksharamd", "markitdown", "docling", "unstructured", "pymupdf4llm", "pypdf", "pdfplumber"]
 
 FILE_TYPE_MAP = {
     "pdf": [".pdf"],
@@ -104,7 +104,7 @@ TIMEOUT_SECONDS = 120
 
 # ── per-tool runners ──────────────────────────────────────────────────────────
 
-def _run_omnimark(path: Path) -> tuple[str, float]:
+def _run_aksharamd(path: Path) -> tuple[str, float]:
     from aksharamd.compiler import Compiler
     with tempfile.TemporaryDirectory() as tmp:
         compiler = Compiler(output_dir=tmp)
@@ -192,8 +192,96 @@ def _run_pdfplumber(path: Path) -> tuple[str, float]:
     return "\n\n".join(parts), elapsed
 
 
+def _run_naive(path: Path) -> tuple[str, float]:
+    """Raw text extraction with zero cleanup — format-appropriate but no post-processing."""
+    import time
+    ext = path.suffix.lower()
+    t0 = time.perf_counter()
+
+    if ext == ".pdf":
+        import fitz
+        doc = fitz.open(str(path))
+        text = "".join(page.get_text() for page in doc)
+        doc.close()
+
+    elif ext in (".txt", ".csv", ".json", ".jsonl", ".xml", ".rss", ".atom",
+                 ".html", ".htm", ".md", ".rst", ".tex", ".yaml", ".toml", ".sh",
+                 ".py", ".js", ".ts", ".go", ".rs", ".java", ".c", ".cpp", ".sql"):
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+
+    elif ext == ".docx":
+        from docx import Document
+        doc = Document(str(path))
+        text = "\n".join(p.text for p in doc.paragraphs)
+
+    elif ext == ".pptx":
+        from pptx import Presentation
+        prs = Presentation(str(path))
+        text = "\n".join(
+            shape.text for slide in prs.slides
+            for shape in slide.shapes if hasattr(shape, "text")
+        )
+
+    elif ext in (".xlsx", ".xls"):
+        import openpyxl
+        wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+        parts = []
+        for ws in wb.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value is not None:
+                        parts.append(str(cell.value))
+        text = "\n".join(parts)
+
+    elif ext == ".epub":
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+        book = epub.read_epub(str(path), options={"ignore_ncx": True})
+        parts = []
+        for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+            soup = BeautifulSoup(item.get_content(), "html.parser")
+            parts.append(soup.get_text())
+        text = "\n".join(parts)
+
+    elif ext in (".eml", ".msg"):
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+
+    elif ext == ".ipynb":
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+
+    elif ext == ".zip":
+        import zipfile
+        try:
+            with zipfile.ZipFile(str(path)) as zf:
+                text = "\n".join(zf.namelist())
+        except Exception:
+            text = ""
+
+    elif ext in (".jpg", ".jpeg", ".png", ".tiff", ".bmp", ".webp", ".gif"):
+        # No text layer — naive extraction not applicable
+        text = ""
+
+    elif ext in (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".mp4", ".webm"):
+        text = ""
+
+    elif ext in (".tar", ".gz", ".bz2", ".xz", ".7z", ".tgz"):
+        text = ""
+
+    else:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+
+    elapsed = time.perf_counter() - t0
+    return text, elapsed
+
+
 RUNNERS: dict[str, callable] = {
-    "omnimark":     _run_omnimark,
+    "naive":        _run_naive,
+    "aksharamd":    _run_aksharamd,
     "markitdown":   _run_markitdown,
     "docling":      _run_docling,
     "unstructured": _run_unstructured,
@@ -207,7 +295,8 @@ RUNNERS: dict[str, callable] = {
 
 def check_tool_available(tool: str) -> bool:
     MODULE_MAP = {
-        "omnimark":     "aksharamd.compiler",
+        "naive":        "fitz",
+        "aksharamd":    "aksharamd.compiler",
         "markitdown":   "markitdown",
         "docling":      "docling.document_converter",
         "unstructured": "unstructured.partition.auto",
@@ -473,10 +562,40 @@ def print_summary(results: list[ToolResult], available_tools: dict[str, bool]) -
     missing.add_column("Extension", style="bold red")
     missing.add_column("Currently handled by")
     for ext, tools in sorted(TOOL_SUPPORT.items()):
-        if "omnimark" not in tools and tools - {"omnimark"}:
-            others = ", ".join(sorted(tools - {"omnimark"}))
+        if "aksharamd" not in tools and tools - {"aksharamd"}:
+            others = ", ".join(sorted(tools - {"aksharamd"}))
             missing.add_row(ext, others)
     console.print(missing)
+
+    # ── LLM input cost table ──────────────────────────────────────────────────
+    LLM_PRICES = [
+        ("Claude Sonnet 4",    3.00),
+        ("GPT-4o",             2.50),
+        ("Gemini 1.5 Flash",   0.075),
+        ("Gemini 2.0 Flash",   0.10),
+    ]
+    cost_table = Table(
+        title="Estimated LLM Input Cost per 1,000 Documents (tokens only — pending QA fidelity validation)",
+        show_header=True
+    )
+    cost_table.add_column("Tool", style="bold")
+    cost_table.add_column("Avg tokens", justify="right")
+    for model, price in LLM_PRICES:
+        cost_table.add_column(f"{model}\n(${price:.3f}/1M)", justify="right")
+
+    for tool in tools_to_show:
+        ok_results = [r for r in results if r.tool == tool and r.status == "ok"]
+        if not ok_results:
+            continue
+        avg_tok = sum(r.token_count for r in ok_results) / len(ok_results)
+        row = [tool, f"{avg_tok:,.0f}"]
+        for model, price in LLM_PRICES:
+            cost_per_1k = (avg_tok / 1_000_000) * price * 1000
+            row.append(f"${cost_per_1k:.3f}")
+        cost_table.add_row(*row)
+    console.print(cost_table)
+    console.print("[dim]Note: Cost estimates assume token count maps directly to LLM input tokens. "
+                  "QA fidelity test required to validate information preservation.[/dim]")
 
 
 def main() -> int:
@@ -503,11 +622,27 @@ def main() -> int:
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    import subprocess, sys as _sys
+    def _get_version(pkg):
+        try:
+            r = subprocess.run([_sys.executable, "-m", "pip", "show", pkg],
+                               capture_output=True, text=True)
+            for line in r.stdout.splitlines():
+                if line.startswith("Version:"):
+                    return line.split(":", 1)[1].strip()
+        except Exception:
+            pass
+        return "unknown"
+
     tools_to_run = args.tools or ALL_TOOLS
     unknown = set(tools_to_run) - set(ALL_TOOLS)
     if unknown:
         print(f"Unknown tools: {sorted(unknown)}. Valid: {ALL_TOOLS}", file=sys.stderr)
         return 1
+
+    tool_versions = {t: _get_version(t if t != "aksharamd" else "aksharamd")
+                     for t in tools_to_run}
+    tool_versions["naive"] = _get_version("pymupdf")
 
     # Check availability
     available: dict[str, bool] = {}
@@ -559,8 +694,17 @@ def main() -> int:
 
     # ── write JSON ────────────────────────────────────────────────────────────
     json_path = out_dir / "results.json"
+    output = {
+        "meta": {
+            "date": __import__("datetime").datetime.utcnow().isoformat(),
+            "corpus_dir": str(corpus_dir),
+            "tool_versions": tool_versions,
+            "tokenizer": "cl100k_base",
+        },
+        "results": [asdict(r) for r in results],
+    }
     json_path.write_text(
-        json.dumps([asdict(r) for r in results], indent=2), encoding="utf-8"
+        json.dumps(output, indent=2), encoding="utf-8"
     )
     print(f"JSON -> {json_path}")
 

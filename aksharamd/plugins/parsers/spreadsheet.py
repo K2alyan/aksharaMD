@@ -28,6 +28,25 @@ def _rows_to_markdown(headers: list[str], rows: list[list[str]]) -> str:
     return "\n".join([header_row, sep_row] + data_rows)
 
 
+_XLSX_LARGE_FILE_BYTES = 10 * 1024 * 1024  # 10 MB — read_only above this
+
+
+def _build_merged_map(ws) -> dict[tuple[int, int], str]:
+    """Return {(row, col): value} for all slave cells in merged ranges."""
+    merged: dict[tuple[int, int], str] = {}
+    try:
+        for rng in ws.merged_cells.ranges:
+            master_val = ws.cell(rng.min_row, rng.min_col).value
+            master_str = str(master_val) if master_val is not None else ""
+            for row in range(rng.min_row, rng.max_row + 1):
+                for col in range(rng.min_col, rng.max_col + 1):
+                    if row != rng.min_row or col != rng.min_col:
+                        merged[(row, col)] = master_str
+    except Exception:
+        pass
+    return merged
+
+
 # ── XLSX ──────────────────────────────────────────────────────────────────────
 
 class XlsxParser(ParserPlugin):
@@ -38,8 +57,12 @@ class XlsxParser(ParserPlugin):
         import openpyxl
 
         path = Path(ctx.source)
+        # Use read_only=False for small files so merged cells can be expanded
+        file_size = path.stat().st_size
+        read_only = file_size > _XLSX_LARGE_FILE_BYTES
+
         try:
-            wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+            wb = openpyxl.load_workbook(str(path), read_only=read_only, data_only=True)
         except Exception as e:
             ctx.error("XLSX_PARSE_ERROR", str(e))
             return ctx
@@ -52,15 +75,28 @@ class XlsxParser(ParserPlugin):
             blocks.append(Block(type=BlockType.HEADING, content=sheet_name, level=2, index=idx))
             idx += 1
 
+            # Build merged cell expansion map (only available in non-read-only mode)
+            merged_map = _build_merged_map(ws) if not read_only else {}
+
             all_rows = list(ws.iter_rows(values_only=True))
             if not all_rows:
                 continue
 
-            headers = [str(c) if c is not None else "" for c in all_rows[0]]
-            data = [
-                [str(c) if c is not None else "" for c in row]
-                for row in all_rows[1:_MAX_ROWS_PER_SHEET + 1]
-            ]
+            if merged_map:
+                # Expand merged slave cells with their master's value
+                expanded = []
+                for r_idx, row in enumerate(all_rows, 1):
+                    new_row = []
+                    for c_idx, val in enumerate(row, 1):
+                        mv = merged_map.get((r_idx, c_idx))
+                        new_row.append(mv if mv is not None else (str(val) if val is not None else ""))
+                    expanded.append(new_row)
+                all_rows = expanded
+            else:
+                all_rows = [[str(c) if c is not None else "" for c in row] for row in all_rows]
+
+            headers = list(all_rows[0])
+            data = list(all_rows[1:_MAX_ROWS_PER_SHEET + 1])
 
             if data:
                 md = _rows_to_markdown(headers, data)
