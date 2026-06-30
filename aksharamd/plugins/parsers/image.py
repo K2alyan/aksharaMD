@@ -39,6 +39,7 @@ _TESSERACT_CANDIDATES = [
 
 _MIN_OCR_CHARS = 10        # discard results shorter than this
 _MIN_WORD_RATIO = 0.3      # discard if fewer than 30% of tokens look like real words
+_MIN_OCR_CONFIDENCE = 40   # Tesseract per-word confidence 0–100; mean below this → discard
 _WORD_RE = re.compile(r"[A-Za-z]{2,}")
 
 
@@ -135,14 +136,64 @@ def _ocr_to_blocks(text: str, start_idx: int) -> list[Block]:
 
 
 def _try_ocr(img) -> str | None:
-    """Run Tesseract OCR on the image. Returns cleaned text or None."""
+    """Run Tesseract OCR on the image. Returns cleaned text or None.
+
+    Uses image_to_data for per-word confidence scoring — discards the result if
+    mean confidence is below _MIN_OCR_CONFIDENCE (avoids garbage OCR blocks on
+    decorative images or poor scans that Tesseract processes with low certainty).
+    """
     if not _configure_tesseract():
         return None
     try:
         import pytesseract
+
         preprocessed = _preprocess_for_ocr(img)
-        text = pytesseract.image_to_string(preprocessed, config="--psm 3")
-        text = text.strip()
+        data = pytesseract.image_to_data(
+            preprocessed,
+            config="--psm 3",
+            output_type=pytesseract.Output.DICT,
+        )
+
+        # Mean confidence over all scored segments (conf=-1 = non-text structure rows)
+        conf_vals = [int(c) for c in data["conf"] if int(c) >= 0]
+        if conf_vals and sum(conf_vals) / len(conf_vals) < _MIN_OCR_CONFIDENCE:
+            return None
+
+        # Reconstruct text preserving paragraph/line structure
+        paragraphs: list[str] = []
+        current_blk = current_par = current_ln = -1
+        line_buf: list[str] = []
+        para_buf: list[str] = []
+
+        for i, word in enumerate(data["text"]):
+            if not word.strip():
+                continue
+            blk = int(data["block_num"][i])
+            par = int(data["par_num"][i])
+            ln = int(data["line_num"][i])
+
+            if blk != current_blk or par != current_par:
+                if line_buf:
+                    para_buf.append(" ".join(line_buf))
+                if para_buf:
+                    paragraphs.append("\n".join(para_buf))
+                line_buf = [word]
+                para_buf = []
+                current_blk, current_par, current_ln = blk, par, ln
+            elif ln != current_ln:
+                if line_buf:
+                    para_buf.append(" ".join(line_buf))
+                line_buf = [word]
+                current_ln = ln
+            else:
+                line_buf.append(word)
+
+        if line_buf:
+            para_buf.append(" ".join(line_buf))
+        if para_buf:
+            paragraphs.append("\n".join(para_buf))
+
+        text = "\n\n".join(paragraphs).strip()
         if not _is_quality_ocr(text):
             return None
         return text
