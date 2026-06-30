@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from aksharamd.plugins.parsers.data import _summarise_json
-
 
 # ── _summarise_json ─────────────────────────────────────────────────────────
 
@@ -116,7 +113,6 @@ def test_json_parser_invalid_json_falls_back(tmp_path):
 
 def test_jsonl_parser_structured(tmp_path):
     from aksharamd.context import CompilationContext
-    from aksharamd.models.block import BlockType
     from aksharamd.plugins.parsers.data import JsonlParser
 
     records = [{"id": i, "val": f"item_{i}"} for i in range(5)]
