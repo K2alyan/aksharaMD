@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 import subprocess
@@ -6,16 +7,22 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..base import ParserPlugin
-from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.document import Document
-
 # Default model: "base" balances speed vs quality. Users can override via
 # environment variable OMNIMARK_WHISPER_MODEL (tiny/base/small/medium/large).
 import os as _os
-_DEFAULT_MODEL = _os.environ.get("OMNIMARK_WHISPER_MODEL", "base")
+
+from ...context import CompilationContext
+from ...models.block import Block, BlockType
+from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
+
+_ALLOWED_MODELS = {"tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "turbo"}
+_raw_model = _os.environ.get("OMNIMARK_WHISPER_MODEL", "base")
+if _raw_model not in _ALLOWED_MODELS:
+    logger.warning("Unknown OMNIMARK_WHISPER_MODEL %r — falling back to 'base'", _raw_model)
+    _raw_model = "base"
+_DEFAULT_MODEL = _raw_model
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 

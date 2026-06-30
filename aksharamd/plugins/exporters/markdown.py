@@ -1,11 +1,11 @@
 from __future__ import annotations
-import json
+
 from pathlib import Path
 
-from ..base import ExporterPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
+from ..base import ExporterPlugin
+from ..registry import register_plugin
 
 
 def _block_to_md(block: Block) -> str:

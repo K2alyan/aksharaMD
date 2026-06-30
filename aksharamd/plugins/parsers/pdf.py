@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import hashlib
 import logging
 import re
@@ -12,13 +13,12 @@ import fitz  # PyMuPDF
 
 logger = logging.getLogger(__name__)
 
+from ...context import CompilationContext
+from ...models.asset import Asset
+from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.asset import Asset
-from ...models.document import Document
-
 
 _PAGE_NUM_RE = re.compile(
     r"^\d+$"
@@ -72,13 +72,13 @@ def _has_ruled_table(page: fitz.Page) -> bool:
 
 def _is_quality_table(markdown: str) -> bool:
     """Reject tables that are clearly noise: need ≥2 columns and ≥1 real data row."""
-    lines = [l for l in markdown.strip().splitlines() if l.strip()]
+    lines = [ln for ln in markdown.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
         return False
     cols = [c for c in lines[0].split("|") if c.strip()]
     if len(cols) < 2:
         return False
-    data_rows = [l for l in lines[2:] if "|" in l and not l.startswith("|---")]
+    data_rows = [ln for ln in lines[2:] if "|" in ln and not ln.startswith("|---")]
     return bool(data_rows)
 
 
@@ -346,7 +346,9 @@ def _apply_page_ocr(png_bytes: bytes, page_num: int, blocks: list[Block]) -> Non
     try:
         import io
         import re
+
         from PIL import Image
+
         from .image import _try_ocr
         pil_img = Image.open(io.BytesIO(png_bytes))
         ocr_text = _try_ocr(pil_img)

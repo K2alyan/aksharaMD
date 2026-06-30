@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 import hashlib
-from enum import Enum
+from enum import StrEnum
+
 from pydantic import BaseModel, Field, model_validator
 
 
-class BlockType(str, Enum):
+class BlockType(StrEnum):
     HEADING = "heading"
     PARAGRAPH = "paragraph"
     TABLE = "table"
@@ -31,7 +33,7 @@ class Block(BaseModel):
     checksum: str = ""
 
     @model_validator(mode="after")
-    def _compute_derived(self) -> "Block":
+    def _compute_derived(self) -> Block:
         if not self.checksum:
             self.checksum = hashlib.sha256(self.content.encode()).hexdigest()[:16]
         if not self.id:

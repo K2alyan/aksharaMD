@@ -1,13 +1,12 @@
 from __future__ import annotations
+
 import re
 import unicodedata
-from collections import Counter
 
-from ..base import CleanerPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import BlockType
-
+from ..base import CleanerPlugin
+from ..registry import register_plugin
 
 _PAGE_NUMBER_RE = re.compile(r"^\d+$|^page\s+\d+(\s+of\s+\d+)?$", re.IGNORECASE)
 _ZERO_WIDTH = re.compile(r"[​‌‍﻿­]")

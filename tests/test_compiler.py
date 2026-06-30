@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 import textwrap
 from pathlib import Path
 
 import pytest
 
 from aksharamd.compiler import Compiler
-from aksharamd.context import CompilationContext
 
 
 @pytest.fixture

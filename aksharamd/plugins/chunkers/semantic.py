@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import logging
 
-from ..base import ChunkerPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.chunk import Chunk
 from ...utils import count_tokens
+from ..base import ChunkerPlugin
+from ..registry import register_plugin
 
 logger = logging.getLogger(__name__)
 

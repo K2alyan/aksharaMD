@@ -1,10 +1,10 @@
 from __future__ import annotations
-import json
+
 from pathlib import Path
 
+from ...context import CompilationContext
 from ..base import ExporterPlugin
 from ..registry import register_plugin
-from ...context import CompilationContext
 
 
 class JSONExporter(ExporterPlugin):

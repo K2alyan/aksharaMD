@@ -1,12 +1,10 @@
 from __future__ import annotations
-import re
-from collections import Counter
 
-from ..base import OptimizerPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...utils import count_tokens
+from ..base import OptimizerPlugin
+from ..registry import register_plugin
 
 _MIN_MERGE_LEN = 60   # paragraphs shorter than this are candidates for merging
 _MAX_MERGE_LEN = 300  # don't merge if combined result exceeds this

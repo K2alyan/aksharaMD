@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import json as _json
+
 try:
     import defusedxml.ElementTree as ET
 except ImportError:  # pragma: no cover
     import xml.etree.ElementTree as ET  # type: ignore[assignment]
 from pathlib import Path
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _MAX_JSON_CHARS = 40_000   # cap raw JSON shown as code block
 _MAX_FEED_ITEMS = 50

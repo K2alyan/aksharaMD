@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
+from ...context import CompilationContext
+from ...models.asset import Asset
+from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.asset import Asset
-from ...models.document import Document
 
 _DRAW_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
