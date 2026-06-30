@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from ..base import ValidatorPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import BlockType
-from ...models.validation import Severity, ValidationIssue
+from ..base import ValidatorPlugin
+from ..registry import register_plugin
 
 
 class StructureValidator(ValidatorPlugin):

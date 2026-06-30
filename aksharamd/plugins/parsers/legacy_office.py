@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
+from ...context import CompilationContext
+from ...models.block import Block
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.document import Document
 
 _SOFFICE_CANDIDATES = [
     "soffice",
@@ -49,9 +50,10 @@ def _convert_with_libreoffice(path: Path, target_format: str, out_dir: Path) -> 
 
 
 def _html_to_blocks(html_path: Path) -> list[Block]:
-    from .html import _walk as html_walk
     from bs4 import BeautifulSoup
+
     from ..base import Asset
+    from .html import _walk as html_walk
 
     html = html_path.read_text(encoding="utf-8", errors="replace")
     soup = BeautifulSoup(html, "html.parser")

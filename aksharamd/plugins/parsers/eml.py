@@ -1,18 +1,18 @@
 from __future__ import annotations
+
 import email as _email
 import email.policy
 import logging
-import quopri
 import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _REPLY_CHAIN_RE = re.compile(r"^>|^On .{10,}\s+wrote:\s*$", re.MULTILINE)
 _BOUNDARY_RE = re.compile(r"^-{5,}Original Message-{5,}|^_{20,}", re.MULTILINE | re.IGNORECASE)
@@ -112,10 +112,14 @@ class EmlParser(ParserPlugin):
             idx += 1
 
         meta_parts = []
-        if sender: meta_parts.append(f"From: {sender}")
-        if to:     meta_parts.append(f"To: {to}")
-        if cc:     meta_parts.append(f"CC: {cc}")
-        if date:   meta_parts.append(f"Date: {date}")
+        if sender:
+            meta_parts.append(f"From: {sender}")
+        if to:
+            meta_parts.append(f"To: {to}")
+        if cc:
+            meta_parts.append(f"CC: {cc}")
+        if date:
+            meta_parts.append(f"Date: {date}")
         if meta_parts:
             blocks.append(Block(type=BlockType.METADATA, content=" | ".join(meta_parts), index=idx))
             idx += 1

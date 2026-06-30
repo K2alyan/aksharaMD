@@ -1,7 +1,6 @@
 """Shared utilities used across the AksharaMD pipeline."""
 from __future__ import annotations
 
-
 # ── Token counting ─────────────────────────────────────────────────────────────
 
 def count_tokens(text: str) -> int:

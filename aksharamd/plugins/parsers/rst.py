@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 from pathlib import Path
 
 import chardet
 from bs4 import BeautifulSoup
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.asset import Asset
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 from .html import _walk
 
 
@@ -22,9 +23,10 @@ def _rst_to_html(text: str) -> str:
     from docutils.core import publish_string
     from docutils.utils import SystemMessage
     try:
+        from docutils.writers import html5_polyglot
         html_bytes = publish_string(
             text,
-            writer_name="html5",
+            writer=html5_polyglot.Writer(),
             settings_overrides={
                 "halt_level": 5,       # don't raise on warnings
                 "report_level": 5,     # suppress docutils stderr noise

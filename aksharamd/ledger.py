@@ -10,7 +10,7 @@ import json
 import logging
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def append_entry(
 ) -> None:
     """Append one compilation record to the ledger."""
     entry = LedgerEntry(
-        ts=datetime.now(timezone.utc).isoformat(),
+        ts=datetime.now(UTC).isoformat(),
         source=Path(source).name,
         file_type=file_type,
         original_tokens=original_tokens,

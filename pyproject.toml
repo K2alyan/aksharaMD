@@ -43,6 +43,9 @@ aksharamd-mcp = "aksharamd.mcp_server:serve"
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "bandit[toml]>=1.7",
+    "docutils>=0.20",
 ]
 
 [tool.hatch.envs.default]
@@ -50,3 +53,31 @@ features = ["dev"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+[tool.coverage.run]
+source = ["aksharamd"]
+omit = ["aksharamd/plugins/parsers/legacy_office.py"]  # requires LibreOffice binary
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = [
+    "E501",   # line too long — ruff format handles this
+    "UP007",  # X | Y union syntax — keep Optional for clarity
+    "E402",   # module-level import not at top — intentional in plugin files (env constants before registry)
+]
+exclude = ["benchmarks/"]
+
+[tool.bandit]
+skips = ["B101"]  # assert statements are fine in tests

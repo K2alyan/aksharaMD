@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
 
 import click
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
+from . import ledger as _ledger
 from .compiler import Compiler
 from .utils import DISPLAY_MODELS, TOKEN_PRICES, tokens_to_dollars
-from . import ledger as _ledger
 
 console = Console(highlight=False)
 
@@ -217,7 +218,6 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
 @click.option("--reset", is_flag=True, help="Delete the savings ledger (irreversible)")
 def stats(reset: bool):
     """Show cumulative token savings across all AksharaMD compilations."""
-    from . import ledger as _ledger
     from pathlib import Path
 
     ledger_path = Path.home() / ".aksharamd" / "ledger.jsonl"

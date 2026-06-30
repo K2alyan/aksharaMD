@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 from pathlib import Path
 
+from ...context import CompilationContext
+from ...models.asset import Asset
+from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.asset import Asset
-from ...models.document import Document
 
 _HEADING_TAGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
 _SKIP_TAGS = {"script", "style", "nav", "aside"}

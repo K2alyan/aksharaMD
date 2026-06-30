@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import base64
 
+from ...models.asset import Asset
 from ...models.block import Block, BlockType
 from ...models.document import Document
-from ...models.asset import Asset
 
 _MAX_IMAGES = 20  # hard cap per document to prevent runaway token usage
 

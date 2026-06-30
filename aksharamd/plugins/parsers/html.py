@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 import base64 as _b64
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import chardet
 from bs4 import BeautifulSoup, NavigableString, Tag
 
+from ...context import CompilationContext
+from ...models.asset import Asset
+from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.asset import Asset
-from ...models.document import Document
 
 _MAX_LOCAL_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB cap for local images
 
@@ -31,7 +31,11 @@ def _extract_image_bytes(src: str, source_path: Path | None) -> bytes | None:
         return None  # don't fetch remote URLs — keeps MCP server lightweight
     if source_path is not None:
         try:
-            img_path = (source_path.parent / src).resolve()
+            safe_root = source_path.parent.resolve()
+            img_path = (safe_root / src).resolve()
+            # Guard against path traversal via symlinks or ../.. sequences
+            if not img_path.is_relative_to(safe_root):
+                return None
             if img_path.exists() and img_path.is_file():
                 data = img_path.read_bytes()
                 return data if len(data) <= _MAX_LOCAL_IMAGE_BYTES else None

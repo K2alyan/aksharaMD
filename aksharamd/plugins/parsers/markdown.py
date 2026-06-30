@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
 import chardet
 from markdown_it import MarkdownIt
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 
 def _read_file(path: Path) -> str:
@@ -48,7 +49,7 @@ class MarkdownParser(ParserPlugin):
         path = Path(ctx.source)
         text = _read_file(path)
 
-        md = MarkdownIt()
+        md = MarkdownIt().enable("table")
         tokens = md.parse(text)
 
         blocks: list[Block] = []
@@ -101,7 +102,7 @@ class MarkdownParser(ParserPlugin):
 
             elif token.type == "table_open":
                 # Collect the raw table markdown
-                start = text.find("|")
+                text.find("|")
                 table_lines = []
                 for line in text.splitlines():
                     stripped = line.strip()

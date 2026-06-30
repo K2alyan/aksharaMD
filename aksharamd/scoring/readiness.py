@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from ..context import CompilationContext
 from ..models.block import BlockType
 
-
 # ── Format-quality baselines ───────────────────────────────────────────────────
 # Starting confidence before any signal-based adjustments. Reflects how lossy
 # the conversion from the source format inherently is.
@@ -50,7 +49,7 @@ _FORMAT_BASE: dict[str, int] = {
     "mp3": 72, "wav": 75, "m4a": 72, "ogg": 70, "flac": 75,
     "mp4": 68, "webm": 65, "opus": 70, "aac": 70,
     # legacy (requires LibreOffice)
-    "doc": 65, "ppt": 62, "docm": 63, "pptm": 60,
+    "doc": 65, "ppt": 62,
 }
 _DEFAULT_BASE = 72
 
@@ -81,10 +80,10 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
     paragraphs = [b for b in blocks if b.type == BlockType.PARAGRAPH]
     code_blocks = [b for b in blocks if b.type == BlockType.CODE_BLOCK]
 
-    total_blocks = len(blocks)
+    len(blocks)
 
     # ── Signals from validation issues ────────────────────────────────────────
-    issue_codes = [i.code for i in ctx.validation.issues]
+    [i.code for i in ctx.validation.issues]
     errors      = [i for i in ctx.validation.issues if i.severity.value == "error"]
     warnings_by_code: dict[str, int] = {}
     for i in ctx.validation.warnings:
@@ -151,7 +150,7 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         parts.append(f"{len(paragraphs)} paragraph(s)")
     if headings:
         levels = sorted({h.level for h in headings if h.level})
-        level_str = ", ".join(f"H{l}" for l in levels)
+        level_str = ", ".join(f"H{lvl}" for lvl in levels)
         parts.append(f"{len(headings)} heading(s) ({level_str})")
     if tables:
         parts.append(f"{len(tables)} table(s)")
