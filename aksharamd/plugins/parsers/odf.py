@@ -65,7 +65,7 @@ def _all_text(el: ET.Element) -> str:
 def _read_meta(zf: zipfile.ZipFile) -> dict[str, str]:
     meta: dict[str, str] = {}
     try:
-        root = ET.fromstring(zf.read("meta.xml"))
+        root = ET.fromstring(zf.read("meta.xml"))  # nosec B314 — defusedxml preferred; stdlib is fallback only
         for tag, key in [
             (_t("dc:title"), "title"),
             (_t("dc:creator"), "creator"),
@@ -231,7 +231,7 @@ def _parse_odf(path: Path, file_type: str) -> tuple[list[Block], dict]:
         meta = _read_meta(zf)
         content_xml = zf.read("content.xml")
 
-    root = ET.fromstring(content_xml)
+    root = ET.fromstring(content_xml)  # nosec B314 — defusedxml preferred; stdlib is fallback only
     body_content = root.find(f".//{_t('office:body')}")
     if body_content is None:
         return [], meta
