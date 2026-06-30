@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 from pathlib import Path
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 
 class MsgParser(ParserPlugin):

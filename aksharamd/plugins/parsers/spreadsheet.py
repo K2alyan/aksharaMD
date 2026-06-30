@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import csv as _csv
 import io
 from pathlib import Path
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _MAX_ROWS_PER_SHEET = 500   # cap rows to avoid token explosion on huge files
 _MAX_COLS = 20

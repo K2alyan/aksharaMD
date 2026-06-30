@@ -1,28 +1,36 @@
 from __future__ import annotations
+
+import os
 import time
 from pathlib import Path
 
+# 500 MB default; override with AKSHARAMD_MAX_FILE_BYTES env var
+_MAX_FILE_BYTES = int(os.environ.get("AKSHARAMD_MAX_FILE_BYTES", str(500 * 1024 * 1024)))
+
 import filetype
 
+from . import ledger as _ledger
 from .context import CompilationContext
 from .models.manifest import Manifest
+
+# Import all built-in plugins to trigger registration (side-effect imports)
+from .plugins import parsers as _parsers_pkg  # noqa: F401
 from .plugins import registry
 from .plugins.base import (
-    CleanerPlugin, OptimizerPlugin, ValidatorPlugin,
-    ChunkerPlugin, ExporterPlugin,
+    ChunkerPlugin,
+    CleanerPlugin,
+    ExporterPlugin,
+    OptimizerPlugin,
+    ValidatorPlugin,
 )
+from .plugins.chunkers import semantic as _chunker_pkg  # noqa: F401
+from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
+from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
+from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
+from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
+from .plugins.validators import structure as _validator_pkg  # noqa: F401
 from .scoring import compute_confidence
 from .utils import count_tokens
-from . import ledger as _ledger
-
-# Import all built-in plugins to trigger registration
-from .plugins import parsers as _parsers_pkg
-from .plugins.cleaners import default as _cleaner_pkg
-from .plugins.optimizers import token as _optimizer_pkg
-from .plugins.validators import structure as _validator_pkg
-from .plugins.chunkers import semantic as _chunker_pkg
-from .plugins.exporters import markdown as _md_exporter_pkg
-from .plugins.exporters import json_exporter as _json_exporter_pkg
 
 
 def _fetch_url_to_temp(url: str) -> str:
@@ -88,7 +96,7 @@ class Compiler:
 
         return self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_multimodal(self, source: str) -> tuple[list[dict], "CompilationContext"]:
+    def compile_to_multimodal(self, source: str) -> tuple[list[dict], CompilationContext]:
         """Compile to an interleaved text+image content array for multimodal LLMs.
 
         Returns (content_array, ctx) where content_array is a list of Anthropic-compatible
@@ -151,6 +159,19 @@ class Compiler:
 
         def timed(name: str) -> _StageTimer:
             return _StageTimer(stage_timings, name)
+
+        # 0. File size gate — reject before any I/O-heavy parsing
+        try:
+            file_size = Path(source).stat().st_size
+            if file_size > _MAX_FILE_BYTES:
+                ctx.error(
+                    "FILE_TOO_LARGE",
+                    f"File is {file_size:,} bytes; limit is {_MAX_FILE_BYTES:,} bytes. "
+                    f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
+                )
+                return ctx, stage_timings, t0
+        except OSError:
+            pass  # missing file handled by parser with a clearer message
 
         # 1. Detect
         file_type = _detect_file_type(source)

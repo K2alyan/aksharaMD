@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import json as _json
 from pathlib import Path
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _MAX_OUTPUT_CHARS = 2000
 _HEADING_RE = None

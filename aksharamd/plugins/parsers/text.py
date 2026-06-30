@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
 import chardet
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 # Budget for large prose files — keeps output under ~12k tokens for full novels
 _MAX_CONTENT_CHARS = 50_000

@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import logging
 import re
 import zipfile
+
 try:
     import defusedxml.ElementTree as ET
 except ImportError:  # pragma: no cover
@@ -10,11 +12,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 # ODF XML namespaces
 _NS = {

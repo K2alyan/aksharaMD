@@ -1,16 +1,16 @@
 from __future__ import annotations
+
 import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from ...context import CompilationContext
+from ...models.asset import Asset
+from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
-from ...context import CompilationContext
-from ...models.block import Block, BlockType
-from ...models.asset import Asset
-from ...models.document import Document
-
 
 _PT_TO_PX = 4 / 3  # 1 pt = 1.333 px (irrelevant here — we just compare pt values)
 

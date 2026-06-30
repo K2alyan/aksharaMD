@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import re
 import shutil
@@ -6,11 +7,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _EXIF_TAGS_KEEP = {
     "Make", "Model", "Software", "DateTime", "DateTimeOriginal",
@@ -125,7 +126,7 @@ def _ocr_to_blocks(text: str, start_idx: int) -> list[Block]:
     blocks = []
     idx = start_idx
     for chunk in re.split(r"\n{2,}", text):
-        lines = [l.strip() for l in chunk.splitlines() if l.strip()]
+        lines = [ln.strip() for ln in chunk.splitlines() if ln.strip()]
         para = " ".join(lines)
         if para and len(para) >= _MIN_OCR_CHARS:
             blocks.append(Block(type=BlockType.PARAGRAPH, content=para, index=idx))

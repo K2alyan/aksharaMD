@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import hashlib
+
 from pydantic import BaseModel, Field
 
 
@@ -14,7 +16,7 @@ class Chunk(BaseModel):
     page_end: int | None = None
     metadata: dict = Field(default_factory=dict)
 
-    def compute_id(self) -> "Chunk":
+    def compute_id(self) -> Chunk:
         digest = hashlib.sha256(self.content.encode()).hexdigest()[:16]
         raw = f"{self.index}:{digest}"
         self.id = hashlib.sha256(raw.encode()).hexdigest()[:16]

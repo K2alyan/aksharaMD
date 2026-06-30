@@ -18,10 +18,11 @@ Usage:
 """
 from __future__ import annotations
 
-import json
-import os
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from mcp.server.fastmcp import FastMCP
 
@@ -147,9 +148,11 @@ def compile_document_multimodal(file_path: str) -> list:
     Returns:
         Interleaved sequence of text strings and images in document order.
     """
-    from mcp.server.fastmcp import Image as MCPImage
-    from aksharamd.compiler import Compiler
     import base64
+
+    from mcp.server.fastmcp import Image as MCPImage
+
+    from aksharamd.compiler import Compiler
 
     path = Path(file_path).expanduser().resolve()
     if not path.exists():
@@ -179,8 +182,8 @@ def compile_document_multimodal(file_path: str) -> list:
                 media_type = item["source"]["media_type"]
                 fmt = media_type.split("/")[-1] if "/" in media_type else "png"
                 result.append(MCPImage(data=img_bytes, format=fmt))
-            except Exception:
-                pass  # silently skip malformed images
+            except Exception as _img_err:
+                logger.warning("Skipping malformed image in %s: %s", path.name, _img_err)
 
     if ctx.manifest:
         result.append(_format_savings_summary(ctx.manifest))
@@ -230,7 +233,7 @@ def get_stats() -> str:
     """
     try:
         from aksharamd import ledger as _ledger
-        from aksharamd.utils import TOKEN_PRICES, DISPLAY_MODELS, tokens_to_dollars
+        from aksharamd.utils import DISPLAY_MODELS, TOKEN_PRICES, tokens_to_dollars
 
         data = _ledger.get_stats()
         if not data:

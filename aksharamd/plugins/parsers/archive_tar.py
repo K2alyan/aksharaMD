@@ -1,16 +1,16 @@
 from __future__ import annotations
-import io
+
 import logging
 import tarfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..base import ParserPlugin
-from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...models.document import Document
+from ..base import ParserPlugin
+from ..registry import register_parser
 
 _TEXT_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".cpp", ".h", ".hpp",
