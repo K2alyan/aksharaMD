@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
+import re
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 from ...context import CompilationContext
-from ...models.block import Block
+from ...models.block import Block, BlockType
 from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
@@ -49,6 +53,85 @@ def _convert_with_libreoffice(path: Path, target_format: str, out_dir: Path) -> 
     return result if result.exists() else None
 
 
+_PRINTABLE_RE = re.compile(r'[ -~\t\n\r\x80-\xFF]{4,}')
+_ALPHA_THRESHOLD = 0.25  # at least 25% alphabetic characters to not be noise
+
+
+def _extract_doc_text_olefile(path: Path) -> list[Block]:
+    """Best-effort .doc text extraction via OLE stream parsing (no LibreOffice)."""
+    try:
+        import olefile
+    except ImportError:
+        return []
+    try:
+        with olefile.OleFileIO(str(path)) as ole:
+            if not ole.exists("WordDocument"):
+                return []
+            raw = ole.openstream("WordDocument").read()
+        text = raw.decode("latin-1", errors="replace")
+        runs = _PRINTABLE_RE.findall(text)
+        blocks: list[Block] = []
+        idx = 0
+        for run in runs:
+            run = run.strip()
+            if len(run) < 4:
+                continue
+            alpha = sum(1 for c in run if c.isalpha())
+            if alpha / max(len(run), 1) < _ALPHA_THRESHOLD:
+                continue
+            for para in run.splitlines():
+                para = para.strip()
+                if len(para) >= 4:
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=para, index=idx))
+                    idx += 1
+        return blocks
+    except Exception:
+        logger.debug("olefile .doc extraction failed for %s", path.name, exc_info=True)
+        return []
+
+
+def _extract_ppt_text_olefile(path: Path) -> list[Block]:
+    """Best-effort .ppt text extraction via OLE record walking (no LibreOffice)."""
+    try:
+        import olefile
+    except ImportError:
+        return []
+    try:
+        with olefile.OleFileIO(str(path)) as ole:
+            if not ole.exists("PowerPoint Document"):
+                return []
+            data = ole.openstream("PowerPoint Document").read()
+
+        # Walk binary record stream: each record = 2B ver/inst + 2B type + 4B len + data
+        _TEXT_CHARS = 0x0FA0   # TextCharsAtom — UTF-16LE
+        _TEXT_BYTES = 0x0FA8   # TextBytesAtom — Latin-1
+        texts: list[str] = []
+        i = 0
+        while i + 8 <= len(data):
+            rec_type = int.from_bytes(data[i + 2: i + 4], "little")
+            rec_len = int.from_bytes(data[i + 4: i + 8], "little")
+            payload = data[i + 8: i + 8 + rec_len]
+            if rec_type == _TEXT_CHARS:
+                try:
+                    texts.append(payload.decode("utf-16-le", errors="replace").strip())
+                except Exception:
+                    pass
+            elif rec_type == _TEXT_BYTES:
+                try:
+                    texts.append(payload.decode("latin-1", errors="replace").strip())
+                except Exception:
+                    pass
+            i += 8 + max(rec_len, 0)
+
+        blocks: list[Block] = []
+        for idx, txt in enumerate(t for t in texts if t):
+            blocks.append(Block(type=BlockType.PARAGRAPH, content=txt, index=idx))
+        return blocks
+    except Exception:
+        logger.debug("olefile .ppt extraction failed for %s", path.name, exc_info=True)
+        return []
+
+
 def _html_to_blocks(html_path: Path) -> list[Block]:
     from bs4 import BeautifulSoup
 
@@ -74,37 +157,46 @@ class LegacyOfficeParser(ParserPlugin):
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         path = Path(ctx.source)
+        file_type = path.suffix.lower().lstrip(".")
 
-        if _find_soffice() is None:
+        # Preferred path: LibreOffice → high-fidelity HTML conversion
+        if _find_soffice() is not None:
+            with tempfile.TemporaryDirectory() as tmp:
+                converted = _convert_with_libreoffice(path, "html", Path(tmp))
+                if converted is not None:
+                    blocks = _html_to_blocks(converted)
+                    if blocks:
+                        ctx.document = Document(
+                            source=str(path), file_type=file_type,
+                            title=path.stem, pages=1, blocks=blocks,
+                        ).compute_id()
+                        return ctx
+            ctx.error("LIBREOFFICE_CONVERT_FAILED", f"Conversion of {path.name} failed")
+            return ctx
+
+        # Fallback: OLE stream extraction (no LibreOffice required, reduced fidelity)
+        logger.warning(
+            "LibreOffice not found — using best-effort OLE extraction for %s "
+            "(install LibreOffice for full fidelity: https://www.libreoffice.org/)",
+            path.name,
+        )
+        if file_type in ("doc", "docm"):
+            blocks = _extract_doc_text_olefile(path)
+        else:
+            blocks = _extract_ppt_text_olefile(path)
+
+        if not blocks:
             ctx.error(
-                "LIBREOFFICE_NOT_FOUND",
-                "LibreOffice is required to parse .doc/.ppt files. "
-                "Install from https://www.libreoffice.org/download/libreoffice/ "
-                "and ensure 'soffice' is on your PATH.",
+                "LEGACY_OFFICE_EXTRACT_FAILED",
+                f"Could not extract text from {path.name}. "
+                "Install LibreOffice for reliable .doc/.ppt parsing.",
             )
             return ctx
 
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            converted = _convert_with_libreoffice(path, "html", tmp_path)
-
-            if converted is None:
-                ctx.error("LIBREOFFICE_CONVERT_FAILED", f"Conversion of {path.name} failed")
-                return ctx
-
-            blocks = _html_to_blocks(converted)
-
-        if not blocks:
-            ctx.error("LEGACY_OFFICE_EMPTY", "No content extracted after conversion")
-            return ctx
-
-        file_type = path.suffix.lower().lstrip(".")
         ctx.document = Document(
-            source=str(path),
-            file_type=file_type,
-            title=path.stem,
-            pages=1,
-            blocks=blocks,
+            source=str(path), file_type=file_type,
+            title=path.stem, pages=1, blocks=blocks,
+            metadata={"extraction": "olefile_fallback"},
         ).compute_id()
         return ctx
 

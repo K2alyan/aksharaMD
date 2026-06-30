@@ -80,7 +80,11 @@ def _is_quality_table(markdown: str) -> bool:
 
 
 def _cells_to_markdown(cells: list[list]) -> str:
-    """Convert a 2-D cell grid (from tab.extract()) to a Markdown table string."""
+    """Convert a 2-D cell grid (from tab.extract()) to a Markdown table string.
+
+    Merged-cell ghost values (where a cell repeats the value from the row above)
+    are blanked in header rows so financial multi-row headers render cleanly.
+    """
     if not cells:
         return ""
 
@@ -92,6 +96,18 @@ def _cells_to_markdown(cells: list[list]) -> str:
     if ncols == 0:
         return ""
     rows = [r + [""] * (ncols - len(r)) for r in rows]
+
+    # Blank ghost cells in the header zone (before the first row with numeric data).
+    # A cell that repeats the value directly above it is a merged-cell artefact.
+    first_data = next(
+        (i for i, r in enumerate(rows) if any(re.search(r"\d", c) for c in r)),
+        len(rows),
+    )
+    for i in range(1, first_data):
+        for j in range(ncols):
+            if rows[i][j] and rows[i][j] == rows[i - 1][j]:
+                rows[i][j] = ""
+
     sep = ["---"] * ncols
     lines = [
         "| " + " | ".join(rows[0]) + " |",
