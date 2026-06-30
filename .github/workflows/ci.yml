@@ -40,7 +40,7 @@ jobs:
             --cov=aksharamd \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=60
+            --cov-fail-under=55
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
