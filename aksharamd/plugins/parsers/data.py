@@ -261,7 +261,7 @@ class XmlParser(ParserPlugin):
         idx = 1
 
         try:
-            root = ET.fromstring(text)
+            root = ET.fromstring(text)  # nosec B314 — defusedxml preferred; stdlib is fallback only
         except ET.ParseError as e:
             ctx.error("XML_PARSE_ERROR", str(e))
             return ctx
