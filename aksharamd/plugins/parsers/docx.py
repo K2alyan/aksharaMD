@@ -31,14 +31,49 @@ def _extract_drawing_bytes(para_el, doc_part) -> list[bytes]:
     return images
 
 _OMML_URI = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+_M = f"{{{_OMML_URI}}}"
 
 
-def _extract_omml_text(el) -> str:
-    """Collect text from OMML <m:t> nodes within *el*."""
-    parts = []
-    for node in el.iter():
-        if node.tag == f"{{{_OMML_URI}}}t" and node.text and node.text.strip():
-            parts.append(node.text.strip())
+def _omml_to_latex(el) -> str:
+    """Recursively convert an OMML element subtree to a LaTeX string."""
+    tag = el.tag[len(_M):] if el.tag.startswith(_M) else el.tag.split("}")[-1]
+
+    def sub(child_tag: str) -> str:
+        child = el.find(f"{_M}{child_tag}")
+        return _omml_to_latex(child) if child is not None else ""
+
+    def children() -> str:
+        return "".join(_omml_to_latex(c) for c in el)
+
+    if tag == "t":
+        return el.text or ""
+    if tag in ("r", "e", "oMath"):
+        return children()
+    if tag == "sSup":
+        return f"{{{sub('e')}}}^{{{sub('sup')}}}"
+    if tag == "sSub":
+        return f"{{{sub('e')}}}_{{{sub('sub')}}}"
+    if tag == "sSubSup":
+        return f"{{{sub('e')}}}_{{{sub('sub')}}}^{{{sub('sup')}}}"
+    if tag == "f":
+        return f"\\frac{{{sub('num')}}}{{{sub('den')}}}"
+    if tag == "rad":
+        deg = sub("deg")
+        return f"\\sqrt[{deg}]{{{sub('e')}}}" if deg.strip() else f"\\sqrt{{{sub('e')}}}"
+    if tag == "d":
+        return f"\\left({sub('e')}\\right)"
+    if tag == "nary":
+        chr_el = el.find(f"{_M}naryPr/{_M}chr")
+        op = chr_el.text if chr_el is not None and chr_el.text else "\\int"
+        return f"{op}_{{{sub('sub')}}}^{{{sub('sup')}}}{{{sub('e')}}}"
+    if tag == "m":  # matrix
+        rows = [
+            " & ".join(_omml_to_latex(c) for c in r.findall(f"{_M}e"))
+            for r in el.findall(f"{_M}mr")
+        ]
+        return "\\begin{pmatrix}" + " \\\\ ".join(rows) + "\\end{pmatrix}"
+    # Fallback: collect all leaf m:t text
+    parts = [n.text for n in el.iter(f"{_M}t") if n.text]
     return " ".join(parts)
 
 
@@ -206,13 +241,33 @@ class DocxParser(ParserPlugin):
                                             metadata={"asset_id": asset_id}))
                         idx += 1
 
-                math_text = _extract_omml_text(child)
+                # Build mixed text+math content by walking child nodes in order
+                mixed_parts: list[str] = []
+                for node in child:
+                    node_tag = node.tag.split("}")[-1] if "}" in node.tag else node.tag
+                    if node_tag == "r":
+                        t_nodes = node.findall(f"{{{_W_NS}}}t")
+                        mixed_parts.extend(t.text for t in t_nodes if t.text)
+                    elif node_tag == "oMath":
+                        latex = _omml_to_latex(node).strip()
+                        if latex:
+                            mixed_parts.append(f"${latex}$")
+                mixed_text = "".join(mixed_parts).strip()
                 text = para.text.strip()
+                display_text = mixed_text or text
 
-                if not text and math_text:
+                if not display_text:
+                    continue
+
+                has_math = any(
+                    node.tag == f"{_M}oMath" for node in child
+                )
+                if has_math and not text:
+                    # Pure math paragraph — emit as block equation
                     flush_list()
+                    latex = _omml_to_latex(child).strip()
                     blocks.append(Block(type=BlockType.PARAGRAPH,
-                                        content=f"$${math_text}$$", index=idx))
+                                        content=f"$${latex}$$", index=idx))
                     idx += 1
                     continue
 
@@ -227,7 +282,7 @@ class DocxParser(ParserPlugin):
                     if key != current_list_key and current_list_key is not None:
                         flush_list()
                     current_list_key = key
-                    list_items.append((ilvl, is_ordered, text))
+                    list_items.append((ilvl, is_ordered, display_text))
                     continue
 
                 # Regular paragraph
@@ -236,21 +291,21 @@ class DocxParser(ParserPlugin):
                 level = _HEADING_STYLES.get(style_name)
                 if level:
                     if not title and level == 1:
-                        title = text
-                    blocks.append(Block(type=BlockType.HEADING, content=text,
+                        title = display_text
+                    blocks.append(Block(type=BlockType.HEADING, content=display_text,
                                         level=level, index=idx))
                 elif "code" in style_name or "mono" in style_name:
-                    blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, index=idx))
+                    blocks.append(Block(type=BlockType.CODE_BLOCK, content=display_text, index=idx))
                 else:
-                    blocks.append(Block(type=BlockType.PARAGRAPH, content=text, index=idx))
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=display_text, index=idx))
                 idx += 1
 
             elif tag == "oMathPara":
                 flush_list()
-                math_text = _extract_omml_text(child)
-                if math_text:
+                latex = _omml_to_latex(child).strip()
+                if latex:
                     blocks.append(Block(type=BlockType.PARAGRAPH,
-                                        content=f"$${math_text}$$", index=idx))
+                                        content=f"$${latex}$$", index=idx))
                     idx += 1
 
             elif tag == "tbl" and child in table_map:
