@@ -129,6 +129,66 @@ def compile_document(file_path: str) -> str:
 
 
 @mcp.tool()
+def compile_document_multimodal(file_path: str) -> list:
+    """Compile a document into an interleaved text+image content sequence for multimodal LLMs.
+
+    Like compile_document but returns the document as an ordered mix of text and image blocks.
+    Images appear at their exact position in the document — Figure 4 appears right where it
+    sits in the source, not appended at the end. The LLM can see each chart or diagram in
+    context with the surrounding text that references it.
+
+    Use this instead of compile_document when the document contains charts, diagrams, or
+    figures that are important to understand alongside the surrounding text (e.g. reports,
+    presentations, scientific papers).
+
+    Args:
+        file_path: Absolute or relative path to the document to compile.
+
+    Returns:
+        Interleaved sequence of text strings and images in document order.
+    """
+    from mcp.server.fastmcp import Image as MCPImage
+    from aksharamd.compiler import Compiler
+    import base64
+
+    path = Path(file_path).expanduser().resolve()
+    if not path.exists():
+        return [f"Error: file not found: {file_path}"]
+    if not path.is_file():
+        return [f"Error: path is not a file: {file_path}"]
+    if path.stat().st_size == 0:
+        return [f"Error: file is empty: {file_path}"]
+
+    try:
+        compiler = Compiler(output_dir=str(path.parent / ".aksharamd_cache"))
+        content_array, ctx = compiler.compile_to_multimodal(str(path))
+    except Exception as e:
+        return [f"Error compiling {path.name}: {e}"]
+
+    if not content_array:
+        return [f"No content could be extracted from {path.name}."]
+
+    result = []
+    for item in content_array:
+        if item["type"] == "text":
+            if item["text"].strip():
+                result.append(item["text"])
+        elif item["type"] == "image":
+            try:
+                img_bytes = base64.b64decode(item["source"]["data"])
+                media_type = item["source"]["media_type"]
+                fmt = media_type.split("/")[-1] if "/" in media_type else "png"
+                result.append(MCPImage(data=img_bytes, format=fmt))
+            except Exception:
+                pass  # silently skip malformed images
+
+    if ctx.manifest:
+        result.append(_format_savings_summary(ctx.manifest))
+
+    return result if result else [f"No content extracted from {path.name}."]
+
+
+@mcp.tool()
 def get_supported_formats() -> str:
     """List all file formats AksharaMD can compile.
 

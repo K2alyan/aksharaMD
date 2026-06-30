@@ -25,6 +25,43 @@ from .plugins.exporters import markdown as _md_exporter_pkg
 from .plugins.exporters import json_exporter as _json_exporter_pkg
 
 
+def _fetch_url_to_temp(url: str) -> str:
+    """Download *url* to a NamedTemporaryFile; return the temp file path."""
+    import mimetypes
+    import tempfile
+    from urllib.parse import urlparse
+
+    import requests
+
+    try:
+        resp = requests.get(url, timeout=30, stream=True,
+                            headers={"User-Agent": "AksharaMD/0.1"})
+        resp.raise_for_status()
+    except Exception as exc:
+        raise ValueError(f"Failed to fetch {url!r}: {exc}") from exc
+
+    # Prefer the URL path extension; fall back to Content-Type
+    url_ext = Path(urlparse(url).path).suffix
+    if url_ext and 2 <= len(url_ext) <= 6:
+        ext = url_ext
+    else:
+        content_type = resp.headers.get("Content-Type", "text/html").split(";")[0].strip()
+        ext = mimetypes.guess_extension(content_type) or ".html"
+        # mimetypes gives odd results for common types on some platforms
+        _CT_EXT_MAP = {"text/html": ".html", "application/pdf": ".pdf",
+                       "text/plain": ".txt", "application/json": ".json"}
+        ext = _CT_EXT_MAP.get(content_type, ext)
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        for chunk in resp.iter_content(chunk_size=8192):
+            if chunk:
+                tmp.write(chunk)
+    finally:
+        tmp.close()
+    return tmp.name
+
+
 def _detect_file_type(path: str) -> str:
     p = Path(path)
     ext = p.suffix.lstrip(".").lower()
@@ -50,6 +87,25 @@ class Compiler:
                 ctx = plugin.execute(ctx)
 
         return self._finalise(ctx, stage_timings, t0)
+
+    def compile_to_multimodal(self, source: str) -> tuple[list[dict], "CompilationContext"]:
+        """Compile to an interleaved text+image content array for multimodal LLMs.
+
+        Returns (content_array, ctx) where content_array is a list of Anthropic-compatible
+        content dicts: {"type": "text", "text": ...} and {"type": "image", "source": {...}}.
+        Images appear inline at their document position — Figure 4 is right there between the
+        paragraphs that reference it, not appended at the end.
+        """
+        from .plugins.exporters.multimodal import build_multimodal_content
+
+        ctx, stage_timings, t0 = self._run_pipeline(source)
+
+        if ctx.document:
+            content = build_multimodal_content(ctx.document)
+        else:
+            content = [{"type": "text", "text": ""}]
+
+        return content, self._finalise(ctx, stage_timings, t0)
 
     def compile_to_string(self, source: str) -> tuple[str, CompilationContext]:
         """Compile to a markdown string without writing any files to disk.
@@ -78,6 +134,19 @@ class Compiler:
         tokenise → manifest → readiness score.  Does NOT write to disk."""
         t0 = time.perf_counter()
         stage_timings: dict[str, float] = {}
+
+        # Resolve URL sources before creating context
+        _original_source = source
+        _temp_path: str | None = None
+        if source.startswith(("http://", "https://")):
+            try:
+                source = _fetch_url_to_temp(source)
+                _temp_path = source
+            except ValueError as exc:
+                ctx = CompilationContext(source=_original_source, output_dir=self.output_dir)
+                ctx.error("URL_FETCH_ERROR", str(exc))
+                return ctx, stage_timings, t0
+
         ctx = CompilationContext(source=source, output_dir=self.output_dir)
 
         def timed(name: str) -> _StageTimer:
@@ -162,6 +231,17 @@ class Compiler:
             "readiness_score": confidence.score,
             "confidence_notes": confidence.notes,
         })
+
+        # Restore original URL as the canonical source
+        if _temp_path is not None:
+            if ctx.document:
+                ctx.document = ctx.document.model_copy(update={"source": _original_source})
+            if ctx.manifest:
+                ctx.manifest = ctx.manifest.model_copy(update={"source": _original_source})
+            try:
+                Path(_temp_path).unlink(missing_ok=True)
+            except Exception:
+                pass
 
         return ctx, stage_timings, t0
 

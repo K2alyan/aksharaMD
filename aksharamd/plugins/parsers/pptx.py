@@ -8,6 +8,7 @@ from ..base import ParserPlugin
 from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
+from ...models.asset import Asset
 from ...models.document import Document
 
 
@@ -49,25 +50,74 @@ def _para_has_explicit_bullet(para) -> bool:
     return False
 
 
-def _text_frame_is_list(paras: list) -> bool:
-    """
-    Return True if this text frame looks like a bullet list.
+def _para_level(para) -> int:
+    """Return the indentation level of a paragraph (0 = top level)."""
+    try:
+        from pptx.oxml.ns import qn
+        pPr = para._p.find(qn("a:pPr"))
+        if pPr is not None:
+            lvl = pPr.get("lvl")
+            if lvl is not None:
+                return max(0, int(lvl))
+    except Exception:
+        pass
+    return 0
 
-    Many PPTX files inherit bullet styling from the slide layout rather than
-    encoding it in paragraph XML, so explicit XML checks miss most real lists.
-    Heuristic: 2+ paragraphs where all are short (≤ 12 words) and none ends
-    with a period followed by another sentence — this profile matches list items,
-    not prose.
+
+def _is_body_placeholder(shape) -> bool:
+    """Return True if this shape is a body/content placeholder (layout-inherited bullets)."""
+    try:
+        from pptx.enum.placeholders import PP_PLACEHOLDER
+        ph = shape.placeholder_format
+        if ph is not None and ph.type in (PP_PLACEHOLDER.BODY, PP_PLACEHOLDER.OBJECT):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _text_frame_is_list(paras: list, shape=None) -> bool:
     """
+    Return True if this text frame is a bullet list.
+
+    Checks in order:
+    1. Explicit bullet XML markers
+    2. Any paragraph with indent level > 0 (layout-inherited nested bullet)
+    3. Body/content placeholder type (layout-inherited top-level bullets)
+    4. Content heuristic: multiple short, non-prose paragraphs
+    """
+    if not paras:
+        return False
+
+    try:
+        from pptx.oxml.ns import qn
+        for p in paras:
+            pPr = p._p.find(qn("a:pPr"))
+            if pPr is not None:
+                if pPr.find(qn("a:buNone")) is None and (
+                    pPr.find(qn("a:buChar")) is not None or
+                    pPr.find(qn("a:buAutoNum")) is not None
+                ):
+                    return True
+                lvl = pPr.get("lvl")
+                if lvl is not None and int(lvl) > 0:
+                    return True
+    except Exception:
+        pass
+
+    # Body/content placeholder = layout-inherited bullets by convention
+    if shape is not None and _is_body_placeholder(shape):
+        return True
+
+    # Heuristic: 2+ short, non-prose paragraphs
     if len(paras) < 2:
         return False
     for p in paras:
         text = p.text.strip()
         words = text.split()
-        if len(words) > 15:
+        if len(words) > 30:
             return False
-        # If it ends with ". " continuation or is multi-sentence, it's prose
-        if text.count(". ") >= 2:
+        if text.count(". ") >= 3:
             return False
     return True
 
@@ -90,8 +140,8 @@ def _shape_to_blocks(shape, slide_num: int, idx: int,
     Strategy:
     - Tables → TABLE block
     - Text frames → analyse each paragraph:
+        * Body/content placeholder or layout-inherited bullets → LIST block with indentation
         * Large font (>= 20 pt) and few words → HEADING level 3
-        * Explicit bullet markup → collect into a LIST block
         * Otherwise → PARAGRAPH block per logical group
     """
     blocks: list[Block] = []
@@ -121,15 +171,18 @@ def _shape_to_blocks(shape, slide_num: int, idx: int,
     if not paras:
         return blocks, idx
 
-    # Decide upfront if the whole text frame is a list
-    frame_is_list = _text_frame_is_list(paras)
+    # Decide upfront if the whole text frame is a list (pass shape for placeholder check)
+    frame_is_list = _text_frame_is_list(paras, shape=shape)
 
     if frame_is_list:
-        # Check if any paragraph has an explicit bullet; if the frame heuristic
-        # says list AND explicit bullets exist, trust the explicit markup.
-        # Either way, emit as a single LIST block.
-        items = [p.text.strip() for p in paras if p.text.strip()]
-        content = "\n".join(f"- {item}" for item in items)
+        items = []
+        for p in paras:
+            text = p.text.strip()
+            if text:
+                lvl = _para_level(p)
+                indent = "  " * lvl
+                items.append(f"{indent}- {text}")
+        content = "\n".join(items)
         blocks.append(Block(type=BlockType.LIST, content=content,
                             page=slide_num, index=idx))
         idx += 1
@@ -159,7 +212,9 @@ def _shape_to_blocks(shape, slide_num: int, idx: int,
 
             if has_explicit_bullet:
                 flush_pending()
-                blocks.append(Block(type=BlockType.LIST, content=f"- {text}",
+                lvl = _para_level(para)
+                indent = "  " * lvl
+                blocks.append(Block(type=BlockType.LIST, content=f"{indent}- {text}",
                                     page=slide_num, index=idx))
                 idx += 1
             elif is_big and is_short:
@@ -190,6 +245,7 @@ class PptxParser(ParserPlugin):
             return ctx
 
         blocks: list[Block] = []
+        assets: list[Asset] = []
         idx = 0
         title: str | None = None
         image_count = 0
@@ -218,6 +274,24 @@ class PptxParser(ParserPlugin):
                     from pptx.enum.shapes import MSO_SHAPE_TYPE
                     if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
                         image_count += 1
+                        try:
+                            img_bytes = shape.image.blob
+                            if img_bytes:
+                                asset_id = f"img_{slide_num}_{idx}"
+                                assets.append(Asset(
+                                    id=asset_id, type="image",
+                                    image_bytes=img_bytes,
+                                    metadata={"slide": slide_num},
+                                ))
+                                alt = shape.name or ""
+                                blocks.append(Block(
+                                    type=BlockType.IMAGE, content=alt,
+                                    page=slide_num, index=idx,
+                                    metadata={"asset_id": asset_id},
+                                ))
+                                idx += 1
+                        except Exception:
+                            pass
                         continue
                 except Exception:
                     pass
@@ -242,6 +316,7 @@ class PptxParser(ParserPlugin):
             title=title,
             pages=len(prs.slides),
             blocks=blocks,
+            assets=assets,
             metadata={"slides": len(prs.slides), "images": image_count},
         ).compute_id()
         return ctx

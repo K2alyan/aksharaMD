@@ -11,3 +11,5 @@ class Asset(BaseModel):
     width: int | None = None
     height: int | None = None
     metadata: dict = Field(default_factory=dict)
+    # Raw image bytes — in-memory only, never serialized to JSON
+    image_bytes: bytes | None = Field(default=None, exclude=True)

@@ -5,7 +5,38 @@ from ..base import ParserPlugin
 from ..registry import register_parser
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
+from ...models.asset import Asset
 from ...models.document import Document
+
+_DRAW_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+def _extract_drawing_bytes(para_el, doc_part) -> list[bytes]:
+    """Extract image bytes from all w:drawing elements within a paragraph element."""
+    images = []
+    for drawing in para_el.iter(f"{{{_W_NS}}}drawing"):
+        for blip in drawing.iter(f"{{{_DRAW_NS}}}blip"):
+            r_id = blip.get(f"{{{_REL_NS}}}embed")
+            if r_id:
+                try:
+                    images.append(doc_part.related_parts[r_id].blob)
+                except Exception:
+                    pass
+    return images
+
+_OMML_URI = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+
+
+def _extract_omml_text(el) -> str:
+    """Collect text from OMML <m:t> nodes within *el*."""
+    parts = []
+    for node in el.iter():
+        if node.tag == f"{{{_OMML_URI}}}t" and node.text and node.text.strip():
+            parts.append(node.text.strip())
+    return " ".join(parts)
+
 
 _HEADING_STYLES = {
     "heading 1": 1, "heading 2": 2, "heading 3": 3,
@@ -40,6 +71,7 @@ class DocxParser(ParserPlugin):
             return ctx
 
         blocks: list[Block] = []
+        assets: list[Asset] = []
         idx = 0
         title: str | None = None
         author: str | None = None
@@ -66,8 +98,26 @@ class DocxParser(ParserPlugin):
 
             if tag == "p" and child in para_map:
                 para = para_map[child]
+
+                # Extract any inline images in this paragraph (before processing text)
+                for img_bytes in _extract_drawing_bytes(child, doc.part):
+                    asset_id = f"img_{idx}"
+                    assets.append(Asset(id=asset_id, type="image", image_bytes=img_bytes))
+                    blocks.append(Block(type=BlockType.IMAGE, content="", index=idx,
+                                        metadata={"asset_id": asset_id}))
+                    idx += 1
+
                 style_name = (para.style.name or "").lower() if para.style else ""
                 text = para.text.strip()
+
+                # Detect inline OMML equations (paragraphs that are partially/fully equations)
+                math_text = _extract_omml_text(child)
+                if not text and math_text:
+                    blocks.append(Block(type=BlockType.PARAGRAPH,
+                                        content=f"$${math_text}$$", index=idx))
+                    idx += 1
+                    continue
+
                 if not text:
                     continue
 
@@ -82,6 +132,13 @@ class DocxParser(ParserPlugin):
                     blocks.append(Block(type=BlockType.PARAGRAPH, content=text, index=idx))
                 idx += 1
 
+            elif tag == "oMathPara":
+                math_text = _extract_omml_text(child)
+                if math_text:
+                    blocks.append(Block(type=BlockType.PARAGRAPH,
+                                        content=f"$${math_text}$$", index=idx))
+                    idx += 1
+
             elif tag == "tbl" and child in table_map:
                 table = table_map[child]
                 md = _table_to_markdown(table)
@@ -89,8 +146,8 @@ class DocxParser(ParserPlugin):
                     blocks.append(Block(type=BlockType.TABLE, content=md, index=idx))
                     idx += 1
 
-        images = sum(1 for s in doc.inline_shapes)
 
+        image_count = len([b for b in blocks if b.type == BlockType.IMAGE])
         ctx.document = Document(
             source=str(path),
             file_type="docx",
@@ -98,7 +155,8 @@ class DocxParser(ParserPlugin):
             author=author,
             pages=len(doc.sections),
             blocks=blocks,
-            metadata={"images": images, "sections": len(doc.sections)},
+            assets=assets,
+            metadata={"images": image_count, "sections": len(doc.sections)},
         ).compute_id()
         return ctx
 

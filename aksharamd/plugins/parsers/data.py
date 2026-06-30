@@ -1,6 +1,9 @@
 from __future__ import annotations
 import json as _json
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:  # pragma: no cover
+    import xml.etree.ElementTree as ET  # type: ignore[assignment]
 from pathlib import Path
 
 from ..base import ParserPlugin
@@ -103,7 +106,8 @@ class JsonlParser(ParserPlugin):
         lines = raw.decode(enc, errors="replace").splitlines()
 
         parsed_lines = []
-        errors = 0
+        plain_lines: list[str] = []
+        json_errors = 0
         for line in lines:
             line = line.strip()
             if not line:
@@ -111,29 +115,40 @@ class JsonlParser(ParserPlugin):
             try:
                 parsed_lines.append(_json.loads(line))
             except _json.JSONDecodeError:
-                errors += 1
+                json_errors += 1
+                plain_lines.append(line)
+
+        # If all/most lines failed JSON parsing, treat as plain-text-per-line
+        all_plain = len(parsed_lines) == 0 and plain_lines
+        if all_plain:
+            parsed_lines = plain_lines
 
         blocks: list[Block] = [
             Block(type=BlockType.METADATA,
-                  content=f"File: {path.name} | Records: {len(parsed_lines)} | Parse errors: {errors}",
+                  content=f"File: {path.name} | Records: {len(parsed_lines)}",
                   index=0),
         ]
 
         if parsed_lines:
-            # Show schema from first record
             first = parsed_lines[0]
-            if isinstance(first, dict):
-                schema = "Keys: " + ", ".join(f"`{k}`" for k in list(first.keys())[:30])
-                blocks.append(Block(type=BlockType.PARAGRAPH, content=schema, index=1))
-
-            # Show first few records
-            sample = _json.dumps(parsed_lines[:10], indent=2)
-            blocks.append(Block(
-                type=BlockType.CODE_BLOCK,
-                content=sample[:_MAX_JSON_CHARS],
-                language="json",
-                index=2,
-            ))
+            if all_plain or isinstance(first, str):
+                # Plain-text records — emit as paragraphs (up to 50)
+                for i, record in enumerate(parsed_lines[:50]):
+                    text = record.strip() if isinstance(record, str) else str(record)
+                    if text:
+                        blocks.append(Block(type=BlockType.PARAGRAPH, content=text, index=i + 1))
+            else:
+                # Structured JSON — show schema + sample code block
+                if isinstance(first, dict):
+                    schema = "Keys: " + ", ".join(f"`{k}`" for k in list(first.keys())[:30])
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=schema, index=1))
+                sample = _json.dumps(parsed_lines[:10], indent=2)
+                blocks.append(Block(
+                    type=BlockType.CODE_BLOCK,
+                    content=sample[:_MAX_JSON_CHARS],
+                    language="json",
+                    index=2,
+                ))
 
         ctx.document = Document(
             source=str(path), file_type="jsonl", title=path.stem,
