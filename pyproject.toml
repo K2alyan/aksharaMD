@@ -31,6 +31,8 @@ dependencies = [
     "olefile>=0.46",
     "py7zr>=0.20",
     "mcp[cli]>=1.0",
+    "requests>=2.28",
+    "defusedxml>=0.7",
     # optional heavy deps — install separately for full support:
     # pip install openai-whisper   (audio transcription; also needs ffmpeg on PATH)
     # pip install pytesseract      (image OCR; also needs Tesseract binary)
@@ -45,9 +47,20 @@ aksharamd-mcp = "aksharamd.mcp_server:serve"
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    "pytest-mock>=3.12",
     "ruff>=0.4",
     "bandit[toml]>=1.7",
     "docutils>=0.20",
+    "mypy>=1.8",
+]
+audio = [
+    "openai-whisper>=20231117",
+]
+ocr = [
+    "pytesseract>=0.3",
+]
+full = [
+    "aksharamd[audio,ocr]",
 ]
 
 [tool.hatch.envs.default]
@@ -59,7 +72,10 @@ addopts = "-q --tb=short"
 
 [tool.coverage.run]
 source = ["aksharamd"]
-omit = ["aksharamd/plugins/parsers/legacy_office.py"]  # requires LibreOffice binary
+omit = [
+    "aksharamd/plugins/parsers/legacy_office.py",  # requires LibreOffice binary
+    "aksharamd/plugins/parsers/audio.py",           # requires whisper + ffmpeg
+]
 
 [tool.coverage.report]
 exclude_lines = [

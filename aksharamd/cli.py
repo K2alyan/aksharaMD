@@ -333,6 +333,7 @@ def show_manifest(output_dir: str):
 def formats():
     """List all supported input file formats."""
     import aksharamd.plugins.registry as _reg
+
     from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
 
     exts = sorted(_reg._parsers.keys())

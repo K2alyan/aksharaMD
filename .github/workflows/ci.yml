@@ -7,8 +7,8 @@ on:
     branches: [main, development]
 
 jobs:
-  test:
-    name: Test (Python ${{ matrix.python-version }})
+  fast-gate:
+    name: Fast Gate (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,12 +24,13 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
-          pip install docutils
+        run: pip install -e ".[dev]" docutils
 
       - name: Lint (ruff)
         run: ruff check aksharamd/ tests/
+
+      - name: Type check (mypy)
+        run: mypy aksharamd/ --ignore-missing-imports --no-error-summary
 
       - name: Security scan (bandit)
         run: bandit -r aksharamd/ -ll -q
@@ -40,7 +41,7 @@ jobs:
             --cov=aksharamd \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=65
+            --cov-fail-under=75
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -48,3 +49,32 @@ jobs:
         with:
           files: coverage.xml
           fail_ci_if_error: false
+
+  integration:
+    name: Integration (Python 3.11)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y tesseract-ocr
+
+      - name: Install Python dependencies
+        run: pip install -e ".[dev,ocr]" docutils
+
+      - name: Run full test suite with OCR
+        run: |
+          pytest tests/ -q --tb=short \
+            --cov=aksharamd \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=75

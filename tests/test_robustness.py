@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import zipfile
 import io
+import zipfile
 from pathlib import Path
-
-import pytest
 
 from aksharamd.compiler import Compiler
 

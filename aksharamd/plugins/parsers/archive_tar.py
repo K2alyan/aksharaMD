@@ -149,18 +149,25 @@ def _read_7z(path: Path) -> tuple[list[Block], dict]:
         idx += 1
 
         if text_names:
-            extracted = sz.read(text_names[:_MAX_FILES_SHOWN])
-            for name, bio in (extracted or {}).items():
-                if bio is None:
-                    continue
-                raw = bio.read(_MAX_FILE_BYTES)
-                text = raw.decode("utf-8", errors="replace").strip()
-                if not text:
-                    continue
-                blocks.append(Block(type=BlockType.HEADING, content=name, level=3, index=idx))
-                idx += 1
-                blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, language=_lang(name), index=idx))
-                idx += 1
+            import tempfile
+            targets = text_names[:_MAX_FILES_SHOWN]
+            with tempfile.TemporaryDirectory() as tmpdir:
+                sz.extract(path=tmpdir, targets=targets)
+                for name in targets:
+                    file_path = Path(tmpdir) / name
+                    if not file_path.exists():
+                        continue
+                    try:
+                        raw = file_path.read_bytes()[:_MAX_FILE_BYTES]
+                        text = raw.decode("utf-8", errors="replace").strip()
+                    except Exception:
+                        continue
+                    if not text:
+                        continue
+                    blocks.append(Block(type=BlockType.HEADING, content=name, level=3, index=idx))
+                    idx += 1
+                    blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, language=_lang(name), index=idx))
+                    idx += 1
 
     return blocks, {"total_entries": len(all_files), "text_files": len(text_names)}
 

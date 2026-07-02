@@ -59,10 +59,10 @@ def _configure_tesseract() -> bool:
             pytesseract.pytesseract.tesseract_cmd = binary
             return True
         logger.debug("Tesseract binary not found; OCR disabled")
-        return False
+        return False  # pragma: no cover
     except ImportError:
         logger.debug("pytesseract not installed; OCR disabled")
-        return False
+        return False  # pragma: no cover
 
 
 def _exif_value(val) -> str:
@@ -217,8 +217,9 @@ def _try_ocr_structured(img) -> list[tuple]:
     if not _configure_tesseract():
         return []
     try:
-        import pytesseract
         from collections import OrderedDict
+
+        import pytesseract
 
         preprocessed = _preprocess_for_ocr(img)
         data = pytesseract.image_to_data(

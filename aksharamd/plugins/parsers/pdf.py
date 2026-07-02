@@ -442,7 +442,9 @@ def _apply_page_ocr(png_bytes: bytes, page_num: int, blocks: list[Block]) -> Non
     """Run Tesseract on a rasterized page and append heading/paragraph blocks."""
     try:
         import io
+
         from PIL import Image
+
         from .image import _try_ocr_structured
         pil_img = Image.open(io.BytesIO(png_bytes))
         for block_type, content, level in _try_ocr_structured(pil_img):

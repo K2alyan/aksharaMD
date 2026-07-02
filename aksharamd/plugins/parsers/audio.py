@@ -98,13 +98,13 @@ class AudioParser(ParserPlugin):
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         try:
             import whisper
-        except ImportError:
+        except ImportError:  # pragma: no cover
             ctx.error(
                 "WHISPER_NOT_INSTALLED",
                 "openai-whisper is required for audio transcription. "
                 "Install with: pip install openai-whisper",
             )
-            return ctx
+            return ctx  # pragma: no cover
 
         path = Path(ctx.source)
         file_type = path.suffix.lower().lstrip(".")
