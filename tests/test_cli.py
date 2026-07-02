@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import pytest
-from click.testing import CliRunner
 
-from aksharamd.cli import _SourceArg, _output_stem
-
+from aksharamd.cli import _output_stem, _SourceArg
 
 # ── _output_stem ──────────────────────────────────────────────────────────────
 

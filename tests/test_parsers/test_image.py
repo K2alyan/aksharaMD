@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+import io
+from unittest.mock import patch
 
 import pytest
 
+from aksharamd.compiler import Compiler
 from aksharamd.models.block import BlockType
 from aksharamd.plugins.parsers.image import (
+    _exif_value,
     _is_quality_ocr,
+    _ocr_to_blocks,
     _preprocess_for_ocr,
     _try_ocr_structured,
 )
@@ -67,6 +71,10 @@ def test_quality_ocr_rejects_noise():
 
 def test_quality_ocr_accepts_real_text():
     assert _is_quality_ocr("This is a normal sentence with real words.")
+
+
+def test_quality_ocr_rejects_empty_string():
+    assert not _is_quality_ocr("")
 
 
 # ── _try_ocr_structured ──────────────────────────────────────────────────────
@@ -192,3 +200,90 @@ def test_structured_ocr_filters_noise_blocks(tiny_img, monkeypatch):
 
     assert len(result) == 1
     assert result[0][0] == BlockType.PARAGRAPH
+
+
+# ── _exif_value ───────────────────────────────────────────────────────────────
+
+def test_exif_value_bytes():
+    result = _exif_value(b"Canon\x00")
+    assert isinstance(result, str)
+    assert "Canon" in result
+
+
+def test_exif_value_rational_tuple():
+    result = _exif_value((1, 60))
+    assert result == "1/60"
+
+
+def test_exif_value_string_passthrough():
+    assert _exif_value("Normal") == "Normal"
+
+
+def test_exif_value_int():
+    assert _exif_value(100) == "100"
+
+
+# ── _ocr_to_blocks ────────────────────────────────────────────────────────────
+
+def test_ocr_to_blocks_single_paragraph():
+    blocks = _ocr_to_blocks("Hello world this is text.", start_idx=0)
+    assert len(blocks) == 1
+    assert blocks[0].type == BlockType.PARAGRAPH
+    assert blocks[0].index == 0
+
+
+def test_ocr_to_blocks_multiple_paragraphs():
+    text = "First paragraph text.\n\nSecond paragraph text."
+    blocks = _ocr_to_blocks(text, start_idx=5)
+    assert len(blocks) == 2
+    assert blocks[0].index == 5
+    assert blocks[1].index == 6
+
+
+def test_ocr_to_blocks_skips_short_chunks():
+    text = "hi\n\nThis is a real paragraph with content."
+    blocks = _ocr_to_blocks(text, start_idx=0)
+    # "hi" is below _MIN_OCR_CHARS; only the full paragraph should remain
+    assert all(len(b.content) >= 10 for b in blocks)
+
+
+# ── ImageParser.execute (no OCR) ──────────────────────────────────────────────
+
+def _make_png_bytes() -> bytes:
+    """Create a minimal valid PNG file in memory."""
+    img = Image.new("RGB", (50, 50), color=(128, 64, 32))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_image_parser_produces_document(tmp_path):
+    f = tmp_path / "test.png"
+    f.write_bytes(_make_png_bytes())
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    assert ctx.document is not None
+    assert ctx.document.file_type == "png"
+
+
+def test_image_parser_metadata_contains_dimensions(tmp_path):
+    f = tmp_path / "dims.png"
+    f.write_bytes(_make_png_bytes())
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    meta = [b for b in ctx.document.blocks if b.type == BlockType.METADATA]
+    assert len(meta) >= 1
+    assert "50x50" in meta[0].content
+
+
+def test_image_parser_metadata_contains_mode(tmp_path):
+    f = tmp_path / "mode.png"
+    f.write_bytes(_make_png_bytes())
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    meta = [b for b in ctx.document.blocks if b.type == BlockType.METADATA]
+    assert "RGB" in meta[0].content
+
+
+def test_image_parser_corrupt_file_does_not_crash(tmp_path):
+    f = tmp_path / "bad.png"
+    f.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 10)
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    assert ctx is not None

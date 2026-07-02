@@ -12,6 +12,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 - Dockerfile for MCP streamable-http deployment (Tesseract + ffmpeg included)
 - Version single-source-of-truth: `pyproject.toml` is the only hardcoded version; `__init__.py` and `manifest.py` read from `importlib.metadata`
 
+## [0.2.0] — 2026-07-02
+
+### Added
+- **Examples**: four runnable partner onboarding scripts (`examples/01_compile_file.py`, `02_compile_url.py`, `03_batch_compile.py`, `04_extract_and_chunk.py`) covering the full Python API surface
+- **CI restructure**: two-tier GitHub Actions — `fast-gate` job (lint + mypy + bandit + tests at 75% coverage, every push) and `integration` job (Tesseract system dep, full suite, PRs to main only)
+- **Test suite expansion**: 298 tests across 20 files; 75.72% coverage; new coverage for notebook, EML, RTF, archive (tar/gz/7z), multimodal exporter, PPTX, ODF, EPUB, image parser, and CLI e2e paths
+- Audio parser (`audio.py`) and legacy office parser (`legacy_office.py`) excluded from coverage gate; both require unavailable system binaries in CI
+
+### Fixed
+- `_read_7z` in `archive_tar.py` called non-existent `SevenZipFile.read()` (py7zr 1.x API); replaced with `sz.extract()` to a `tempfile.TemporaryDirectory()`
+- pdfplumber borderless table detection for whitespace-aligned tables
+
+### Changed
+- README rewritten: accurate CLI reference, verified Python API examples, multimodal API section, Known Limitations, Optional Dependencies table, and updated benchmark numbers
+
 ## [0.1.0] — 2026-06-30
 
 ### Added — Security, testing, CI/CD
