@@ -88,13 +88,13 @@ RESULTS_PATH = Path("benchmark_results/llm_qa_results.json")
 # Default models — chosen for speed and cost-efficiency
 _CLAUDE_MODEL  = "claude-haiku-4-5-20251001"
 _OPENAI_MODEL  = "gpt-4o-mini"
-_GEMINI_MODEL  = "gemini-1.5-flash"
+_GEMINI_MODEL  = "gemini-2.5-flash"
 _JUDGE_MODEL   = "claude-haiku-4-5-20251001"
 
 LLM_DISPLAY = {
     "claude": f"Claude ({_CLAUDE_MODEL.split('-')[1].title()})",
     "openai": f"GPT-4o mini",
-    "gemini": f"Gemini 1.5 Flash",
+    "gemini": "Gemini 2.5 Flash",
 }
 
 
@@ -154,10 +154,11 @@ def _call_gemini(prompt: str, max_tokens: int = 256,
         from google.genai import types
         api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         client = genai.Client(api_key=api_key)
+        # gemini-2.5-flash is a thinking model — needs breathing room; floor at 200
         resp = client.models.generate_content(
             model=model,
             contents=prompt,
-            config=types.GenerateContentConfig(max_output_tokens=max_tokens),
+            config=types.GenerateContentConfig(max_output_tokens=max(max_tokens, 200)),
         )
         return LLMResponse(text=resp.text.strip() if resp.text else "")
     except Exception as exc:
