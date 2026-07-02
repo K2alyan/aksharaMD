@@ -347,6 +347,30 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
         with open(qa_path, encoding="utf-8") as fh:
             qa_docs = yaml.safe_load(fh).get("documents", [])
 
+        # Auto-generate Q&A for any entries that have no questions yet
+        needs_gen = [d for d in qa_docs if not d.get("qa") and Path(d.get("path", "")).exists()]
+        if needs_gen and not args.no_llm:
+            print(f"Auto-generating Q&A pairs for {len(needs_gen)} document(s) with Claude Haiku…\n")
+            for doc_entry in needs_gen:
+                p = Path(doc_entry["path"])
+                print(f"  {p.name} … ", end="", flush=True)
+                try:
+                    text, _ = _convert_aksharamd(p)
+                    pairs = _generate_qa(text, p.name, n=args.n_qa)
+                    doc_entry["qa"] = pairs
+                    print(f"{len(pairs)} questions")
+                except Exception as exc:
+                    doc_entry["qa"] = []
+                    print(f"ERROR: {exc}")
+            if args.save_qa:
+                save_path = Path(args.save_qa)
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(save_path, "w", encoding="utf-8") as fh:
+                    yaml.dump({"documents": qa_docs}, fh, allow_unicode=True,
+                              default_flow_style=False, sort_keys=False)
+                print(f"\n  Q&A pairs saved → {args.save_qa}")
+            print()
+
     elif args.docs:
         paths = [Path(p) for p in args.docs]
         missing = [p for p in paths if not p.exists()]
