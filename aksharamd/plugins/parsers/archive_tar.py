@@ -22,6 +22,11 @@ _TEXT_EXTENSIONS = {
 _MAX_FILE_BYTES  = 32_768
 _MAX_FILES_SHOWN = 100
 _MAX_LIST_ENTRIES = 500
+_MAX_ARCHIVE_DECOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+
+
+class _ArchiveTooLargeError(RuntimeError):
+    pass
 
 
 def _is_text(name: str) -> bool:
@@ -39,6 +44,13 @@ def _read_tar(path: Path, mode: str) -> tuple[list[Block], dict]:
         raise RuntimeError(f"Cannot open archive: {e}") from e
 
     members = tf.getmembers()
+    total_uncompressed = sum(m.size for m in members if m.isfile())
+    if total_uncompressed > _MAX_ARCHIVE_DECOMPRESSED_BYTES:
+        tf.close()
+        raise RuntimeError(
+            f"Archive decompressed size {total_uncompressed:,} bytes exceeds limit"
+        )
+
     blocks: list[Block] = []
     idx = 0
 

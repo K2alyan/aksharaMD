@@ -98,17 +98,21 @@ def _extract_exif(img) -> dict[str, str]:
 
 
 def _preprocess_for_ocr(img):
-    """Convert to grayscale RGB; scale up tiny images for better recognition."""
-    from PIL import Image
-    # Convert to RGB for consistent Tesseract input
-    if img.mode not in ("RGB", "L"):
+    """Prepare image for Tesseract: grayscale, contrast-boosted, appropriately sized."""
+    from PIL import Image, ImageEnhance
+    # Composite alpha channel on white before grayscale conversion
+    if img.mode == "RGBA":
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.split()[3])
+        img = bg
+    elif img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
-    # Scale up very small images (Tesseract struggles below ~300px)
+    img = img.convert("L")  # grayscale — faster and more consistent for Tesseract
     w, h = img.size
     if max(w, h) < 500:
         scale = max(2, 1000 // max(w, h))
         img = img.resize((w * scale, h * scale), Image.LANCZOS)
-    return img
+    return ImageEnhance.Contrast(img).enhance(1.5)
 
 
 def _is_quality_ocr(text: str) -> bool:
@@ -200,6 +204,79 @@ def _try_ocr(img) -> str | None:
     except Exception:
         logger.debug("Tesseract OCR failed", exc_info=True)
         return None
+
+
+def _try_ocr_structured(img) -> list[tuple]:
+    """OCR with heading detection via word bounding-box heights.
+
+    Returns a list of (BlockType, content, level_or_None) tuples.
+    Word height from Tesseract's image_to_data output acts as a font-size proxy:
+    blocks whose mean word height significantly exceeds the document median are
+    classified as headings rather than paragraphs — no layout model required.
+    """
+    if not _configure_tesseract():
+        return []
+    try:
+        import pytesseract
+        from collections import OrderedDict
+
+        preprocessed = _preprocess_for_ocr(img)
+        data = pytesseract.image_to_data(
+            preprocessed,
+            config="--psm 3",
+            output_type=pytesseract.Output.DICT,
+        )
+
+        conf_vals = [int(c) for c in data["conf"] if int(c) >= 0]
+        if conf_vals and sum(conf_vals) / len(conf_vals) < _MIN_OCR_CONFIDENCE:
+            return []
+
+        n = len(data["text"])
+        all_heights = [
+            int(data["height"][i])
+            for i in range(n)
+            if data["text"][i].strip() and int(data["conf"][i]) >= 0
+        ]
+        if not all_heights:
+            return []
+        all_heights_sorted = sorted(all_heights)
+        median_h = all_heights_sorted[len(all_heights_sorted) // 2]
+
+        # Group words by (block_num, par_num), preserving document order
+        groups: OrderedDict = OrderedDict()
+        for i in range(n):
+            word = data["text"][i].strip()
+            if not word or int(data["conf"][i]) < 0:
+                continue
+            key = (int(data["block_num"][i]), int(data["par_num"][i]))
+            if key not in groups:
+                groups[key] = {"words": [], "heights": []}
+            groups[key]["words"].append(word)
+            groups[key]["heights"].append(int(data["height"][i]))
+
+        result: list[tuple] = []
+        for g in groups.values():
+            text = " ".join(g["words"])
+            if not _is_quality_ocr(text):
+                continue
+            mean_h = sum(g["heights"]) / len(g["heights"])
+            ratio = mean_h / median_h if median_h > 0 else 1.0
+            # ALL-CAPS short phrases are heading candidates even at body text size
+            is_caps = text.isupper() and 3 <= len(text.split()) <= 12
+
+            if ratio >= 2.0 or (is_caps and ratio >= 1.5):
+                result.append((BlockType.HEADING, text, 1))
+            elif ratio >= 1.6:
+                result.append((BlockType.HEADING, text, 2))
+            elif ratio >= 1.3 or (is_caps and ratio >= 1.0):
+                result.append((BlockType.HEADING, text, 3))
+            else:
+                result.append((BlockType.PARAGRAPH, text, None))
+
+        return result
+    except Exception:
+        logger.debug("Structured OCR failed", exc_info=True)
+        return []
 
 
 class ImageParser(ParserPlugin):

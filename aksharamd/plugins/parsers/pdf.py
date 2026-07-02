@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import statistics
 from collections import Counter
@@ -166,7 +167,9 @@ def _try_pdfplumber_tables(
 
 _OCR_TEXT_THRESHOLD = 50    # chars below which a full-page rasterisation is done
 _EMBEDDED_OCR_THRESHOLD = 300  # chars below which embedded images are individually OCR'd
-_OCR_DPI = 150              # rasterization DPI for Tesseract; 150 balances speed and accuracy
+# 200 DPI meaningfully improves Tesseract accuracy over 150 on typical A4/Letter scans.
+# Override with OMNIMARK_OCR_DPI env var (e.g. 300 for high-quality archival PDFs).
+_OCR_DPI = int(os.getenv("OMNIMARK_OCR_DPI", "200"))
 _EMBED_MIN_PX = 100         # ignore embedded images smaller than 100×100 px (decorative)
 _MAX_CONTENT_IMAGE_BYTES = 2 * 1024 * 1024  # skip images > 2 MB (very high-res raw scans)
 _MAX_IMAGES_PER_PAGE = 3
@@ -436,28 +439,20 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
 
 
 def _apply_page_ocr(png_bytes: bytes, page_num: int, blocks: list[Block]) -> None:
-    """Run Tesseract on a rasterized page and append paragraph blocks."""
+    """Run Tesseract on a rasterized page and append heading/paragraph blocks."""
     try:
         import io
-        import re
-
         from PIL import Image
-
-        from .image import _try_ocr
+        from .image import _try_ocr_structured
         pil_img = Image.open(io.BytesIO(png_bytes))
-        ocr_text = _try_ocr(pil_img)
-        if not ocr_text:
-            return
-        for chunk in re.split(r"\n{2,}", ocr_text):
-            lines = [ln.strip() for ln in chunk.splitlines() if ln.strip()]
-            para = " ".join(lines)
-            if para and len(para) >= 10:
-                blocks.append(Block(
-                    type=BlockType.PARAGRAPH,
-                    content=para,
-                    page=page_num,
-                    index=0,
-                ))
+        for block_type, content, level in _try_ocr_structured(pil_img):
+            blocks.append(Block(
+                type=block_type,
+                content=content,
+                level=level,
+                page=page_num,
+                index=0,
+            ))
     except Exception:
         logger.debug("OCR failed on page %d", page_num, exc_info=True)
 
@@ -586,7 +581,11 @@ class PDFParser(ParserPlugin):
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         path = Path(ctx.source)
-        pdf = fitz.open(str(path))
+        try:
+            pdf = fitz.open(str(path))
+        except Exception as exc:
+            ctx.error("PARSE_FAILED", f"Could not open PDF: {exc}")
+            return ctx
         page_count = pdf.page_count
 
         # Open pdfplumber alongside fitz for borderless-table fallback.

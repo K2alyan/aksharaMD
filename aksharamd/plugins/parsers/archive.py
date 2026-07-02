@@ -22,6 +22,7 @@ _TEXT_EXTENSIONS = {
 _MAX_FILE_BYTES   = 32_768   # 32 KB per file
 _MAX_FILES_SHOWN  = 100      # max files to extract text from
 _MAX_LIST_ENTRIES = 500      # max entries in file listing
+_MAX_ARCHIVE_DECOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 
 
 def _is_text(name: str) -> bool:
@@ -43,6 +44,15 @@ class ZipParser(ParserPlugin):
             zf = zipfile.ZipFile(str(path), "r")
         except Exception as e:
             ctx.error("ZIP_PARSE_ERROR", str(e))
+            return ctx
+
+        total_uncompressed = sum(i.file_size for i in zf.infolist())
+        if total_uncompressed > _MAX_ARCHIVE_DECOMPRESSED_BYTES:
+            ctx.error(
+                "ARCHIVE_TOO_LARGE",
+                f"Archive decompressed size {total_uncompressed:,} bytes exceeds "
+                f"{_MAX_ARCHIVE_DECOMPRESSED_BYTES:,} byte limit",
+            )
             return ctx
 
         members = zf.infolist()

@@ -22,7 +22,7 @@ def main() -> int:
     p.add_argument("--count", type=int, default=20, help="Files per type for corpus build")
     p.add_argument("--skip-build", action="store_true", help="Skip corpus build, use existing")
     p.add_argument("--tools", nargs="*",
-                   default=["omnimark", "markitdown", "docling"],
+                   default=["omnimark", "markitdown", "docling", "unstructured"],
                    help="Tools to benchmark")
     p.add_argument("--types", nargs="*", default=None, help="Limit to these file types")
     args = p.parse_args()
