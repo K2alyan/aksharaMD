@@ -5,6 +5,12 @@ import json as _json
 try:
     import defusedxml.ElementTree as ET
 except ImportError:  # pragma: no cover
+    import warnings
+    warnings.warn(
+        "defusedxml not installed; XML parsing may be vulnerable to XXE injection. "
+        "Install with: pip install defusedxml",
+        stacklevel=1,
+    )
     import xml.etree.ElementTree as ET  # type: ignore[assignment]
 from pathlib import Path
 
