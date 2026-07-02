@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import click
 from rich import box
@@ -15,6 +17,28 @@ from .compiler import Compiler
 from .utils import DISPLAY_MODELS, TOKEN_PRICES, tokens_to_dollars
 
 console = Console(highlight=False)
+
+
+class _SourceArg(click.ParamType):
+    """Click argument type that accepts a local file path OR an http(s):// URL."""
+    name = "source"
+
+    def convert(self, value, param, ctx):
+        if value.startswith(("http://", "https://")):
+            return value
+        p = Path(value)
+        if p.exists():
+            return str(p)
+        self.fail(f"{value!r} is not a valid file path or URL.", param, ctx)
+
+
+def _output_stem(source: str) -> str:
+    """Derive a filesystem-safe directory name from a file path or URL."""
+    if source.startswith(("http://", "https://")):
+        parsed = urlparse(source)
+        stem = Path(parsed.path).stem or parsed.netloc.split(":")[0]
+        return re.sub(r"[^\w\-]", "_", stem) or "url_output"
+    return Path(source).stem
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -49,19 +73,19 @@ def main():
 
 
 @main.command()
-@click.argument("source", type=click.Path(exists=True))
+@click.argument("source", type=_SourceArg())
 @click.option("-o", "--output", default="output", show_default=True, help="Output directory")
 @click.option("--quiet", is_flag=True, help="Suppress progress output")
 @click.option("--timings", is_flag=True, help="Show per-stage timing breakdown")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging from all plugins")
 def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool):
-    """Compile a document into AI-optimized Markdown, JSON, and chunks."""
+    """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     _setup_logging(verbose)
 
     if not quiet:
         console.print(f"[bold blue]AksharaMD[/] compiling [cyan]{source}[/]...")
 
-    file_output = str(Path(output) / Path(source).stem)
+    file_output = str(Path(output) / _output_stem(source))
     compiler = Compiler(output_dir=file_output)
     ctx = compiler.compile(source)
 
@@ -133,12 +157,12 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
 
 
 @main.command()
-@click.argument("source", type=click.Path(exists=True))
+@click.argument("source", type=_SourceArg())
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
 def validate(source: str, verbose: bool):
-    """Validate a document without full compilation."""
+    """Validate a document or URL without full compilation."""
     _setup_logging(verbose)
-    compiler = Compiler(output_dir=str(Path("output") / Path(source).stem))
+    compiler = Compiler(output_dir=str(Path("output") / _output_stem(source)))
     ctx = compiler.compile(source)
 
     if ctx.validation.passed:
@@ -154,22 +178,23 @@ def validate(source: str, verbose: bool):
 
 
 @main.command()
-@click.argument("sources", nargs=-1, type=click.Path(exists=True), required=True)
+@click.argument("sources", nargs=-1, type=_SourceArg(), required=True)
 @click.option("-o", "--output", default="output", show_default=True)
 @click.option("--verbose", "-v", is_flag=True)
 def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
-    """Compile one or more documents and print a benchmark summary table."""
+    """Compile one or more documents or URLs and print a benchmark summary table."""
     _setup_logging(verbose)
     rows = []
     for source in sources:
-        console.print(f"[dim]Compiling {Path(source).name}...[/]")
-        file_output = str(Path(output) / Path(source).stem)
+        label = source if source.startswith(("http://", "https://")) else Path(source).name
+        console.print(f"[dim]Compiling {label}...[/]")
+        file_output = str(Path(output) / _output_stem(source))
         ctx = Compiler(output_dir=file_output).compile(source)
         m = ctx.manifest
         if m:
             pages_per_sec = round(m.pages / m.elapsed_seconds, 1) if m.elapsed_seconds > 0 and m.pages > 0 else 0
             rows.append({
-                "name": Path(source).name,
+                "name": label,
                 "pages": m.pages,
                 "orig_tokens": m.original_tokens,
                 "opt_tokens": m.optimized_tokens,

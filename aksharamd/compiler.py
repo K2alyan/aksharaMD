@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # 500 MB default; override with AKSHARAMD_MAX_FILE_BYTES env var
 _MAX_FILE_BYTES = int(os.environ.get("AKSHARAMD_MAX_FILE_BYTES", str(500 * 1024 * 1024)))
@@ -155,116 +158,120 @@ class Compiler:
                 ctx.error("URL_FETCH_ERROR", str(exc))
                 return ctx, stage_timings, t0
 
-        ctx = CompilationContext(source=source, output_dir=self.output_dir)
-
-        def timed(name: str) -> _StageTimer:
-            return _StageTimer(stage_timings, name)
-
-        # 0. File size gate — reject before any I/O-heavy parsing
         try:
-            file_size = Path(source).stat().st_size
-            if file_size > _MAX_FILE_BYTES:
-                ctx.error(
-                    "FILE_TOO_LARGE",
-                    f"File is {file_size:,} bytes; limit is {_MAX_FILE_BYTES:,} bytes. "
-                    f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
-                )
-                return ctx, stage_timings, t0
-        except OSError:
-            pass  # missing file handled by parser with a clearer message
+            ctx = CompilationContext(source=source, output_dir=self.output_dir)
 
-        # 1. Detect
-        file_type = _detect_file_type(source)
+            def timed(name: str) -> _StageTimer:
+                return _StageTimer(stage_timings, name)
 
-        # 2. Parse
-        parser = registry.get_parser(file_type)
-        if parser is None:
-            ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
-            return ctx, stage_timings, t0
-        with timed("parse"):
-            ctx = parser.execute(ctx)
-        if ctx.document is None:
-            ctx.error("PARSE_FAILED", "Parser produced no document")
-            return ctx, stage_timings, t0
-        ctx.document = ctx.document.model_copy(update={"file_type": file_type})
-
-        # 3. Clean
-        with timed("clean"):
-            for plugin in registry.get_plugins_of_type(CleanerPlugin):
-                ctx = plugin.execute(ctx)
-
-        # 4. Optimise
-        with timed("optimize"):
-            for plugin in registry.get_plugins_of_type(OptimizerPlugin):
-                ctx = plugin.execute(ctx)
-
-        # 5. Validate
-        with timed("validate"):
-            for plugin in registry.get_plugins_of_type(ValidatorPlugin):
-                ctx = plugin.execute(ctx)
-
-        # 6. Chunk
-        with timed("chunk"):
-            for plugin in registry.get_plugins_of_type(ChunkerPlugin):
-                ctx = plugin.execute(ctx)
-
-        # 7. Count tokens
-        with timed("tokenize"):
-            if ctx.document:
-                optimized_text = " ".join(b.content for b in ctx.document.blocks)
-                optimized_tokens = count_tokens(optimized_text)
-            else:
-                optimized_tokens = 0
-
-        original_tokens = ctx.original_tokens or optimized_tokens
-        reduction = (
-            round((1 - optimized_tokens / original_tokens) * 100, 2)
-            if original_tokens > 0 else 0.0
-        )
-
-        # 8. Package manifest
-        doc = ctx.document
-        images = sum(1 for b in doc.blocks if b.type.value == "image") if doc else 0
-        tables = sum(1 for b in doc.blocks if b.type.value == "table") if doc else 0
-
-        ctx.manifest = Manifest(
-            source=source,
-            file_type=file_type,
-            pages=doc.pages if doc else 0,
-            chunks=len(ctx.chunks),
-            images=images,
-            tables=tables,
-            original_tokens=original_tokens,
-            optimized_tokens=optimized_tokens,
-            token_reduction_percent=reduction,
-            duplicate_blocks_removed=ctx.duplicate_blocks_removed,
-            headers_removed=ctx.headers_removed,
-            footers_removed=ctx.footers_removed,
-            elapsed_seconds=round(time.perf_counter() - t0, 3),
-            stage_timings=stage_timings,
-            warnings=[i.message for i in ctx.validation.warnings],
-            errors=[i.message for i in ctx.validation.errors],
-        )
-
-        # 9. Extraction Confidence Score
-        confidence = compute_confidence(ctx)
-        ctx.manifest = ctx.manifest.model_copy(update={
-            "readiness_score": confidence.score,
-            "confidence_notes": confidence.notes,
-        })
-
-        # Restore original URL as the canonical source
-        if _temp_path is not None:
-            if ctx.document:
-                ctx.document = ctx.document.model_copy(update={"source": _original_source})
-            if ctx.manifest:
-                ctx.manifest = ctx.manifest.model_copy(update={"source": _original_source})
+            # 0. File size gate — reject before any I/O-heavy parsing
             try:
-                Path(_temp_path).unlink(missing_ok=True)
-            except Exception:
-                pass
+                file_size = Path(source).stat().st_size
+                if file_size > _MAX_FILE_BYTES:
+                    ctx.error(
+                        "FILE_TOO_LARGE",
+                        f"File is {file_size:,} bytes; limit is {_MAX_FILE_BYTES:,} bytes. "
+                        f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
+                    )
+                    return ctx, stage_timings, t0
+            except OSError:
+                pass  # missing file handled by parser with a clearer message
 
-        return ctx, stage_timings, t0
+            # 1. Detect
+            file_type = _detect_file_type(source)
+
+            # 2. Parse
+            parser = registry.get_parser(file_type)
+            if parser is None:
+                ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
+                return ctx, stage_timings, t0
+            with timed("parse"):
+                ctx = parser.execute(ctx)
+            if ctx.document is None:
+                ctx.error("PARSE_FAILED", "Parser produced no document")
+                return ctx, stage_timings, t0
+            ctx.document = ctx.document.model_copy(update={"file_type": file_type})
+
+            # 3. Clean
+            with timed("clean"):
+                for plugin in registry.get_plugins_of_type(CleanerPlugin):
+                    ctx = plugin.execute(ctx)
+
+            # 4. Optimise
+            with timed("optimize"):
+                for plugin in registry.get_plugins_of_type(OptimizerPlugin):
+                    ctx = plugin.execute(ctx)
+
+            # 5. Validate
+            with timed("validate"):
+                for plugin in registry.get_plugins_of_type(ValidatorPlugin):
+                    ctx = plugin.execute(ctx)
+
+            # 6. Chunk
+            with timed("chunk"):
+                for plugin in registry.get_plugins_of_type(ChunkerPlugin):
+                    ctx = plugin.execute(ctx)
+
+            # 7. Count tokens
+            with timed("tokenize"):
+                if ctx.document:
+                    optimized_text = " ".join(b.content for b in ctx.document.blocks)
+                    optimized_tokens = count_tokens(optimized_text)
+                else:
+                    optimized_tokens = 0
+
+            original_tokens = ctx.original_tokens or optimized_tokens
+            reduction = (
+                round((1 - optimized_tokens / original_tokens) * 100, 2)
+                if original_tokens > 0 else 0.0
+            )
+
+            # 8. Package manifest
+            doc = ctx.document
+            images = sum(1 for b in doc.blocks if b.type.value == "image") if doc else 0
+            tables = sum(1 for b in doc.blocks if b.type.value == "table") if doc else 0
+
+            ctx.manifest = Manifest(
+                source=source,
+                file_type=file_type,
+                pages=doc.pages if doc else 0,
+                chunks=len(ctx.chunks),
+                images=images,
+                tables=tables,
+                original_tokens=original_tokens,
+                optimized_tokens=optimized_tokens,
+                token_reduction_percent=reduction,
+                duplicate_blocks_removed=ctx.duplicate_blocks_removed,
+                headers_removed=ctx.headers_removed,
+                footers_removed=ctx.footers_removed,
+                elapsed_seconds=round(time.perf_counter() - t0, 3),
+                stage_timings=stage_timings,
+                warnings=[i.message for i in ctx.validation.warnings],
+                errors=[i.message for i in ctx.validation.errors],
+            )
+
+            # 9. Extraction Confidence Score
+            confidence = compute_confidence(ctx)
+            ctx.manifest = ctx.manifest.model_copy(update={
+                "readiness_score": confidence.score,
+                "confidence_notes": confidence.notes,
+            })
+
+            # Restore original URL as the canonical source
+            if _temp_path is not None:
+                if ctx.document:
+                    ctx.document = ctx.document.model_copy(update={"source": _original_source})
+                if ctx.manifest:
+                    ctx.manifest = ctx.manifest.model_copy(update={"source": _original_source})
+
+            return ctx, stage_timings, t0
+
+        finally:
+            if _temp_path is not None:
+                try:
+                    Path(_temp_path).unlink(missing_ok=True)
+                except OSError as exc:
+                    logger.debug("Failed to delete temp file %s: %s", _temp_path, exc)
 
     def _finalise(
         self,

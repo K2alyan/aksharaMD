@@ -137,13 +137,58 @@ def _run_docling(path: Path) -> tuple[str, float]:
     return text or "", elapsed
 
 
+def _unstructured_table_to_md(html: str) -> str:
+    """Convert unstructured's text_as_html table to Markdown."""
+    try:
+        from bs4 import BeautifulSoup
+        rows = BeautifulSoup(html, "html.parser").find_all("tr")
+        if not rows:
+            return ""
+        md_rows: list[str] = []
+        for i, row in enumerate(rows):
+            cells = [td.get_text(separator=" ", strip=True) for td in row.find_all(["td", "th"])]
+            if not cells:
+                continue
+            md_rows.append("| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |")
+            if i == 0:
+                md_rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
+        return "\n".join(md_rows)
+    except Exception:
+        return ""
+
+
 def _run_unstructured(path: Path) -> tuple[str, float]:
     from unstructured.partition.auto import partition
     t0 = time.perf_counter()
     elements = partition(filename=str(path))
     elapsed = time.perf_counter() - t0
-    text = "\n\n".join(str(e) for e in elements)
-    return text, elapsed
+
+    parts: list[str] = []
+    for el in elements:
+        el_type = type(el).__name__
+        text = str(el).strip()
+        if not text:
+            continue
+        if el_type == "Title":
+            parts.append(f"## {text}")
+        elif el_type in ("Header", "SectionHeader"):
+            parts.append(f"### {text}")
+        elif el_type == "ListItem":
+            parts.append(f"- {text}")
+        elif el_type == "Table":
+            html = getattr(getattr(el, "metadata", None), "text_as_html", None)
+            md = _unstructured_table_to_md(html) if html else ""
+            parts.append(md if md else text)
+        elif el_type == "FigureCaption":
+            parts.append(f"*{text}*")
+        elif el_type in ("CodeSnippet", "Code"):
+            parts.append(f"```\n{text}\n```")
+        elif el_type in ("Footer", "PageBreak"):
+            continue  # skip structural noise
+        else:
+            parts.append(text)  # NarrativeText, Address, Formula, etc.
+
+    return "\n\n".join(parts), elapsed
 
 
 def _run_pymupdf4llm(path: Path) -> tuple[str, float]:
