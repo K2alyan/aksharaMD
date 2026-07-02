@@ -62,6 +62,15 @@ ocr = [
 full = [
     "aksharamd[audio,ocr]",
 ]
+eval = [
+    "anthropic>=0.40",
+    "openai>=1.30",
+    "google-generativeai>=0.8",
+    "markitdown>=0.1",
+    "pyyaml>=6.0",
+    "python-Levenshtein>=0.25",
+    "datasets>=2.0",
+]
 
 [tool.hatch.envs.default]
 features = ["dev"]
