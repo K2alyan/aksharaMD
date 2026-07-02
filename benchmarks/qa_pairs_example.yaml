@@ -1,0 +1,43 @@
+# Example Q&A pairs file for llm_qa_eval.py
+#
+# Usage:
+#   python -m benchmarks.llm_qa_eval --qa benchmarks/qa_pairs_example.yaml
+#
+# Replace the document paths and questions with your own.
+# The 'a' field is optional — omit it to get answers without scoring.
+#
+# To auto-generate this file from your documents:
+#   python -m benchmarks.llm_qa_eval your_doc.pdf --save-qa benchmarks/my_qa.yaml
+
+documents:
+  - path: "path/to/report.pdf"
+    description: "Annual report — structured PDF with tables and headings"
+    qa:
+      - q: "What was the total revenue reported?"
+        a: "£42.3 million"
+      - q: "Who is listed as the Chief Executive Officer?"
+        a: "Jane Smith"
+      - q: "What period does this report cover?"
+        a: "fiscal year 2025"
+      - q: "How many employees does the company have?"
+        a: "1,240"
+
+  - path: "path/to/technical_spec.docx"
+    description: "Technical specification — DOCX with nested lists and tables"
+    qa:
+      - q: "What is the maximum operating temperature?"
+        a: "120°C"
+      - q: "Which standard does this specification reference?"
+        a: "ISO 9001:2015"
+      - q: "What is the default timeout value?"
+        a: "30 seconds"
+
+  - path: "path/to/contract.html"
+    description: "Contract — HTML document with sections"
+    qa:
+      - q: "What is the contract start date?"
+        a: "1 January 2026"
+      - q: "What is the governing law of this agreement?"
+        a: "English law"
+      - q: "How many days notice is required for termination?"
+        a: "90 days"
