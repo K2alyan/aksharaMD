@@ -1,0 +1,149 @@
+# AksharaMD vs MarkItDown — Multi-LLM QA Evaluation Corpus
+#
+# 36 documents across 12 formats, selected small/medium/large per type.
+# Q&A pairs are auto-generated at runtime — see instructions below.
+#
+# ── STEP 1: Generate Q&A pairs (needs ANTHROPIC_API_KEY) ─────────────────────
+#
+#   python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus.yaml \
+#       --no-llm --save-qa benchmarks/eval_corpus_qa.yaml
+#
+#   (This pre-compiles the Q&A file so the full eval runs faster.)
+#
+# ── STEP 2: Run the full evaluation (needs all 3 API keys) ───────────────────
+#
+#   set ANTHROPIC_API_KEY=sk-ant-...
+#   set OPENAI_API_KEY=sk-...
+#   set GEMINI_API_KEY=AI...
+#
+#   python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml
+#
+# ── OR: Run everything in one shot ───────────────────────────────────────────
+#
+#   python -m benchmarks.llm_qa_eval \
+#       $(python -c "import yaml; docs=yaml.safe_load(open('benchmarks/eval_corpus.yaml'))['documents']; print(' '.join(d['path'] for d in docs))") \
+#       --save-qa benchmarks/eval_corpus_qa.yaml
+#
+# Results are saved to: benchmark_results/llm_qa_results.json
+
+documents:
+
+  # ── PDF — arXiv papers (small / medium / large) ────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28277v1.pdf"
+    description: "arXiv paper — small (575 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28273v1.pdf"
+    description: "arXiv paper — medium (1.1 MB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28274v1.pdf"
+    description: "arXiv paper — large (3.9 MB)"
+
+  # ── DOCX — business documents ──────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_03_market_research_analysis.docx"
+    description: "DOCX — market research analysis"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_19_performance_metrics_report.docx"
+    description: "DOCX — performance metrics report"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_16_software_requirements_specification.docx"
+    description: "DOCX — software requirements specification"
+
+  # ── PPTX — presentations ───────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_16_competitive_landscape.pptx"
+    description: "PPTX — competitive landscape deck"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_05_customer_success_overview.pptx"
+    description: "PPTX — customer success overview"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_11_partnership_proposal.pptx"
+    description: "PPTX — partnership proposal"
+
+  # ── XLSX — spreadsheets ────────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_02_budget.xlsx"
+    description: "XLSX — budget spreadsheet"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_08_employees.xlsx"
+    description: "XLSX — employee data"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_19_inventory.xlsx"
+    description: "XLSX — inventory list"
+
+  # ── HTML — Wikipedia articles (small / medium / large) ─────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\mesopotamia.html"
+    description: "HTML — Wikipedia: Mesopotamia (533 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\inflation.html"
+    description: "HTML — Wikipedia: Inflation (778 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\black_hole.html"
+    description: "HTML — Wikipedia: Black hole (1.3 MB)"
+
+  # ── EPUB — Project Gutenberg books ────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_1232.epub"
+    description: "EPUB — Project Gutenberg (207 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_345.epub"
+    description: "EPUB — Project Gutenberg (423 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_1342.epub"
+    description: "EPUB — Project Gutenberg: Pride and Prejudice (546 KB)"
+
+  # ── TXT — Project Gutenberg plain text ────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_219.txt"
+    description: "TXT — Project Gutenberg (232 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_25344.txt"
+    description: "TXT — Project Gutenberg (514 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_2701.txt"
+    description: "TXT — Project Gutenberg: Moby Dick (1.2 MB)"
+
+  # ── EML — emails ──────────────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_14.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_16.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_08.eml"
+    description: "EML — email message"
+
+  # ── IPYNB — Jupyter notebooks ─────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_20_statistics.ipynb"
+    description: "IPYNB — statistics notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_06_data_analysis.ipynb"
+    description: "IPYNB — data analysis notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_14_text_processing.ipynb"
+    description: "IPYNB — text processing notebook"
+
+  # ── CSV — tabular data ────────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_10_events.csv"
+    description: "CSV — events data"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_06_transactions.csv"
+    description: "CSV — transactions"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_07_web_logs.csv"
+    description: "CSV — web server logs"
+
+  # ── JSON ──────────────────────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_12_config.json"
+    description: "JSON — configuration file"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_10_report.json"
+    description: "JSON — structured report"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_16_api_response.json"
+    description: "JSON — API response payload"
+
+  # ── XML ───────────────────────────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_09.xml"
+    description: "XML — small document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_14.xml"
+    description: "XML — medium document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_07.xml"
+    description: "XML — larger document"
