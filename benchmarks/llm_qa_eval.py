@@ -132,13 +132,14 @@ def _call_openai(prompt: str, max_tokens: int = 256,
 def _call_gemini(prompt: str, max_tokens: int = 256,
                  model: str = _GEMINI_MODEL) -> LLMResponse:
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
         api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
-        resp = genai.GenerativeModel(model).generate_content(
-            prompt,
-            generation_config={"max_output_tokens": max_tokens},
+        client = genai.Client(api_key=api_key)
+        resp = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=max_tokens),
         )
         return LLMResponse(text=resp.text.strip() if resp.text else "")
     except Exception as exc:
@@ -168,7 +169,7 @@ def _detect_available_llms() -> list[str]:
     except ImportError:
         pass
     try:
-        import google.generativeai  # noqa: F401
+        from google import genai  # noqa: F401
         if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
             available.append("gemini")
     except ImportError:
