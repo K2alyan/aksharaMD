@@ -324,14 +324,18 @@ class ImageParser(ParserPlugin):
         idx += 1
 
         # ── OCR ───────────────────────────────────────────────────────────────
-        ocr_text = _try_ocr(img)
         has_ocr = False
-        if ocr_text:
-            ocr_blocks = _ocr_to_blocks(ocr_text, idx)
-            if ocr_blocks:
-                has_ocr = True
-                blocks.extend(ocr_blocks)
-                idx += len(ocr_blocks)
+        ocr_structured = _try_ocr_structured(img)
+        if ocr_structured:
+            has_ocr = True
+            for block_type, content, level in ocr_structured:
+                blocks.append(Block(
+                    type=block_type,
+                    content=content,
+                    level=level,
+                    index=idx,
+                ))
+                idx += 1
 
         # ── Animation info for GIF ─────────────────────────────────────────────
         n_frames = getattr(img, "n_frames", 1)

@@ -25,6 +25,9 @@ class _SourceArg(click.ParamType):
 
     def convert(self, value, param, ctx):
         if value.startswith(("http://", "https://")):
+            parsed = urlparse(value)
+            if not parsed.netloc:
+                self.fail(f"Invalid URL — missing hostname: {value!r}", param, ctx)
             return value
         p = Path(value)
         if p.exists():
@@ -324,3 +327,20 @@ def show_manifest(output_dir: str):
         console.print("[red]No manifest.json found in output dir[/]")
         sys.exit(1)
     console.print_json(p.read_text())
+
+
+@main.command()
+def formats():
+    """List all supported input file formats."""
+    import aksharamd.plugins.registry as _reg
+    from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
+
+    exts = sorted(_reg._parsers.keys())
+    t = Table(box=box.SIMPLE, show_header=True, header_style="bold cyan")
+    t.add_column("Extension")
+    t.add_column("Parser")
+    for ext in exts:
+        cls = _reg._parsers.get(ext)
+        parser_name = cls.name if cls and hasattr(cls, "name") else "unknown"
+        t.add_row(f".{ext}", parser_name)
+    console.print(Panel(t, title="[bold]Supported Formats[/]", border_style="blue"))

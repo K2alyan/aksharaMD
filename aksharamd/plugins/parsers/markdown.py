@@ -56,6 +56,7 @@ class MarkdownParser(ParserPlugin):
         block_index = 0
         title: str | None = None
         i = 0
+        raw_lines = text.splitlines()
 
         while i < len(tokens):
             token = tokens[i]
@@ -101,22 +102,18 @@ class MarkdownParser(ParserPlugin):
                 block_index += 1
 
             elif token.type == "table_open":
-                # Collect the raw table markdown
-                text.find("|")
-                table_lines = []
-                for line in text.splitlines():
-                    stripped = line.strip()
-                    if stripped.startswith("|"):
-                        table_lines.append(stripped)
-                    elif table_lines:
-                        break
-                if table_lines:
-                    blocks.append(Block(
-                        type=BlockType.TABLE,
-                        content="\n".join(table_lines),
-                        index=block_index,
-                    ))
-                    block_index += 1
+                # Use token.map to slice only this table's source lines
+                if token.map:
+                    start, end = token.map
+                    table_lines = [line for line in raw_lines[start:end] if "|" in line]
+                    table_md = "\n".join(table_lines)
+                    if table_md.strip():
+                        blocks.append(Block(
+                            type=BlockType.TABLE,
+                            content=table_md.strip(),
+                            index=block_index,
+                        ))
+                        block_index += 1
 
             elif token.type == "bullet_list_open" or token.type == "ordered_list_open":
                 ordered = token.type == "ordered_list_open"
