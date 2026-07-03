@@ -44,7 +44,7 @@ def _gen_coeffs(num_perm: int) -> tuple[list[int], list[int]]:
     seen: set[int] = set()
     h = 0
     while len(rng_a) < num_perm:
-        h = int(hashlib.sha1((h & 0xFFFFFFFFFFFFFFFF).to_bytes(8, "big")).hexdigest(), 16)  # noqa: S324
+        h = int(hashlib.sha1((h & 0xFFFFFFFFFFFFFFFF).to_bytes(8, "big"), usedforsecurity=False).hexdigest(), 16)  # noqa: S324
         a = (h & _MAX_HASH) | 1          # must be odd
         b = ((h >> 32) & _MAX_HASH)
         if a not in seen:
@@ -75,7 +75,7 @@ def minhash(text: str, num_perm: int = _NUM_PERM) -> list[int]:
     if not shingles:
         return sig
     for shingle in shingles:
-        h = int(hashlib.sha1(shingle).digest()[:4].hex(), 16)  # noqa: S324
+        h = int(hashlib.sha1(shingle, usedforsecurity=False).digest()[:4].hex(), 16)  # noqa: S324
         for i in range(num_perm):
             phv = ((_A_COEFFS[i] * h + _B_COEFFS[i]) % _MERSENNE_PRIME) & _MAX_HASH
             if phv < sig[i]:
