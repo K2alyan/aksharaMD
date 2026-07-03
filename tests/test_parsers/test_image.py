@@ -21,7 +21,16 @@ try:
 except ImportError:
     _PIL_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not _PIL_AVAILABLE, reason="Pillow not installed")
+try:
+    import pytesseract  # noqa: F401
+    _TESSERACT_AVAILABLE = True
+except ImportError:
+    _TESSERACT_AVAILABLE = False
+
+pytestmark = pytest.mark.skipif(
+    not _PIL_AVAILABLE,
+    reason="Pillow not installed",
+)
 
 
 # ── _preprocess_for_ocr ──────────────────────────────────────────────────────
@@ -118,6 +127,7 @@ def test_structured_ocr_returns_empty_when_tesseract_unavailable(tiny_img, monke
     assert _try_ocr_structured(tiny_img) == []
 
 
+@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
 def test_structured_ocr_detects_heading_by_height(tiny_img, monkeypatch):
     _mock_configure(monkeypatch, "")
     body_words = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 85}
@@ -134,6 +144,7 @@ def test_structured_ocr_detects_heading_by_height(tiny_img, monkeypatch):
     assert BlockType.HEADING in types
 
 
+@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
 def test_structured_ocr_heading_level_scales_with_ratio(tiny_img, monkeypatch):
     _mock_configure(monkeypatch, "")
     # 10 body words keep median_h = 20 even after heading words are included
@@ -158,6 +169,7 @@ def test_structured_ocr_heading_level_scales_with_ratio(tiny_img, monkeypatch):
     assert 3 in levels
 
 
+@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
 def test_structured_ocr_caps_heading_at_body_height(tiny_img, monkeypatch):
     _mock_configure(monkeypatch, "")
     # ALL CAPS phrase at body text height → should be H3
@@ -175,6 +187,7 @@ def test_structured_ocr_caps_heading_at_body_height(tiny_img, monkeypatch):
     assert heading_blocks[0][2] == 3
 
 
+@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
 def test_structured_ocr_rejects_low_confidence(tiny_img, monkeypatch):
     _mock_configure(monkeypatch, "")
     low_conf_words = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 15}
@@ -187,6 +200,7 @@ def test_structured_ocr_rejects_low_confidence(tiny_img, monkeypatch):
     assert result == []
 
 
+@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
 def test_structured_ocr_filters_noise_blocks(tiny_img, monkeypatch):
     _mock_configure(monkeypatch, "")
     # Single short noise word — should be filtered by _is_quality_ocr
