@@ -476,13 +476,15 @@ Each document received 4 factual questions, independently answered by all 5 tool
 
 | Tool | Avg score | Avg tokens | Formats covered |
 |------|:---------:|:----------:|:---------------:|
-| **AksharaMD** | **9.7/10** | **6,114** | **12/12** |
-| [MarkItDown](https://github.com/microsoft/markitdown) | 8.9/10 | 34,909 | 12/12 |
-| [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/) | 8.4/10 | 46,523 | 8/12 |
-| [Docling](https://github.com/DS4SD/docling) | 8.4/10 | 46,765 | 8/12 |
-| [LlamaParse](https://github.com/run-llama/llama_parse) | 7.9/10 | 35,322 | 10/12 |
+| **AksharaMD** | **9.5/10** | **6,272** | **12/12** |
+| [MarkItDown](https://github.com/microsoft/markitdown) | 8.6/10 | 27,449 | 12/12 |
+| [Docling](https://github.com/DS4SD/docling) | 8.6/10† | 35,461 | 8/12 |
+| [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/) | 8.0/10† | 34,231 | 8/12 |
+| [LlamaParse](https://github.com/run-llama/llama_parse) | 7.8/10 | 26,274 | 12/12 |
 
-AksharaMD uses **82–87% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$2,304–$3,252 in saved API spend** (Claude Haiku 4.5 pricing).
+† Accuracy measured on supported formats only (EML, IPYNB, JSON, and XML are unsupported by Docling; EML, IPYNB, CSV, and JSON are unsupported by PyMuPDF4LLM).
+
+AksharaMD uses **73–82% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$1,600–$2,335 in saved API spend** (Claude Haiku 4.5 pricing).
 
 ### Self-hosted model throughput
 
