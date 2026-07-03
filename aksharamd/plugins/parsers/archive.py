@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import zipfile
 from pathlib import Path
 
@@ -22,7 +23,9 @@ _TEXT_EXTENSIONS = {
 _MAX_FILE_BYTES   = 32_768   # 32 KB per file
 _MAX_FILES_SHOWN  = 100      # max files to extract text from
 _MAX_LIST_ENTRIES = 500      # max entries in file listing
-_MAX_ARCHIVE_DECOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+_MAX_ARCHIVE_DECOMPRESSED_BYTES = int(os.environ.get(
+    "AKSHARAMD_MAX_ARCHIVE_BYTES", str(512 * 1024 * 1024)  # 512 MB default
+))
 
 
 def _is_text(name: str) -> bool:
