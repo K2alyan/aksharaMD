@@ -18,9 +18,9 @@ AksharaMD is a document processing pipeline that ingests 40+ file formats and pr
 
 ## Why AksharaMD
 
-- **15× fewer tokens than MarkItDown** on equivalent documents — measured across 23 format types
+- **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on equivalent documents — measured across 23 format types
 - **98.5% less noise** — 3.7 avg noise lines vs 250.1 for MarkItDown
-- **27× faster than Docling** on PDF with higher extraction quality
+- **27× faster than [Docling](https://github.com/DS4SD/docling)** on PDF with higher extraction quality
 - **Structured output** — emits real headings, tables, code blocks; MarkItDown produces flat text
 - **AI Readiness Score** — every compilation returns a 0–100 confidence score
 - **No ML dependencies** — fast, memory-efficient, and fully reproducible
@@ -426,7 +426,7 @@ for chunk in chunks:
 
 ## Benchmarks
 
-Evaluated against MarkItDown (Microsoft) and Docling (IBM) on an internal corpus of production documents — June 2026.
+Evaluated against [MarkItDown](https://github.com/microsoft/markitdown) (Microsoft) and [Docling](https://github.com/DS4SD/docling) (IBM) on an internal corpus of production documents — June 2026.
 
 ### PDF (20 documents — arXiv papers, technical reports)
 
@@ -469,10 +469,10 @@ Token efficiency is necessary but not sufficient — cleaner extraction only mat
 | Tool | Avg score | Avg tokens | Formats covered |
 |------|:---------:|:----------:|:---------------:|
 | **AksharaMD** | **9.7/10** | **6,114** | **12/12** |
-| MarkItDown | 8.9/10 | 34,909 | 12/12 |
-| PyMuPDF4LLM | 8.4/10 | 46,523 | 8/12 |
-| Docling | 8.4/10 | 46,765 | 8/12 |
-| LlamaParse | 7.9/10 | 35,322 | 10/12 |
+| [MarkItDown](https://github.com/microsoft/markitdown) | 8.9/10 | 34,909 | 12/12 |
+| [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/) | 8.4/10 | 46,523 | 8/12 |
+| [Docling](https://github.com/DS4SD/docling) | 8.4/10 | 46,765 | 8/12 |
+| [LlamaParse](https://github.com/run-llama/llama_parse) | 7.9/10 | 35,322 | 10/12 |
 
 AksharaMD uses **82–87% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$2,304–$3,252 in saved API spend** (Claude Haiku 4.5 pricing).
 
@@ -526,7 +526,7 @@ aksharamd/
 
 These are current boundaries of the system. They are not bugs.
 
-**Scanned / image-heavy PDFs.** AksharaMD applies Tesseract OCR to image pages, but complex multi-column layouts, rotated text, or low-resolution scans will produce lower-fidelity output than vision-LLM approaches (olmOCR, Docling with VLM mode). If your corpus is primarily scanned documents, evaluate carefully.
+**Scanned / image-heavy PDFs.** AksharaMD applies Tesseract OCR to image pages, but complex multi-column layouts, rotated text, or low-resolution scans will produce lower-fidelity output than vision-LLM approaches ([olmOCR](https://github.com/allenai/olmocr), [Docling](https://github.com/DS4SD/docling) with VLM mode). If your corpus is primarily scanned documents, evaluate carefully.
 
 **Legacy Office formats (`.doc`, `.ppt`).** Parsing requires LibreOffice on the system PATH for format conversion. If LibreOffice is absent, these files are rejected with a clear error. `.docx`, `.pptx`, and `.xlsx` have no such dependency.
 
