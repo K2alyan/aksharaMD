@@ -2,17 +2,17 @@
   <img src="assets/logo.png" alt="AksharaMD" width="120" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/K2alyan/aksharaMD/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/K2alyan/aksharaMD/actions/workflows/ci.yml/badge.svg?branch=development"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-blue.svg">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+</p>
+
 # AksharaMD
-
-> **CONFIDENTIAL — Private Beta v0.1.0**
-> This document and the software it describes are proprietary and confidential.
-> Do not distribute, copy, or share outside your organisation without written permission from Kalyan Kottapalli.
-
----
 
 **Compile any document into token-efficient, structured Markdown for LLM workflows.**
 
-AksharaMD is a high-performance document processing pipeline. It ingests 40+ file formats and produces clean, semantically complete Markdown — preserving headings, tables, code blocks, and metadata while eliminating boilerplate. No AI models required. All processing runs locally and deterministically.
+AksharaMD is a document processing pipeline that ingests 40+ file formats and produces clean, semantically complete Markdown — preserving headings, tables, code blocks, and metadata while eliminating boilerplate. Runs entirely on-device, deterministically, with no AI dependencies.
 
 ---
 
@@ -29,8 +29,10 @@ AksharaMD is a high-performance document processing pipeline. It ingests 40+ fil
 
 ## Quickstart
 
+Requires **Python 3.11 or later**.
+
 ```bash
-pip install -e .
+pip install aksharamd
 
 aksharamd compile report.pdf
 ```
@@ -51,17 +53,25 @@ output/report/
 ## Installation
 
 ```bash
-# Base installation
-pip install -e .
+# Standard install
+pip install aksharamd
 
-# With image OCR (requires Tesseract binary — see below)
-pip install -e ".[ocr]"
+# With image OCR (requires Tesseract — see below)
+pip install "aksharamd[ocr]"
 
 # With audio transcription (requires ffmpeg on PATH)
-pip install -e ".[audio]"
+pip install "aksharamd[audio]"
 
 # Everything
-pip install -e ".[full]"
+pip install "aksharamd[full]"
+```
+
+To install from source:
+
+```bash
+git clone https://github.com/K2alyan/aksharaMD.git
+cd aksharaMD
+pip install -e .
 ```
 
 **Optional system dependencies:**
@@ -511,18 +521,12 @@ These are current boundaries of the system. They are not bugs.
 
 ---
 
-## Partner Support
+## Contributing
 
-This repository is in private beta. Authorised partners should direct all questions, issues, and feedback to:
-
-**Kalyan Kottapalli** — [kalyan.kottapalli@poppy.com](mailto:kalyan.kottapalli@poppy.com)
-
-Please do not open public issues, create forks, or share access with parties outside your organisation.
+Bug reports and pull requests are welcome. Please open an issue first to discuss significant changes.
 
 ---
 
 ## License
 
-Copyright © 2026 Kalyan Kottapalli. All rights reserved.
-
-This software is proprietary and confidential. Redistribution, modification, or use beyond the scope of the partner evaluation agreement is prohibited without prior written permission.
+MIT — see [LICENSE](LICENSE) for details.
