@@ -23,12 +23,12 @@ class MsgParser(ParserPlugin):
             ctx.error("MSG_PARSE_ERROR", str(e))
             return ctx
 
-        subject  = (msg.subject or "").strip()
-        sender   = (msg.sender or "").strip()
-        to       = (msg.to or "").strip()
-        cc       = (msg.cc or "").strip()
-        date_str = str(msg.date or "")
-        body     = (msg.body or "").strip()
+        subject  = (msg.subject or "").strip()  # type: ignore[attr-defined]
+        sender   = (msg.sender or "").strip()  # type: ignore[attr-defined]
+        to       = (msg.to or "").strip()  # type: ignore[attr-defined]
+        cc       = (msg.cc or "").strip()  # type: ignore[attr-defined]
+        date_str = str(msg.date or "")  # type: ignore[attr-defined]
+        body     = (msg.body or "").strip()  # type: ignore[attr-defined]
 
         blocks: list[Block] = []
         idx = 0
@@ -66,7 +66,7 @@ class MsgParser(ParserPlugin):
         attachments = getattr(msg, "attachments", []) or []
         if attachments:
             att_names = ", ".join(
-                getattr(a, "longFilename", None) or getattr(a, "shortFilename", "attachment")
+                str(getattr(a, "longFilename", None) or getattr(a, "shortFilename", None) or "attachment")
                 for a in attachments
             )
             blocks.append(Block(

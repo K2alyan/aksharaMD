@@ -28,7 +28,8 @@ def _parse_html_content(html_bytes: bytes) -> list[tuple[BlockType, str, int | N
         tag.decompose()
 
     results: list[tuple[BlockType, str, int | None, str | None]] = []
-    body = soup.find("body") or soup
+    _body = soup.find("body") or soup
+    body: Tag = _body if isinstance(_body, Tag) else soup
 
     for el in body.descendants:
         if not isinstance(el, Tag):
@@ -56,8 +57,10 @@ def _parse_html_content(html_bytes: bytes) -> list[tuple[BlockType, str, int | N
                 results.append((BlockType.LIST, f"- {text}", None, None))
 
         elif name == "img":
-            src = el.get("src", "")
-            alt = el.get("alt", "")
+            _src_raw = el.get("src", "")
+            _alt_raw = el.get("alt", "")
+            src: str = _src_raw if isinstance(_src_raw, str) else ""
+            alt: str = _alt_raw if isinstance(_alt_raw, str) else ""
             if src or alt:
                 results.append((BlockType.IMAGE, alt or src, None, src))
 

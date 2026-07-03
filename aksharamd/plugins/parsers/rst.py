@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import chardet
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ...context import CompilationContext
 from ...models.asset import Asset
@@ -20,10 +20,10 @@ def _read_file(path: Path) -> str:
 
 
 def _rst_to_html(text: str) -> str:
-    from docutils.core import publish_string
-    from docutils.utils import SystemMessage
+    from docutils.core import publish_string  # type: ignore[import-untyped]
+    from docutils.utils import SystemMessage  # type: ignore[import-untyped]
     try:
-        from docutils.writers import html5_polyglot
+        from docutils.writers import html5_polyglot  # type: ignore[import-untyped]
         html_bytes = publish_string(
             text,
             writer=html5_polyglot.Writer(),
@@ -58,7 +58,8 @@ class RSTParser(ParserPlugin):
         assets: list[Asset] = []
         idx = [0]
 
-        body = soup.find("main") or soup.find("body") or soup
+        _body = soup.find("main") or soup.find("body") or soup
+        body: Tag = _body if isinstance(_body, Tag) else soup
         _walk(body, blocks, assets, idx, source_path=path)
 
         doc = Document(

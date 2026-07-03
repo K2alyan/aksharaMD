@@ -111,7 +111,7 @@ class Compiler:
 
         # Export to disk
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
                 ctx = plugin.execute(ctx)
 
         return self._finalise(ctx, stage_timings, t0)
@@ -344,22 +344,22 @@ class Compiler:
 
             # 3. Clean
             with timed("clean"):
-                for plugin in registry.get_plugins_of_type(CleanerPlugin):
+                for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 4. Optimise
             with timed("optimize"):
-                for plugin in registry.get_plugins_of_type(OptimizerPlugin):
+                for plugin in registry.get_plugins_of_type(OptimizerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 5. Validate
             with timed("validate"):
-                for plugin in registry.get_plugins_of_type(ValidatorPlugin):
+                for plugin in registry.get_plugins_of_type(ValidatorPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 6. Chunk
             with timed("chunk"):
-                for plugin in registry.get_plugins_of_type(ChunkerPlugin):
+                for plugin in registry.get_plugins_of_type(ChunkerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 7. Count tokens

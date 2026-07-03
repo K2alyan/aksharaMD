@@ -130,10 +130,12 @@ class EmlParser(ParserPlugin):
             idx += 1
 
         # List attachments
-        attachments = [
-            p.get_filename()
+        attachments: list[str] = [
+            name
             for p in msg.walk()
-            if p.get_content_disposition() == "attachment" and p.get_filename()
+            if p.get_content_disposition() == "attachment"
+            for name in (p.get_filename(),)
+            if name is not None
         ]
         if attachments:
             blocks.append(Block(

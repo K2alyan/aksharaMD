@@ -229,7 +229,7 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
 
     for r in rows:
         t.add_row(
-            r["name"],
+            str(r["name"]),
             str(r["pages"]),
             f"{r['orig_tokens']:,}",
             f"{r['opt_tokens']:,}",
