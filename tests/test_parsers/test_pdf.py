@@ -3,9 +3,68 @@ from __future__ import annotations
 from aksharamd.plugins.parsers.pdf import (
     _PDFPLUMBER_CHAR_LIMIT,
     _cells_to_markdown,
+    _detect_column_boundaries,
     _is_quality_table,
     _try_pdfplumber_tables,
 )
+
+# ── _detect_column_boundaries ───────────────────────────────────────────────
+
+def _make_span(x: float, y: float) -> dict:
+    return {"x": x, "y": y, "text": "word", "size": 10, "bold": False, "bbox": (x, y, x + 30, y + 10)}
+
+
+def test_two_column_layout_detected():
+    """Spans mimicking arXiv two-column layout should produce one boundary.
+
+    In a real two-column PDF the two columns have independent text flow,
+    so each column has many y-values not shared by the other column.
+    Line starts then cluster at two x-positions (~12% and ~52% of page width).
+    """
+    page_width = 612.0
+    spans = []
+    # Column 1 lines: x≈72 (12%), each line at a unique y
+    for line in range(20):
+        y = 100 + line * 14
+        spans.append(_make_span(72, y))
+        spans.append(_make_span(110, y))
+        spans.append(_make_span(150, y))
+    # Column 2 lines: x≈320 (52%), at different y values (independent text flow)
+    for line in range(20):
+        y = 107 + line * 14  # offset by 7 pt — avoids 3 pt y-grouping window
+        spans.append(_make_span(320, y))
+        spans.append(_make_span(360, y))
+        spans.append(_make_span(400, y))
+
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert len(boundaries) == 1
+    # Boundary should fall between column 1 (≈12%) and column 2 (≈52%)
+    assert 0.20 < boundaries[0] < 0.45
+
+
+def test_single_column_no_boundary():
+    """A single-column layout with consistent left margin should not produce boundaries."""
+    page_width = 612.0
+    spans = []
+    for line in range(20):
+        y = 100 + line * 14
+        spans.append(_make_span(72, y))
+        spans.append(_make_span(110, y))
+        spans.append(_make_span(170, y))
+        spans.append(_make_span(240, y))
+
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert boundaries == []
+
+
+def test_empty_spans_returns_empty():
+    assert _detect_column_boundaries([], 612.0) == []
+
+
+def test_zero_page_width_returns_empty():
+    spans = [_make_span(72, 100)]
+    assert _detect_column_boundaries(spans, 0.0) == []
+
 
 # ── _cells_to_markdown ──────────────────────────────────────────────────────
 
