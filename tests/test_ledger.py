@@ -5,8 +5,7 @@ import json
 
 import pytest
 
-from aksharamd.ledger import LedgerEntry, append_entry, get_stats, read_entries
-
+from aksharamd.ledger import append_entry, get_stats, read_entries
 
 # _isolate_ledger in conftest.py is autouse=True, so ledger writes go to tmp_path.
 
