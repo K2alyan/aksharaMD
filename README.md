@@ -229,34 +229,42 @@ The `ctx` object returned by all compile methods exposes:
 
 AksharaMD ships an [MCP](https://modelcontextprotocol.io) server that exposes the compilation pipeline as tools for any MCP-compatible host — Claude Desktop, Cursor, and others.
 
-### Tools
+### Setup
+
+Run this once after installation:
+
+```bash
+aksharamd mcp-config --write
+```
+
+This detects your Python environment, generates the correct configuration, and writes it directly into your Claude Desktop config file. Restart Claude Desktop — AksharaMD will appear in the tools panel.
+
+To preview the config before writing:
+
+```bash
+aksharamd mcp-config
+```
+
+### Tools available in Claude
 
 | Tool | Description |
 |------|-------------|
-| `compile_document` | Compile a file path or URL into clean Markdown |
-| `compile_document_multimodal` | Compile with images returned inline |
-| `get_supported_formats` | List all supported formats and their requirements |
+| `compile_document` | Compile any file or URL into clean Markdown |
+| `compile_document_multimodal` | Compile with charts and diagrams returned inline |
+| `get_supported_formats` | List all supported formats and optional dependencies |
 | `get_stats` | Lifetime token savings across all compilations |
 
-### stdio (Claude Desktop, most hosts)
+### HTTP mode (server deployments)
 
-```json
-{
-  "mcpServers": {
-    "aksharamd": {
-      "command": "python",
-      "args": ["-m", "aksharamd.mcp_server"],
-      "cwd": "/path/to/aksharamd"
-    }
-  }
-}
-```
-
-### Streamable HTTP
+For deployments where Claude connects over the network rather than launching a local process:
 
 ```bash
-python -m aksharamd.mcp_server --transport streamable-http --host 0.0.0.0 --port 8000
+AKSHARAMD_MCP_API_KEY=your-secret-key \
+AKSHARAMD_ALLOWED_ROOT=/path/to/allowed/documents \
+aksharamd-mcp --transport streamable-http --host 0.0.0.0 --port 8000
 ```
+
+`AKSHARAMD_ALLOWED_ROOT` restricts which directories the server can read from. `AKSHARAMD_MCP_API_KEY` requires clients to send an `X-API-Key` header with every request. Both are optional in local stdio mode but strongly recommended in HTTP mode.
 
 ---
 

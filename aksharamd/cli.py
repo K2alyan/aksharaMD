@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -389,6 +390,77 @@ def show_manifest(output_dir: str):
         console.print("[red]No manifest.json found in output dir[/]")
         sys.exit(1)
     console.print_json(p.read_text())
+
+
+@main.command("mcp-config")
+@click.option("--write", is_flag=True,
+              help="Write directly into Claude Desktop's config file (merges safely with existing config)")
+def mcp_config(write: bool):
+    """Generate the MCP server config for Claude Desktop.
+
+    Run once after installation. Use --write to apply the config automatically,
+    or copy the printed JSON into your Claude Desktop config manually.
+    """
+    import json
+    import platform
+
+    # Locate the aksharamd-mcp script. On Mac/Linux (including venvs) it sits
+    # in the same directory as python. On Windows system installs it lives in a
+    # Scripts\ subdirectory; venvs put python.exe and scripts in the same place.
+    exe_dir = Path(sys.executable).parent
+    search_dirs = [exe_dir, exe_dir / "Scripts"]  # Scripts\ is a no-op on non-Windows
+    script_path: Path | None = None
+    for scripts_dir in search_dirs:
+        for candidate in ("aksharamd-mcp", "aksharamd-mcp.exe"):
+            p = scripts_dir / candidate
+            if p.exists():
+                script_path = p
+                break
+        if script_path:
+            break
+
+    if script_path:
+        server_config: dict = {"command": str(script_path)}
+    else:
+        # Fallback: explicit python -m invocation (always works)
+        server_config = {"command": sys.executable, "args": ["-m", "aksharamd.mcp_server"]}
+
+    config_block = {"mcpServers": {"aksharamd": server_config}}
+
+    system = platform.system()
+    if system == "Darwin":
+        config_path = (
+            Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+        )
+    elif system == "Windows":
+        appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+        config_path = Path(appdata) / "Claude" / "claude_desktop_config.json"
+    else:
+        config_path = Path.home() / ".config" / "claude" / "claude_desktop_config.json"
+
+    if write:
+        existing: dict = {}
+        if config_path.exists():
+            try:
+                existing = json.loads(config_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                console.print(
+                    f"[yellow]Warning:[/] could not parse existing config at {config_path}. "
+                    "A fresh config will be written."
+                )
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        existing.setdefault("mcpServers", {})["aksharamd"] = server_config
+        config_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        console.print(f"[green]Config written to[/] {config_path}")
+        console.print("Restart Claude Desktop — AksharaMD will appear in the tools panel.")
+    else:
+        console.print("\nPaste this into your Claude Desktop config:\n")
+        console.print_json(json.dumps(config_block))
+        console.print(f"\n[dim]Config file location:[/] {config_path}")
+        console.print(
+            "[dim]Or run [bold]aksharamd mcp-config --write[/bold] "
+            "to apply the config automatically.[/dim]\n"
+        )
 
 
 @main.command()
