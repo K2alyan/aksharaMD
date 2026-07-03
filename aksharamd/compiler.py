@@ -153,6 +153,136 @@ class Compiler:
 
         return text, self._finalise(ctx, stage_timings, t0)
 
+    def compile_corpus(
+        self,
+        source_dir: str,
+        token_budget: int = 60_000,
+        glob: str = "**/*",
+        dedup_threshold: float = 0.5,
+        max_bisect_depth: int = 3,
+    ) -> list[dict]:
+        """Compile every supported file under *source_dir* and pack the results into
+        token-budget-aware groups ready for downstream LLM processing (e.g. Graphify).
+
+        Files are grouped by their immediate parent directory first (keeping related
+        artefacts together), then packed greedily into chunks up to *token_budget*.
+        If a single document exceeds the budget it is placed alone.  Groups that
+        exceed the budget are bisected recursively (up to *max_bisect_depth* times).
+
+        Near-duplicate documents (Jaccard ≥ *dedup_threshold* across the whole
+        corpus) are skipped automatically via MinHash LSH.
+
+        Returns a list of corpus chunk dicts::
+
+            [
+              {
+                "chunk_index": 0,
+                "token_count": 4821,
+                "documents": [
+                  {
+                    "source": "reports/q1.pdf",
+                    "file_type": "pdf",
+                    "tokens": 2314,
+                    "confidence": {"extracted": 42, "inferred": 8, "ambiguous": 0},
+                    "text": "# Q1 Report\\n\\n...",
+                  },
+                  ...
+                ],
+              },
+              ...
+            ]
+        """
+        from .dedup.minhash import CorpusDeduplicator
+        from .plugins.exporters.markdown import _block_to_md
+        from .plugins.registry import get_registered_extensions
+
+        source_path = Path(source_dir).resolve()
+        supported_exts = {f".{e}" for e in get_registered_extensions()}
+
+        dedup = CorpusDeduplicator(threshold=dedup_threshold)
+        results: list[dict] = []
+
+        # ── Compile all supported files, skip duplicates ───────────────────────
+        files = sorted(
+            (p for p in source_path.glob(glob) if p.is_file() and p.suffix.lower() in supported_exts),
+            key=lambda p: (p.parent, p.name),
+        )
+
+        compiled: list[dict] = []
+        for file_path in files:
+            try:
+                text, ctx = self.compile_to_string(str(file_path))
+            except Exception:
+                logger.debug("Corpus: failed to compile %s", file_path, exc_info=True)
+                continue
+            if not text.strip():
+                continue
+
+            rel = str(file_path.relative_to(source_path))
+            dupes = dedup.add(rel, text)
+            if dupes:
+                logger.debug("Corpus: skipping near-duplicate %s (matches %s)", rel, dupes[0])
+                continue
+
+            m = ctx.manifest
+            doc_entry = {
+                "source": rel,
+                "file_type": m.file_type if m else file_path.suffix.lstrip("."),
+                "tokens": m.optimized_tokens if m else count_tokens(text),
+                "confidence": {
+                    "extracted": m.blocks_extracted if m else 0,
+                    "inferred":  m.blocks_inferred  if m else 0,
+                    "ambiguous": m.blocks_ambiguous  if m else 0,
+                },
+                "text": text,
+            }
+            compiled.append(doc_entry)
+
+        # ── Pack into token-budget chunks by directory ─────────────────────────
+        def _pack(docs: list[dict], depth: int) -> list[dict]:
+            """Greedily pack docs into chunks ≤ token_budget; bisect if oversized."""
+            chunks: list[dict] = []
+            current: list[dict] = []
+            current_tokens = 0
+
+            def flush() -> None:
+                if current:
+                    chunks.append({
+                        "chunk_index": len(results) + len(chunks),
+                        "token_count": sum(d["tokens"] for d in current),
+                        "documents": list(current),
+                    })
+
+            for doc in docs:
+                t = doc["tokens"]
+                if current and current_tokens + t > token_budget:
+                    if depth < max_bisect_depth and current_tokens > token_budget:
+                        mid = len(current) // 2
+                        chunks.extend(_pack(current[:mid], depth + 1))
+                        chunks.extend(_pack(current[mid:], depth + 1))
+                        current.clear()
+                        current_tokens = 0
+                    else:
+                        flush()
+                        current.clear()
+                        current_tokens = 0
+                current.append(doc)
+                current_tokens += t
+            flush()
+            return chunks
+
+        # Group by immediate parent directory
+        from itertools import groupby
+        compiled.sort(key=lambda d: str(Path(d["source"]).parent))
+        for _dir, group in groupby(compiled, key=lambda d: str(Path(d["source"]).parent)):
+            results.extend(_pack(list(group), 0))
+
+        # Re-index chunks sequentially
+        for i, chunk in enumerate(results):
+            chunk["chunk_index"] = i
+
+        return results
+
     # ── Internal pipeline ──────────────────────────────────────────────────────
 
     def _run_pipeline(
@@ -248,9 +378,13 @@ class Compiler:
             )
 
             # 8. Package manifest
+            from .models.block import ExtractionConfidence
             doc = ctx.document
             images = sum(1 for b in doc.blocks if b.type.value == "image") if doc else 0
             tables = sum(1 for b in doc.blocks if b.type.value == "table") if doc else 0
+            blocks_extracted = sum(1 for b in doc.blocks if b.confidence == ExtractionConfidence.EXTRACTED) if doc else 0
+            blocks_inferred  = sum(1 for b in doc.blocks if b.confidence == ExtractionConfidence.INFERRED)  if doc else 0
+            blocks_ambiguous = sum(1 for b in doc.blocks if b.confidence == ExtractionConfidence.AMBIGUOUS) if doc else 0
 
             ctx.manifest = Manifest(
                 source=source,
@@ -265,6 +399,9 @@ class Compiler:
                 duplicate_blocks_removed=ctx.duplicate_blocks_removed,
                 headers_removed=ctx.headers_removed,
                 footers_removed=ctx.footers_removed,
+                blocks_extracted=blocks_extracted,
+                blocks_inferred=blocks_inferred,
+                blocks_ambiguous=blocks_ambiguous,
                 elapsed_seconds=round(time.perf_counter() - t0, 3),
                 stage_timings=stage_timings,
                 warnings=[i.message for i in ctx.validation.warnings],

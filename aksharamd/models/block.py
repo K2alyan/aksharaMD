@@ -21,6 +21,12 @@ class BlockType(StrEnum):
     UNKNOWN = "unknown"
 
 
+class ExtractionConfidence(StrEnum):
+    EXTRACTED = "extracted"   # cleanly parsed from native structure (text layer, proper DOM, schema)
+    INFERRED  = "inferred"    # derived with moderate uncertainty (whitespace tables, font-size headings)
+    AMBIGUOUS = "ambiguous"   # low-fidelity path (OCR, olefile stream, binary fallback)
+
+
 class Block(BaseModel):
     id: str = ""
     type: BlockType
@@ -29,6 +35,7 @@ class Block(BaseModel):
     language: str | None = None     # code block language identifier
     page: int | None = None         # source page number (1-indexed)
     index: int = 0                  # position in document block list
+    confidence: ExtractionConfidence = ExtractionConfidence.EXTRACTED
     metadata: dict = Field(default_factory=dict)
     checksum: str = ""
 

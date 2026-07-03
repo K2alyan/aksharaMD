@@ -243,6 +243,68 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
 
 
 @main.command()
+@click.argument("source_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("-o", "--output", default=None, help="Write corpus chunks to this JSON file")
+@click.option("--budget", default=60_000, show_default=True, help="Max tokens per corpus chunk")
+@click.option("--dedup-threshold", default=0.5, show_default=True,
+              help="Jaccard similarity threshold for near-duplicate skipping (0–1)")
+@click.option("--quiet", is_flag=True, help="Suppress progress output")
+@click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
+def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: float,
+           quiet: bool, verbose: bool):
+    """Compile every supported file under SOURCE_DIR into token-budget chunks.
+
+    Files are grouped by directory and packed greedily up to --budget tokens.
+    Near-duplicate documents are skipped automatically via MinHash LSH.
+
+    Example: aksharamd corpus ./docs/ --budget 60000 -o corpus_chunks.json
+    """
+    import json as _json
+
+    _setup_logging(verbose)
+    if not quiet:
+        console.print(f"[bold]Corpus mode[/] — scanning {source_dir}")
+
+    compiler = Compiler(output_dir=str(Path(source_dir) / ".aksharamd_cache"))
+    chunks = compiler.compile_corpus(
+        source_dir,
+        token_budget=budget,
+        dedup_threshold=dedup_threshold,
+    )
+
+    total_docs = sum(len(c["documents"]) for c in chunks)
+    total_tokens = sum(c["token_count"] for c in chunks)
+
+    if not quiet:
+        t = Table(box=box.ROUNDED, show_header=True, header_style="bold cyan")
+        t.add_column("Chunk", justify="right")
+        t.add_column("Documents", justify="right")
+        t.add_column("Tokens", justify="right")
+        t.add_column("Files")
+        for chunk in chunks:
+            files_preview = ", ".join(d["source"] for d in chunk["documents"][:3])
+            if len(chunk["documents"]) > 3:
+                files_preview += f" +{len(chunk['documents']) - 3} more"
+            t.add_row(
+                str(chunk["chunk_index"]),
+                str(len(chunk["documents"])),
+                f"{chunk['token_count']:,}",
+                files_preview,
+            )
+        console.print(t)
+        console.print(
+            f"[green]{total_docs} documents[/] → [bold]{len(chunks)} chunks[/], "
+            f"[cyan]{total_tokens:,} total tokens[/]"
+        )
+
+    if output:
+        out_path = Path(output)
+        out_path.write_text(_json.dumps(chunks, indent=2, ensure_ascii=False), encoding="utf-8")
+        if not quiet:
+            console.print(f"[dim]Chunks written to {out_path}[/]")
+
+
+@main.command()
 @click.option("--reset", is_flag=True, help="Delete the savings ledger (irreversible)")
 def stats(reset: bool):
     """Show cumulative token savings across all AksharaMD compilations."""

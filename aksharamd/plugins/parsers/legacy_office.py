@@ -10,7 +10,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from ...context import CompilationContext
-from ...models.block import Block, BlockType
+from ...models.block import Block, BlockType, ExtractionConfidence
 from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
@@ -82,7 +82,8 @@ def _extract_doc_text_olefile(path: Path) -> list[Block]:
             for para in run.splitlines():
                 para = para.strip()
                 if len(para) >= 4:
-                    blocks.append(Block(type=BlockType.PARAGRAPH, content=para, index=idx))
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=para, index=idx,
+                                        confidence=ExtractionConfidence.AMBIGUOUS))
                     idx += 1
         return blocks
     except Exception:
@@ -125,7 +126,8 @@ def _extract_ppt_text_olefile(path: Path) -> list[Block]:
 
         blocks: list[Block] = []
         for idx, txt in enumerate(t for t in texts if t):
-            blocks.append(Block(type=BlockType.PARAGRAPH, content=txt, index=idx))
+            blocks.append(Block(type=BlockType.PARAGRAPH, content=txt, index=idx,
+                                confidence=ExtractionConfidence.AMBIGUOUS))
         return blocks
     except Exception:
         logger.debug("olefile .ppt extraction failed for %s", path.name, exc_info=True)
