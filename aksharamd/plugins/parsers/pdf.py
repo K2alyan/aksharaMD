@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 from ...context import CompilationContext
 from ...models.asset import Asset
-from ...models.block import Block, BlockType
+from ...models.block import Block, BlockType, ExtractionConfidence
 from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
@@ -221,7 +221,7 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                 cells = tab.extract()
                 md = _cells_to_markdown(cells)
                 if md and _is_quality_table(md):
-                    tables.append({"markdown": md, "bbox": tuple(tab.bbox)})
+                    tables.append({"markdown": md, "bbox": tuple(tab.bbox), "source": "ruled"})
         except Exception:
             logger.debug("find_tables() failed on page %d", page_num, exc_info=True)
 
@@ -235,7 +235,8 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     # pdfplumber fallback: detect borderless (whitespace-aligned) tables when
     # PyMuPDF found nothing and the page has enough text to plausibly contain one.
     if not tables and pdf_pl is not None:
-        tables = _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height)
+        for tbl in _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height):
+            tables.append({**tbl, "source": "whitespace"})
 
     ocr_pixmap: bytes | None = None
     if total_chars < _OCR_TEXT_THRESHOLD:
@@ -477,6 +478,7 @@ def _apply_page_ocr(png_bytes: bytes, page_num: int, blocks: list[Block]) -> Non
                 level=level,
                 page=page_num,
                 index=0,
+                confidence=ExtractionConfidence.AMBIGUOUS,
             ))
     except Exception:
         logger.debug("OCR failed on page %d", page_num, exc_info=True)
@@ -494,14 +496,19 @@ def _process_raw_page(
     """
     blocks: list[Block] = []
 
-    # Tables come first — extracted cleanly by PyMuPDF's find_tables()
+    # Tables come first — ruled tables are EXTRACTED; whitespace-inferred are INFERRED
     table_bboxes = []
     for t in raw.tables:
+        tbl_confidence = (
+            ExtractionConfidence.EXTRACTED if t.get("source") != "whitespace"
+            else ExtractionConfidence.INFERRED
+        )
         blocks.append(Block(
             type=BlockType.TABLE,
             content=t["markdown"],
             page=raw.page_num,
             index=0,
+            confidence=tbl_confidence,
         ))
         table_bboxes.append(t["bbox"])
 
@@ -567,6 +574,7 @@ def _process_raw_page(
                 level=level,
                 page=raw.page_num,
                 index=0,
+                confidence=ExtractionConfidence.INFERRED,  # inferred from font size/bold, not a markup heading
             ))
         else:
             current_parts.append(text)

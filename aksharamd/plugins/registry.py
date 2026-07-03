@@ -20,6 +20,11 @@ def register_plugin(cls: type[BasePlugin]) -> None:
         _plugin_classes.append(cls)
 
 
+def get_registered_extensions() -> list[str]:
+    """Return all file extensions with a registered parser (without leading dot)."""
+    return list(_parsers.keys())
+
+
 def get_plugins_of_type(plugin_type: type[BasePlugin]) -> list[BasePlugin]:
     instances = [
         cls() for cls in _plugin_classes

@@ -36,4 +36,7 @@ class Manifest(BaseModel):
     compiled_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
+    blocks_extracted: int = 0
+    blocks_inferred: int = 0
+    blocks_ambiguous: int = 0
     aksharamd_version: str = Field(default_factory=_get_version)
