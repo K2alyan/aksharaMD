@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from aksharamd.compiler import Compiler
+from aksharamd.models.block import Block, BlockType
 
 
 @pytest.fixture
@@ -105,3 +106,71 @@ def test_no_parser_for_unknown_type(tmp_path: Path):
     ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
     assert ctx.document is None
     assert len(ctx.validation.errors) > 0
+
+
+# ── stream() ──────────────────────────────────────────────────────────────────
+
+def test_stream_yields_blocks(tmp_md: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_md)))
+    assert len(blocks) > 0
+    assert all(isinstance(b, Block) for b in blocks)
+
+
+def test_stream_blocks_have_valid_types(tmp_md: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_md)))
+    valid_types = set(BlockType)
+    assert all(b.type in valid_types for b in blocks)
+
+
+def test_stream_contains_heading(tmp_md: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_md)))
+    types = {b.type for b in blocks}
+    assert BlockType.HEADING in types
+
+
+def test_stream_contains_paragraph(tmp_md: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_md)))
+    types = {b.type for b in blocks}
+    assert BlockType.PARAGRAPH in types
+
+
+def test_stream_blocks_have_content(tmp_md: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_md)))
+    assert all(b.content for b in blocks)
+
+
+def test_stream_order_matches_compile(tmp_md: Path, tmp_path: Path):
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+    streamed = list(compiler.stream(str(tmp_md)))
+    ctx = Compiler(output_dir=str(tmp_path / "out2")).compile(str(tmp_md))
+    compiled_contents = [b.content for b in ctx.document.blocks]
+    streamed_contents = [b.content for b in streamed]
+    assert streamed_contents == compiled_contents
+
+
+def test_stream_no_manifest_or_disk_output(tmp_md: Path, tmp_path: Path):
+    out = tmp_path / "out"
+    list(Compiler(output_dir=str(out)).stream(str(tmp_md)))
+    assert not out.exists()
+
+
+def test_stream_unknown_type_yields_nothing(tmp_path: Path):
+    f = tmp_path / "file.xyz"
+    f.write_text("content")
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(f)))
+    assert blocks == []
+
+
+def test_stream_on_stage_callback_called(tmp_md: Path, tmp_path: Path):
+    stages: list[str] = []
+    list(Compiler(output_dir=str(tmp_path / "out")).stream(
+        str(tmp_md), on_stage=stages.append
+    ))
+    assert len(stages) > 0
+    assert any("Parsing" in s for s in stages)
+
+
+def test_stream_txt_file(tmp_txt: Path, tmp_path: Path):
+    blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_txt)))
+    assert len(blocks) >= 1
+    assert all(b.type == BlockType.PARAGRAPH for b in blocks)

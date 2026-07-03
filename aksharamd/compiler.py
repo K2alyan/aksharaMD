@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,32 @@ class Compiler:
         self.output_dir = output_dir
 
     # ── Public API ─────────────────────────────────────────────────────────────
+
+    def stream(self, source: str, on_stage: Callable[[str], None] | None = None) -> Iterator:
+        """Stream blocks from a document as they become available.
+
+        Runs detect → parse → clean → optimize, then yields each Block one at
+        a time.  The validate, chunk, manifest, and export stages are skipped,
+        so there is no manifest or disk output.  Use compile() when you need
+        those.
+
+        Blocks are already cleaned and optimized when yielded, so they are
+        safe to pass directly into a vector store, RAG pipeline, or streaming
+        MCP response.
+
+        Example::
+
+            for block in compiler.stream("report.pdf"):
+                if block.type == BlockType.TABLE:
+                    index_table(block)
+                else:
+                    embed(block.content)
+        """
+        from .models.block import Block as _Block  # noqa: F401 — used in type annotation
+
+        ctx, _, _ = self._run_pipeline(source, on_stage=on_stage)
+        if ctx.document:
+            yield from ctx.document.blocks
 
     def compile(self, source: str, on_stage: Callable[[str], None] | None = None) -> CompilationContext:
         """Full compilation: parse → optimise → export to disk. Returns context."""

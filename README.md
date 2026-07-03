@@ -225,6 +225,25 @@ ctx = compiler.compile("report.pdf")
 text, ctx = compiler.compile_to_string("https://arxiv.org/pdf/2301.00001")
 ```
 
+### Stream blocks incrementally
+
+Process blocks as they are extracted and optimized, without waiting for the full document. Useful for feeding a RAG index, vector store, or any pipeline that can act on individual blocks.
+
+```python
+from aksharamd.compiler import Compiler
+from aksharamd.models.block import BlockType
+
+compiler = Compiler()
+
+for block in compiler.stream("report.pdf"):
+    if block.type == BlockType.TABLE:
+        index_table(block.content)
+    elif block.type == BlockType.PARAGRAPH:
+        embed_and_store(block.content)
+```
+
+`stream()` runs detect → parse → clean → optimize and yields each `Block` in document order. Validate, chunk, manifest, and export stages are skipped — use `compile()` when you need those.
+
 ### Multimodal output (images inline)
 
 Returns an Anthropic-compatible content array with text and base64 images interleaved at their document positions.
@@ -515,7 +534,7 @@ These are current boundaries of the system. They are not bugs.
 
 **Large files.** Files above 500 MB are rejected by default. Raise the limit with `AKSHARAMD_MAX_FILE_BYTES` if needed.
 
-**No block-level streaming output.** The CLI now shows a live progress spinner with per-stage updates (`Parsing PDF document`, `Optimizing tokens`, etc.), so long compilations are visible rather than silent. The pipeline itself still delivers results atomically — programmatic callers (`Compiler.compile()`, MCP `compile` tool) receive the full document at the end rather than a stream of blocks. Block-level streaming for API/MCP consumers is on the roadmap.
+**No MCP streaming.** The CLI shows a live progress spinner and `Compiler.stream()` yields blocks incrementally for programmatic callers (RAG indexing, pipelines). The MCP `compile` tool still returns the full document atomically — SSE block streaming for MCP consumers is on the roadmap.
 
 **Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
 
