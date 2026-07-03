@@ -25,6 +25,6 @@ RUN pip install --no-cache-dir --no-deps -e .
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD python3 -c "import socket; socket.create_connection(('localhost', 8000), 2).close()"
 
 CMD ["aksharamd-mcp", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8000"]

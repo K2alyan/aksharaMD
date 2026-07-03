@@ -168,8 +168,8 @@ def _try_pdfplumber_tables(
 _OCR_TEXT_THRESHOLD = 50    # chars below which a full-page rasterisation is done
 _EMBEDDED_OCR_THRESHOLD = 300  # chars below which embedded images are individually OCR'd
 # 200 DPI meaningfully improves Tesseract accuracy over 150 on typical A4/Letter scans.
-# Override with OMNIMARK_OCR_DPI env var (e.g. 300 for high-quality archival PDFs).
-_OCR_DPI = int(os.getenv("OMNIMARK_OCR_DPI", "200"))
+# Override with AKSHARAMD_OCR_DPI env var (e.g. 300 for high-quality archival PDFs).
+_OCR_DPI = int(os.getenv("AKSHARAMD_OCR_DPI", "200"))
 _EMBED_MIN_PX = 100         # ignore embedded images smaller than 100×100 px (decorative)
 _MAX_CONTENT_IMAGE_BYTES = 2 * 1024 * 1024  # skip images > 2 MB (very high-res raw scans)
 _MAX_IMAGES_PER_PAGE = 3
