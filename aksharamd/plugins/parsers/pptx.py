@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -309,6 +310,37 @@ class PptxParser(ParserPlugin):
                         page=slide_num, index=idx,
                     ))
                     idx += 1
+
+        # Deduplicate bullet items that repeat verbatim across 3+ slides.
+        # Template decks often carry the same boilerplate bullets on every slide;
+        # keeping only the first occurrence preserves meaning without repetition.
+        bullet_counts: Counter[str] = Counter()
+        for block in blocks:
+            if block.type == BlockType.LIST:
+                for line in block.content.splitlines():
+                    key = line.strip()
+                    if key.startswith("- "):
+                        bullet_counts[key] += 1
+
+        if any(v >= 3 for v in bullet_counts.values()):
+            seen_bullets: set[str] = set()
+            deduped: list[Block] = []
+            for block in blocks:
+                if block.type == BlockType.LIST:
+                    kept = []
+                    for line in block.content.splitlines():
+                        key = line.strip()
+                        if key.startswith("- ") and bullet_counts[key] >= 3:
+                            if key not in seen_bullets:
+                                seen_bullets.add(key)
+                                kept.append(line)
+                        else:
+                            kept.append(line)
+                    if kept:
+                        deduped.append(block.model_copy(update={"content": "\n".join(kept)}))
+                else:
+                    deduped.append(block)
+            blocks = deduped
 
         ctx.document = Document(
             source=str(path),

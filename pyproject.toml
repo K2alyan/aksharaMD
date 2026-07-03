@@ -70,6 +70,10 @@ eval = [
     "pyyaml>=6.0",
     "python-Levenshtein>=0.25",
     "datasets>=2.0",
+    "tiktoken>=0.7",
+    # optional comparison tools — install separately if needed:
+    # pip install "unstructured[all-docs]"
+    # pip install docling
 ]
 
 [tool.hatch.envs.default]

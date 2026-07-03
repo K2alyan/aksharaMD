@@ -386,13 +386,36 @@ def _filter_table_spans(spans: list[dict], table_bboxes: list[tuple]) -> list[di
 def _detect_column_boundaries(spans: list[dict], page_width: float) -> list[float]:
     """
     Return normalized column boundary X positions.
-    A boundary exists where there's a gap > 10% of page width
-    in the horizontal distribution of span starts, within the middle 40% of the page.
+
+    Uses line-start x-positions (leftmost span per text line) rather than all
+    span x-positions. Individual spans are spread uniformly across page width
+    (one per word/run), while line starts cluster sharply at column left-margins,
+    making two-column layouts like arXiv papers detectable.
+
+    Lines are grouped by y-coordinate with 3 pt tolerance to handle sub/superscripts.
     """
     if page_width == 0 or not spans:
         return []
 
-    xs = sorted({round(s["x"] / page_width, 2) for s in spans if 0.02 < s["x"] / page_width < 0.98})
+    # Collect the leftmost x per line (line start = column left-margin proxy)
+    sorted_spans = sorted(spans, key=lambda s: s["y"])
+    line_starts: list[float] = []
+    line_y: float | None = None
+    line_min_x: float = float("inf")
+    for s in sorted_spans:
+        y = s["y"]
+        if line_y is None or abs(y - line_y) > 3:
+            if line_y is not None and line_min_x < float("inf"):
+                line_starts.append(line_min_x / page_width)
+            line_y = y
+            line_min_x = s["x"]
+        else:
+            if s["x"] < line_min_x:
+                line_min_x = s["x"]
+    if line_y is not None and line_min_x < float("inf"):
+        line_starts.append(line_min_x / page_width)
+
+    xs = sorted({round(x, 2) for x in line_starts if 0.02 < x < 0.98})
     boundaries = []
     for i in range(1, len(xs)):
         gap = xs[i] - xs[i - 1]
@@ -637,19 +660,6 @@ class PDFParser(ParserPlugin):
         all_blocks: list[Block] = []
         all_assets: list[Asset] = []
         idx = 0
-
-        # Prepend bookmark-derived TOC when the PDF has real navigation entries
-        if has_toc:
-            toc_lines = ["**Contents**"]
-            for level, title, page in toc:
-                indent = "  " * (level - 1)
-                toc_lines.append(f"{indent}- {title} (p. {page})")
-            all_blocks.append(Block(
-                type=BlockType.PARAGRAPH,
-                content="\n".join(toc_lines),
-                index=idx,
-            ))
-            idx += 1
 
         for page_num in sorted(results):
             blocks, assets = results[page_num]

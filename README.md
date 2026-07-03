@@ -318,20 +318,21 @@ Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7
 
 ### Downstream LLM accuracy
 
-Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly: 36 documents across 12 formats, 4 factual questions per document, evaluated against Claude Haiku and GPT-4o mini with a Claude Haiku judge (576 total answers).
+Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly: 36 documents across 12 formats, 4 factual questions per document, evaluated against Claude Haiku 4.5 with a Claude Haiku 4.5 judge (576 total answers).
 
-Evaluated against **MarkItDown (Microsoft)**, **Unstructured**, and **Docling (IBM)** across 36 documents, 12 formats, 144 Q&A pairs — scored by Gemini 2.5 Flash with Claude Haiku as judge.
+Evaluated against **MarkItDown (Microsoft)**, **LlamaParse (LlamaIndex)**, **PyMuPDF4LLM**, and **Docling (IBM)** across 36 documents, 12 formats, 144 Q&A pairs.
 
 | Tool | Avg score | Avg tokens | Formats covered |
 |------|:---------:|:----------:|:---------------:|
-| **AksharaMD** | **9.1/10** | **6,513** | **12/12** |
-| MarkItDown | 9.0/10 | 34,909 | 12/12 |
-| Unstructured | 8.7/10 | 23,440 | 8/12 |
+| **AksharaMD** | **9.7/10** | **6,114** | **12/12** |
+| MarkItDown | 8.9/10 | 34,909 | 12/12 |
+| PyMuPDF4LLM | 8.4/10 | 46,523 | 8/12 |
 | Docling | 8.4/10 | 46,765 | 8/12 |
+| LlamaParse | 7.9/10 | 35,322 | 10/12 |
 
-AksharaMD uses **81–86% fewer tokens** than every competing tool while matching or exceeding accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$2,272–$3,220 in saved API spend** (Claude Haiku pricing).
+AksharaMD uses **82–87% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$2,304–$3,252 in saved API spend** (Claude Haiku 4.5 pricing).
 
-For the full methodology, per-format scores, cost tables, and per-question breakdown, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md).
+For the full methodology, per-format scores, cost tables, and reproduction instructions, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md).
 
 ---
 

@@ -3,27 +3,28 @@
 Multi-LLM QA evaluation: measure how document conversion quality affects
 downstream LLM answer accuracy across Claude, GPT-4, and Gemini.
 
-For each document, both AksharaMD and MarkItDown produce a text
-representation. The same questions are then sent to every available LLM
-using each representation as context. A Claude Haiku judge scores every
-answer 0-10 against the expected answer.
+For each document, AksharaMD, MarkItDown, Unstructured, and Docling each
+produce a text representation. The same questions are then sent to every
+available LLM using each representation as context. A Claude Haiku judge
+scores every answer 0-10 against the expected answer.
 
 This makes the impact of extraction quality directly measurable:
 better-structured Markdown → more tokens used by the LLM on actual
 content → higher answer accuracy.
 
 Usage:
-    # Auto-generate Q&A pairs from your documents and evaluate
-    python -m benchmarks.llm_qa_eval report.pdf contract.docx
-
-    # Use a pre-written Q&A YAML file
-    python -m benchmarks.llm_qa_eval --qa benchmarks/qa_pairs_example.yaml
+    # Use a pre-written Q&A YAML file (recommended)
+    python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml
 
     # Conversion stats only — no LLM calls, no API keys needed
-    python -m benchmarks.llm_qa_eval report.pdf --no-llm
+    python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --no-llm
 
-    # Specific LLMs only
-    python -m benchmarks.llm_qa_eval report.pdf --llms claude openai
+    # Specific tools and LLMs
+    python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml \\
+        --tools aksharamd markitdown unstructured docling --llms gemini
+
+    # Auto-generate Q&A pairs from documents and evaluate
+    python -m benchmarks.llm_qa_eval report.pdf contract.docx
 
     # Save auto-generated Q&A for reuse
     python -m benchmarks.llm_qa_eval report.pdf --save-qa benchmarks/my_qa.yaml
@@ -34,7 +35,7 @@ Q&A YAML format (see benchmarks/qa_pairs_example.yaml):
         description: "Optional label"
         qa:
           - q: "What was the total revenue?"
-            a: "£42.3 million"
+            a: "42.3 million"
           - q: "Who signed the document?"
             a: "Jane Smith"
     (Omit 'a' to get answers without scoring.)
@@ -42,7 +43,9 @@ Q&A YAML format (see benchmarks/qa_pairs_example.yaml):
 Required packages:
     pip install anthropic               # Claude (also used as judge)
     pip install openai                  # GPT-4o-mini (optional)
-    pip install google-generativeai     # Gemini Flash (optional)
+    pip install google-genai            # Gemini Flash (optional)
+    pip install "unstructured[all-docs]"  # Unstructured (optional)
+    pip install docling                 # Docling (optional)
 
 Required env vars:
     ANTHROPIC_API_KEY
@@ -56,6 +59,7 @@ import json
 import os
 import sys
 import time
+import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,7 +69,7 @@ import yaml
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-# Load .env from project root if present (works regardless of which terminal launched this)
+
 def _load_dotenv() -> None:
     env_path = Path(__file__).resolve().parent.parent / ".env"
     if not env_path.exists():
@@ -92,10 +96,30 @@ _GEMINI_MODEL  = "gemini-2.5-flash"
 _JUDGE_MODEL   = "claude-haiku-4-5-20251001"
 
 LLM_DISPLAY = {
-    "claude": f"Claude ({_CLAUDE_MODEL.split('-')[1].title()})",
-    "openai": f"GPT-4o mini",
+    "claude": "Claude Haiku 4.5",
+    "openai": "GPT-4o mini",
     "gemini": "Gemini 2.5 Flash",
 }
+
+# Approximate LLM input pricing (USD per token) — verify at vendor websites
+# Claude Haiku 4.5: $0.80/1M  |  GPT-4o mini: $0.15/1M  |  Gemini 2.5 Flash: $0.10/1M
+_LLM_COST_PER_TOKEN: dict[str, float] = {
+    "claude": 0.80 / 1_000_000,
+    "openai": 0.15 / 1_000_000,
+    "gemini": 0.10 / 1_000_000,
+}
+
+
+# ── token counting ────────────────────────────────────────────────────────────
+
+def _count_tokens(text: str) -> int:
+    """Count tokens using tiktoken cl100k_base (GPT-4 tokenizer family)."""
+    try:
+        import tiktoken
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text, disallowed_special=()))
+    except Exception:
+        return len(text.split())
 
 
 # ── LLM response container ────────────────────────────────────────────────────
@@ -154,7 +178,6 @@ def _call_gemini(prompt: str, max_tokens: int = 256,
         from google.genai import types
         api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         client = genai.Client(api_key=api_key)
-        # gemini-2.5-flash is a thinking model — needs breathing room; floor at 200
         resp = client.models.generate_content(
             model=model,
             contents=prompt,
@@ -173,7 +196,6 @@ _LLM_FNS: dict[str, object] = {
 
 
 def _detect_available_llms() -> list[str]:
-    """Return LLM keys for which both the package and API key are present."""
     available = []
     try:
         import anthropic  # noqa: F401
@@ -215,16 +237,158 @@ def _convert_markitdown(path: Path) -> tuple[str, float]:
         return f"[MarkItDown error: {exc}]", 0.0
 
 
+# Docling lazy singleton — model load is expensive, reuse across all files
+_docling_converter: object = None
+
+def _get_docling() -> object:
+    global _docling_converter
+    if _docling_converter is None:
+        import logging
+        logging.disable(logging.WARNING)
+        from docling.document_converter import DocumentConverter
+        _docling_converter = DocumentConverter()
+    return _docling_converter
+
+
+def _convert_unstructured(path: Path) -> tuple[str, float]:
+    try:
+        from unstructured.partition.auto import partition
+        t0 = time.perf_counter()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            els = partition(filename=str(path))
+        text = "\n\n".join(str(e) for e in els)
+        return text, time.perf_counter() - t0
+    except Exception as exc:
+        return f"[Unstructured error: {exc}]", 0.0
+
+
+def _convert_docling(path: Path) -> tuple[str, float]:
+    try:
+        t0 = time.perf_counter()
+        conv = _get_docling()
+        result = conv.convert(str(path))
+        text = result.document.export_to_markdown()
+        return text, time.perf_counter() - t0
+    except Exception as exc:
+        return f"[Docling error: {exc}]", 0.0
+
+
+def _convert_pymupdf4llm(path: Path) -> tuple[str, float]:
+    try:
+        import pymupdf4llm
+        t0 = time.perf_counter()
+        text = pymupdf4llm.to_markdown(str(path))
+        return text, time.perf_counter() - t0
+    except ImportError:
+        return "[PyMuPDF4LLM error: not installed — pip install pymupdf4llm]", 0.0
+    except Exception as exc:
+        return f"[PyMuPDF4LLM error: {exc}]", 0.0
+
+
+def _convert_llamaparse(path: Path) -> tuple[str, float]:
+    try:
+        from llama_parse import LlamaParse
+    except ImportError:
+        return "[LlamaParse error: not installed — pip install llama-parse]", 0.0
+    api_key = os.environ.get("LLAMA_CLOUD_API_KEY")
+    if not api_key:
+        return "[LlamaParse error: LLAMA_CLOUD_API_KEY not set]", 0.0
+    try:
+        t0 = time.perf_counter()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            parser = LlamaParse(api_key=api_key, result_type="markdown", verbose=False)
+            documents = parser.load_data(str(path))
+        text = "\n\n".join(doc.text for doc in documents)
+        return text, time.perf_counter() - t0
+    except Exception as exc:
+        return f"[LlamaParse error: {exc}]", 0.0
+
+
+# Marker model singleton — loading surreal-like models once and reusing
+_marker_models: object = None
+
+def _get_marker_models() -> object:
+    global _marker_models
+    if _marker_models is None:
+        import logging
+        logging.disable(logging.WARNING)
+        from marker.models import create_model_dict
+        _marker_models = create_model_dict()
+        logging.disable(logging.NOTSET)
+    return _marker_models
+
+
+def _convert_marker(path: Path) -> tuple[str, float]:
+    try:
+        from marker.converters.pdf import PdfConverter
+    except ImportError:
+        return "[Marker error: not installed — pip install marker-pdf]", 0.0
+    try:
+        t0 = time.perf_counter()
+        models = _get_marker_models()
+        converter = PdfConverter(artifact_dict=models)
+        rendered = converter(str(path))
+        text = rendered.markdown if hasattr(rendered, "markdown") else str(rendered)
+        return text, time.perf_counter() - t0
+    except Exception as exc:
+        return f"[Marker error: {exc}]", 0.0
+
+
+def _convert_mineru(path: Path) -> tuple[str, float]:
+    try:
+        import magic_pdf  # noqa: F401
+    except ImportError:
+        return "[MinerU error: not installed — pip install magic-pdf]", 0.0
+    try:
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            t0 = time.perf_counter()
+            result = subprocess.run(
+                [sys.executable, "-m", "magic_pdf", "-p", str(path), "-o", tmpdir, "-m", "auto"],
+                capture_output=True, text=True, timeout=300,
+            )
+            elapsed = time.perf_counter() - t0
+            if result.returncode != 0:
+                stderr_snippet = result.stderr.strip()[:200] if result.stderr else "unknown error"
+                return f"[MinerU error: {stderr_snippet}]", elapsed
+            md_files = sorted(Path(tmpdir).rglob("*.md"))
+            if not md_files:
+                return "[MinerU error: no output markdown found]", elapsed
+            text = "\n\n".join(p.read_text(encoding="utf-8") for p in md_files)
+            return text, elapsed
+    except Exception as exc:
+        return f"[MinerU error: {exc}]", 0.0
+
+
 _CONVERTERS: dict[str, object] = {
-    "aksharamd":  _convert_aksharamd,
-    "markitdown": _convert_markitdown,
+    "aksharamd":    _convert_aksharamd,
+    "markitdown":   _convert_markitdown,
+    "unstructured": _convert_unstructured,
+    "docling":      _convert_docling,
+    "pymupdf4llm":  _convert_pymupdf4llm,
+    "llamaparse":   _convert_llamaparse,
+    "marker":       _convert_marker,
+    "mineru":       _convert_mineru,
+}
+
+TOOL_DISPLAY = {
+    "aksharamd":    "AksharaMD",
+    "markitdown":   "MarkItDown",
+    "unstructured": "Unstructured",
+    "docling":      "Docling",
+    "pymupdf4llm":  "PyMuPDF4LLM",
+    "llamaparse":   "LlamaParse",
+    "marker":       "Marker",
+    "mineru":       "MinerU",
 }
 
 
 # ── Q&A auto-generation ───────────────────────────────────────────────────────
 
 def _generate_qa(doc_text: str, filename: str, n: int = 4) -> list[dict]:
-    """Use Claude Haiku to produce Q&A pairs from document text."""
     excerpt = doc_text[:5000]
     prompt = (
         f"You are creating a document QA test for '{filename}'.\n\n"
@@ -254,7 +418,6 @@ def _generate_qa(doc_text: str, filename: str, n: int = 4) -> list[dict]:
 # ── judge scoring ─────────────────────────────────────────────────────────────
 
 def _judge(question: str, expected: str, answer: str) -> int:
-    """Score answer 0-10 against expected using Claude Haiku as judge."""
     if not answer or answer.startswith("["):
         return 0
     prompt = (
@@ -284,15 +447,15 @@ class QAResult:
     llm: str
     answer: str
     score: int        # 0–10; -1 = not scored (no expected answer)
-    doc_tokens: int   # tokens in conversion output
+    doc_tokens: int   # tokens in conversion output (tiktoken cl100k_base)
     error: str = ""
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
-def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
+def main() -> None:  # noqa: C901
     parser = argparse.ArgumentParser(
-        description="Multi-LLM QA evaluation: AksharaMD vs MarkItDown",
+        description="Multi-LLM QA evaluation: AksharaMD vs MarkItDown vs Unstructured vs Docling",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -330,7 +493,7 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
             "\n"
             "  Claude (recommended):  pip install anthropic   →  ANTHROPIC_API_KEY\n"
             "  OpenAI:                pip install openai       →  OPENAI_API_KEY\n"
-            "  Gemini:                pip install google-generativeai  →  GEMINI_API_KEY\n"
+            "  Gemini:                pip install google-genai →  GEMINI_API_KEY\n"
             "\n"
             "Run with --no-llm to see conversion stats without any API calls.",
             file=sys.stderr,
@@ -348,7 +511,6 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
         with open(qa_path, encoding="utf-8") as fh:
             qa_docs = yaml.safe_load(fh).get("documents", [])
 
-        # Auto-generate Q&A for any entries that have no questions yet
         needs_gen = [d for d in qa_docs if not d.get("qa") and Path(d.get("path", "")).exists()]
         if needs_gen and not args.no_llm:
             print(f"Auto-generating Q&A pairs for {len(needs_gen)} document(s) with Claude Haiku…\n")
@@ -413,9 +575,10 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
         sys.exit(1)
 
     # ── print run config ─────────────────────────────────────────────────────
+    tool_labels = [TOOL_DISPLAY.get(t, t) for t in args.tools]
     print(f"\nEvaluation config")
     print(f"  Documents : {len(qa_docs)}")
-    print(f"  Tools     : {', '.join(args.tools)}")
+    print(f"  Tools     : {', '.join(tool_labels)}")
     if active_llms:
         print(f"  LLMs      : {', '.join(LLM_DISPLAY.get(l, l) for l in active_llms)}")
         print(f"  Judge     : {_JUDGE_MODEL}")
@@ -425,6 +588,8 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
 
     # ── evaluation loop ──────────────────────────────────────────────────────
     all_results: list[QAResult] = []
+    # token_tally tracks counts for --no-llm summary: {tool: [token_counts]}
+    token_tally: dict[str, list[int]] = defaultdict(list)
 
     for doc_entry in qa_docs:
         doc_path = Path(doc_entry["path"])
@@ -436,15 +601,21 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
 
         print(f"  {doc_path.name}")
 
-        # Convert with each tool
         tool_texts: dict[str, tuple[str, float]] = {}
         for tool in args.tools:
-            print(f"    {tool:<15} converting … ", end="", flush=True)
+            label = TOOL_DISPLAY.get(tool, tool)
+            print(f"    {label:<15} converting … ", end="", flush=True)
             try:
                 text, elapsed = _CONVERTERS[tool](doc_path)  # type: ignore[operator]
-                token_count = len(text.split())
+                is_error = text.startswith("[") and "error" in text.lower()
+                token_count = 0 if is_error else _count_tokens(text)
                 tool_texts[tool] = (text, elapsed)
-                print(f"{token_count:>8,} tokens   {elapsed:.2f}s")
+                if token_count > 0:
+                    token_tally[tool].append(token_count)
+                if is_error:
+                    print(f"  UNSUPPORTED  {elapsed:.2f}s  {text[:60]}")
+                else:
+                    print(f"{token_count:>8,} tokens   {elapsed:.2f}s")
             except Exception as exc:
                 tool_texts[tool] = ("", 0.0)
                 print(f"FAILED: {exc}")
@@ -453,7 +624,6 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
             print()
             continue
 
-        # Q&A loop
         for qa in qa_pairs:
             question = (qa.get("q") or "").strip()
             expected = (qa.get("a") or "").strip()
@@ -467,11 +637,26 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
 
             for tool in args.tools:
                 text, _ = tool_texts.get(tool, ("", 0.0))
-                context = text[:6000]   # ~4 k tokens — fits all model windows
-                doc_tokens = len(text.split())
+                is_error = text.startswith("[") and "error" in text.lower()
+                context = text[:6000]
+                doc_tokens = 0 if is_error else _count_tokens(text)
+                label = TOOL_DISPLAY.get(tool, tool)
 
                 for llm_name in active_llms:
                     llm_fn = _LLM_FNS[llm_name]  # type: ignore[index]
+
+                    if is_error:
+                        score = 0
+                        answer_preview = text[:65]
+                        score_str = " n/a"
+                        print(f"       {label:<15} {LLM_DISPLAY.get(llm_name, llm_name):<22} {score_str:>5}  {answer_preview!r}")
+                        all_results.append(QAResult(
+                            document=str(doc_path), question=question, expected=expected,
+                            tool=tool, llm=llm_name, answer="", score=-1,
+                            doc_tokens=0, error=text,
+                        ))
+                        continue
+
                     prompt = (
                         "Answer the question below using ONLY the document text "
                         "provided. Be concise — give just the answer value.\n\n"
@@ -491,28 +676,22 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
                         resp.text[:65] if resp.text
                         else f"[error: {resp.error[:50]}]"
                     )
-                    llm_label = LLM_DISPLAY.get(llm_name, llm_name)
-                    print(f"       {tool:<15} {llm_label:<22} {score_str:>5}  {answer_preview!r}")
+                    print(f"       {label:<15} {LLM_DISPLAY.get(llm_name, llm_name):<22} {score_str:>5}  {answer_preview!r}")
 
                     all_results.append(QAResult(
-                        document=str(doc_path),
-                        question=question,
-                        expected=expected,
-                        tool=tool,
-                        llm=llm_name,
-                        answer=resp.text,
-                        score=score,
-                        doc_tokens=doc_tokens,
-                        error=resp.error,
+                        document=str(doc_path), question=question, expected=expected,
+                        tool=tool, llm=llm_name, answer=resp.text, score=score,
+                        doc_tokens=doc_tokens, error=resp.error,
                     ))
 
         print()
 
-    # ── summary ──────────────────────────────────────────────────────────────
-    if all_results:
-        _print_summary(all_results, args.tools, active_llms)
+    # ── token-only summary (--no-llm mode) ───────────────────────────────────
+    if not active_llms and token_tally:
+        _print_summary(all_results, args.tools, active_llms,
+                       token_avgs_override={t: sum(v)/len(v) for t, v in token_tally.items()})
 
-    # ── save results ─────────────────────────────────────────────────────────
+    # ── save results (before summary so a crash can't lose data) ─────────────
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
@@ -539,81 +718,158 @@ def main() -> None:  # noqa: C901  (complexity OK for a CLI entrypoint)
     )
     print(f"Full results → {out_path}\n")
 
+    # ── summary ──────────────────────────────────────────────────────────────
+    if all_results:
+        _print_summary(all_results, args.tools, active_llms)
+
 
 def _print_summary(results: list[QAResult], tools: list[str],
-                   llms: list[str]) -> None:
+                   llms: list[str],
+                   token_avgs_override: dict[str, float] | None = None) -> None:
     scored = [r for r in results if r.score >= 0]
-    col = 15
+    col = max(len(TOOL_DISPLAY.get(t, t)) for t in tools) + 2
 
     # ── token comparison ─────────────────────────────────────────────────────
     token_map: dict[str, list[int]] = defaultdict(list)
     for r in results:
-        token_map[r.tool].append(r.doc_tokens)
+        if r.doc_tokens > 0:
+            token_map[r.tool].append(r.doc_tokens)
 
-    print("=" * 64)
+    print("=" * 68)
     print("RESULTS SUMMARY")
-    print("=" * 64)
-    print(f"\n  {'Tool':<{col}} {'Avg tokens':>12}   Notes")
-    print(f"  {'-'*{col}} {'-'*12}   -----")
-    token_avgs: dict[str, float] = {}
-    for tool in tools:
-        toks = token_map.get(tool, [])
-        avg = sum(toks) / len(toks) if toks else 0.0
-        token_avgs[tool] = avg
-        print(f"  {tool:<{col}} {avg:>12,.0f}")
+    print("=" * 68)
+    print(f"\n  {'Tool':<{col}} {'Avg tokens':>12}   Supported")
+    print(f"  {'-'*col} {'-'*12}   ---------")
 
-    if len(tools) == 2:
-        t0, t1 = tools[0], tools[1]
-        a0, a1 = token_avgs.get(t0, 0), token_avgs.get(t1, 0)
-        if a1 > 0:
-            reduction = (1 - a0 / a1) * 100
-            sign = "-" if reduction > 0 else "+"
-            print(f"\n  {t0} uses {abs(reduction):.0f}% {'fewer' if reduction > 0 else 'more'} tokens than {t1}")
+    token_avgs: dict[str, float] = token_avgs_override or {}
+    total_docs = len(set(r.document for r in results)) if results else 0
+
+    for tool in tools:
+        label = TOOL_DISPLAY.get(tool, tool)
+        if token_avgs_override:
+            avg = token_avgs_override.get(tool, 0.0)
+            # can't derive supported count without results in --no-llm mode
+            print(f"  {label:<{col}} {avg:>12,.0f}")
+        else:
+            toks = token_map.get(tool, [])
+            avg = sum(toks) / len(toks) if toks else 0.0
+            token_avgs[tool] = avg
+            supported = len(set(r.document for r in results if r.tool == tool and r.doc_tokens > 0))
+            print(f"  {label:<{col}} {avg:>12,.0f}   {supported}/{total_docs} docs")
+
+    # baseline tool for comparison (prefer aksharamd if present)
+    base_tool = "aksharamd" if "aksharamd" in tools else tools[0]
+    base_avg = token_avgs.get(base_tool, 0)
+    base_label = TOOL_DISPLAY.get(base_tool, base_tool)
+
+    print()
+    for tool in tools:
+        if tool == base_tool:
+            continue
+        label = TOOL_DISPLAY.get(tool, tool)
+        other_avg = token_avgs.get(tool, 0)
+        if other_avg > 0 and base_avg > 0:
+            reduction = (1 - base_avg / other_avg) * 100
+            if reduction > 0:
+                print(f"  {base_label} uses {reduction:.0f}% fewer tokens than {label}")
+            else:
+                print(f"  {label} uses {abs(reduction):.0f}% fewer tokens than {base_label}")
 
     # ── answer quality ───────────────────────────────────────────────────────
     if not scored:
         print("\n  (No scored Q&A pairs — provide expected answers to see quality scores.)")
         print()
-        return
+    else:
+        print(f"\n  Answer quality (0–10, higher is better)\n")
+        llm_labels = [LLM_DISPLAY.get(l, l) for l in llms] if llms else []
+        avg_col = max((len(l) for l in llm_labels), default=8) + 2
 
-    print(f"\n  Answer quality (0–10, higher is better)\n")
-    llm_labels = [LLM_DISPLAY.get(l, l) for l in llms] if llms else []
-    avg_col = max(len(l) for l in llm_labels) + 2 if llm_labels else 10
+        score_map: dict[tuple[str, str], list[int]] = defaultdict(list)
+        for r in scored:
+            score_map[(r.tool, r.llm)].append(r.score)
 
-    score_map: dict[tuple[str, str], list[int]] = defaultdict(list)
-    for r in scored:
-        score_map[(r.tool, r.llm)].append(r.score)
+        header = f"  {'Tool':<{col}}" + "".join(f"{l:>{avg_col}}" for l in llm_labels) + f"{'Overall':>{avg_col}}"
+        print(header)
+        print("  " + "-" * (len(header) - 2))
 
-    header = f"  {'Tool':<{col}}" + "".join(f"{l:>{avg_col}}" for l in llm_labels) + f"{'Overall':>{avg_col}}"
-    print(header)
-    print("  " + "-" * (len(header) - 2))
+        tool_overall: dict[str, float] = {}
+        for tool in tools:
+            label = TOOL_DISPLAY.get(tool, tool)
+            row = f"  {label:<{col}}"
+            per_llm: list[float] = []
+            for llm in llms:
+                scores = score_map.get((tool, llm), [])
+                avg = sum(scores) / len(scores) if scores else 0.0
+                per_llm.append(avg)
+                row += f"{avg:>{avg_col}.1f}"
+            overall = sum(per_llm) / len(per_llm) if per_llm else 0.0
+            tool_overall[tool] = overall
+            row += f"{overall:>{avg_col}.1f}"
+            print(row)
 
-    tool_overall: dict[str, float] = {}
-    for tool in tools:
-        row = f"  {tool:<{col}}"
-        per_llm: list[float] = []
-        for llm in llms:
-            scores = score_map.get((tool, llm), [])
-            avg = sum(scores) / len(scores) if scores else 0.0
-            per_llm.append(avg)
-            row += f"{avg:>{avg_col}.1f}"
-        overall = sum(per_llm) / len(per_llm) if per_llm else 0.0
-        tool_overall[tool] = overall
-        row += f"{overall:>{avg_col}.1f}"
-        print(row)
+        print()
+        base_overall = tool_overall.get(base_tool, 0)
+        for tool in tools:
+            if tool == base_tool:
+                continue
+            label = TOOL_DISPLAY.get(tool, tool)
+            other_overall = tool_overall.get(tool, 0)
+            delta = base_overall - other_overall
+            sign = "+" if delta >= 0 else ""
+            pct = 100 * delta / other_overall if other_overall else 0
+            print(f"  {base_label} {sign}{delta:.1f} pts ({sign}{pct:.1f}%) vs {label}")
 
-    # delta row
-    if len(tools) == 2:
-        t0, t1 = tools[0], tools[1]
-        delta = tool_overall.get(t0, 0) - tool_overall.get(t1, 0)
-        pct = 100 * delta / tool_overall[t1] if tool_overall.get(t1) else 0
-        sign = "+" if delta >= 0 else ""
-        print(
-            f"\n  {t0} scores {sign}{delta:.1f} pts ({sign}{pct:.1f}%) "
-            f"vs {t1} — averaged across all LLMs"
-        )
+    # ── cost projection ──────────────────────────────────────────────────────
+    _print_cost_summary(token_avgs, tools)
 
+
+def _print_cost_summary(token_avgs: dict[str, float], tools: list[str]) -> None:
+    """Print API cost projection at three document-volume tiers."""
+    col = max(len(TOOL_DISPLAY.get(t, t)) for t in tools) + 2
+    volumes = [10_000, 100_000, 1_000_000]
+    llm_keys = list(_LLM_COST_PER_TOKEN.keys())
+    llm_labels = [LLM_DISPLAY[k] for k in llm_keys]
+    llm_col = max(len(l) for l in llm_labels) + 2
+
+    print("\n  API cost projection — input tokens only")
+    print("  Pricing (verify at vendor sites): " +
+          "  |  ".join(f"{LLM_DISPLAY[k]} ${_LLM_COST_PER_TOKEN[k]*1_000_000:.2f}/1M" for k in llm_keys))
     print()
+
+    for vol in volumes:
+        vol_label = f"{vol:,} docs"
+        print(f"  {vol_label}")
+        print(f"  {'Tool':<{col}}" + "".join(f"{l:>{llm_col}}" for l in llm_labels))
+        print("  " + "-" * (col + llm_col * len(llm_keys)))
+        for tool in tools:
+            avg = token_avgs.get(tool, 0)
+            label = TOOL_DISPLAY.get(tool, tool)
+            if avg == 0:
+                row = f"  {label:<{col}}" + "".join(f"{'N/A':>{llm_col}}" for _ in llm_keys)
+            else:
+                row = f"  {label:<{col}}"
+                for k in llm_keys:
+                    cost = avg * vol * _LLM_COST_PER_TOKEN[k]
+                    row += f"  ${cost:>{llm_col-3},.0f}"
+            print(row)
+
+        # savings row vs baseline
+        base_tool = "aksharamd" if "aksharamd" in tools else tools[0]
+        base_label = TOOL_DISPLAY.get(base_tool, base_tool)
+        base_avg = token_avgs.get(base_tool, 0)
+        if base_avg > 0:
+            for tool in tools:
+                if tool == base_tool:
+                    continue
+                other_avg = token_avgs.get(tool, 0)
+                if other_avg > 0 and other_avg > base_avg:
+                    label = TOOL_DISPLAY.get(tool, tool)
+                    savings_parts = []
+                    for k in llm_keys:
+                        saving = (other_avg - base_avg) * vol * _LLM_COST_PER_TOKEN[k]
+                        savings_parts.append(f"{LLM_DISPLAY[k]} saves ${saving:,.0f}")
+                    print(f"  vs {label}: " + "  |  ".join(savings_parts))
+        print()
 
 
 if __name__ == "__main__":

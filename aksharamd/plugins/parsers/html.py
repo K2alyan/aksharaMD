@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64 as _b64
+import re
 from pathlib import Path
 
 import chardet
@@ -48,6 +49,14 @@ _SKIP_TAGS = {
     "nav", "header", "aside", "script", "style",
     "noscript", "iframe", "form", "menu", "menuitem",
 }
+
+# CSS class patterns for navigation/boilerplate elements not captured by tag names.
+# Covers Wikipedia navboxes, hatnotes, MediaWiki edit-section links, and common
+# sidebar/noprint patterns used across many CMS platforms.
+_SKIP_CLASSES = re.compile(
+    r"\b(navbox|navbox-inner|navbox-subgroup|hatnote|"
+    r"sidebar|mw-editsection|noprint|navigation-not-searchable)\b"
+)
 # footer is NOT skipped — it often contains meaningful metadata (dates, org names,
 # copyright). Navigation noise inside footers is handled by the cleaner stage.
 _HEADING_TAGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
@@ -294,6 +303,10 @@ class HTMLParser(ParserPlugin):
 
         # Remove boilerplate before traversal
         for tag in soup.find_all(_SKIP_TAGS):
+            tag.decompose()
+
+        # Remove navigation/boilerplate elements identified by CSS class rather than tag name
+        for tag in soup.find_all(True, class_=_SKIP_CLASSES):
             tag.decompose()
 
         blocks: list[Block] = []
