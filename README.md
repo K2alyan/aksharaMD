@@ -146,6 +146,33 @@ Print the manifest from a previous compilation.
 aksharamd show-manifest output/report/
 ```
 
+### `corpus`
+
+Compile every supported file under a directory into token-budget-bounded chunks, with automatic near-duplicate detection.
+
+```bash
+aksharamd corpus <source_dir> [options]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-o`, `--output` | — | Write chunks to a JSON file |
+| `--budget` | `60000` | Maximum tokens per chunk |
+| `--dedup-threshold` | `0.5` | Jaccard similarity threshold for near-duplicate skipping |
+
+```bash
+aksharamd corpus ./documents/ --budget 8000 -o corpus.json
+```
+
+### `mcp-config`
+
+Generate and apply the MCP server configuration for Claude Desktop.
+
+```bash
+aksharamd mcp-config           # print config to copy manually
+aksharamd mcp-config --write   # write directly to Claude Desktop config
+```
+
 ### `formats`
 
 List all registered parsers and supported extensions.
@@ -348,10 +375,6 @@ for chunk in chunks:
     graph_builder.ingest(combined_text)
 ```
 
-### MCP clients (Claude Desktop, Cursor, and others)
-
-AksharaMD ships a built-in [MCP](https://modelcontextprotocol.io) server with four tools: `compile_document`, `compile_document_multimodal`, `get_supported_formats`, and `get_stats`. See the [MCP Server](#mcp-server) section for setup instructions.
-
 ---
 
 ## Supported Formats
@@ -412,9 +435,7 @@ Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7
 
 ### Downstream LLM accuracy
 
-Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly: 36 documents across 12 formats, 4 factual questions per document, evaluated against Claude Haiku 4.5 with a Claude Haiku 4.5 judge (576 total answers).
-
-Evaluated against **MarkItDown (Microsoft)**, **LlamaParse (LlamaIndex)**, **PyMuPDF4LLM**, and **Docling (IBM)** across 36 documents, 12 formats, 144 Q&A pairs.
+Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly: 36 documents across 12 formats, 4 factual questions per document, evaluated against 5 tools with Claude Haiku 4.5 as judge (576 graded answers total).
 
 | Tool | Avg score | Avg tokens | Formats covered |
 |------|:---------:|:----------:|:---------------:|
@@ -453,7 +474,7 @@ Each stage receives and returns a `CompilationContext` object. Stages are indepe
 aksharamd/
 ├── compiler.py          # Orchestrates the 10-stage pipeline
 ├── context.py           # CompilationContext — shared state across stages
-├── cli.py               # Click-based CLI (compile, validate, benchmark, stats)
+├── cli.py               # Click-based CLI (compile, validate, benchmark, corpus, stats, mcp-config)
 ├── mcp_server.py        # FastMCP server (4 tools)
 ├── ledger.py            # Persistent savings ledger (~/.aksharamd/ledger.jsonl)
 ├── scoring/
