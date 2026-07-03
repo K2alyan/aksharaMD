@@ -19,10 +19,33 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# ── Security config ────────────────────────────────────────────────────────────
+# AKSHARAMD_MCP_API_KEY — if set, HTTP mode requires X-API-Key: <value> header.
+# AKSHARAMD_ALLOWED_ROOT — if set, file_path arguments must resolve inside this
+#   directory. Recommended when running in HTTP mode.
+_API_KEY = os.environ.get("AKSHARAMD_MCP_API_KEY", "").strip() or None
+_ALLOWED_ROOT = Path(os.environ["AKSHARAMD_ALLOWED_ROOT"]).resolve() if os.environ.get("AKSHARAMD_ALLOWED_ROOT") else None
+
+
+def _check_allowed_path(file_path: str) -> str | None:
+    """Return an error string if file_path is outside AKSHARAMD_ALLOWED_ROOT, else None."""
+    if _ALLOWED_ROOT is None:
+        return None
+    try:
+        resolved = Path(file_path).expanduser().resolve()
+        resolved.relative_to(_ALLOWED_ROOT)
+        return None
+    except ValueError:
+        return (
+            f"Access denied: {file_path!r} is outside the allowed root "
+            f"({_ALLOWED_ROOT}). Set AKSHARAMD_ALLOWED_ROOT to permit it."
+        )
 
 from mcp.server.fastmcp import FastMCP
 
@@ -102,6 +125,10 @@ def compile_document(file_path: str) -> str:
     Returns:
         Compiled Markdown content with an appended AksharaMD summary block.
     """
+    denied = _check_allowed_path(file_path)
+    if denied:
+        return denied
+
     from aksharamd.compiler import Compiler
 
     path = Path(file_path).expanduser().resolve()
@@ -148,6 +175,10 @@ def compile_document_multimodal(file_path: str) -> list:
     Returns:
         Interleaved sequence of text strings and images in document order.
     """
+    denied = _check_allowed_path(file_path)
+    if denied:
+        return [denied]
+
     import base64
 
     from mcp.server.fastmcp import Image as MCPImage
@@ -290,13 +321,46 @@ def _build_parser() -> "argparse.ArgumentParser":
     return p
 
 
+def _run_http(host: str, port: int) -> None:
+    import uvicorn
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import JSONResponse
+
+    app = mcp.streamable_http_app()
+
+    if _API_KEY:
+        class _APIKeyMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                if request.headers.get("X-API-Key") != _API_KEY:
+                    return JSONResponse({"error": "Unauthorized"}, status_code=401)
+                return await call_next(request)
+
+        app.add_middleware(_APIKeyMiddleware)
+        logger.info("HTTP mode: API key authentication enabled.")
+    else:
+        logger.warning(
+            "HTTP mode: AKSHARAMD_MCP_API_KEY is not set — server is unauthenticated. "
+            "Set this variable or restrict access via a reverse proxy."
+        )
+
+    if _ALLOWED_ROOT:
+        logger.info("HTTP mode: file access restricted to %s", _ALLOWED_ROOT)
+    else:
+        logger.warning(
+            "HTTP mode: AKSHARAMD_ALLOWED_ROOT is not set — compile_document accepts "
+            "any file path on the server. Set this variable to restrict access."
+        )
+
+    uvicorn.run(app, host=host, port=port)
+
+
 def serve() -> None:
     """Start the AksharaMD MCP server (reads --transport / --host / --port from argv)."""
     args = _build_parser().parse_args()
     if args.transport == "stdio":
         mcp.run(transport="stdio")
     elif args.transport == "streamable-http":
-        mcp.run(transport="streamable-http", host=args.host, port=args.port)
+        _run_http(args.host, args.port)
     else:
         raise ValueError(f"Unknown transport: {args.transport!r}. Use 'stdio' or 'streamable-http'.")
 
