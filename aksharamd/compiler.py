@@ -193,7 +193,6 @@ class Compiler:
             ]
         """
         from .dedup.minhash import CorpusDeduplicator
-        from .plugins.exporters.markdown import _block_to_md
         from .plugins.registry import get_registered_extensions
 
         source_path = Path(source_dir).resolve()
