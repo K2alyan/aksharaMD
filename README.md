@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="AksharaMD" width="120" />
+</p>
+
 # AksharaMD
 
 > **CONFIDENTIAL — Private Beta v0.1.0**
@@ -311,6 +315,23 @@ AksharaMD produces **15× fewer tokens** and **98.5% less noise** across the ful
 | PPTX | 72.5 | 81.0 |
 
 Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7z`, `.jsonl`, `.xml`, `.rss`, `.atom`, `.eml`, `.rtf`, `.ipynb`, `.odt`, `.ods`, `.odp`, legacy Office via LibreOffice.
+
+### Downstream LLM accuracy
+
+Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly: 36 documents across 12 formats, 4 factual questions per document, evaluated against Claude Haiku and GPT-4o mini with a Claude Haiku judge (576 total answers).
+
+Evaluated against **MarkItDown (Microsoft)**, **Unstructured**, and **Docling (IBM)** across 36 documents, 12 formats, 144 Q&A pairs — scored by Gemini 2.5 Flash with Claude Haiku as judge.
+
+| Tool | Avg score | Avg tokens | Formats covered |
+|------|:---------:|:----------:|:---------------:|
+| **AksharaMD** | **9.1/10** | **6,513** | **12/12** |
+| MarkItDown | 9.0/10 | 34,909 | 12/12 |
+| Unstructured | 8.7/10 | 23,440 | 8/12 |
+| Docling | 8.4/10 | 46,765 | 8/12 |
+
+AksharaMD uses **81–86% fewer tokens** than every competing tool while matching or exceeding accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$2,272–$3,220 in saved API spend** (Claude Haiku pricing).
+
+For the full methodology, per-format scores, cost tables, and per-question breakdown, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md).
 
 ---
 
