@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -105,18 +106,19 @@ class Compiler:
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
-    def compile(self, source: str) -> CompilationContext:
+    def compile(self, source: str, on_stage: Callable[[str], None] | None = None) -> CompilationContext:
         """Full compilation: parse → optimise → export to disk. Returns context."""
-        ctx, stage_timings, t0 = self._run_pipeline(source)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
 
-        # Export to disk
+        if on_stage:
+            on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
             for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
                 ctx = plugin.execute(ctx)
 
         return self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_multimodal(self, source: str) -> tuple[list[dict], CompilationContext]:
+    def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[list[dict], CompilationContext]:
         """Compile to an interleaved text+image content array for multimodal LLMs.
 
         Returns (content_array, ctx) where content_array is a list of Anthropic-compatible
@@ -126,7 +128,7 @@ class Compiler:
         """
         from .plugins.exporters.multimodal import build_multimodal_content
 
-        ctx, stage_timings, t0 = self._run_pipeline(source)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
 
         if ctx.document:
             content = build_multimodal_content(ctx.document)
@@ -135,7 +137,7 @@ class Compiler:
 
         return content, self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_string(self, source: str) -> tuple[str, CompilationContext]:
+    def compile_to_string(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[str, CompilationContext]:
         """Compile to a markdown string without writing any files to disk.
 
         Ideal for MCP server and programmatic usage where disk I/O is unwanted.
@@ -143,7 +145,7 @@ class Compiler:
         """
         from .plugins.exporters.markdown import _block_to_md
 
-        ctx, stage_timings, t0 = self._run_pipeline(source)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
 
         if ctx.document:
             lines = [_block_to_md(b) for b in ctx.document.blocks]
@@ -160,6 +162,7 @@ class Compiler:
         glob: str = "**/*",
         dedup_threshold: float = 0.5,
         max_bisect_depth: int = 3,
+        on_file: Callable[[str, int, int], None] | None = None,
     ) -> list[dict]:
         """Compile every supported file under *source_dir* and pack the results into
         token-budget-aware groups ready for downstream LLM processing (e.g. Graphify).
@@ -207,8 +210,11 @@ class Compiler:
             key=lambda p: (p.parent, p.name),
         )
 
+        total_files = len(files)
         compiled: list[dict] = []
-        for file_path in files:
+        for idx, file_path in enumerate(files):
+            if on_file:
+                on_file(file_path.name, idx, total_files)
             try:
                 text, ctx = self.compile_to_string(str(file_path))
             except Exception:
@@ -285,7 +291,7 @@ class Compiler:
     # ── Internal pipeline ──────────────────────────────────────────────────────
 
     def _run_pipeline(
-        self, source: str
+        self, source: str, on_stage: Callable[[str], None] | None = None
     ) -> tuple[CompilationContext, dict[str, float], float]:
         """Stages 1-9: detect → parse → clean → optimise → validate → chunk →
         tokenise → manifest → readiness score.  Does NOT write to disk."""
@@ -328,6 +334,8 @@ class Compiler:
                 pass  # missing file handled by parser with a clearer message
 
             # 1. Detect
+            if on_stage:
+                on_stage("Detecting file type")
             file_type = _detect_file_type(source)
 
             # 2. Parse
@@ -335,6 +343,8 @@ class Compiler:
             if parser is None:
                 ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
                 return ctx, stage_timings, t0
+            if on_stage:
+                on_stage(f"Parsing {file_type.upper()} document")
             with timed("parse"):
                 ctx = parser.execute(ctx)
             if ctx.document is None:
@@ -343,26 +353,38 @@ class Compiler:
             ctx.document = ctx.document.model_copy(update={"file_type": file_type})
 
             # 3. Clean
+            if on_stage:
+                pages = ctx.document.pages if ctx.document else 0
+                page_info = f" — {pages} pages" if pages > 0 else ""
+                on_stage(f"Cleaning blocks{page_info}")
             with timed("clean"):
                 for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 4. Optimise
+            if on_stage:
+                on_stage("Optimizing tokens")
             with timed("optimize"):
                 for plugin in registry.get_plugins_of_type(OptimizerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 5. Validate
+            if on_stage:
+                on_stage("Validating structure")
             with timed("validate"):
                 for plugin in registry.get_plugins_of_type(ValidatorPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 6. Chunk
+            if on_stage:
+                on_stage("Chunking for context windows")
             with timed("chunk"):
                 for plugin in registry.get_plugins_of_type(ChunkerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
             # 7. Count tokens
+            if on_stage:
+                on_stage("Counting tokens")
             with timed("tokenize"):
                 if ctx.document:
                     optimized_text = " ".join(b.content for b in ctx.document.blocks)

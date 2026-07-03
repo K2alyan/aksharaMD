@@ -11,6 +11,14 @@ import click
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.table import Table
 
 from . import ledger as _ledger
@@ -86,12 +94,19 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     _setup_logging(verbose)
 
-    if not quiet:
-        console.print(f"[bold blue]AksharaMD[/] compiling [cyan]{source}[/]...")
-
     file_output = str(Path(output) / _output_stem(source))
     compiler = Compiler(output_dir=file_output)
-    ctx = compiler.compile(source)
+
+    if quiet:
+        ctx = compiler.compile(source)
+    else:
+        with console.status(
+            f"[bold blue]AksharaMD[/] compiling [cyan]{source}[/]...",
+            spinner="dots",
+        ) as status:
+            ctx = compiler.compile(source, on_stage=lambda s: status.update(
+                f"[bold blue]AksharaMD[/]  [dim]{s}[/]"
+            ))
 
     if not quiet and ctx.manifest:
         m = ctx.manifest
@@ -263,15 +278,36 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
     import json as _json
 
     _setup_logging(verbose)
-    if not quiet:
-        console.print(f"[bold]Corpus mode[/] — scanning {source_dir}")
 
     compiler = Compiler(output_dir=str(Path(source_dir) / ".aksharamd_cache"))
-    chunks = compiler.compile_corpus(
-        source_dir,
-        token_budget=budget,
-        dedup_threshold=dedup_threshold,
-    )
+
+    if quiet:
+        chunks = compiler.compile_corpus(
+            source_dir,
+            token_budget=budget,
+            dedup_threshold=dedup_threshold,
+        )
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task(f"Compiling {source_dir}", total=None)
+
+            def _on_file(name: str, idx: int, total: int) -> None:
+                progress.update(task, description=f"[bold blue]{name}[/]", total=total, completed=idx)
+
+            chunks = compiler.compile_corpus(
+                source_dir,
+                token_budget=budget,
+                dedup_threshold=dedup_threshold,
+                on_file=_on_file,
+            )
 
     total_docs = sum(len(c["documents"]) for c in chunks)
     total_tokens = sum(c["token_count"] for c in chunks)
