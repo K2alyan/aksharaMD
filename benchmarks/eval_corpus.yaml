@@ -1,6 +1,6 @@
 # AksharaMD vs MarkItDown — Multi-LLM QA Evaluation Corpus
 #
-# 36 documents across 12 formats, selected small/medium/large per type.
+# 100 documents across 12 formats, 8–9 per format spanning simple/structured/complex tiers.
 # Q&A pairs are auto-generated at runtime — see instructions below.
 #
 # ── STEP 1: Generate Q&A pairs (needs ANTHROPIC_API_KEY) ─────────────────────
@@ -147,3 +147,206 @@ documents:
 
   - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_07.xml"
     description: "XML — larger document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_01.xml"
+    description: "XML — document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_02.xml"
+    description: "XML — document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_03.xml"
+    description: "XML — document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_04.xml"
+    description: "XML — document"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xml\\xml_05.xml"
+    description: "XML — document"
+
+  # ── PDF additions (→ 9 total) ──────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28127v1.pdf"
+    description: "arXiv paper — small (469 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28249v1.pdf"
+    description: "arXiv paper — small (712 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28190v1.pdf"
+    description: "arXiv paper — medium (886 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28308v1.pdf"
+    description: "arXiv paper — medium (921 KB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28182v1.pdf"
+    description: "arXiv paper — medium (1.2 MB)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pdf\\2606.28116v1.pdf"
+    description: "arXiv paper — large (1.8 MB)"
+
+  # ── DOCX additions (→ 9 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_01_quarterly_business_review.docx"
+    description: "DOCX — quarterly business review"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_02_technical_architecture_specification.docx"
+    description: "DOCX — technical architecture specification"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_04_project_implementation_plan.docx"
+    description: "DOCX — project implementation plan"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_05_employee_handbook_overview.docx"
+    description: "DOCX — employee handbook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_06_risk_assessment_report.docx"
+    description: "DOCX — risk assessment report"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\docx\\doc_07_product_roadmap_2025.docx"
+    description: "DOCX — product roadmap"
+
+  # ── PPTX additions (→ 8 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_01_q4_business_results.pptx"
+    description: "PPTX — Q4 business results"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_02_product_vision_2025.pptx"
+    description: "PPTX — product vision 2025"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_03_technical_architecture_review.pptx"
+    description: "PPTX — technical architecture review"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_04_market_expansion_strategy.pptx"
+    description: "PPTX — market expansion strategy"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\pptx\\ppt_06_engineering_all-hands.pptx"
+    description: "PPTX — engineering all-hands"
+
+  # ── XLSX additions (→ 9 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_01_sales.xlsx"
+    description: "XLSX — sales data"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_03_employees.xlsx"
+    description: "XLSX — employee data"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_04_inventory.xlsx"
+    description: "XLSX — inventory"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_05_metrics.xlsx"
+    description: "XLSX — metrics dashboard"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_06_sales.xlsx"
+    description: "XLSX — sales data (v2)"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\xlsx\\xlsx_07_budget.xlsx"
+    description: "XLSX — budget"
+
+  # ── HTML additions (→ 9 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\amazon_rainforest.html"
+    description: "HTML — Wikipedia: Amazon rainforest"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\ancient_egypt.html"
+    description: "HTML — Wikipedia: Ancient Egypt"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\blockchain.html"
+    description: "HTML — Wikipedia: Blockchain"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\democracy.html"
+    description: "HTML — Wikipedia: Democracy"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\dna.html"
+    description: "HTML — Wikipedia: DNA"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\html\\genome.html"
+    description: "HTML — Wikipedia: Genome"
+
+  # ── EPUB additions (→ 8 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_11.epub"
+    description: "EPUB — Project Gutenberg: Peter Pan"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_1661.epub"
+    description: "EPUB — Project Gutenberg: Sherlock Holmes"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_174.epub"
+    description: "EPUB — Project Gutenberg: Dorian Gray"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_2591.epub"
+    description: "EPUB — Project Gutenberg: Grimm's Fairy Tales"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\epub\\gutenberg_84.epub"
+    description: "EPUB — Project Gutenberg: Frankenstein"
+
+  # ── TXT additions (→ 8 total) ─────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_11.txt"
+    description: "TXT — Project Gutenberg: Peter Pan"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_174.txt"
+    description: "TXT — Project Gutenberg: Dorian Gray"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_2814.txt"
+    description: "TXT — Project Gutenberg"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_84.txt"
+    description: "TXT — Project Gutenberg: Frankenstein"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\txt\\gutenberg_844.txt"
+    description: "TXT — Project Gutenberg"
+
+  # ── EML additions (→ 8 total) ─────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_01.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_02.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_03.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_04.eml"
+    description: "EML — email message"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\eml\\email_05.eml"
+    description: "EML — email message"
+
+  # ── IPYNB additions (→ 8 total) ───────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_01_data_analysis.ipynb"
+    description: "IPYNB — data analysis notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_02_ml_training.ipynb"
+    description: "IPYNB — ML training notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_03_visualization.ipynb"
+    description: "IPYNB — visualization notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_04_text_processing.ipynb"
+    description: "IPYNB — text processing notebook"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\ipynb\\nb_05_statistics.ipynb"
+    description: "IPYNB — statistics notebook"
+
+  # ── CSV additions (→ 8 total) ─────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_01_transactions.csv"
+    description: "CSV — financial transactions"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_02_web_logs.csv"
+    description: "CSV — web server logs"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_03_sensors.csv"
+    description: "CSV — sensor readings"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_04_products.csv"
+    description: "CSV — product catalog"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\csv\\csv_05_events.csv"
+    description: "CSV — event log"
+
+  # ── JSON additions (→ 8 total) ────────────────────────────────────────────
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_01_api_response.json"
+    description: "JSON — API response payload"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_02_config.json"
+    description: "JSON — configuration file"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_03_schema.json"
+    description: "JSON — schema definition"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_04_graph.json"
+    description: "JSON — graph data"
+
+  - path: "C:\\Users\\kalya\\Downloads\\benchmark_corpus_v5\\json\\json_05_report.json"
+    description: "JSON — structured report"
