@@ -48,3 +48,6 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Local MCP config — contains machine-specific paths and should not be committed
+mcp_config.json

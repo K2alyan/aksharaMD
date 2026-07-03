@@ -197,7 +197,7 @@ def _collect_text(el: ET.Element) -> str:
     return " ".join(p.strip() for p in parts if p.strip())
 
 
-def _xml_to_blocks(root: ET.Element) -> list[Block]:
+def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
     blocks: list[Block] = []
     idx = 0
     title: str | None = None

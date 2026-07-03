@@ -38,11 +38,28 @@ from .utils import count_tokens
 
 def _fetch_url_to_temp(url: str) -> str:
     """Download *url* to a NamedTemporaryFile; return the temp file path."""
+    import ipaddress
     import mimetypes
+    import socket
     import tempfile
     from urllib.parse import urlparse
 
     import requests
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL scheme {parsed.scheme!r} is not allowed; use http or https.")
+
+    hostname = parsed.hostname or ""
+    try:
+        resolved_ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+    except Exception as exc:
+        raise ValueError(f"Could not resolve host {hostname!r}: {exc}") from exc
+
+    if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_link_local:
+        raise ValueError(
+            f"Requests to private/internal addresses are not allowed (resolved to {resolved_ip})."
+        )
 
     try:
         resp = requests.get(url, timeout=30, stream=True,

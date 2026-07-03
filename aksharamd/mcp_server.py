@@ -280,23 +280,26 @@ def get_stats() -> str:
 
 # ── entry point ────────────────────────────────────────────────────────────────
 
-def serve(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Start the AksharaMD MCP server."""
-    if transport == "stdio":
-        mcp.run(transport="stdio")
-    elif transport == "streamable-http":
-        mcp.run(transport="streamable-http", host=host, port=port)
-    else:
-        raise ValueError(f"Unknown transport: {transport!r}. Use 'stdio' or 'streamable-http'.")
-
-
-if __name__ == "__main__":
+def _build_parser() -> "argparse.ArgumentParser":
     import argparse
-
     p = argparse.ArgumentParser(description="AksharaMD MCP Server")
     p.add_argument("--transport", default="stdio", choices=["stdio", "streamable-http"],
                    help="Transport mode (default: stdio)")
     p.add_argument("--host", default="127.0.0.1", help="Host for HTTP mode (default: 127.0.0.1)")
     p.add_argument("--port", type=int, default=8000, help="Port for HTTP mode (default: 8000)")
-    args = p.parse_args()
-    serve(args.transport, args.host, args.port)
+    return p
+
+
+def serve() -> None:
+    """Start the AksharaMD MCP server (reads --transport / --host / --port from argv)."""
+    args = _build_parser().parse_args()
+    if args.transport == "stdio":
+        mcp.run(transport="stdio")
+    elif args.transport == "streamable-http":
+        mcp.run(transport="streamable-http", host=args.host, port=args.port)
+    else:
+        raise ValueError(f"Unknown transport: {args.transport!r}. Use 'stdio' or 'streamable-http'.")
+
+
+if __name__ == "__main__":
+    serve()

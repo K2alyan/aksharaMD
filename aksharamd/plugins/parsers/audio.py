@@ -8,7 +8,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Default model: "base" balances speed vs quality. Users can override via
-# environment variable OMNIMARK_WHISPER_MODEL (tiny/base/small/medium/large).
+# environment variable AKSHARAMD_WHISPER_MODEL (tiny/base/small/medium/large).
 import os as _os
 
 from ...context import CompilationContext
@@ -18,9 +18,9 @@ from ..base import ParserPlugin
 from ..registry import register_parser
 
 _ALLOWED_MODELS = {"tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "turbo"}
-_raw_model = _os.environ.get("OMNIMARK_WHISPER_MODEL", "base")
+_raw_model = _os.environ.get("AKSHARAMD_WHISPER_MODEL", "base")
 if _raw_model not in _ALLOWED_MODELS:
-    logger.warning("Unknown OMNIMARK_WHISPER_MODEL %r — falling back to 'base'", _raw_model)
+    logger.warning("Unknown AKSHARAMD_WHISPER_MODEL %r — falling back to 'base'", _raw_model)
     _raw_model = "base"
 _DEFAULT_MODEL = _raw_model
 

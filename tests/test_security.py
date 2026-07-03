@@ -97,10 +97,10 @@ def test_compiler_rejects_oversized_file(tmp_path):
 # ── Audio model whitelist ─────────────────────────────────────────────────────
 
 def test_audio_model_whitelist():
-    """OMNIMARK_WHISPER_MODEL with an invalid value must fall back to 'base'."""
-    old = os.environ.get("OMNIMARK_WHISPER_MODEL")
+    """AKSHARAMD_WHISPER_MODEL with an invalid value must fall back to 'base'."""
+    old = os.environ.get("AKSHARAMD_WHISPER_MODEL")
     try:
-        os.environ["OMNIMARK_WHISPER_MODEL"] = "malicious-model; rm -rf /"
+        os.environ["AKSHARAMD_WHISPER_MODEL"] = "malicious-model; rm -rf /"
         # Re-evaluate the module-level variable
         import importlib
 
@@ -109,9 +109,9 @@ def test_audio_model_whitelist():
         assert audio_mod._DEFAULT_MODEL == "base"
     finally:
         if old is None:
-            os.environ.pop("OMNIMARK_WHISPER_MODEL", None)
+            os.environ.pop("AKSHARAMD_WHISPER_MODEL", None)
         else:
-            os.environ["OMNIMARK_WHISPER_MODEL"] = old
+            os.environ["AKSHARAMD_WHISPER_MODEL"] = old
         import importlib
 
         import aksharamd.plugins.parsers.audio as audio_mod
@@ -120,9 +120,9 @@ def test_audio_model_whitelist():
 
 def test_audio_valid_model_accepted():
     """Valid model names must be accepted as-is."""
-    old = os.environ.get("OMNIMARK_WHISPER_MODEL")
+    old = os.environ.get("AKSHARAMD_WHISPER_MODEL")
     try:
-        os.environ["OMNIMARK_WHISPER_MODEL"] = "small"
+        os.environ["AKSHARAMD_WHISPER_MODEL"] = "small"
         import importlib
 
         import aksharamd.plugins.parsers.audio as audio_mod
@@ -130,9 +130,9 @@ def test_audio_valid_model_accepted():
         assert audio_mod._DEFAULT_MODEL == "small"
     finally:
         if old is None:
-            os.environ.pop("OMNIMARK_WHISPER_MODEL", None)
+            os.environ.pop("AKSHARAMD_WHISPER_MODEL", None)
         else:
-            os.environ["OMNIMARK_WHISPER_MODEL"] = old
+            os.environ["AKSHARAMD_WHISPER_MODEL"] = old
         import importlib
 
         import aksharamd.plugins.parsers.audio as audio_mod

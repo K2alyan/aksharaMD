@@ -80,10 +80,7 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
     paragraphs = [b for b in blocks if b.type == BlockType.PARAGRAPH]
     code_blocks = [b for b in blocks if b.type == BlockType.CODE_BLOCK]
 
-    len(blocks)
-
     # ── Signals from validation issues ────────────────────────────────────────
-    [i.code for i in ctx.validation.issues]
     errors      = [i for i in ctx.validation.issues if i.severity.value == "error"]
     warnings_by_code: dict[str, int] = {}
     for i in ctx.validation.warnings:
