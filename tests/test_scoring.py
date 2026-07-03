@@ -6,8 +6,7 @@ from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.models.manifest import Manifest
 from aksharamd.models.validation import Severity, ValidationIssue, ValidationReport
-from aksharamd.scoring.readiness import ConfidenceResult, compute_confidence, compute_readiness_score
-
+from aksharamd.scoring.readiness import compute_confidence, compute_readiness_score
 
 _DEFAULT_BLOCK = [Block(type=BlockType.PARAGRAPH, content="Hello world text.", index=0)]
 
