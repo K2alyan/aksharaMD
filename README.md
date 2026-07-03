@@ -260,6 +260,92 @@ python -m aksharamd.mcp_server --transport streamable-http --host 0.0.0.0 --port
 
 ---
 
+## Ecosystem
+
+AksharaMD operates as a **document ingestion layer** — it handles format conversion, noise removal, deduplication, and semantic chunking so that downstream tools receive clean, structured text. It integrates naturally with the following systems.
+
+### LangChain
+
+Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document` and supports the full range of 40+ formats LangChain loaders do not cover.
+
+```python
+from aksharamd.compiler import Compiler
+from langchain_core.documents import Document
+
+compiler = Compiler()
+text, ctx = compiler.compile_to_string("report.pdf")
+
+doc = Document(
+    page_content=text,
+    metadata={
+        "source": ctx.manifest.source,
+        "file_type": ctx.manifest.file_type,
+        "readiness_score": ctx.manifest.readiness_score,
+    },
+)
+```
+
+### LlamaIndex
+
+Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats.
+
+```python
+from aksharamd.compiler import Compiler
+from llama_index.core import Document, VectorStoreIndex
+
+compiler = Compiler()
+text, ctx = compiler.compile_to_string("report.pdf")
+
+index = VectorStoreIndex.from_documents([
+    Document(text=text, metadata={"source": ctx.manifest.source}),
+])
+```
+
+### Vector stores (ChromaDB, Pinecone, Weaviate, Qdrant)
+
+`compile_corpus()` walks a directory, deduplicates near-identical documents via MinHash LSH, and returns token-budget-bounded chunks ready for embedding and upsert. The `token_budget` parameter should be set to match your embedding model's context window.
+
+```python
+from aksharamd.compiler import Compiler
+
+compiler = Compiler()
+chunks = compiler.compile_corpus("./documents", token_budget=8_000, dedup_threshold=0.8)
+
+for chunk in chunks:
+    texts  = [doc["text"]   for doc in chunk["documents"]]
+    ids    = [doc["source"] for doc in chunk["documents"]]
+    collection.add(documents=texts, ids=ids)
+```
+
+Each chunk carries a `confidence` breakdown (`extracted`, `inferred`, `ambiguous` block counts) that can be stored as metadata and used to filter retrieval results by extraction quality.
+
+### Graphify
+
+AksharaMD is designed to function as a preprocessing layer ahead of knowledge graph construction pipelines such as [Graphify](https://github.com/safishamsi/graphify). Graphify expects coherent text passages as input; AksharaMD handles the upstream problem of extracting that text from arbitrary document formats, including scanned PDFs, archives, and legacy Office files.
+
+The two tools share the same MinHash signature family (Mersenne-prime universal hashing), so near-duplicate detection applied at the AksharaMD stage does not need to be repeated downstream.
+
+```python
+from aksharamd.compiler import Compiler
+
+compiler = Compiler()
+chunks = compiler.compile_corpus(
+    "./documents",
+    token_budget=60_000,  # size chunks to Graphify's preferred context window
+    dedup_threshold=0.8,
+)
+
+for chunk in chunks:
+    combined_text = "\n\n---\n\n".join(doc["text"] for doc in chunk["documents"])
+    graph_builder.ingest(combined_text)
+```
+
+### MCP clients (Claude Desktop, Cursor, and others)
+
+AksharaMD ships a built-in [MCP](https://modelcontextprotocol.io) server with four tools: `compile_document`, `compile_document_multimodal`, `get_supported_formats`, and `get_stats`. See the [MCP Server](#mcp-server) section for setup instructions.
+
+---
+
 ## Supported Formats
 
 | Category | Extensions |
