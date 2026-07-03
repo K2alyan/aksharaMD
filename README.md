@@ -515,7 +515,7 @@ These are current boundaries of the system. They are not bugs.
 
 **Large files.** Files above 500 MB are rejected by default. Raise the limit with `AKSHARAMD_MAX_FILE_BYTES` if needed.
 
-**No incremental / streaming output.** The pipeline processes documents atomically. Very large PDFs (500+ pages) are processed in parallel pages but the final output is not streamed.
+**No block-level streaming output.** The CLI now shows a live progress spinner with per-stage updates (`Parsing PDF document`, `Optimizing tokens`, etc.), so long compilations are visible rather than silent. The pipeline itself still delivers results atomically — programmatic callers (`Compiler.compile()`, MCP `compile` tool) receive the full document at the end rather than a stream of blocks. Block-level streaming for API/MCP consumers is on the roadmap.
 
 **Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
 
