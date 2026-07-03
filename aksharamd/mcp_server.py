@@ -18,6 +18,7 @@ Usage:
 """
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 from pathlib import Path
@@ -323,8 +324,7 @@ def get_stats() -> str:
 
 # ── entry point ────────────────────────────────────────────────────────────────
 
-def _build_parser() -> "argparse.ArgumentParser":
-    import argparse
+def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="AksharaMD MCP Server")
     p.add_argument("--transport", default="stdio", choices=["stdio", "streamable-http"],
                    help="Transport mode (default: stdio)")
