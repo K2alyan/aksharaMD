@@ -174,6 +174,10 @@ class Compiler:
                 ctx = CompilationContext(source=_original_source, output_dir=self.output_dir)
                 ctx.error("URL_FETCH_ERROR", str(exc))
                 return ctx, stage_timings, t0
+        elif "://" in source:
+            ctx = CompilationContext(source=source, output_dir=self.output_dir)
+            ctx.error("URL_FETCH_ERROR", f"Unsupported URL scheme in {source!r}. Only http and https are supported.")
+            return ctx, stage_timings, t0
 
         try:
             ctx = CompilationContext(source=source, output_dir=self.output_dir)

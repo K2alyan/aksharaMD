@@ -29,8 +29,20 @@ logger = logging.getLogger(__name__)
 # AKSHARAMD_MCP_API_KEY — if set, HTTP mode requires X-API-Key: <value> header.
 # AKSHARAMD_ALLOWED_ROOT — if set, file_path arguments must resolve inside this
 #   directory. Recommended when running in HTTP mode.
+# AKSHARAMD_MAX_BODY_BYTES — max HTTP request body size (default 1 MB).
 _API_KEY = os.environ.get("AKSHARAMD_MCP_API_KEY", "").strip() or None
-_ALLOWED_ROOT = Path(os.environ["AKSHARAMD_ALLOWED_ROOT"]).resolve() if os.environ.get("AKSHARAMD_ALLOWED_ROOT") else None
+_MAX_BODY_BYTES = int(os.environ.get("AKSHARAMD_MAX_BODY_BYTES", str(1 * 1024 * 1024)))  # 1 MB
+
+_allowed_root_raw = os.environ.get("AKSHARAMD_ALLOWED_ROOT", "").strip()
+if _allowed_root_raw:
+    _allowed_root_path = Path(_allowed_root_raw).resolve()
+    if not _allowed_root_path.is_dir():
+        raise RuntimeError(
+            f"AKSHARAMD_ALLOWED_ROOT={_allowed_root_raw!r} does not exist or is not a directory."
+        )
+    _ALLOWED_ROOT: Path | None = _allowed_root_path
+else:
+    _ALLOWED_ROOT = None
 
 
 def _check_allowed_path(file_path: str) -> str | None:
@@ -327,6 +339,15 @@ def _run_http(host: str, port: int) -> None:
     from starlette.responses import JSONResponse
 
     app = mcp.streamable_http_app()
+
+    class _BodySizeMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > _MAX_BODY_BYTES:
+                return JSONResponse({"error": "Request body too large"}, status_code=413)
+            return await call_next(request)
+
+    app.add_middleware(_BodySizeMiddleware)
 
     if _API_KEY:
         class _APIKeyMiddleware(BaseHTTPMiddleware):
