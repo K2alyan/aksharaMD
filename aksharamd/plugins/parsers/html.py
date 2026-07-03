@@ -78,6 +78,8 @@ def _read_file(path: Path) -> str:
 def _table_to_markdown(table: Tag) -> str:
     rows = []
     for row in table.find_all("tr"):
+        if not isinstance(row, Tag):
+            continue
         cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
         rows.append("| " + " | ".join(cells) + " |")
     if not rows:
@@ -91,6 +93,8 @@ def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
     lines = []
     indent = "  " * depth
     for i, li in enumerate(element.find_all("li", recursive=False)):
+        if not isinstance(li, Tag):
+            continue
         # Collect direct text only (skip nested ul/ol content to avoid duplication)
         direct_parts: list[str] = []
         for child in li.children:
@@ -108,6 +112,8 @@ def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
             lines.append(f"{indent}{prefix} {direct_text}")
         # Recurse into nested lists
         for nested in li.find_all(["ul", "ol"], recursive=False):
+            if not isinstance(nested, Tag):
+                continue
             lines.extend(_list_to_lines(nested, ordered=(nested.name == "ol"), depth=depth + 1))
     return lines
 
@@ -184,10 +190,11 @@ def _walk(
             source = code or child
             text = source.get_text()
             lang = None
-            if code:
-                classes = code.get("class") or []
+            if code and isinstance(code, Tag):
+                raw_classes: list | str = code.get("class") or []
+                classes = raw_classes if isinstance(raw_classes, list) else [str(raw_classes)]
                 for cls in classes:
-                    if cls.startswith("language-"):
+                    if isinstance(cls, str) and cls.startswith("language-"):
                         lang = cls.replace("language-", "")
                         break
             if text.strip():
@@ -244,8 +251,10 @@ def _walk(
 
         # ── Images ─────────────────────────────────────────────────────────────
         elif tag == "img":
-            src = child.get("src", "")
-            alt = child.get("alt", "")
+            _src_raw = child.get("src", "")
+            _alt_raw = child.get("alt", "")
+            src: str = _src_raw if isinstance(_src_raw, str) else ""
+            alt: str | None = _alt_raw if isinstance(_alt_raw, str) else None
             if src or alt:
                 asset_id = f"img_{idx[0]}"
                 img_bytes = _extract_image_bytes(src, source_path)
@@ -313,7 +322,8 @@ class HTMLParser(ParserPlugin):
         assets: list[Asset] = []
         idx = [0]
 
-        body = soup.find("body") or soup
+        _body = soup.find("body") or soup
+        body: Tag = _body if isinstance(_body, Tag) else soup
         _walk(body, blocks, assets, idx, source_path=path)
 
         doc = Document(

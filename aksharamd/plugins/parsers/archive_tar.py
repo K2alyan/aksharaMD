@@ -39,7 +39,7 @@ def _lang(name: str) -> str:
 
 def _read_tar(path: Path, mode: str) -> tuple[list[Block], dict]:
     try:
-        tf = tarfile.open(str(path), mode)
+        tf = tarfile.open(name=str(path), mode=mode)  # type: ignore[call-overload]
     except Exception as e:
         raise RuntimeError(f"Cannot open archive: {e}") from e
 
@@ -192,7 +192,7 @@ class TarParser(ParserPlugin):
             # Single compressed file (.gz / .bz2 / .xz) — might be a tar or just compressed
             try:
                 mode = "r:*"
-                tarfile.open(str(path), mode).close()
+                tarfile.open(name=str(path), mode=mode).close()  # type: ignore[call-overload]
             except Exception:
                 ctx.error("TAR_NOT_ARCHIVE", "File is not a tar archive")
                 return ctx

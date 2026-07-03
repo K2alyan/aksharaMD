@@ -135,9 +135,9 @@ def _extract_ppt_text_olefile(path: Path) -> list[Block]:
 
 
 def _html_to_blocks(html_path: Path) -> list[Block]:
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, Tag
 
-    from ..base import Asset
+    from ...models.asset import Asset
     from .html import _walk as html_walk
 
     html = html_path.read_text(encoding="utf-8", errors="replace")
@@ -148,7 +148,8 @@ def _html_to_blocks(html_path: Path) -> list[Block]:
     blocks: list[Block] = []
     assets: list[Asset] = []
     idx = [0]
-    body = soup.find("body") or soup
+    _body = soup.find("body") or soup
+    body: Tag = _body if isinstance(_body, Tag) else soup
     html_walk(body, blocks, assets, idx)
     return blocks
 
