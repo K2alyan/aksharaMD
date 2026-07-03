@@ -294,7 +294,7 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
             )
         console.print(t)
         console.print(
-            f"[green]{total_docs} documents[/] → [bold]{len(chunks)} chunks[/], "
+            f"[green]{total_docs} documents[/] packed into [bold]{len(chunks)} chunks[/], "
             f"[cyan]{total_tokens:,} total tokens[/]"
         )
 
