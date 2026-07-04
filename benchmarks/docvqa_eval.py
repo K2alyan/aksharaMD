@@ -106,7 +106,8 @@ def main() -> None:
     use_llm = not args.no_llm
     if use_llm:
         try:
-            import anthropic as _a; _a.Anthropic()
+            import anthropic as _a
+            _a.Anthropic()
         except Exception:
             print("Note: Anthropic API not available — running conversion only (no QA scoring).")
             use_llm = False

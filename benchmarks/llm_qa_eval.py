@@ -576,14 +576,14 @@ def main() -> None:  # noqa: C901
 
     # ── print run config ─────────────────────────────────────────────────────
     tool_labels = [TOOL_DISPLAY.get(t, t) for t in args.tools]
-    print(f"\nEvaluation config")
+    print("\nEvaluation config")
     print(f"  Documents : {len(qa_docs)}")
     print(f"  Tools     : {', '.join(tool_labels)}")
     if active_llms:
-        print(f"  LLMs      : {', '.join(LLM_DISPLAY.get(l, l) for l in active_llms)}")
+        print(f"  LLMs      : {', '.join(LLM_DISPLAY.get(lm, lm) for lm in active_llms)}")
         print(f"  Judge     : {_JUDGE_MODEL}")
     else:
-        print(f"  LLMs      : none (conversion stats only)")
+        print("  LLMs      : none (conversion stats only)")
     print()
 
     # ── evaluation loop ──────────────────────────────────────────────────────
@@ -780,15 +780,15 @@ def _print_summary(results: list[QAResult], tools: list[str],
         print("\n  (No scored Q&A pairs — provide expected answers to see quality scores.)")
         print()
     else:
-        print(f"\n  Answer quality (0–10, higher is better)\n")
-        llm_labels = [LLM_DISPLAY.get(l, l) for l in llms] if llms else []
-        avg_col = max((len(l) for l in llm_labels), default=8) + 2
+        print("\n  Answer quality (0–10, higher is better)\n")
+        llm_labels = [LLM_DISPLAY.get(lm, lm) for lm in llms] if llms else []
+        avg_col = max((len(lbl) for lbl in llm_labels), default=8) + 2
 
         score_map: dict[tuple[str, str], list[int]] = defaultdict(list)
         for r in scored:
             score_map[(r.tool, r.llm)].append(r.score)
 
-        header = f"  {'Tool':<{col}}" + "".join(f"{l:>{avg_col}}" for l in llm_labels) + f"{'Overall':>{avg_col}}"
+        header = f"  {'Tool':<{col}}" + "".join(f"{lbl:>{avg_col}}" for lbl in llm_labels) + f"{'Overall':>{avg_col}}"
         print(header)
         print("  " + "-" * (len(header) - 2))
 
@@ -829,7 +829,7 @@ def _print_cost_summary(token_avgs: dict[str, float], tools: list[str]) -> None:
     volumes = [10_000, 100_000, 1_000_000]
     llm_keys = list(_LLM_COST_PER_TOKEN.keys())
     llm_labels = [LLM_DISPLAY[k] for k in llm_keys]
-    llm_col = max(len(l) for l in llm_labels) + 2
+    llm_col = max(len(lbl) for lbl in llm_labels) + 2
 
     print("\n  API cost projection — input tokens only")
     print("  Pricing (verify at vendor sites): " +
@@ -839,7 +839,7 @@ def _print_cost_summary(token_avgs: dict[str, float], tools: list[str]) -> None:
     for vol in volumes:
         vol_label = f"{vol:,} docs"
         print(f"  {vol_label}")
-        print(f"  {'Tool':<{col}}" + "".join(f"{l:>{llm_col}}" for l in llm_labels))
+        print(f"  {'Tool':<{col}}" + "".join(f"{lbl:>{llm_col}}" for lbl in llm_labels))
         print("  " + "-" * (col + llm_col * len(llm_keys)))
         for tool in tools:
             avg = token_avgs.get(tool, 0)
@@ -855,7 +855,6 @@ def _print_cost_summary(token_avgs: dict[str, float], tools: list[str]) -> None:
 
         # savings row vs baseline
         base_tool = "aksharamd" if "aksharamd" in tools else tools[0]
-        base_label = TOOL_DISPLAY.get(base_tool, base_tool)
         base_avg = token_avgs.get(base_tool, 0)
         if base_avg > 0:
             for tool in tools:

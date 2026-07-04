@@ -79,8 +79,8 @@ def _naive_text(path: Path) -> str:
 
         if ext == "epub":
             import ebooklib
-            from ebooklib import epub
             from bs4 import BeautifulSoup
+            from ebooklib import epub
             book = epub.read_epub(str(path), options={"ignore_ncx": True})
             parts = []
             for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):

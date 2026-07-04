@@ -11,10 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-import time
-import traceback
 from pathlib import Path
 
 import yaml
@@ -25,8 +22,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from benchmarks.corpus_benchmark import (
     _run_aksharamd,
-    _run_markitdown,
     _run_docling,
+    _run_markitdown,
     _run_naive,
 )
 
@@ -106,7 +103,8 @@ def main() -> None:
 
     if args.llm:
         try:
-            import anthropic as _a; _a.Anthropic()
+            import anthropic as _a
+            _a.Anthropic()
         except Exception as _e:
             print(f"ERROR: --llm requires Anthropic API access: {_e}", file=sys.stderr)
             sys.exit(1)

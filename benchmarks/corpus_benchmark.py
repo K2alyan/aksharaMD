@@ -21,17 +21,18 @@ import argparse
 import csv
 import importlib
 import json
+
+# Suppress noisy logging from docling / RapidOCR / transformers
+import logging
+import os
 import sys
 import tempfile
 import time
-import traceback
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from benchmarks.metrics import compute_metrics, DocumentMetrics
+from benchmarks.metrics import compute_metrics
 
-# Suppress noisy logging from docling / RapidOCR / transformers
-import logging, os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 for noisy in ("docling", "docling_core", "rapidocr", "transformers",
               "huggingface_hub", "accelerate", "torch"):
@@ -281,8 +282,8 @@ def _run_naive(path: Path) -> tuple[str, float]:
 
     elif ext == ".epub":
         import ebooklib
-        from ebooklib import epub
         from bs4 import BeautifulSoup
+        from ebooklib import epub
         book = epub.read_epub(str(path), options={"ignore_ncx": True})
         parts = []
         for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
@@ -413,7 +414,6 @@ def run_file(path: Path, tool: str, available: bool) -> ToolResult:
         return ToolResult(**{**asdict(base), "status": "skipped:too_large"})
 
     try:
-        import signal
 
         def _timeout_handler(signum, frame):
             raise TimeoutError(f"Exceeded {TIMEOUT_SECONDS}s")
@@ -667,7 +667,8 @@ def main() -> int:
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    import subprocess, sys as _sys
+    import subprocess
+    import sys as _sys
     def _get_version(pkg):
         try:
             r = subprocess.run([_sys.executable, "-m", "pip", "show", pkg],

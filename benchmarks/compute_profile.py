@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import sys
 from collections import defaultdict
 
@@ -321,7 +320,6 @@ def _section_docs_per_gpu_hour(avg_tokens: dict[str, float]) -> str:
 
 def _to_markdown(avg_tokens: dict[str, float]) -> str:
     tools = sorted(avg_tokens, key=lambda t: avg_tokens[t])
-    tool_labels = [_TOOL_LABELS.get(t, t) for t in tools]
     baseline = avg_tokens.get("aksharamd", 1.0)
 
     md: list[str] = []
@@ -452,9 +450,7 @@ def _to_markdown(avg_tokens: dict[str, float]) -> str:
     md.append("")
     # Compute the best-case numbers for the summary
     md_tokens = avg_tokens.get("markitdown", 34909)
-    pym_tokens = avg_tokens.get("pymupdf4llm", 46523)
     md_ratio = _prefill_ttft_ratio(baseline, md_tokens)
-    pym_ratio = _prefill_ttft_ratio(baseline, pym_tokens)
     cfg_8b = _MODEL_FAMILIES["8B class\n(Llama 3 8B / Mistral 7B / Qwen2.5 7B)"]
     s0 = _VRAM_SCENARIOS[0]
     base_c0 = _max_concurrent(baseline, cfg_8b, s0["kv_budget_gb"])
@@ -500,7 +496,7 @@ def main() -> None:
 
     source = str(results_path) if results_path.exists() else "hardcoded benchmark defaults"
     if not args.markdown:
-        print(f"\nAksharaMD — Self-Hosted Model Compute Profile")
+        print("\nAksharaMD — Self-Hosted Model Compute Profile")
         print(f"Source: {source}")
         print(f"Tools: {', '.join(_TOOL_LABELS.get(t, t) for t in sorted(avg_tokens))}")
         print("=" * 72)

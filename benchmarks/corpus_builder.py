@@ -35,13 +35,12 @@ from __future__ import annotations
 import argparse
 import io
 import json
-import os
 import random
 import sys
 import time
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # ── constants ──────────────────────────────────────────────────────────────────
 
@@ -393,7 +392,6 @@ _LOREM_SHORT = [
 def _generate_docx(out_dir: Path, count: int, overwrite: bool) -> int:
     try:
         from docx import Document
-        from docx.shared import Pt, RGBColor
     except ImportError:
         print("  SKIP docx: python-docx not installed")
         return 0
@@ -508,7 +506,6 @@ _PPTX_TOPICS = [
 def _generate_pptx(out_dir: Path, count: int, overwrite: bool) -> int:
     try:
         from pptx import Presentation
-        from pptx.util import Inches, Pt
     except ImportError:
         print("  SKIP pptx: python-pptx not installed")
         return 0
@@ -568,8 +565,7 @@ def _generate_pptx(out_dir: Path, count: int, overwrite: bool) -> int:
 
 def _generate_xlsx(out_dir: Path, count: int, overwrite: bool) -> int:
     try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        import openpyxl  # noqa: F401 — used below via openpyxl.Workbook()
     except ImportError:
         print("  SKIP xlsx: openpyxl not installed")
         return 0
@@ -603,7 +599,6 @@ def _generate_xlsx(out_dir: Path, count: int, overwrite: bool) -> int:
 
 def _gen_xlsx_sales(rng: random.Random, seed: int):
     import openpyxl
-    from openpyxl.styles import Font, PatternFill
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Sales Data"
@@ -1193,7 +1188,7 @@ def _generate_images(out_dir: Path, count: int, overwrite: bool, ext: str) -> in
             draw.text((40, y), f"Total Due: ${rng.randint(1000, 50000):,}.00", font=font_body, fill=(0, 0, 150))
 
         elif kind == "report_page":
-            draw.text((40, 40), f"Monthly Performance Report", font=font_title, fill=(0, 0, 0))
+            draw.text((40, 40), "Monthly Performance Report", font=font_title, fill=(0, 0, 0))
             draw.text((40, 80), f"Period: {rng.choice(['January','February','March','April','May'])} 2024", font=font_body, fill=(80, 80, 80))
             y = 120
             draw.text((40, y), "Executive Summary", font=font_body, fill=(0, 0, 0))

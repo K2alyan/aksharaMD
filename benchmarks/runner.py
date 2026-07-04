@@ -8,17 +8,18 @@ Runs every PDF in input-dir through both AksharaMD and MarkItDown,
 collects metrics, and writes a JSON report + Rich summary table.
 """
 from __future__ import annotations
+
 import json
 import time
 from dataclasses import asdict
 from pathlib import Path
 
 import click
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
-from .metrics import compute_metrics, DocumentMetrics
+from .metrics import compute_metrics
 
 console = Console()
 
@@ -46,7 +47,7 @@ def _run_markitdown(pdf_path: Path) -> tuple[str, float]:
         result = md.convert(str(pdf_path))
         elapsed = time.perf_counter() - t0
         return result.text_content, elapsed
-    except Exception as e:
+    except Exception:
         return "", 0.0
 
 

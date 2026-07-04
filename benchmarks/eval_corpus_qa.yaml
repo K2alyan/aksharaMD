@@ -2,40 +2,41 @@ documents:
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28277v1.pdf
   description: arXiv paper — small (575 KB)
   qa:
-  - q: What is the name of the tool developed to automate scientific verification?
-    a: Paper Assistant Tool (PAT)
-  - q: What percentage year-over-year increase in submissions occurred from 2025 to
-      2026 across the three flagship conferences?
-    a: 62.90%
-  - q: At which two major conferences were PAT experimental programs conducted?
-    a: STOC and ICML
-  - q: By what percentage did PAT improve recall over zero-shot on the SPOT benchmark?
+  - q: What is the name of the agentic framework developed for paper verification?
+    a: Paper Assistant (PAT)
+  - q: By what percentage did PAT improve over zero-shot recall on the SPOT benchmark?
     a: 34%
+  - q: What was the combined submission total for the three flagship conferences in
+      2026?
+    a: 73,883 (est.)
+  - q: Which organization is David Woodruff affiliated with besides Google Research?
+    a: Carnegie Mellon University
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28273v1.pdf
   description: arXiv paper — medium (1.1 MB)
   qa:
-  - q: What percentage of attention heads are causally necessary for prior knowledge
-      grounding?
+  - q: What percentage of attention heads in the second half of the network are causally
+      necessary for prior knowledge grounding?
     a: 2.5–4.8%
-  - q: In what percentage of cases does ablating the identified heads flip predictions
-      from knowledge-grounded to visually grounded answers?
+  - q: When ablating the identified heads, what percentage of conflict predictions
+      flip from knowledge-grounded to visually grounded answers under prior-knowledge
+      prompts?
     a: 68–96%
-  - q: What are the two types of attention heads identified in the study?
+  - q: What are the two types of attention heads identified in the causal circuit
+      for perception-knowledge conflict?
     a: routing heads and writing heads
-  - q: Where in the network are the causally necessary attention heads concentrated?
-    a: second half of the network
+  - q: Which four VLM models were evaluated in this study?
+    a: Qwen-VL 3B/7B, LLaVA-NeXT 7B, PaliGemma 3B/10B
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28274v1.pdf
   description: arXiv paper — large (3.9 MB)
   qa:
-  - q: What is the name of the proposed hybrid architecture introduced in this paper?
+  - q: What is the full name of the proposed architecture introduced in this paper?
     a: Parameter-Efficient Hybrid Transformer (PEHT)
-  - q: What adaptation technique is incorporated into the Transformer in the PEHT
-      model?
+  - q: Which institution is Abdolazim Rezaei affiliated with?
+    a: Texas A&M University Corpus Christi
+  - q: What technique is incorporated into the Transformer to enable efficient fine-tuning?
     a: Low-Rank Adaptation (LoRA)
-  - q: What is the arXiv identifier and submission date for this paper?
-    a: arXiv:2606.28274v1, 26 Jun 2026
-  - q: Which university are all three authors affiliated with?
-    a: Texas A&M University
+  - q: What is the arXiv submission date of this paper?
+    a: 26 Jun 2026
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_03_market_research_analysis.docx
   description: DOCX — market research analysis
   qa:
@@ -45,41 +46,40 @@ documents:
     a: '3.0'
   - q: Within how many business days should the team convene to review findings?
     a: Five business days
-  - q: What is listed as the foundation of any successful initiative?
+  - q: What is identified as the foundation of any successful initiative?
     a: Effective communication
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_19_performance_metrics_report.docx
   description: DOCX — performance metrics report
   qa:
-  - q: What is the version number of this Performance Metrics Report?
-    a: Version 19.0
+  - q: Who prepared this Performance Metrics Report?
+    a: Operations Team
   - q: What was the actual Revenue figure reported?
     a: $632K
-  - q: Within what timeframe should the team convene to review the findings?
-    a: Within the next five business days
-  - q: What was the variance percentage for the Margin metric?
+  - q: Within how many business days should the team convene to review findings?
+    a: Five business days
+  - q: What was the Margin variance percentage?
     a: -8%
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_16_software_requirements_specification.docx
   description: DOCX — software requirements specification
   qa:
   - q: What is the version number of this Software Requirements Specification?
-    a: '16.0'
-  - q: Which technology is used for the Auth Service according to the component summary?
-    a: OAuth 2.0 / JWT
+    a: Version 16.0
+  - q: Which technology is used for the API Gateway component?
+    a: nginx / Kong
   - q: What is the SLA for the Storage Layer?
     a: 99.99%
-  - q: Within how many business days should the team convene to review the findings?
+  - q: Within how many business days should the team convene to review findings?
     a: Five business days
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_16_competitive_landscape.pptx
   description: PPTX — competitive landscape deck
   qa:
   - q: Who is the presenter of this competitive landscape document?
     a: Team Lead
-  - q: In what year was this presentation created?
+  - q: What year is this presentation from?
     a: '2025'
-  - q: According to the Recommendations section, what should metrics be instead of
-      lagging measurements?
-    a: Leading indicators
-  - q: What is listed as the foundation of any successful initiative?
+  - q: According to the recommendations, what accelerates delivery and reduces rework?
+    a: Cross-functional collaboration
+  - q: What is identified as the foundation of any successful initiative?
     a: Effective communication
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_05_customer_success_overview.pptx
   description: PPTX — customer success overview
@@ -90,151 +90,151 @@ documents:
     a: '2024'
   - q: According to the Key Findings, what is the foundation of any successful initiative?
     a: Effective communication
-  - q: What must be established before execution begins, according to the Analysis
-      section?
+  - q: What does the Analysis section state must be established before execution begins?
     a: Stakeholder alignment
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_11_partnership_proposal.pptx
   description: PPTX — partnership proposal
   qa:
   - q: Who is the presenter of this partnership proposal?
     a: Team Lead
-  - q: In what year was this presentation created?
+  - q: What year is this partnership proposal from?
     a: '2024'
-  - q: Name one of the main sections listed in the Agenda.
-    a: Overview
-  - q: According to the Recommendations section, what should metrics be rather than
-      lagging measurements?
+  - q: Name one prerequisite mentioned for sustainable progress.
+    a: Clear ownership and accountability
+  - q: What type of indicators should metrics be according to the recommendations?
     a: Leading indicators
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_02_budget.xlsx
   description: XLSX — budget spreadsheet
   qa:
-  - q: What is the YTD Variance for Marketing in the Finance department?
-    a: 19.4%
-  - q: Which department has the lowest Q1 Actual value in the Headcount category?
-    a: Finance
-  - q: What is the Q2 Actual amount for Software in the Engineering department?
-    a: '203831'
-  - q: Which category and department combination shows a -24.0% YTD Variance?
-    a: Training, Operations
+  - q: What is the YTD Variance for Marketing category in the Engineering department?
+    a: 17.8%
+  - q: Which department has a -24.0% YTD Variance in the Training category?
+    a: Operations
+  - q: What was the Q1 Actual amount for Software in the Engineering department?
+    a: '202042'
+  - q: What is the Q2 Budget for Headcount in the Finance department?
+    a: '110072'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_08_employees.xlsx
   description: XLSX — employee data
   qa:
-  - q: What is the salary of Riley Moore with employee ID EMP1000?
+  - q: What is the salary of Riley Moore with ID EMP1000?
     a: '196768'
   - q: Which department does Taylor Jones (EMP1003) work in?
     a: Finance
-  - q: What is the hire date of Morgan Brown (EMP1027)?
+  - q: What is the hire date for Morgan Brown (EMP1027)?
     a: '2022-03-01'
   - q: Who is the manager of Riley Smith (EMP1033)?
     a: MGR1001
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_19_inventory.xlsx
   description: XLSX — inventory list
   qa:
-  - q: What is the stock level for SKU-10004?
+  - q: What is the stock level for Product E-4 (SKU-10004)?
     a: '30'
-  - q: Which supplier provides Product Z-25?
+  - q: Which supplier provides Product Z-25 (SKU-10025)?
     a: Tech Parts Inc
-  - q: What is the reorder point for Product H-7?
-    a: '50'
-  - q: When was Product R-43 last updated?
-    a: '2024-01-02'
+  - q: What is the reorder point for Product R-43 (SKU-10043)?
+    a: '24'
+  - q: When was Product H-7 (SKU-10007) last updated?
+    a: '2024-12-12'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\mesopotamia.html
   description: 'HTML — Wikipedia: Mesopotamia (533 KB)'
   qa:
   - q: What two rivers define the Mesopotamia region?
     a: Tigris and Euphrates
-  - q: In what year did Mesopotamia fall under Achaemenid control?
+  - q: Around what year did the Neolithic Revolution begin in Mesopotamia?
+    a: 10,000 BC
+  - q: In what year did the Achaemenid Empire conquer Mesopotamia?
     a: 539 BC
-  - q: Which ruler of Akkad began the rise of empires in Mesopotamia around 2350 BC?
-    a: Sargon of Akkad
   - q: What does the word Mesopotamia translate to in English?
     a: (land) between rivers
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\inflation.html
   description: 'HTML — Wikipedia: Inflation (778 KB)'
   qa:
-  - q: What is inflation defined as in economics?
-    a: An increase in the average price of goods and services in terms of money
-  - q: What index is typically used to measure inflation?
+  - q: What is inflation measured using, typically?
     a: Consumer price index (CPI)
   - q: What is the opposite of inflation called?
     a: Deflation
-  - q: What Latin word does the term 'inflation' originate from?
+  - q: From what Latin word does the term 'inflation' originate?
     a: Inflare
+  - q: In what century did economists categorise three separate factors that cause
+      a rise or fall in the price of goods?
+    a: Nineteenth century
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\black_hole.html
   description: 'HTML — Wikipedia: Black hole (1.3 MB)'
   qa:
-  - q: What is the boundary of no escape around a black hole called?
+  - q: What is the boundary of no escape from a black hole called?
     a: event horizon
-  - q: In what year was the first solution of general relativity that would characterise
-      a black hole found?
+  - q: In what year was the first solution of general relativity characterizing a
+      black hole found?
     a: '1916'
-  - q: What was the first widely accepted black hole, identified in 1971?
+  - q: What was the first widely accepted black hole identified in 1971?
     a: Cygnus X-1
-  - q: What is the estimated mass of the supermassive black hole at the core of the
-      Milky Way galaxy?
-    a: 4.3 million solar masses
+  - q: What is the approximate mass in solar masses of the supermassive black hole
+      at the core of the Milky Way?
+    a: 4.3 million
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_1232.epub
   description: EPUB — Project Gutenberg (207 KB)
   qa:
-  - q: Who translated The Prince in this edition?
+  - q: 'Who translated The Prince for Project Gutenberg eBook #1232?'
     a: W. K. Marriott
-  - q: When was Niccolò Machiavelli born?
+  - q: On what date was Niccolò Machiavelli born?
     a: 3rd May 1469
   - q: In what year did Machiavelli enter public service?
     a: '1494'
-  - q: On what date did Machiavelli die?
-    a: 22nd June 1527
+  - q: How many chapters does The Prince contain?
+    a: '26'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_345.epub
   description: EPUB — Project Gutenberg (423 KB)
   qa:
   - q: Who is the author of Dracula?
     a: Bram Stoker
-  - q: What is the eBook number for Dracula in Project Gutenberg?
+  - q: What is the Project Gutenberg eBook number for Dracula?
     a: '#345'
-  - q: On what date did Jonathan Harker arrive in Bistritz?
+  - q: On what date did Jonathan Harker arrive in Bistritz according to his journal
+      entry?
     a: 3 May
-  - q: What is the name of the national dish Jonathan Harker had for dinner in Klausenburgh?
+  - q: What is the name of the dish Jonathan Harker had for dinner in Klausenburgh?
     a: paprika hendl
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_1342.epub
   description: 'EPUB — Project Gutenberg: Pride and Prejudice (546 KB)'
   qa:
-  - q: What is the eBook number for Pride and Prejudice in Project Gutenberg?
+  - q: Who is the author of Pride and Prejudice?
+    a: Jane Austen
+  - q: What is the eBook number for this Project Gutenberg edition?
     a: '1342'
-  - q: Who illustrated this edition of Pride and Prejudice?
-    a: Hugh Thomson
   - q: How many chapters does Pride and Prejudice contain according to the table of
       contents?
     a: '61'
-  - q: What is the release date of this eBook?
-    a: June 1, 1998
+  - q: Who created the illustrations for this edition of Pride and Prejudice?
+    a: Hugh Thomson
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_219.txt
   description: TXT — Project Gutenberg (232 KB)
   qa:
   - q: Who is the author of Heart of Darkness?
     a: Joseph Conrad
-  - q: What is the name of the ship in the opening scene?
+  - q: What is the name of the vessel at the beginning of the story?
     a: The Nellie
-  - q: When was this eBook most recently updated?
-    a: August 3, 2024
-  - q: What is the Project Gutenberg eBook number for Heart of Darkness?
-    a: '#219'
+  - q: What was the release date of this eBook?
+    a: January 9, 2006
+  - q: How many main sections does Heart of Darkness contain according to the contents?
+    a: Three (I, II, III)
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_25344.txt
   description: TXT — Project Gutenberg (514 KB)
   qa:
   - q: Who is the author of The Scarlet Letter?
     a: Nathaniel Hawthorne
-  - q: 'What is the page number for Chapter I: THE PRISON-DOOR?'
+  - q: What is the eBook number for this Project Gutenberg edition?
+    a: '#25344'
+  - q: In what city was this book published?
+    a: Boston
+  - q: What is the page number where Chapter I 'The Prison-Door' begins?
     a: '51'
-  - q: When was the eBook most recently updated?
-    a: July 15, 2025
-  - q: Who were the illustrators of this edition?
-    a: Mary Hallock Foote and Ludvig Sandöe Ipsen
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_2701.txt
   description: 'TXT — Project Gutenberg: Moby Dick (1.2 MB)'
   qa:
   - q: Who is the author of Moby Dick?
     a: Herman Melville
-  - q: What is the Project Gutenberg eBook number for this text?
+  - q: What is the Project Gutenberg eBook number for Moby Dick?
     a: '#2701'
   - q: What is the title of Chapter 41?
     a: Moby Dick
@@ -243,12 +243,12 @@ documents:
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_14.eml
   description: EML — email message
   qa:
-  - q: What is the email sender's address?
-    a: mike.williams@corp.net
-  - q: When is the next meeting scheduled?
+  - q: Who sent this email?
+    a: Mike Williams
+  - q: What is the scheduled time for the next meeting?
     a: Friday at 3pm EST
   - q: By when should feedback on the attached documentation be provided?
-    a: end of week
+    a: End of week
   - q: What date was this email sent?
     a: Mon, 28 Jan 2024
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_16.eml
@@ -260,49 +260,50 @@ documents:
     a: Mon, 03 Jan 2024
   - q: When is the next meeting scheduled?
     a: Friday at 3pm EST
-  - q: By when should feedback be provided?
-    a: End of week
+  - q: By when should feedback on the documentation be provided?
+    a: end of week
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_08.eml
   description: EML — email message
   qa:
-  - q: What is the email sender's address?
-    a: sarah.johnson@company.org
-  - q: When is the next meeting scheduled?
-    a: Friday at 3pm EST
+  - q: Who sent this email?
+    a: Sarah Johnson
   - q: What date was this email sent?
     a: Mon, 15 Jan 2024
-  - q: By when should team members provide feedback on the documentation?
-    a: end of week
+  - q: What time is the next meeting scheduled?
+    a: 3pm EST
+  - q: What day of the week is the next meeting?
+    a: Friday
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_20_statistics.ipynb
   description: IPYNB — statistics notebook
   qa:
-  - q: What is the name of the notebook being tested?
-    a: nb_20_statistics.ipynb
-  - q: How many samples are generated in the data loading section?
-    a: '3421'
-  - q: What are the three categories in the randomly generated data?
-    a: A, B, C
-  - q: How many cells does this notebook contain?
+  - q: How many cells are in the nb_20_statistics.ipynb notebook?
     a: '7'
+  - q: What is the random seed value used in the Data Loading section?
+    a: '42'
+  - q: How many samples are generated in the data creation?
+    a: '3421'
+  - q: What are the three categories used in the category column?
+    a: A, B, C
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_06_data_analysis.ipynb
   description: IPYNB — data analysis notebook
   qa:
   - q: What is the programming language used in this notebook?
     a: python
-  - q: How many samples are generated in the data loading section?
+  - q: How many samples are generated in the data creation code?
     a: '1513'
   - q: What are the three categories used in the randomly generated data?
     a: A, B, C
-  - q: How many cells does this notebook contain?
+  - q: How many cells are in the nb_06_data_analysis.ipynb notebook?
     a: '7'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_14_text_processing.ipynb
   description: IPYNB — text processing notebook
   qa:
   - q: What is the programming language used in this notebook?
     a: python
-  - q: How many samples are generated in the data loading section?
+  - q: How many samples are created in the data generation code?
     a: '4265'
-  - q: What are the three categories used in the randomly generated data?
+  - q: What are the three categories used in the random choice for the 'category'
+      column?
     a: A, B, C
   - q: How many cells does this notebook contain?
     a: '7'
@@ -313,43 +314,43 @@ documents:
     a: '8'
   - q: How many rows does csv_10_events.csv have?
     a: '125'
-  - q: What is the user_id value in row_18?
-    a: '20'
-  - q: What is the duration_ms value in row_0?
-    a: '219'
+  - q: What is the event_id value in row_18?
+    a: '415'
+  - q: What is the duration_ms value for the event in row_50?
+    a: '605'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_06_transactions.csv
   description: CSV — transactions
   qa:
   - q: What is the status of transaction TX100018?
     a: completed
-  - q: Which merchant processed transaction TX100013?
+  - q: How many columns are in the csv_06_transactions.csv file?
+    a: '8'
+  - q: What merchant processed transaction TX100026?
     a: Local Store
-  - q: What is the amount of transaction TX100026?
-    a: '8616.97'
-  - q: What category does transaction TX100040 belong to?
-    a: Services
+  - q: What is the amount for transaction TX100051?
+    a: '3977.01'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_07_web_logs.csv
   description: CSV — web server logs
   qa:
   - q: How many columns are in the csv_07_web_logs.csv file?
     a: '8'
-  - q: What HTTP method was used in the request to /health on 2024-01-10T21:59:00Z?
+  - q: What HTTP method is used in the first row of the data?
     a: DELETE
-  - q: What status code was returned for the GET request to /api/data on 2024-01-20T16:23:00Z?
+  - q: What is the status code for the GET request to /v1/process on 2024-01-04?
     a: '200'
-  - q: How many rows does the csv_07_web_logs.csv file contain?
-    a: '110'
+  - q: What is the referrer value shown for all entries in this excerpt?
+    a: https://example.com
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_12_config.json
   description: JSON — configuration file
   qa:
-  - q: What is the database host specified in the configuration?
+  - q: What is the database host name?
     a: db.internal
-  - q: How many features are enabled (set to true) in the features section?
-    a: '7'
-  - q: What cache backend is configured?
+  - q: How many replicas are configured in the database?
+    a: '3'
+  - q: Which features are enabled in the configuration?
+    a: feature_3, feature_7, feature_9, feature_10, feature_13, feature_14, feature_19
+  - q: What is the cache backend used?
     a: redis
-  - q: What is the rate limit value in the limits section?
-    a: '1000'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_10_report.json
   description: JSON — structured report
   qa:
@@ -364,31 +365,31 @@ documents:
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_16_api_response.json
   description: JSON — API response payload
   qa:
-  - q: What is the HTTP status code of this API response?
+  - q: What is the HTTP status code in the API response?
     a: '200'
-  - q: What is the page number indicated in the meta information?
-    a: '16'
+  - q: What is the total number of items across all pages?
+    a: '1000'
   - q: What is the score value for Item 8?
     a: '91.86'
-  - q: What is the created_at date for Item 6?
-    a: '2024-12-16'
+  - q: What is the created_at date for Item 14?
+    a: '2024-02-17'
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_09.xml
   description: XML — small document
   qa:
   - q: What is the port number for the database service?
     a: '21851'
-  - q: Is the cache service enabled?
-    a: 'true'
-  - q: What is the hostname of the authentication service?
-    a: auth.internal.example.com
   - q: Which service has port 10754?
     a: logging
+  - q: Is the cache service enabled?
+    a: 'true'
+  - q: What is the hostname of the auth service?
+    a: auth.internal.example.com
 - path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_14.xml
   description: XML — medium document
   qa:
-  - q: What is the title of this report?
+  - q: What is the title of the report in xml_14.xml?
     a: Report 13
-  - q: What date was this report generated?
+  - q: What date was the report generated?
     a: '2024-01-19'
   - q: What is the content of Section 1?
     a: Cross-functional collaboration accelerates delivery and reduces rework.
@@ -399,10 +400,729 @@ documents:
   qa:
   - q: What is the file size of xml_07.xml?
     a: 7,304 bytes
-  - q: What value does Product 12 have in the second column?
-    a: '884.05'
-  - q: Which product has the value 445 in the third column and mentions data-driven
-      decisions?
-    a: Product 17
-  - q: What principle is associated with Product 6?
+  - q: Which product has the highest first numeric value?
+    a: Product 12
+  - q: What is the second numeric value for Product 6?
+    a: '1'
+  - q: How many products are listed in the document?
+    a: '30'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_01.xml
+  description: XML — document
+  qa:
+  - q: What is the size of the xml_01.xml file?
+    a: 7,331 bytes
+  - q: What is the price value for Product 3?
+    a: '981.9'
+  - q: Which product has the lowest price value?
+    a: Product 10
+  - q: What phrase appears in the description for Product 14?
+    a: Stakeholder alignment must be established before execution begins
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_02.xml
+  description: XML — document
+  qa:
+  - q: What is the report title?
+    a: Report 1
+  - q: What is the date shown in the generated field?
+    a: '2024-01-16'
+  - q: What is the content of Section 3?
+    a: Cross-functional collaboration accelerates delivery and reduces rework.
+  - q: What is the KPI_0 value in Section 5?
+    a: '99'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_03.xml
+  description: XML — document
+  qa:
+  - q: What is the port number for the cache service?
+    a: '23876'
+  - q: Which service has host auth.internal.example.com?
+    a: auth
+  - q: Is the database service enabled?
+    a: 'false'
+  - q: What is the host for the logging service?
+    a: logging.internal.example.com
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_04.xml
+  description: XML — document
+  qa:
+  - q: What is the size of xml_04.xml?
+    a: 7,315 bytes
+  - q: What value is associated with Product 2?
+    a: '947.2'
+  - q: Which product has the lowest second numeric value?
+    a: Product 23
+  - q: What principle is stated for Product 6?
     a: Clear ownership and accountability are prerequisites for sustainable progress
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_05.xml
+  description: XML — document
+  qa:
+  - q: What is the date shown in the generated field of xml_05.xml?
+    a: '2024-01-04'
+  - q: What is the value of KPI_2 in Section 1?
+    a: '25'
+  - q: Which section contains the metric KPI_3 with a value of 87?
+    a: Section 2
+  - q: What is the heading of the section with id 4?
+    a: Section 5
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28127v1.pdf
+  description: arXiv paper — small (469 KB)
+  qa:
+  - q: Who is the author of this opinion paper?
+    a: Paul Dubois
+  - q: In what month and year was this draft paper written?
+    a: June 2026
+  - q: What does JEPA stand for?
+    a: Joint Embedding Predictive Architecture
+  - q: Who proposed the critique that reaching general intelligence requires abandoning
+      autoregressive token prediction?
+    a: LeCun
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28249v1.pdf
+  description: arXiv paper — small (712 KB)
+  qa:
+  - q: What is the arXiv identifier and submission date of this paper?
+    a: arXiv:2606.28249v1, 26 Jun 2026
+  - q: What does HPRO stand for according to the title?
+    a: Hierarchical Progressive Reward Optimization
+  - q: Which institutions are the authors affiliated with?
+    a: South China University of Technology, Huya Inc., Alibaba Group, Foshan University
+  - q: What codec method is used for processing speech streams?
+    a: HD-Emocodec with Finite Scalar Quantization (FSQ)
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28190v1.pdf
+  description: arXiv paper — medium (886 KB)
+  qa:
+  - q: What time period does the dataset cover?
+    a: 1994–2025 (32 years, 384 months)
+  - q: Name one of the eight authoritative institutions from which data was sourced.
+    a: Central Bank of Sri Lanka
+  - q: What is the projected RMSE improvement mentioned in the abstract?
+    a: USD 494.8 Mn
+  - q: Which statistical test is used for stationarity correction in this study?
+    a: ADF/KPSS testing
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28308v1.pdf
+  description: arXiv paper — medium (921 KB)
+  qa:
+  - q: What is the arXiv submission date of this document?
+    a: 26 Jun 2026
+  - q: Name one of the regularized last-iterate methods mentioned in the abstract.
+    a: R-NaD or magnetic mirror descent
+  - q: What percentage of maximum entropy does the algorithm select in Kuhn according
+      to the document?
+    a: 7%
+  - q: Which regret minimization method is mentioned as achieving 100% convergence
+      in ensemble games?
+    a: CFR or Counterfactual Regret Minimization
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28182v1.pdf
+  description: arXiv paper — medium (1.2 MB)
+  qa:
+  - q: What is the name of the proposed framework for enabling embodied agents to
+      align with partners and task objectives?
+    a: Learning Laws of Cooperation (LLawCo)
+  - q: What is the name of the new multi-agent communicative cooperative planning
+      benchmark introduced in this work?
+    a: PARTNR-Dialog
+  - q: What is the average success rate improvement achieved by the method on the
+      PARTNR-Dialog benchmark?
+    a: 6.8%
+  - q: What is the arXiv submission date of this paper?
+    a: 26 Jun 2026
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pdf\2606.28116v1.pdf
+  description: arXiv paper — large (1.8 MB)
+  qa:
+  - q: What is the arXiv identifier and date of this paper?
+    a: arXiv:2606.28116v1 [cs.CL] 26 Jun 2026
+  - q: How many pre-training tokens did DeepSeek-V3 require according to the document?
+    a: 14.8T
+  - q: What are the two main sources of training instability mentioned in the document?
+    a: Numerical precision error and hyperparameter learning rate schedule
+  - q: What three standard symptom-level indicators are shown in Figure 1?
+    a: LM loss, QKV weight norm, and gradient norm
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_01_quarterly_business_review.docx
+  description: DOCX — quarterly business review
+  qa:
+  - q: Who prepared this Quarterly Business Review document?
+    a: Operations Team
+  - q: What was the actual Revenue figure reported?
+    a: $105K
+  - q: Within how many business days should the team convene to review the findings?
+    a: Five business days
+  - q: What was the Retention metric variance?
+    a: -10%
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_02_technical_architecture_specification.docx
+  description: DOCX — technical architecture specification
+  qa:
+  - q: What are the three primary layers of the system architecture?
+    a: Ingestion layer, processing pipeline, and delivery tier
+  - q: What is the SLA percentage for the Storage Layer component?
+    a: 99.99%
+  - q: Which technology is used for the Auth Service?
+    a: OAuth 2.0 / JWT
+  - q: Within how many business days should the team convene to review findings?
+    a: Five business days
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_04_project_implementation_plan.docx
+  description: DOCX — project implementation plan
+  qa:
+  - q: Who is the owner of the Design phase?
+    a: UX/Design
+  - q: How long is the Development phase scheduled to take?
+    a: 8 weeks
+  - q: What is the current status of the Discovery phase?
+    a: Complete
+  - q: Within how many business days should the team convene to review findings?
+    a: Five business days
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_05_employee_handbook_overview.docx
+  description: DOCX — employee handbook
+  qa:
+  - q: Who prepared this Employee Handbook Overview document?
+    a: Operations Team
+  - q: What is the version number of this document?
+    a: '5.0'
+  - q: Within how many business days should the team convene to review the findings?
+    a: Five business days
+  - q: What classification level is assigned to this document?
+    a: Confidential
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_06_risk_assessment_report.docx
+  description: DOCX — risk assessment report
+  qa:
+  - q: What is the version number of this Risk Assessment Report?
+    a: Version 6.0
+  - q: Which team prepared this report?
+    a: Operations Team
+  - q: What is the target Revenue metric listed in the Key Metrics table?
+    a: $489K
+  - q: Within how many business days should the team convene to review findings?
+    a: Five business days
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\docx\doc_07_product_roadmap_2025.docx
+  description: DOCX — product roadmap
+  qa:
+  - q: Who is listed as the owner of the Design phase?
+    a: UX/Design
+  - q: How many weeks is the Development phase scheduled to take?
+    a: 8 weeks
+  - q: What is the current status of the Discovery phase?
+    a: Complete
+  - q: Within how many business days should the team convene to review findings?
+    a: Five business days
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_01_q4_business_results.pptx
+  description: PPTX — Q4 business results
+  qa:
+  - q: What is the title of the document?
+    a: Q4 Business Results
+  - q: Who is the presenter of this document?
+    a: Team Lead
+  - q: In what year was this presentation created?
+    a: '2024'
+  - q: According to the Analysis section, what should metrics be rather than lagging
+      measurements?
+    a: Leading indicators
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_02_product_vision_2025.pptx
+  description: PPTX — product vision 2025
+  qa:
+  - q: Who is the presenter of the Product Vision 2025 document?
+    a: Team Lead
+  - q: What year is this product vision focused on?
+    a: '2025'
+  - q: According to the Key Findings, what are two prerequisites for sustainable progress?
+    a: Clear ownership and accountability
+  - q: What does the Analysis section identify as the foundation of successful initiatives?
+    a: Effective communication
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_03_technical_architecture_review.pptx
+  description: PPTX — technical architecture review
+  qa:
+  - q: Who is the presenter of this technical architecture review?
+    a: Team Lead
+  - q: In what year was this presentation given?
+    a: '2024'
+  - q: What type of indicators should metrics be according to the key findings?
+    a: Leading indicators
+  - q: Name one factor that is a prerequisite for sustainable progress.
+    a: Clear ownership and accountability
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_04_market_expansion_strategy.pptx
+  description: PPTX — market expansion strategy
+  qa:
+  - q: Who is the presenter of this market expansion strategy document?
+    a: Team Lead
+  - q: What year is this presentation from?
+    a: '2025'
+  - q: According to the Key Findings section, what is the foundation of any successful
+      initiative?
+    a: Effective communication
+  - q: What type of indicators should metrics be according to the Analysis section?
+    a: Leading indicators
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\pptx\ppt_06_engineering_all-hands.pptx
+  description: PPTX — engineering all-hands
+  qa:
+  - q: Who is the presenter of this Engineering All-Hands meeting?
+    a: Team Lead
+  - q: In what year was this presentation given?
+    a: '2025'
+  - q: What is identified as the foundation of any successful initiative?
+    a: Effective communication
+  - q: What should metrics be according to the recommendations?
+    a: Leading indicators, not lagging measurements of failure
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_01_sales.xlsx
+  description: XLSX — sales data
+  qa:
+  - q: What is the revenue for the Service Pro product sold in the South region on
+      2024-01-01?
+    a: '293196'
+  - q: Which region has the highest total revenue according to the summary?
+    a: South
+  - q: What is the attainment percentage for Widget B sold in the North region on
+      2024-07-01?
+    a: 115.4%
+  - q: How many units of Add-on Pack were sold in the North region on 2024-06-01?
+    a: '305'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_03_employees.xlsx
+  description: XLSX — employee data
+  qa:
+  - q: What is the salary of Morgan Davis?
+    a: '205876'
+  - q: Which department does Alex Johnson work in?
+    a: Marketing
+  - q: What is the hire date for Drew Smith in the Legal department?
+    a: '2018-10-01'
+  - q: Who is the manager of Quinn Wilson in the Engineering department?
+    a: MGR1004
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_04_inventory.xlsx
+  description: XLSX — inventory
+  qa:
+  - q: What is the stock level for Product V-21?
+    a: '1'
+  - q: Which supplier provides Product E-30?
+    a: Acme Corp
+  - q: What is the unit cost of Product Q-16?
+    a: '80.27'
+  - q: When was Product A-52 last updated?
+    a: '2024-04-15'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_05_metrics.xlsx
+  description: XLSX — metrics dashboard
+  qa:
+  - q: What was the Revenue in 2023-05?
+    a: '1626793'
+  - q: Which month had the highest NPS score?
+    a: 2024-12 (74)
+  - q: What was the Churn Rate in 2024-10?
+    a: '0.81'
+  - q: How many Support Tickets were recorded in 2024-03?
+    a: '184'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_06_sales.xlsx
+  description: XLSX — sales data (v2)
+  qa:
+  - q: What is the Revenue value for Widget A in the South region on 2024-01-01?
+    a: '143451'
+  - q: Which product has the highest Attainment percentage in the data?
+    a: Enterprise Suite on 2024-07-01 in South region at 121.5%
+  - q: What is the total revenue for the North region according to the summary?
+    a: '445185'
+  - q: How many units of Service Pro were sold in the East region on 2024-12-01?
+    a: '202'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xlsx\xlsx_07_budget.xlsx
+  description: XLSX — budget
+  qa:
+  - q: What is the YTD Variance for Software expenses in the Finance department?
+    a: -28.4%
+  - q: Which department has the highest Q1 Actual spending in the Infrastructure category?
+    a: Finance
+  - q: What is the Q2 Budget for Training expenses in the Engineering department?
+    a: '126690'
+  - q: Which category and department combination shows an 18.4% YTD Variance?
+    a: Marketing, Operations
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\amazon_rainforest.html
+  description: 'HTML — Wikipedia: Amazon rainforest'
+  qa:
+  - q: What is the total area of the Amazon rainforest?
+    a: 5,500,000 km² (2,100,000 sq mi)
+  - q: What percentage of the Amazon rainforest is located in Brazil?
+    a: 60%
+  - q: When did Francisco de Orellana travel the length of the Amazon River?
+    a: '1542'
+  - q: How many indigenous territories are formally acknowledged in the Amazon?
+    a: 3,344
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\ancient_egypt.html
+  description: 'HTML — Wikipedia: Ancient Egypt'
+  qa:
+  - q: In what year was Upper and Lower Egypt unified?
+    a: c.3150 BC
+  - q: Which river was the lifeline of ancient Egyptian civilization?
+    a: Nile River
+  - q: What is the name of the person believed to have unified Upper and Lower Egypt?
+    a: Menes (also known as Narmer)
+  - q: In what year did the Roman conquest of Egypt occur, marking the end of the
+      Ptolemaic Kingdom?
+    a: 30 BC
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\blockchain.html
+  description: 'HTML — Wikipedia: Blockchain'
+  qa:
+  - q: Who created the first decentralized blockchain in 2008?
+    a: Satoshi Nakamoto
+  - q: What was the bitcoin blockchain file size in August 2014?
+    a: 20 GB
+  - q: In what year did David Chaum first propose a blockchain-like protocol?
+    a: '1982'
+  - q: What data structure is used to represent transaction data in blockchain blocks?
+    a: Merkle tree
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\democracy.html
+  description: 'HTML — Wikipedia: Democracy'
+  qa:
+  - q: In what century did the term democracy first appear in Greek city-states?
+    a: 5th century BC
+  - q: What are the two main types of democracy mentioned in the document?
+    a: Direct democracy and representative democracy
+  - q: According to a study cited in the document, how many adjectives have been used
+      to describe democracy in English?
+    a: 2,234
+  - q: Which classical figure is quoted as saying 'Government of the people, by the
+      people, for the people'?
+    a: Abraham Lincoln
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\dna.html
+  description: 'HTML — Wikipedia: DNA'
+  qa:
+  - q: What are the four nitrogen-containing nucleobases found in DNA?
+    a: Cytosine (C), Guanine (G), Adenine (A), and Thymine (T)
+  - q: What is the pitch of the DNA double helix in nanometers?
+    a: 3.4 nm
+  - q: According to base pairing rules, which bases pair together in DNA?
+    a: A with T and C with G
+  - q: What is the process called where DNA strands are used as a template to create
+      RNA?
+    a: Transcription
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\html\genome.html
+  description: 'HTML — Wikipedia: Genome'
+  qa:
+  - q: Who created the term 'genome' and in what year?
+    a: Hans Winkler in 1920
+  - q: What was the first eukaryotic genome to be sequenced?
+    a: Saccharomyces cerevisiae (budding yeast) in 1996
+  - q: How many autosomes are included in the standard reference genome of humans?
+    a: '22'
+  - q: Who completed the first DNA-genome sequence and what organism was it from?
+    a: Fred Sanger; Phage X174
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_11.epub
+  description: 'EPUB — Project Gutenberg: Peter Pan'
+  qa:
+  - q: Who is the author of Alice's Adventures in Wonderland?
+    a: Lewis Carroll
+  - q: What is the eBook number for Alice's Adventures in Wonderland in Project Gutenberg?
+    a: '#11'
+  - q: What was the release date of this eBook?
+    a: June 27, 2008
+  - q: What does Alice find labeled on a jar as she falls down the well?
+    a: ORANGE MARMALADE
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_1661.epub
+  description: 'EPUB — Project Gutenberg: Sherlock Holmes'
+  qa:
+  - q: Who is the author of The Adventures of Sherlock Holmes?
+    a: Arthur Conan Doyle
+  - q: What is the title of the first story in the collection?
+    a: A Scandal in Bohemia
+  - q: On what date does the narrator return to Baker Street in the first story?
+    a: March 20, 1888
+  - q: What is the Project Gutenberg eBook number for this book?
+    a: '1661'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_174.epub
+  description: 'EPUB — Project Gutenberg: Dorian Gray'
+  qa:
+  - q: Who is the author of The Picture of Dorian Gray?
+    a: Oscar Wilde
+  - q: What is the eBook number for this Project Gutenberg release?
+    a: '#174'
+  - q: How many chapters does The Picture of Dorian Gray contain?
+    a: '20'
+  - q: What is the name of the artist character introduced in Chapter I?
+    a: Basil Hallward
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_2591.epub
+  description: 'EPUB — Project Gutenberg: Grimm''s Fairy Tales'
+  qa:
+  - q: Who are the authors of Grimms' Fairy Tales?
+    a: Jacob Grimm and Wilhelm Grimm
+  - q: What is the eBook number for this document?
+    a: '2591'
+  - q: What was the original release date of this eBook?
+    a: April 1, 2001
+  - q: What item does the golden bird steal from the king's garden?
+    a: Golden apples
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\epub\gutenberg_84.epub
+  description: 'EPUB — Project Gutenberg: Frankenstein'
+  qa:
+  - q: Who is the author of Frankenstein?
+    a: Mary Wollstonecraft Shelley
+  - q: What is the Project Gutenberg eBook number for this work?
+    a: '#84'
+  - q: From where is the first letter dated?
+    a: St. Petersburgh
+  - q: How many chapters are listed in the table of contents?
+    a: '24'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_11.txt
+  description: 'TXT — Project Gutenberg: Peter Pan'
+  qa:
+  - q: Who is the author of Alice's Adventures in Wonderland?
+    a: Lewis Carroll
+  - q: What is the title of Chapter I?
+    a: Down the Rabbit-Hole
+  - q: What was the release date of this eBook?
+    a: June 27, 2008
+  - q: What label was on the jar Alice found while falling?
+    a: ORANGE MARMALADE
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_174.txt
+  description: 'TXT — Project Gutenberg: Dorian Gray'
+  qa:
+  - q: Who is the author of this book?
+    a: Oscar Wilde
+  - q: What is the title of this work?
+    a: The Picture of Dorian Gray
+  - q: How many chapters does this book contain?
+    a: '20'
+  - q: What is the name of the artist character in Chapter I?
+    a: Basil Hallward
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_2814.txt
+  description: TXT — Project Gutenberg
+  qa:
+  - q: What is the title of the book by James Joyce in gutenberg_2814.txt?
+    a: Dubliners
+  - q: What was the release date of this eBook?
+    a: September 1, 2001
+  - q: How many stories are listed in the Contents section of Dubliners?
+    a: '15'
+  - q: What is the name of the deceased priest mentioned in 'The Sisters'?
+    a: Father Flynn
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_84.txt
+  description: 'TXT — Project Gutenberg: Frankenstein'
+  qa:
+  - q: Who is the author of Frankenstein?
+    a: Mary Wollstonecraft Shelley
+  - q: What is the release date of this eBook?
+    a: October 1, 1993
+  - q: How many chapters does Frankenstein contain?
+    a: '24'
+  - q: From which city is Letter 1 written?
+    a: St. Petersburgh
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\txt\gutenberg_844.txt
+  description: TXT — Project Gutenberg
+  qa:
+  - q: Who is the author of The Importance of Being Earnest?
+    a: Oscar Wilde
+  - q: What is the Project Gutenberg eBook number for this document?
+    a: '#844'
+  - q: In what location is Act I of the play set?
+    a: Algernon Moncrieff's Flat in Half-Moon Street, W.
+  - q: On what date was the play first performed at St. James's Theatre?
+    a: February 14th, 1895
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_01.eml
+  description: EML — email message
+  qa:
+  - q: What is the date of the email?
+    a: Mon, 24 Jan 2024
+  - q: What time is the next meeting scheduled?
+    a: 3pm EST
+  - q: What day is the next meeting?
+    a: Friday
+  - q: Who sent this email?
+    a: noreply@platform.dev
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_02.eml
+  description: EML — email message
+  qa:
+  - q: What is the email subject line?
+    a: 'RE: Partnership Agreement Review'
+  - q: What date was this email sent?
+    a: Mon, 20 Jan 2024
+  - q: What time is the next meeting scheduled?
+    a: 3pm EST
+  - q: On what day of the week is the next meeting?
+    a: Friday
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_03.eml
+  description: EML — email message
+  qa:
+  - q: What is the sender's email address?
+    a: team-lead@startup.io
+  - q: What date was this email sent?
+    a: Mon, 14 Jan 2024
+  - q: What time is the next meeting scheduled?
+    a: 3pm EST
+  - q: What day is the next meeting scheduled for?
+    a: Friday
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_04.eml
+  description: EML — email message
+  qa:
+  - q: What is the date of the email?
+    a: Mon, 21 Jan 2024
+  - q: What time is the next meeting scheduled?
+    a: 3pm EST
+  - q: When should team members provide feedback on the documentation?
+    a: end of week
+  - q: What day of the week is the next meeting scheduled for?
+    a: Friday
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\eml\email_05.eml
+  description: EML — email message
+  qa:
+  - q: What is the subject of the email?
+    a: Product Demo - Thursday 2pm
+  - q: What time is the next meeting scheduled?
+    a: Friday at 3pm EST
+  - q: Who sent this email?
+    a: support@service.com
+  - q: When should feedback on the attached documentation be provided?
+    a: end of week
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_01_data_analysis.ipynb
+  description: IPYNB — data analysis notebook
+  qa:
+  - q: What is the filename of the notebook being tested?
+    a: nb_01_data_analysis.ipynb
+  - q: How many samples are generated in the data loading code?
+    a: '3221'
+  - q: What are the three categories used in the random choice for the 'category'
+      column?
+    a: A, B, C
+  - q: How many cells are in this notebook?
+    a: '7'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_02_ml_training.ipynb
+  description: IPYNB — ML training notebook
+  qa:
+  - q: What is the notebook filename?
+    a: nb_02_ml_training.ipynb
+  - q: How many samples are generated in the data creation?
+    a: '3641'
+  - q: What are the three category values in the dataset?
+    a: A, B, C
+  - q: How many cells does the notebook contain?
+    a: '7'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_03_visualization.ipynb
+  description: IPYNB — visualization notebook
+  qa:
+  - q: What is the filename of the notebook being tested?
+    a: nb_03_visualization.ipynb
+  - q: How many samples are generated in the data loading section?
+    a: '650'
+  - q: What is the random seed value used for numpy?
+    a: '42'
+  - q: What are the three categories used in the random choice for the category column?
+    a: A, B, C
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_04_text_processing.ipynb
+  description: IPYNB — text processing notebook
+  qa:
+  - q: What is the programming language used in this notebook?
+    a: python
+  - q: How many samples are generated in the data loading section?
+    a: '987'
+  - q: What are the three categories used in the randomly generated data?
+    a: A, B, C
+  - q: How many cells does this notebook contain?
+    a: '7'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\ipynb\nb_05_statistics.ipynb
+  description: IPYNB — statistics notebook
+  qa:
+  - q: What is the random seed value used in the Data Loading section?
+    a: '42'
+  - q: How many samples are generated in the data creation code?
+    a: '2268'
+  - q: What are the three category values in the generated dataset?
+    a: A, B, C
+  - q: What is the title of this notebook?
+    a: Statistical Analysis
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_01_transactions.csv
+  description: CSV — financial transactions
+  qa:
+  - q: What is the transaction ID for the transaction on 2024-05-10 with merchant
+      Google?
+    a: TX100000
+  - q: How many columns does the csv_01_transactions.csv file contain?
+    a: '8'
+  - q: What is the status of transaction TX100002?
+    a: failed
+  - q: Which merchant processed transaction TX100033 on 2024-09-23?
+    a: Acme
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_02_web_logs.csv
+  description: CSV — web server logs
+  qa:
+  - q: How many columns does csv_02_web_logs.csv have?
+    a: '8'
+  - q: What is the HTTP method used in the request to /api/users on 2024-01-07T08:46:00Z?
+    a: POST
+  - q: What status code was returned for the GET request to /health on 2024-01-06T11:43:00Z?
+    a: '200'
+  - q: How many total rows are in the csv_02_web_logs.csv file?
+    a: '85'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_03_sensors.csv
+  description: CSV — sensor readings
+  qa:
+  - q: What is the alert status for SENSOR-043 on 2024-01-11T11:00:00Z?
+    a: WARNING
+  - q: How many columns does csv_03_sensors.csv contain?
+    a: '7'
+  - q: What is the temperature reading for SENSOR-038 on 2024-01-22T03:00:00Z?
+    a: '-6.06'
+  - q: Which location has SENSOR-018 on 2024-01-24T03:00:00Z with a CRITICAL alert?
+    a: Server Room
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_04_products.csv
+  description: CSV — product catalog
+  qa:
+  - q: How many columns does csv_04_products.csv have?
+    a: '8'
+  - q: What is the price value in row_10?
+    a: '174'
+  - q: How many rows are in the csv_04_products.csv file?
+    a: '95'
+  - q: What is the rating value in row_38?
+    a: '361'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\csv\csv_05_events.csv
+  description: CSV — event log
+  qa:
+  - q: How many columns does csv_05_events.csv have?
+    a: '8'
+  - q: What is the event_id value in row_5?
+    a: '422'
+  - q: Which user_id appears in row_22?
+    a: '82'
+  - q: What is the duration_ms value for row_45?
+    a: '663'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_01_api_response.json
+  description: JSON — API response payload
+  qa:
+  - q: What is the HTTP status code of this API response?
+    a: '200'
+  - q: How many items are included in this response page?
+    a: '50'
+  - q: What is the score of Item 13?
+    a: '99.05'
+  - q: What is the total number of items available across all pages?
+    a: '1000'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_02_config.json
+  description: JSON — configuration file
+  qa:
+  - q: What is the database host specified in the configuration?
+    a: db.internal
+  - q: How many replicas are configured in the database section?
+    a: '3'
+  - q: What is the cache backend used in this configuration?
+    a: redis
+  - q: What is the rate limit value in the limits section?
+    a: '1000'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_03_schema.json
+  description: JSON — schema definition
+  qa:
+  - q: What is the title of this JSON schema?
+    a: Schema_2
+  - q: Which JSON Schema draft version is used in this file?
+    a: https://json-schema.org/draft/2020-12
+  - q: How many properties are defined in this schema?
+    a: '30'
+  - q: What type is field_12?
+    a: string
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_04_graph.json
+  description: JSON — graph data
+  qa:
+  - q: How many nodes are in the graph?
+    a: '30'
+  - q: What is the weight of Node_9?
+    a: '84'
+  - q: Is the graph directed?
+    a: 'True'
+  - q: What is the weight of the edge from node 20 to node 0?
+    a: '0.709'
+- path: C:\Users\kalya\Downloads\benchmark_corpus_v5\json\json_05_report.json
+  description: JSON — structured report
+  qa:
+  - q: What is the report ID?
+    a: RPT-20240004
+  - q: How many sections are in this report?
+    a: '10'
+  - q: What is the value of metric_3 in Section 5?
+    a: '622'
+  - q: How many errors are reported in the summary?
+    a: '15'
