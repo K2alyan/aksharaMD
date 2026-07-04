@@ -82,7 +82,7 @@ def _fetch_url_to_temp(url: str) -> str:
         raise ValueError(f"Could not resolve host {hostname!r}: {exc}") from exc
 
     for _family, _type, _proto, _canonname, sockaddr in addr_infos:
-        ip_str = sockaddr[0]
+        ip_str = str(sockaddr[0])
         if not _is_safe_ip(ip_str):
             raise ValueError(
                 f"Requests to private/internal addresses are not allowed "
