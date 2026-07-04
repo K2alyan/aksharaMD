@@ -26,6 +26,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      - name: Install uv
+        run: pip install uv
+
+      - name: Verify lockfile is up-to-date
+        run: uv lock --check
+
       - name: Install dependencies
         run: pip install -e ".[dev]" docutils
 

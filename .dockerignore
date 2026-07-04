@@ -1,0 +1,54 @@
+# Development and test artifacts — never bake these into the image
+.env
+.env.*
+!.env.example
+
+# Benchmark / eval data (may contain API responses or PII)
+benchmark_results/
+benchmarks/
+audit_results/
+audit_scripts/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.hatch/
+
+# Test / CI artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+tests/
+
+# Output / cache dirs
+output/
+.aksharamd_cache/
+
+# Dev / editor artifacts
+.git/
+.github/
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Docs and examples (not needed at runtime)
+README.md
+CHANGELOG.md
+LICENSE
+assets/
+examples/
+markitdown_*.md
+mcp_config.json
+uv.lock

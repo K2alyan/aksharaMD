@@ -55,9 +55,6 @@ ENV AKSHARAMD_ALLOWED_ROOT=/data
 EXPOSE ${AKSHARAMD_PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python3 -c \
-        "import socket, os; \
-         port = int(os.environ.get('AKSHARAMD_PORT', 8000)); \
-         socket.create_connection(('localhost', port), 2).close()"
+    CMD curl -sf "http://localhost:${AKSHARAMD_PORT}/health" || exit 1
 
 CMD ["sh", "-c", "aksharamd-mcp --transport streamable-http --host 0.0.0.0 --port ${AKSHARAMD_PORT}"]

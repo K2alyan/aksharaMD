@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hmac
 import logging
 import os
 import time
@@ -52,11 +53,19 @@ _RATE_LIMIT_RPM = int(os.environ.get("AKSHARAMD_RATE_LIMIT_RPM", "60"))
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
 
+_RATE_BUCKET_MAX_KEYS = 10_000  # evict oldest key when dict grows beyond this
+
+
 def _check_rate_limit(key: str) -> bool:
     """Return True if the request is within the rate limit, False if exceeded."""
     now = time.monotonic()
+    # Evict oldest entry if the dict is too large (prevents memory growth from
+    # many unique keys hitting the server over its lifetime).
+    if len(_rate_buckets) >= _RATE_BUCKET_MAX_KEYS and key not in _rate_buckets:
+        oldest_key = next(iter(_rate_buckets))
+        del _rate_buckets[oldest_key]
     window = _rate_buckets[key]
-    # drop timestamps older than 60 seconds
+    # Drop timestamps older than 60 seconds
     _rate_buckets[key] = [t for t in window if now - t < 60.0]
     if len(_rate_buckets[key]) >= _RATE_LIMIT_RPM:
         return False
@@ -167,8 +176,14 @@ def compile_document(file_path: str) -> str:
         return f"Error: file not found: {file_path}"
     if not path.is_file():
         return f"Error: path is not a file: {file_path}"
-    if path.stat().st_size == 0:
+    file_size = path.stat().st_size
+    if file_size == 0:
         return f"Error: file is empty: {file_path}"
+    if file_size > _MAX_BODY_BYTES * 500:  # generous cap: 500 × body limit
+        return (
+            f"Error: {path.name} is too large ({file_size:,} bytes). "
+            "Increase AKSHARAMD_MAX_FILE_BYTES to process larger files."
+        )
 
     try:
         compiler = Compiler(output_dir=str(path.parent / ".aksharamd_cache"))
@@ -222,8 +237,14 @@ def compile_document_multimodal(file_path: str) -> list:
         return [f"Error: file not found: {file_path}"]
     if not path.is_file():
         return [f"Error: path is not a file: {file_path}"]
-    if path.stat().st_size == 0:
+    file_size = path.stat().st_size
+    if file_size == 0:
         return [f"Error: file is empty: {file_path}"]
+    if file_size > _MAX_BODY_BYTES * 500:
+        return [
+            f"Error: {path.name} is too large ({file_size:,} bytes). "
+            "Increase AKSHARAMD_MAX_FILE_BYTES to process larger files."
+        ]
 
     try:
         compiler = Compiler(output_dir=str(path.parent / ".aksharamd_cache"))
@@ -395,7 +416,7 @@ def _run_http(host: str, port: int) -> None:
     class _APIKeyMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
             key = request.headers.get("X-API-Key", "")
-            if key != _API_KEY:
+            if not hmac.compare_digest(key, _API_KEY):  # timing-safe comparison
                 return JSONResponse({"error": "Unauthorized"}, status_code=401)
             # Rate limit per API key
             if not _check_rate_limit(key):
@@ -407,6 +428,16 @@ def _run_http(host: str, port: int) -> None:
             return await call_next(request)
 
     app.add_middleware(_APIKeyMiddleware)
+
+    # Health check endpoint — intentionally outside _APIKeyMiddleware so load
+    # balancers and orchestrators can probe it without an API key.
+    from starlette.requests import Request
+    from starlette.routing import Route
+
+    async def _health(request: Request):
+        return JSONResponse({"status": "ok", "service": "aksharamd-mcp"})
+
+    app.routes.append(Route("/health", _health, methods=["GET"]))  # type: ignore[attr-defined]
 
     logger.info("HTTP mode: API key authentication enabled.")
     logger.info("HTTP mode: file access restricted to %s", _ALLOWED_ROOT)
