@@ -164,7 +164,7 @@ def _download_pdf(out_dir: Path, count: int, overwrite: bool) -> int:
             continue
 
         try:
-            root = ET.fromstring(xml_bytes)
+            root = ET.fromstring(xml_bytes)  # nosec B314 — benchmark tool parsing trusted arXiv Atom feeds
             ns = {"atom": "http://www.w3.org/2005/Atom"}
             for entry in root.findall("atom:entry", ns):
                 if saved >= count:
