@@ -410,7 +410,7 @@ def stats(reset: bool):
         rt.add_column("Saved", justify="right")
         rt.add_column("Elapsed", justify="right")
         for e in reversed(recent):
-            ts = e["ts"][:19].replace("T", " ")
+            ts = e["ts"].split("+")[0].split(".")[0].replace("T", " ")
             saved = e["saved_tokens"]
             color = "green" if saved > 0 else "dim"
             rt.add_row(ts, e["source"][:40], e["file_type"],
@@ -493,6 +493,8 @@ def mcp_config(write: bool):
                     f"The original is backed up at {backup}. "
                     "A fresh config will be written."
                 )
+        if not isinstance(existing.get("mcpServers"), dict):
+            existing["mcpServers"] = {}
         existing.setdefault("mcpServers", {})["aksharamd"] = server_config
         new_content = json.dumps(existing, indent=2)
         # Validate before writing — catch any serialization edge cases

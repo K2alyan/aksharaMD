@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from aksharamd.utils import count_tokens, format_savings_line, tokens_to_dollars
+from aksharamd.utils import _count_tokens_fallback, count_tokens, format_savings_line, tokens_to_dollars
 
 
 def test_count_tokens_with_real_text():
@@ -53,3 +53,26 @@ def test_format_savings_line_multiple_models():
     line = format_savings_line(1_000_000)
     assert "gpt-4o" in line
     assert "claude-sonnet-4" in line
+
+
+def test_count_tokens_fallback_latin():
+    result = _count_tokens_fallback("hello world foo bar")
+    assert result == 4  # 4 words, 0 CJK
+
+
+def test_count_tokens_fallback_cjk():
+    # Japanese/Chinese characters should be counted individually
+    result = _count_tokens_fallback("日本語テスト")
+    # 6 CJK chars + 1 "word" (the whole string) = 7
+    assert result >= 6
+
+
+def test_count_tokens_fallback_mixed():
+    result = _count_tokens_fallback("hello 日本")
+    # 1 word "hello" + 1 word "日本" + 2 CJK chars = 4
+    assert result >= 3
+
+
+def test_count_tokens_fallback_empty():
+    result = _count_tokens_fallback("")
+    assert result == 0

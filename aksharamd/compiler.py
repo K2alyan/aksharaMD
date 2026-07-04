@@ -132,8 +132,14 @@ def _fetch_url_to_temp(url: str) -> str:
         content_type = resp.headers.get("Content-Type", "text/html").split(";")[0].strip()
         ext = mimetypes.guess_extension(content_type) or ".html"
         # mimetypes gives odd results for common types on some platforms
-        _CT_EXT_MAP = {"text/html": ".html", "application/pdf": ".pdf",
-                       "text/plain": ".txt", "application/json": ".json"}
+        _CT_EXT_MAP = {
+            "text/html": ".html",
+            "application/pdf": ".pdf",
+            "text/plain": ".txt",
+            "application/json": ".json",
+            "text/xml": ".xml",
+            "text/csv": ".csv",
+        }
         ext = _CT_EXT_MAP.get(content_type, ext)
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)

@@ -4,6 +4,7 @@ from .base import BasePlugin, ParserPlugin
 
 _parsers: dict[str, type[ParserPlugin]] = {}
 _plugin_classes: list[type[BasePlugin]] = []
+_plugin_cache: dict[type, list] = {}
 
 
 def register_parser(ext: str, cls: type[ParserPlugin]) -> None:
@@ -26,8 +27,14 @@ def get_registered_extensions() -> list[str]:
 
 
 def get_plugins_of_type(plugin_type: type[BasePlugin]) -> list[BasePlugin]:
-    instances = [
-        cls() for cls in _plugin_classes
-        if issubclass(cls, plugin_type) and cls is not plugin_type
-    ]
-    return sorted(instances, key=lambda p: p.priority)
+    if plugin_type not in _plugin_cache:
+        instances = [
+            cls() for cls in _plugin_classes
+            if issubclass(cls, plugin_type) and cls is not plugin_type
+        ]
+        _plugin_cache[plugin_type] = sorted(instances, key=lambda p: p.priority)
+    return _plugin_cache[plugin_type]
+
+
+def _clear_plugin_cache() -> None:
+    _plugin_cache.clear()

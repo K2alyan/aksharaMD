@@ -26,6 +26,7 @@ _MAX_LIST_ENTRIES = 500      # max entries in file listing
 _MAX_ARCHIVE_DECOMPRESSED_BYTES = int(os.environ.get(
     "AKSHARAMD_MAX_ARCHIVE_BYTES", str(512 * 1024 * 1024)  # 512 MB default
 ))
+_MAX_ZIP_ENTRIES = 100_000
 
 
 def _is_text(name: str) -> bool:
@@ -60,6 +61,12 @@ class ZipParser(ParserPlugin):
                 return ctx
 
             members = zf.infolist()
+            if len(members) > _MAX_ZIP_ENTRIES:
+                ctx.error(
+                    "ARCHIVE_TOO_MANY_ENTRIES",
+                    f"Archive has {len(members):,} entries, exceeding the {_MAX_ZIP_ENTRIES:,} entry limit",
+                )
+                return ctx
             blocks: list[Block] = []
             idx = 0
 

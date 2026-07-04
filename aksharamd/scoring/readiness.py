@@ -65,6 +65,9 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
     if ctx.document is None:
         return ConfidenceResult(score=0, notes=["No content could be extracted from this file."])
 
+    if ctx.original_tokens == 0:
+        return ConfidenceResult(score=10, notes=["Document appears to be empty or could not be parsed into tokens."])
+
     doc = ctx.document
     blocks = doc.blocks
     file_type = doc.file_type or ""

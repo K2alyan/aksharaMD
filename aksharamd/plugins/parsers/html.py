@@ -22,7 +22,10 @@ def _extract_image_bytes(src: str, source_path: Path | None) -> bytes | None:
         return None
     if src.startswith("data:"):
         try:
-            _, encoded = src.split(",", 1)
+            header, encoded = src.split(",", 1)
+            mime = header.split(";")[0].replace("data:", "").lower()
+            if not mime.startswith("image/") or mime in ("image/svg+xml",):
+                return None
             # Add padding in case it's missing
             encoded += "=" * (-len(encoded) % 4)
             return _b64.b64decode(encoded)

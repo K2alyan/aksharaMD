@@ -50,7 +50,12 @@ def build_multimodal_content(doc: Document) -> list[dict]:
 
     for block in doc.blocks:
         if block.type == BlockType.IMAGE:
-            asset_id = block.metadata.get("asset_id", "")
+            asset_id = block.metadata.get("asset_id")
+            if not asset_id or not isinstance(asset_id, str):
+                label = block.content or block.metadata.get("src", "")
+                if label:
+                    text_parts.append(f"[Image: {label}]")
+                continue
             asset = asset_map.get(asset_id)
 
             if asset and asset.image_bytes and images_included < _MAX_IMAGES:

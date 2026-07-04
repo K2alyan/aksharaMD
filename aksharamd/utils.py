@@ -1,7 +1,21 @@
 """Shared utilities used across the AksharaMD pipeline."""
 from __future__ import annotations
 
+import re as _re
+
 # ── Token counting ─────────────────────────────────────────────────────────────
+
+
+def _count_tokens_fallback(text: str) -> int:
+    """Count tokens for text without tiktoken.
+
+    For CJK scripts where words are not space-separated, each character is
+    counted as an individual token in addition to whitespace-split words.
+    """
+    cjk = len(_re.findall(r'[一-鿿぀-ヿ가-힯]', text))
+    words = len(text.split())
+    return words + cjk  # CJK chars count as individual tokens on top of word splits
+
 
 def count_tokens(text: str) -> int:
     """Count tokens using tiktoken cl100k_base. Falls back to whitespace split."""
@@ -10,7 +24,7 @@ def count_tokens(text: str) -> int:
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
-        return max(1, len(text.split()))
+        return max(1, _count_tokens_fallback(text))
 
 
 # ── Model pricing ──────────────────────────────────────────────────────────────

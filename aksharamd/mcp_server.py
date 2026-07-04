@@ -24,7 +24,7 @@ import hmac
 import logging
 import os
 import time
-from collections import defaultdict
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +50,7 @@ else:
 
 # ── Rate limiting (per API key, sliding 60-second window) ─────────────────────
 _RATE_LIMIT_RPM = int(os.environ.get("AKSHARAMD_RATE_LIMIT_RPM", "60"))
-_rate_buckets: dict[str, list[float]] = defaultdict(list)
+_rate_buckets: OrderedDict[str, list[float]] = OrderedDict()
 
 
 _RATE_BUCKET_MAX_KEYS = 10_000  # evict oldest key when dict grows beyond this
@@ -64,9 +64,9 @@ def _check_rate_limit(key: str) -> bool:
     if len(_rate_buckets) >= _RATE_BUCKET_MAX_KEYS and key not in _rate_buckets:
         oldest_key = next(iter(_rate_buckets))
         del _rate_buckets[oldest_key]
-    window = _rate_buckets[key]
-    # Drop timestamps older than 60 seconds
+    window = _rate_buckets.get(key, [])
     _rate_buckets[key] = [t for t in window if now - t < 60.0]
+    _rate_buckets.move_to_end(key)  # mark as recently used
     if len(_rate_buckets[key]) >= _RATE_LIMIT_RPM:
         return False
     _rate_buckets[key].append(now)
@@ -263,8 +263,12 @@ def compile_document_multimodal(file_path: str) -> list:
                 result.append(item["text"])
         elif item["type"] == "image":
             try:
-                img_bytes = base64.b64decode(item["source"]["data"])
-                media_type = item["source"]["media_type"]
+                source = item.get("source") or {}
+                img_data = source.get("data")
+                if not img_data:
+                    continue
+                img_bytes = base64.b64decode(img_data)
+                media_type = source.get("media_type", "image/png")
                 fmt = media_type.split("/")[-1] if "/" in media_type else "png"
                 result.append(MCPImage(data=img_bytes, format=fmt))
             except Exception as _img_err:
@@ -351,7 +355,7 @@ def get_stats() -> str:
         if recent:
             lines += ["", "### Recent compilations"]
             for e in reversed(recent[-5:]):
-                ts = e["ts"][:19].replace("T", " ")
+                ts = e["ts"].split("+")[0].split(".")[0].replace("T", " ")
                 lines.append(
                     f"- `{e['source'][:40]}` ({e['file_type']}) — "
                     f"{e['saved_tokens']:,} tokens saved in {e['elapsed_seconds']:.2f}s at {ts} UTC"
@@ -400,8 +404,12 @@ def _run_http(host: str, port: int) -> None:
         async def dispatch(self, request, call_next):
             # Fast path: Content-Length header present and already too large.
             content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > _MAX_BODY_BYTES:
-                return JSONResponse({"error": "Request body too large"}, status_code=413)
+            if content_length:
+                try:
+                    if int(content_length) > _MAX_BODY_BYTES:
+                        return JSONResponse({"error": "Request body too large"}, status_code=413)
+                except (ValueError, TypeError):
+                    return JSONResponse({"error": "Invalid Content-Length header"}, status_code=400)
             # Slow path: buffer the actual body to enforce limit for chunked transfers.
             body = b""
             async for chunk in request.stream():

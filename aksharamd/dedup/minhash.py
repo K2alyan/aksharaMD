@@ -153,7 +153,16 @@ class CorpusDeduplicator:
         return matches / self.num_perm
 
     def already_seen(self, doc_id: str, text: str) -> bool:
-        """Return True if *text* is a near-duplicate of any previously added document."""
+        """Return True if *text* is a near-duplicate of any previously added document.
+
+        .. warning::
+            This method has a **side effect**: it calls :meth:`add`, which
+            permanently indexes *doc_id* in the LSH tables and signature store.
+            After calling ``already_seen(doc_id, text)``, the document is
+            considered part of the corpus for all subsequent duplicate checks.
+            If you only want to query without mutating state, use
+            :meth:`signature` and compare manually.
+        """
         return bool(self.add(doc_id, text))
 
     @property

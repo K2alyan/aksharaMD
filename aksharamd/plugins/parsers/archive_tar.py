@@ -83,7 +83,7 @@ def _read_tar(path: Path, mode: str) -> tuple[list[Block], dict]:
         idx += 1
 
     # Text content
-    text_files = [m for m in members if m.isfile() and _is_text(m.name)]
+    text_files = [m for m in members if m.isfile() and not m.issym() and not m.islnk() and _is_text(m.name)]
     blocks.append(Block(
         type=BlockType.HEADING,
         content=f"Text File Contents ({min(len(text_files), _MAX_FILES_SHOWN)} of {len(text_files)} readable files)",
