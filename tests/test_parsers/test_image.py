@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import io
-from unittest.mock import patch
+import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -20,12 +21,6 @@ try:
     _PIL_AVAILABLE = True
 except ImportError:
     _PIL_AVAILABLE = False
-
-try:
-    import pytesseract  # noqa: F401
-    _TESSERACT_AVAILABLE = True
-except ImportError:
-    _TESSERACT_AVAILABLE = False
 
 pytestmark = pytest.mark.skipif(
     not _PIL_AVAILABLE,
@@ -120,6 +115,15 @@ def tiny_img():
     return Image.new("L", (100, 100), 255)
 
 
+@pytest.fixture()
+def mock_pytesseract():
+    """Inject a fake pytesseract module so OCR tests run without the real package."""
+    fake = MagicMock()
+    fake.Output.DICT = "dict"
+    with patch.dict(sys.modules, {"pytesseract": fake}):
+        yield fake
+
+
 def test_structured_ocr_returns_empty_when_tesseract_unavailable(tiny_img, monkeypatch):
     monkeypatch.setattr(
         "aksharamd.plugins.parsers.image._configure_tesseract", lambda: False
@@ -127,40 +131,35 @@ def test_structured_ocr_returns_empty_when_tesseract_unavailable(tiny_img, monke
     assert _try_ocr_structured(tiny_img) == []
 
 
-@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
-def test_structured_ocr_detects_heading_by_height(tiny_img, monkeypatch):
+def test_structured_ocr_detects_heading_by_height(tiny_img, monkeypatch, mock_pytesseract):
     _mock_configure(monkeypatch, "")
     body_words = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 85}
                   for w in ["This", "is", "body", "text", "content"]]
     heading_words = [{"block": 2, "par": 1, "text": w, "height": 50, "conf": 85}
                      for w in ["Section", "One", "Heading"]]
-    fake_data = _make_tesseract_data(body_words + heading_words)
+    mock_pytesseract.image_to_data.return_value = _make_tesseract_data(body_words + heading_words)
 
-    with patch("pytesseract.image_to_data", return_value=fake_data):
-        result = _try_ocr_structured(tiny_img)
+    result = _try_ocr_structured(tiny_img)
 
     types = [r[0] for r in result]
     assert BlockType.PARAGRAPH in types
     assert BlockType.HEADING in types
 
 
-@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
-def test_structured_ocr_heading_level_scales_with_ratio(tiny_img, monkeypatch):
+def test_structured_ocr_heading_level_scales_with_ratio(tiny_img, monkeypatch, mock_pytesseract):
     _mock_configure(monkeypatch, "")
-    # 10 body words keep median_h = 20 even after heading words are included
     body = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 85}
             for w in ["body", "text", "normal", "words", "here",
                       "more", "content", "fills", "the", "page"]]
     h1_words = [{"block": 2, "par": 1, "text": w, "height": 44, "conf": 85}
-                for w in ["Big", "Title", "Here"]]   # ratio ~2.2 → H1
+                for w in ["Big", "Title", "Here"]]
     h2_words = [{"block": 3, "par": 1, "text": w, "height": 34, "conf": 85}
-                for w in ["Medium", "Heading", "Text"]]  # ratio ~1.7 → H2
+                for w in ["Medium", "Heading", "Text"]]
     h3_words = [{"block": 4, "par": 1, "text": w, "height": 27, "conf": 85}
-                for w in ["Small", "Heading", "Entry"]]  # ratio ~1.35 → H3
-    fake_data = _make_tesseract_data(body + h1_words + h2_words + h3_words)
+                for w in ["Small", "Heading", "Entry"]]
+    mock_pytesseract.image_to_data.return_value = _make_tesseract_data(body + h1_words + h2_words + h3_words)
 
-    with patch("pytesseract.image_to_data", return_value=fake_data):
-        result = _try_ocr_structured(tiny_img)
+    result = _try_ocr_structured(tiny_img)
 
     headings = [(r[0], r[2]) for r in result if r[0] == BlockType.HEADING]
     levels = {lvl for _, lvl in headings}
@@ -169,48 +168,40 @@ def test_structured_ocr_heading_level_scales_with_ratio(tiny_img, monkeypatch):
     assert 3 in levels
 
 
-@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
-def test_structured_ocr_caps_heading_at_body_height(tiny_img, monkeypatch):
+def test_structured_ocr_caps_heading_at_body_height(tiny_img, monkeypatch, mock_pytesseract):
     _mock_configure(monkeypatch, "")
-    # ALL CAPS phrase at body text height → should be H3
     body = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 85}
             for w in ["normal", "text", "words", "here", "today"]]
     caps = [{"block": 2, "par": 1, "text": w, "height": 20, "conf": 85}
             for w in ["SECTION", "INTRODUCTION", "OVERVIEW"]]
-    fake_data = _make_tesseract_data(body + caps)
+    mock_pytesseract.image_to_data.return_value = _make_tesseract_data(body + caps)
 
-    with patch("pytesseract.image_to_data", return_value=fake_data):
-        result = _try_ocr_structured(tiny_img)
+    result = _try_ocr_structured(tiny_img)
 
     heading_blocks = [r for r in result if r[0] == BlockType.HEADING]
     assert len(heading_blocks) >= 1
     assert heading_blocks[0][2] == 3
 
 
-@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
-def test_structured_ocr_rejects_low_confidence(tiny_img, monkeypatch):
+def test_structured_ocr_rejects_low_confidence(tiny_img, monkeypatch, mock_pytesseract):
     _mock_configure(monkeypatch, "")
     low_conf_words = [{"block": 1, "par": 1, "text": w, "height": 20, "conf": 15}
                       for w in ["some", "words"]]
-    fake_data = _make_tesseract_data(low_conf_words)
+    mock_pytesseract.image_to_data.return_value = _make_tesseract_data(low_conf_words)
 
-    with patch("pytesseract.image_to_data", return_value=fake_data):
-        result = _try_ocr_structured(tiny_img)
+    result = _try_ocr_structured(tiny_img)
 
     assert result == []
 
 
-@pytest.mark.skipif(not _TESSERACT_AVAILABLE, reason="pytesseract not installed")
-def test_structured_ocr_filters_noise_blocks(tiny_img, monkeypatch):
+def test_structured_ocr_filters_noise_blocks(tiny_img, monkeypatch, mock_pytesseract):
     _mock_configure(monkeypatch, "")
-    # Single short noise word — should be filtered by _is_quality_ocr
     noise = [{"block": 1, "par": 1, "text": "xx", "height": 20, "conf": 80}]
     good = [{"block": 2, "par": 1, "text": w, "height": 20, "conf": 80}
             for w in ["This", "is", "real", "content", "text"]]
-    fake_data = _make_tesseract_data(noise + good)
+    mock_pytesseract.image_to_data.return_value = _make_tesseract_data(noise + good)
 
-    with patch("pytesseract.image_to_data", return_value=fake_data):
-        result = _try_ocr_structured(tiny_img)
+    result = _try_ocr_structured(tiny_img)
 
     assert len(result) == 1
     assert result[0][0] == BlockType.PARAGRAPH

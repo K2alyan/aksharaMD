@@ -12,7 +12,7 @@ _DEFAULT_BLOCK = [Block(type=BlockType.PARAGRAPH, content="Hello world text.", i
 
 
 def _ctx(file_type: str = "md", blocks: list | None = None, pages: int = 0,
-         issues: list | None = None, original_tokens: int = 0,
+         issues: list | None = None, original_tokens: int = 100,
          manifest: Manifest | None = None, no_blocks: bool = False) -> CompilationContext:
     doc = Document(
         source=f"test.{file_type}",

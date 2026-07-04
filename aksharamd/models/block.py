@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class BlockType(StrEnum):
@@ -38,6 +38,13 @@ class Block(BaseModel):
     confidence: ExtractionConfidence = ExtractionConfidence.EXTRACTED
     metadata: dict = Field(default_factory=dict)
     checksum: str = ""
+
+    @field_validator("level")
+    @classmethod
+    def _validate_level(cls, v: int | None) -> int | None:
+        if v is not None and not (1 <= v <= 6):
+            raise ValueError(f"Heading level must be 1–6, got {v}")
+        return v
 
     @model_validator(mode="after")
     def _compute_derived(self) -> Block:

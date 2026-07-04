@@ -121,7 +121,7 @@ def main() -> None:
 
     print(f"Loading {args.dataset} …", flush=True)
     try:
-        ds = load_dataset(args.dataset, split="train", trust_remote_code=True)
+        ds = load_dataset(args.dataset, split="train", trust_remote_code=True)  # nosec B615 — benchmark tool, dataset is user-specified
     except Exception as exc:
         print(f"ERROR: Failed to load dataset: {exc}", file=sys.stderr)
         sys.exit(1)

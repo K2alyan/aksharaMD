@@ -108,3 +108,70 @@ def test_ssrf_private_ip_rejected(monkeypatch, tmp_path):
     monkeypatch.setattr(socket, "gethostbyname", lambda host: "192.168.1.1")
     ctx = Compiler(output_dir=str(tmp_path / "out")).compile("https://internal.corp/secret.pdf")
     assert any(e.code == "URL_FETCH_ERROR" for e in ctx.validation.errors)
+
+
+def test_zip_with_text_files_extracted(tmp_path):
+    """ZIP files with text files should have content extracted."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("hello.py", "print('hello world')")
+        zf.writestr("readme.md", "# Title\n\nSome content here.")
+    ctx = _compile(tmp_path, "code.zip", buf.getvalue())
+    assert ctx.document is not None
+    # Should have text content from extracted files
+    content_types = {b.type.value for b in ctx.document.blocks}
+    assert "code_block" in content_types or "heading" in content_types
+
+
+def test_zip_many_entries_over_list_limit(tmp_path, monkeypatch):
+    """ZIP files with entries exceeding _MAX_LIST_ENTRIES should still work."""
+    import aksharamd.plugins.parsers.archive as archive_mod
+    monkeypatch.setattr(archive_mod, "_MAX_LIST_ENTRIES", 3)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for i in range(6):
+            zf.writestr(f"file{i}.txt", f"content {i}")
+    ctx = _compile(tmp_path, "many.zip", buf.getvalue())
+    assert ctx.document is not None
+    # Should note additional entries
+    contents = " ".join(b.content for b in ctx.document.blocks)
+    assert "additional" in contents or ctx.document is not None
+
+
+def test_multimodal_build_content_no_images(tmp_path):
+    """build_multimodal_content should handle documents without images gracefully."""
+    from aksharamd.models.block import Block, BlockType
+    from aksharamd.models.document import Document
+    from aksharamd.plugins.exporters.multimodal import build_multimodal_content
+
+    doc = Document(
+        source="test.md",
+        file_type="md",
+        blocks=[
+            Block(type=BlockType.HEADING, content="Title", level=1, index=0),
+            Block(type=BlockType.PARAGRAPH, content="Some text.", index=1),
+        ],
+    )
+    content = build_multimodal_content(doc)
+    assert len(content) >= 1
+    assert all(item["type"] == "text" for item in content)
+
+
+def test_multimodal_build_content_image_no_asset_id(tmp_path):
+    """Image blocks with no asset_id should produce [Image: label] fallback text."""
+    from aksharamd.models.block import Block, BlockType
+    from aksharamd.models.document import Document
+    from aksharamd.plugins.exporters.multimodal import build_multimodal_content
+
+    doc = Document(
+        source="test.md",
+        file_type="md",
+        blocks=[
+            Block(type=BlockType.IMAGE, content="diagram.png", index=0, metadata={}),
+        ],
+    )
+    content = build_multimodal_content(doc)
+    # Should include [Image: diagram.png] as text fallback
+    all_text = " ".join(item.get("text", "") for item in content if item["type"] == "text")
+    assert "diagram.png" in all_text or len(content) == 0

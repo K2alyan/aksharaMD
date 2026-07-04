@@ -44,10 +44,13 @@ def _compact_if_needed(path: Path) -> None:
     """Trim the ledger to _MAX_ENTRIES lines if it has grown past _COMPACT_AT."""
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
-        if len(lines) > _COMPACT_AT:
-            trimmed = lines[-_MAX_ENTRIES:]
-            path.write_text("\n".join(trimmed) + "\n", encoding="utf-8")
-            logger.debug("Ledger compacted: %d → %d entries", len(lines), len(trimmed))
+        if len(lines) <= _COMPACT_AT:
+            return
+        trimmed = lines[-_MAX_ENTRIES:]
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text("\n".join(trimmed) + "\n", encoding="utf-8")
+        tmp.replace(path)  # atomic on POSIX; best-effort on Windows
+        logger.debug("Ledger compacted: %d → %d entries", len(lines), len(trimmed))
     except Exception:
         logger.debug("Could not compact ledger", exc_info=True)
 

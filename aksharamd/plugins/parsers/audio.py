@@ -18,6 +18,7 @@ from ..base import ParserPlugin
 from ..registry import register_parser
 
 _ALLOWED_MODELS = {"tiny", "base", "small", "medium", "large", "large-v2", "large-v3", "turbo"}
+_MAX_DURATION_SECONDS = 3 * 3600  # 3-hour safety cap
 _raw_model = _os.environ.get("AKSHARAMD_WHISPER_MODEL", "base")
 if _raw_model not in _ALLOWED_MODELS:
     logger.warning("Unknown AKSHARAMD_WHISPER_MODEL %r — falling back to 'base'", _raw_model)
@@ -113,6 +114,14 @@ class AudioParser(ParserPlugin):
 
         # ── Probe metadata ────────────────────────────────────────────────────
         duration = _probe_duration(path)
+
+        if duration is not None and duration > _MAX_DURATION_SECONDS:
+            ctx.error(
+                "AUDIO_TOO_LONG",
+                f"Audio duration {_format_duration(duration)} exceeds the {_format_duration(_MAX_DURATION_SECONDS)} limit.",
+            )
+            return ctx
+
         file_size = path.stat().st_size
         meta_parts = [
             f"Format: {file_type.upper()}",

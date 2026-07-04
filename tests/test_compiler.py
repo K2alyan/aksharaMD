@@ -97,7 +97,8 @@ def test_token_counts_non_negative(tmp_md: Path, tmp_path: Path):
     ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(tmp_md))
     assert ctx.manifest.original_tokens >= 0
     assert ctx.manifest.optimized_tokens >= 0
-    assert 0.0 <= ctx.manifest.token_reduction_percent <= 100.0
+    # Negative values are valid when optimization increases token count (e.g. headers added)
+    assert -100.0 <= ctx.manifest.token_reduction_percent <= 100.0
 
 
 def test_no_parser_for_unknown_type(tmp_path: Path):
