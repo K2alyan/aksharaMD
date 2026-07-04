@@ -464,7 +464,7 @@ Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7
 
 ### Downstream LLM accuracy
 
-Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly on a stratified corpus of 1,000 documents across 12 formats (~83 per format), deliberately spanning the full complexity range found in enterprise workloads. Documents were selected across three tiers — following the taxonomy used in document AI benchmarks such as [DocBank](https://github.com/doc-analysis/DocBank) and [PubLayNet](https://github.com/ibm-aur-nlp/PubLayNet):
+Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly on a stratified corpus of ~1,000 documents across 12 formats (83 per format), deliberately spanning the full complexity range found in enterprise workloads. Documents were selected across three tiers — following the taxonomy used in document AI benchmarks such as [DocBank](https://github.com/doc-analysis/DocBank) and [PubLayNet](https://github.com/ibm-aur-nlp/PubLayNet):
 
 | Tier | Description | Example formats |
 |------|-------------|-----------------|
@@ -472,7 +472,7 @@ Token efficiency is necessary but not sufficient — cleaner extraction only mat
 | **Structured** | Multi-section with tables and embedded elements | DOCX, XLSX, PPTX, EPUB |
 | **Complex** | Layout-intensive, mixed media | Multi-column academic PDFs, Jupyter notebooks, mixed-format archives |
 
-Each document received 4 factual questions, independently answered by all 5 tools and scored 0–10 by Claude Haiku 4.5 as judge (20,000 graded answers total). No tool-specific prompt tuning was applied.
+Each document received 4 factual questions, independently answered by all 5 tools and scored 0–10 by Claude Haiku 4.5 as judge (19,920 graded answers total). No tool-specific prompt tuning was applied.
 
 | Tool | Avg score | Avg tokens | Formats covered |
 |------|:---------:|:----------:|:---------------:|

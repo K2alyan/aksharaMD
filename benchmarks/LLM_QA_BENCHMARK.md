@@ -18,7 +18,7 @@ This benchmark answers both questions directly across five tools: **AksharaMD, M
 
 ### Corpus
 
-1,000 documents across 12 formats (~83 per format), selected to span size and structural complexity within each type:
+~1,000 documents across 12 formats (83 per format), selected to span size and structural complexity within each type:
 
 | Format | Files | Examples |
 |--------|-------|---------|
@@ -39,7 +39,7 @@ Documents were not chosen to favour AksharaMD — they represent everyday enterp
 
 ### Q&A Pairs
 
-4 factual questions per document (4,000 pairs total). Questions target specific, verifiable facts: names, numbers, dates, identifiers. Each expected answer is a short phrase.
+4 factual questions per document (3,984 pairs total). Questions target specific, verifiable facts: names, numbers, dates, identifiers. Each expected answer is a short phrase.
 
 ### Evaluation Protocol
 
@@ -50,7 +50,7 @@ Documents were not chosen to favour AksharaMD — they represent everyday enterp
 
 **LLM tested:** Claude Haiku 4.5  
 **Judge:** Claude Haiku 4.5  
-**Total answers evaluated:** 20,000 graded answers (unsupported formats excluded from per-tool averages)
+**Total answers evaluated:** 19,920 graded answers (unsupported formats excluded from per-tool averages)
 
 ---
 
@@ -86,15 +86,15 @@ Token counts measured using the cl100k_base tokenizer (GPT-4 / Claude family).
 
 | Tool | Avg tokens | Docs covered | vs AksharaMD |
 |------|:----------:|:------------:|:------------:|
-| **AksharaMD** | **6,272** | **1,000/1,000** | — |
-| LlamaParse | 26,274 | 1,000/1,000 | 4.2× more |
-| MarkItDown | 27,449 | 1,000/1,000 | 4.4× more |
-| PyMuPDF4LLM | 34,231 | 680/1,000 | 5.5× more |
-| Docling | 35,461 | 680/1,000 | 5.7× more |
+| **AksharaMD** | **6,272** | **996/996** | — |
+| LlamaParse | 26,274 | 996/996 | 4.2× more |
+| MarkItDown | 27,449 | 996/996 | 4.4× more |
+| PyMuPDF4LLM | 34,231 | 664/996 | 5.5× more |
+| Docling | 35,461 | 664/996 | 5.7× more |
 
 AksharaMD uses **77% fewer tokens than MarkItDown**, **76% fewer than LlamaParse**, and **82% fewer than PyMuPDF4LLM and Docling**.
 
-Per-format token averages (~83 docs each, `—` = unsupported):
+Per-format token averages (83 docs each, `—` = unsupported):
 
 | Format | AksharaMD | MarkItDown | LlamaParse | PyMuPDF4LLM | Docling |
 |--------|----------:|----------:|-----------:|------------:|--------:|
@@ -115,15 +115,15 @@ EPUB and TXT show the most dramatic gap. All four competing tools produce 8–10
 
 ### Answer accuracy
 
-Scores are averaged across 4 questions × ~83 documents per format (max 10.0). Formats marked `—` are unsupported and excluded from each tool's average.
+Scores are averaged across 4 questions × 83 documents per format (max 10.0). Formats marked `—` are unsupported and excluded from each tool's average.
 
 | Tool | Avg score | Docs scored | Format coverage |
 |------|:---------:|:-----------:|:---------------:|
-| **AksharaMD** | **9.5** | **1,000/1,000** | **12/12** |
-| MarkItDown | 8.6 | 1,000/1,000 | 12/12 |
-| Docling | 8.6 | 680/1,000 | 8/12 |
-| PyMuPDF4LLM | 8.0 | 680/1,000 | 8/12 |
-| LlamaParse | 7.8 | 1,000/1,000 | 12/12 |
+| **AksharaMD** | **9.5** | **996/996** | **12/12** |
+| MarkItDown | 8.6 | 996/996 | 12/12 |
+| Docling | 8.6 | 664/996 | 8/12 |
+| PyMuPDF4LLM | 8.0 | 664/996 | 8/12 |
+| LlamaParse | 7.8 | 996/996 | 12/12 |
 
 AksharaMD leads on accuracy **and** uses the fewest tokens **and** covers all 12 formats — the only tool to achieve all three simultaneously.
 
@@ -239,7 +239,7 @@ LlamaParse requires a paid LlamaCloud API key and sends documents to an external
 
 ## What This Shows
 
-Across 1,000 documents, 4,000 Q&A pairs, and 20,000 graded answers:
+Across ~1,000 documents, 3,984 Q&A pairs, and 19,920 graded answers:
 
 1. **AksharaMD uses the fewest tokens** on every format it supports — 76–82% fewer than competing tools on average. On long-form content (EPUB, TXT), competing tools produce 8–10× more tokens with no accuracy gain.
 
