@@ -37,9 +37,29 @@ from .scoring import compute_confidence
 from .utils import count_tokens
 
 
-def _fetch_url_to_temp(url: str) -> str:
-    """Download *url* to a NamedTemporaryFile; return the temp file path."""
+def _is_safe_ip(ip_str: str) -> bool:
+    """Return True if *ip_str* resolves to a publicly routable address."""
     import ipaddress
+    addr = ipaddress.ip_address(ip_str)
+    return not (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_reserved
+        or addr.is_multicast
+        or addr.is_unspecified
+    )
+
+
+def _fetch_url_to_temp(url: str) -> str:
+    """Download *url* to a NamedTemporaryFile; return the temp file path.
+
+    SSRF mitigations applied:
+    - Only http/https schemes allowed.
+    - All resolved IP addresses (A + AAAA) must be publicly routable.
+    - HTTP redirects are disabled; a redirect response is treated as an error.
+    - Total download size is capped at _MAX_FILE_BYTES.
+    """
     import mimetypes
     import socket
     import tempfile
@@ -52,22 +72,57 @@ def _fetch_url_to_temp(url: str) -> str:
         raise ValueError(f"URL scheme {parsed.scheme!r} is not allowed; use http or https.")
 
     hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError("URL is missing a hostname.")
+
+    # Resolve all address families (A + AAAA) and reject any private/loopback result.
     try:
-        resolved_ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+        addr_infos = socket.getaddrinfo(hostname, None)
     except Exception as exc:
         raise ValueError(f"Could not resolve host {hostname!r}: {exc}") from exc
 
-    if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_link_local:
-        raise ValueError(
-            f"Requests to private/internal addresses are not allowed (resolved to {resolved_ip})."
-        )
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        if not _is_safe_ip(ip_str):
+            raise ValueError(
+                f"Requests to private/internal addresses are not allowed "
+                f"(host {hostname!r} resolved to {ip_str})."
+            )
 
     try:
-        resp = requests.get(url, timeout=30, stream=True,
-                            headers={"User-Agent": "AksharaMD/0.1"})
-        resp.raise_for_status()
+        # allow_redirects=False prevents a redirect to an internal address bypassing
+        # the IP check above (e.g., server responds 301 -> http://169.254.169.254/).
+        resp = requests.get(
+            url,
+            timeout=30,
+            stream=True,
+            allow_redirects=False,
+            headers={"User-Agent": "AksharaMD/0.1"},
+        )
     except Exception as exc:
         raise ValueError(f"Failed to fetch {url!r}: {exc}") from exc
+
+    if resp.is_redirect or resp.is_permanent_redirect or resp.status_code in (301, 302, 303, 307, 308):
+        raise ValueError(
+            f"URL {url!r} returned a redirect ({resp.status_code}). "
+            "Redirects are not followed for security."
+        )
+
+    resp.raise_for_status()
+
+    # Reject early if Content-Length exceeds limit
+    content_length_hdr = resp.headers.get("Content-Length")
+    if content_length_hdr:
+        try:
+            if int(content_length_hdr) > _MAX_FILE_BYTES:
+                raise ValueError(
+                    f"Remote file too large ({int(content_length_hdr):,} bytes > "
+                    f"{_MAX_FILE_BYTES:,} byte limit)."
+                )
+        except (TypeError, ValueError) as exc:
+            if "Remote file too large" in str(exc):
+                raise
+            # malformed Content-Length — ignore and enforce via byte counting below
 
     # Prefer the URL path extension; fall back to Content-Type
     url_ext = Path(urlparse(url).path).suffix
@@ -83,8 +138,15 @@ def _fetch_url_to_temp(url: str) -> str:
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
+        downloaded = 0
         for chunk in resp.iter_content(chunk_size=8192):
             if chunk:
+                downloaded += len(chunk)
+                if downloaded > _MAX_FILE_BYTES:
+                    raise ValueError(
+                        f"Download exceeded size limit of {_MAX_FILE_BYTES:,} bytes. "
+                        "Increase AKSHARAMD_MAX_FILE_BYTES to allow larger files."
+                    )
                 tmp.write(chunk)
     finally:
         tmp.close()

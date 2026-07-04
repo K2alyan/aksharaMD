@@ -86,13 +86,10 @@ addopts = "-q --tb=short"
 
 [tool.coverage.run]
 source = ["aksharamd"]
-omit = [
-    "aksharamd/plugins/parsers/legacy_office.py",  # requires LibreOffice binary
-    "aksharamd/plugins/parsers/audio.py",           # requires whisper + ffmpeg
-]
 
 [tool.coverage.report]
 fail_under = 75
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
@@ -110,7 +107,6 @@ ignore = [
     "UP007",  # X | Y union syntax — keep Optional for clarity
     "E402",   # module-level import not at top — intentional in plugin files (env constants before registry)
 ]
-exclude = ["benchmarks/"]
 
 [tool.bandit]
 skips = ["B101"]  # assert statements are fine in tests

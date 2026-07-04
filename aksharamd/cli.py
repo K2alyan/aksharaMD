@@ -179,10 +179,12 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
 @click.argument("source", type=_SourceArg())
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
 def validate(source: str, verbose: bool):
-    """Validate a document or URL without full compilation."""
+    """Validate a document or URL without writing any output files."""
     _setup_logging(verbose)
+    # compile_to_string runs the full pipeline (parse → validate → chunk) but
+    # skips the export stage, so no files are written to disk.
     compiler = Compiler(output_dir=str(Path("output") / _output_stem(source)))
-    ctx = compiler.compile(source)
+    _, ctx = compiler.compile_to_string(source)
 
     if ctx.validation.passed:
         console.print("[green]Validation passed[/]")
@@ -476,17 +478,26 @@ def mcp_config(write: bool):
 
     if write:
         existing: dict = {}
+        config_path.parent.mkdir(parents=True, exist_ok=True)
         if config_path.exists():
+            import shutil
+            import time as _time
+            backup = config_path.with_suffix(f".{int(_time.time())}.bak.json")
+            shutil.copy2(config_path, backup)
+            console.print(f"[dim]Backup saved to {backup}[/dim]")
             try:
                 existing = json.loads(config_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 console.print(
                     f"[yellow]Warning:[/] could not parse existing config at {config_path}. "
+                    f"The original is backed up at {backup}. "
                     "A fresh config will be written."
                 )
-        config_path.parent.mkdir(parents=True, exist_ok=True)
         existing.setdefault("mcpServers", {})["aksharamd"] = server_config
-        config_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        new_content = json.dumps(existing, indent=2)
+        # Validate before writing — catch any serialization edge cases
+        json.loads(new_content)
+        config_path.write_text(new_content, encoding="utf-8")
         console.print(f"[green]Config written to[/] {config_path}")
         console.print("Restart Claude Desktop — AksharaMD will appear in the tools panel.")
     else:

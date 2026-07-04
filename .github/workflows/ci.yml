@@ -5,6 +5,9 @@ on:
     branches: [main, development]
   pull_request:
     branches: [main, development]
+  schedule:
+    # Nightly integration run on development branch
+    - cron: '0 2 * * *'
 
 jobs:
   fast-gate:
@@ -27,13 +30,13 @@ jobs:
         run: pip install -e ".[dev]" docutils
 
       - name: Lint (ruff)
-        run: ruff check aksharamd/ tests/
+        run: ruff check aksharamd/ tests/ benchmarks/
 
       - name: Type check (mypy)
         run: mypy aksharamd/ --ignore-missing-imports --no-error-summary
 
       - name: Security scan (bandit)
-        run: bandit -r aksharamd/ -ll -q
+        run: bandit -r aksharamd/ benchmarks/ -ll -q
 
       - name: Run tests with coverage
         run: |
@@ -41,7 +44,7 @@ jobs:
             --cov=aksharamd \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=74
+            --cov-fail-under=75
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -53,10 +56,15 @@ jobs:
   integration:
     name: Integration (Python 3.11)
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    # Run on PRs to main AND on nightly schedule against development
+    if: >
+      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+      github.event_name == 'schedule'
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'development' || github.ref }}
 
       - uses: actions/setup-python@v5
         with:

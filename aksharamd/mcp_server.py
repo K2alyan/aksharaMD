@@ -14,22 +14,24 @@ Usage:
   python -m aksharamd.mcp_server
 
   # streamable-http (for web-facing deployments)
-  python -m aksharamd.mcp_server --transport streamable-http --host 0.0.0.0 --port 8000
+  AKSHARAMD_MCP_API_KEY=<secret> AKSHARAMD_ALLOWED_ROOT=/data \\
+    python -m aksharamd.mcp_server --transport streamable-http --host 0.0.0.0 --port 8000
 """
 from __future__ import annotations
 
 import argparse
 import logging
 import os
+import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # ── Security config ────────────────────────────────────────────────────────────
-# AKSHARAMD_MCP_API_KEY — if set, HTTP mode requires X-API-Key: <value> header.
-# AKSHARAMD_ALLOWED_ROOT — if set, file_path arguments must resolve inside this
-#   directory. Recommended when running in HTTP mode.
+# AKSHARAMD_MCP_API_KEY — required in HTTP mode; X-API-Key: <value> header.
+# AKSHARAMD_ALLOWED_ROOT — required in HTTP mode; file_path must resolve inside.
 # AKSHARAMD_MAX_BODY_BYTES — max HTTP request body size (default 1 MB).
 _API_KEY = os.environ.get("AKSHARAMD_MCP_API_KEY", "").strip() or None
 _MAX_BODY_BYTES = int(os.environ.get("AKSHARAMD_MAX_BODY_BYTES", str(1 * 1024 * 1024)))  # 1 MB
@@ -44,6 +46,22 @@ if _allowed_root_raw:
     _ALLOWED_ROOT: Path | None = _allowed_root_path
 else:
     _ALLOWED_ROOT = None
+
+# ── Rate limiting (per API key, sliding 60-second window) ─────────────────────
+_RATE_LIMIT_RPM = int(os.environ.get("AKSHARAMD_RATE_LIMIT_RPM", "60"))
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(key: str) -> bool:
+    """Return True if the request is within the rate limit, False if exceeded."""
+    now = time.monotonic()
+    window = _rate_buckets[key]
+    # drop timestamps older than 60 seconds
+    _rate_buckets[key] = [t for t in window if now - t < 60.0]
+    if len(_rate_buckets[key]) >= _RATE_LIMIT_RPM:
+        return False
+    _rate_buckets[key].append(now)
+    return True
 
 
 def _check_allowed_path(file_path: str) -> str | None:
@@ -156,7 +174,8 @@ def compile_document(file_path: str) -> str:
         compiler = Compiler(output_dir=str(path.parent / ".aksharamd_cache"))
         text, ctx = compiler.compile_to_string(str(path))
     except Exception as e:
-        return f"Error compiling {path.name}: {e}"
+        logger.error("Compilation error for %s: %s", path.name, e, exc_info=True)
+        return f"Error compiling {path.name}: compilation failed (check server logs for details)"
 
     if ctx.validation.errors and not text.strip():
         error_msgs = "; ".join(i.message for i in ctx.validation.errors)
@@ -210,7 +229,8 @@ def compile_document_multimodal(file_path: str) -> list:
         compiler = Compiler(output_dir=str(path.parent / ".aksharamd_cache"))
         content_array, ctx = compiler.compile_to_multimodal(str(path))
     except Exception as e:
-        return [f"Error compiling {path.name}: {e}"]
+        logger.error("Multimodal compilation error for %s: %s", path.name, e, exc_info=True)
+        return [f"Error compiling {path.name}: compilation failed (check server logs for details)"]
 
     if not content_array:
         return [f"No content could be extracted from {path.name}."]
@@ -338,39 +358,59 @@ def _run_http(host: str, port: int) -> None:
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
 
+    # Both env vars are required in HTTP mode — fail fast rather than silently insecure.
+    if not _API_KEY:
+        raise RuntimeError(
+            "AKSHARAMD_MCP_API_KEY must be set when running in HTTP mode.\n"
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\"\n"
+            "For local/stdio use, omit --transport streamable-http."
+        )
+    if _ALLOWED_ROOT is None:
+        raise RuntimeError(
+            "AKSHARAMD_ALLOWED_ROOT must be set when running in HTTP mode.\n"
+            "Set it to the directory compile_document is permitted to read from (e.g. /data).\n"
+            "This prevents compile_document from reading arbitrary server files."
+        )
+
     app = mcp.streamable_http_app()
 
     class _BodySizeMiddleware(BaseHTTPMiddleware):
+        """Reject oversized bodies; reads actual bytes to cover chunked encoding."""
         async def dispatch(self, request, call_next):
+            # Fast path: Content-Length header present and already too large.
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > _MAX_BODY_BYTES:
                 return JSONResponse({"error": "Request body too large"}, status_code=413)
+            # Slow path: buffer the actual body to enforce limit for chunked transfers.
+            body = b""
+            async for chunk in request.stream():
+                body += chunk
+                if len(body) > _MAX_BODY_BYTES:
+                    return JSONResponse({"error": "Request body too large"}, status_code=413)
+            request._body = body  # cache so downstream handlers can read it
             return await call_next(request)
 
     app.add_middleware(_BodySizeMiddleware)
 
-    if _API_KEY:
-        class _APIKeyMiddleware(BaseHTTPMiddleware):
-            async def dispatch(self, request, call_next):
-                if request.headers.get("X-API-Key") != _API_KEY:
-                    return JSONResponse({"error": "Unauthorized"}, status_code=401)
-                return await call_next(request)
+    class _APIKeyMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            key = request.headers.get("X-API-Key", "")
+            if key != _API_KEY:
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+            # Rate limit per API key
+            if not _check_rate_limit(key):
+                return JSONResponse(
+                    {"error": "Rate limit exceeded — try again in 60 seconds"},
+                    status_code=429,
+                    headers={"Retry-After": "60"},
+                )
+            return await call_next(request)
 
-        app.add_middleware(_APIKeyMiddleware)
-        logger.info("HTTP mode: API key authentication enabled.")
-    else:
-        logger.warning(
-            "HTTP mode: AKSHARAMD_MCP_API_KEY is not set — server is unauthenticated. "
-            "Set this variable or restrict access via a reverse proxy."
-        )
+    app.add_middleware(_APIKeyMiddleware)
 
-    if _ALLOWED_ROOT:
-        logger.info("HTTP mode: file access restricted to %s", _ALLOWED_ROOT)
-    else:
-        logger.warning(
-            "HTTP mode: AKSHARAMD_ALLOWED_ROOT is not set — compile_document accepts "
-            "any file path on the server. Set this variable to restrict access."
-        )
+    logger.info("HTTP mode: API key authentication enabled.")
+    logger.info("HTTP mode: file access restricted to %s", _ALLOWED_ROOT)
+    logger.info("HTTP mode: rate limit %d requests/minute per key.", _RATE_LIMIT_RPM)
 
     uvicorn.run(app, host=host, port=port)
 
