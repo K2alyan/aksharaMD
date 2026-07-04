@@ -546,6 +546,8 @@ These are current boundaries of the system. They are not bugs.
 
 **No MCP streaming.** The CLI shows a live progress spinner and `Compiler.stream()` yields blocks incrementally for programmatic callers (RAG indexing, pipelines). The MCP `compile` tool still returns the full document atomically — SSE block streaming for MCP consumers is on the roadmap.
 
+**No structured logging.** Log output is plain text. Per-request trace IDs, JSON-formatted logs, and Prometheus metrics (request count, latency histograms, token savings counters) are on the roadmap for the HTTP MCP server deployment path.
+
 **Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
 
 ---
