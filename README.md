@@ -484,7 +484,7 @@ Each document received 4 factual questions, independently answered by all 5 tool
 
 † Accuracy measured on supported formats only (EML, IPYNB, JSON, and XML are unsupported by Docling; EML, IPYNB, CSV, and JSON are unsupported by PyMuPDF4LLM).
 
-AksharaMD uses **73–82% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$1,600–$2,335 in saved API spend** (Claude Haiku 4.5 pricing).
+AksharaMD uses **76–82% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$1,600–$2,335 in saved API spend** (Claude Haiku 4.5 pricing).
 
 ### Self-hosted model throughput
 
@@ -492,10 +492,10 @@ Token savings compound on self-hosted models. KV-cache VRAM is the binding const
 
 | Deployment scenario | AksharaMD | MarkItDown | Throughput gain |
 |---------------------|:---------:|:----------:|:---------------:|
-| 8B int4 · RTX 4090 (24 GB) | **25** concurrent | 4 concurrent | **6.2×** |
-| 70B int4 · A100 80 GB | **21** concurrent | 3 concurrent | **7.0×** |
+| 8B int4 · RTX 4090 (24 GB) | **25** concurrent | 5 concurrent | **5.0×** |
+| 70B int4 · A100 80 GB | **20** concurrent | 4 concurrent | **5.0×** |
 
-MarkItDown's average context takes **33× longer to prefill** than AksharaMD's on the same GPU — the difference between a 0.3-second and a 10-second time-to-first-token.
+MarkItDown's average context takes **~19× longer to prefill** than AksharaMD's on the same GPU — the difference between a 0.3-second and a ~6-second time-to-first-token.
 
 For the full methodology, per-format scores, cost tables, self-hosted throughput analysis, and reproduction instructions, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md).
 
