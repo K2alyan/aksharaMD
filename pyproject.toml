@@ -38,6 +38,7 @@ dependencies = [
     # pip install openai-whisper   (audio transcription; also needs ffmpeg on PATH)
     # pip install pytesseract      (image OCR; also needs Tesseract binary)
     # LibreOffice on PATH          (.doc/.ppt legacy Office files)
+    # Pandoc on PATH               (niche markup: AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, OPML, man/roff)
 ]
 
 [project.scripts]
