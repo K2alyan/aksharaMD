@@ -18,7 +18,6 @@ from aksharamd.cli import main
 from aksharamd.compiler import Compiler
 from aksharamd.models.manifest import _quality_band
 
-
 # ── CLI runner fixture ────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -295,7 +294,6 @@ def _make_simple_xlsx(path: Path) -> None:
 
 def _make_simple_pptx(path: Path) -> None:
     from pptx import Presentation
-    from pptx.util import Inches
     prs = Presentation()
     slide_layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(slide_layout)

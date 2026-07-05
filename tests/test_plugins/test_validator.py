@@ -1,13 +1,10 @@
 """Tests for StructureValidator — including the new quality-signal checks."""
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
+from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.plugins.validators.structure import StructureValidator
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

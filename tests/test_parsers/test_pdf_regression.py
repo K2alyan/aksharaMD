@@ -23,7 +23,6 @@ from aksharamd.compiler import Compiler
 from aksharamd.models.block import BlockType
 from aksharamd.scoring.readiness import compute_confidence
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _compile(pdf_path: Path, tmp_path: Path):
@@ -176,7 +175,6 @@ def _build_financial_tables(path: Path) -> None:
             ["Total", "21,468", "13,699", "7,769", "+15.2%"],
         ]
         col_x = [72, 190, 300, 400, 490]
-        col_w = [110, 105, 95, 85, 80]
 
         y = 75
         # Header row

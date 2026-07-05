@@ -485,7 +485,7 @@ def test_ocr_unavailable_emits_notice_on_scanned_page(tmp_path, monkeypatch):
     """A page with no text layer must emit an OCR-unavailable notice when pytesseract is absent."""
     import aksharamd.plugins.parsers.pdf as pdf_mod
     from aksharamd.context import CompilationContext
-    from aksharamd.plugins.parsers.pdf import PDFParser, _OCR_UNAVAILABLE_MSG
+    from aksharamd.plugins.parsers.pdf import PDFParser
 
     monkeypatch.setattr(pdf_mod, "_TESSERACT_AVAILABLE", False)
 
