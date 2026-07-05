@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
+import fitz
+
 from aksharamd.plugins.parsers.pdf import (
     _PDFPLUMBER_CHAR_LIMIT,
     _cells_to_markdown,
     _detect_column_boundaries,
+    _extract_raw_page,
     _filter_latex_line_numbers,
     _has_interior_intersections,
     _is_quality_table,
@@ -510,3 +515,97 @@ def test_content_image_label_not_empty(tmp_path):
     image_blocks = [b for b in ctx.document.blocks if b.type == BlockType.IMAGE]
     for blk in image_blocks:
         assert blk.content, f"IMAGE block on page {blk.page} has empty content label"
+
+
+# ── Invisible text (PDF rendering mode Tr=3) ─────────────────────────────────
+
+def _make_fake_page(rawdict: dict) -> MagicMock:
+    """Return a minimal mock fitz.Page that returns the given rawdict from get_text()."""
+    page = MagicMock(spec=fitz.Page)
+    page.get_text.return_value = rawdict
+    page.get_drawings.return_value = []          # no ruled tables
+    page.get_images.return_value = []            # no embedded images
+    page.rect = MagicMock()
+    page.rect.width = 612.0
+    page.rect.height = 792.0
+    return page
+
+
+def _make_char(char: str, rendering_mode: int) -> dict:
+    """Minimal rawdict character dict."""
+    return {
+        "c": char,
+        "flags": rendering_mode,   # lower 4 bits = PDF text rendering mode
+        "origin": (10.0, 20.0),
+        "bbox": (10.0, 15.0, 20.0, 25.0),
+        "color": 0,
+        "size": 12.0,
+    }
+
+
+def test_invisible_chars_are_filtered():
+    """Characters with rendering mode 3 (Tr=3, invisible) must not appear in output spans."""
+    visible_char = _make_char("H", rendering_mode=0)   # normal fill
+    invisible_char = _make_char("X", rendering_mode=3) # no fill, no stroke — invisible
+
+    span = {
+        "chars": [visible_char, invisible_char],
+        "size": 12.0,
+        "flags": 0,
+        "origin": (10.0, 20.0),
+        "bbox": (10.0, 15.0, 40.0, 25.0),
+        "color": 0,
+    }
+    rawdict = {"blocks": [{"type": 0, "lines": [{"spans": [span]}]}]}
+
+    fake_pdf = MagicMock(spec=fitz.Document)
+    fake_pdf.__getitem__ = MagicMock(return_value=_make_fake_page(rawdict))
+
+    result = _extract_raw_page(fake_pdf, page_num=1)
+
+    all_text = " ".join(s["text"] for s in result.spans)
+    assert "H" in all_text, "visible char should survive"
+    assert "X" not in all_text, "invisible (Tr=3) char must be filtered out"
+
+
+def test_visible_chars_pass_through():
+    """Characters with rendering mode 0 (normal) are kept unchanged."""
+    chars = [_make_char(c, rendering_mode=0) for c in "Hello"]
+    span = {
+        "chars": chars,
+        "size": 12.0,
+        "flags": 0,
+        "origin": (10.0, 20.0),
+        "bbox": (10.0, 15.0, 80.0, 25.0),
+        "color": 0,
+    }
+    rawdict = {"blocks": [{"type": 0, "lines": [{"spans": [span]}]}]}
+
+    fake_pdf = MagicMock(spec=fitz.Document)
+    fake_pdf.__getitem__ = MagicMock(return_value=_make_fake_page(rawdict))
+
+    result = _extract_raw_page(fake_pdf, page_num=1)
+
+    all_text = " ".join(s["text"] for s in result.spans)
+    assert "Hello" in all_text
+
+
+def test_span_with_only_invisible_chars_is_dropped():
+    """A span where every character is invisible should produce no output span at all."""
+    chars = [_make_char(c, rendering_mode=3) for c in "ghost"]
+    span = {
+        "chars": chars,
+        "size": 12.0,
+        "flags": 0,
+        "origin": (10.0, 20.0),
+        "bbox": (10.0, 15.0, 80.0, 25.0),
+        "color": 0,
+    }
+    rawdict = {"blocks": [{"type": 0, "lines": [{"spans": [span]}]}]}
+
+    fake_pdf = MagicMock(spec=fitz.Document)
+    fake_pdf.__getitem__ = MagicMock(return_value=_make_fake_page(rawdict))
+
+    result = _extract_raw_page(fake_pdf, page_num=1)
+
+    assert result.spans == [], "all-invisible span should produce zero output spans"

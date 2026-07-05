@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import sys
 import textwrap
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
-from aksharamd.compiler import Compiler
+from aksharamd.compiler import Compiler, _fetch_s3_to_temp
 from aksharamd.models.block import Block, BlockType
 
 
@@ -175,3 +177,54 @@ def test_stream_txt_file(tmp_txt: Path, tmp_path: Path):
     blocks = list(Compiler(output_dir=str(tmp_path / "out")).stream(str(tmp_txt)))
     assert len(blocks) >= 1
     assert all(b.type == BlockType.PARAGRAPH for b in blocks)
+
+
+# ── S3 input ─────────────────────────────────────────────────────────────────
+
+def _inject_fake_boto3(monkeypatch) -> MagicMock:
+    """Inject a fake boto3 + botocore into sys.modules (the dynamic imports inside
+    _fetch_s3_to_temp use `import boto3` at call time, so sys.modules is the right hook)."""
+    fake_exceptions = MagicMock()
+    fake_exceptions.BotoCoreError = Exception
+    fake_exceptions.ClientError = Exception
+
+    fake_boto3 = MagicMock()
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    monkeypatch.setitem(sys.modules, "botocore", MagicMock())
+    monkeypatch.setitem(sys.modules, "botocore.exceptions", fake_exceptions)
+    return fake_boto3
+
+
+def test_fetch_s3_downloads_object(tmp_path, monkeypatch):
+    """_fetch_s3_to_temp returns a temp file path containing the object bytes."""
+    fake_body = MagicMock()
+    fake_body.read.side_effect = [b"Hello S3 content", b""]  # one chunk then EOF
+
+    fake_client = MagicMock()
+    fake_client.get_object.return_value = {"Body": fake_body}
+
+    fake_boto3 = _inject_fake_boto3(monkeypatch)
+    fake_boto3.client.return_value = fake_client
+
+    path = _fetch_s3_to_temp("s3://my-bucket/docs/report.txt")
+
+    assert path.endswith(".txt")
+    assert Path(path).read_bytes() == b"Hello S3 content"
+
+
+def test_fetch_s3_missing_boto3_raises(monkeypatch):
+    """_fetch_s3_to_temp raises ValueError with install hint when boto3 is absent.
+
+    Setting sys.modules['boto3'] = None causes `import boto3` to raise ImportError
+    in CPython, which is what _fetch_s3_to_temp catches and re-raises as ValueError.
+    """
+    monkeypatch.setitem(sys.modules, "boto3", None)
+    with pytest.raises(ValueError, match="pip install aksharamd"):
+        _fetch_s3_to_temp("s3://bucket/key.txt")
+
+
+def test_fetch_s3_invalid_uri_raises(monkeypatch):
+    """An S3 URI without a key path is rejected before any network call."""
+    _inject_fake_boto3(monkeypatch)
+    with pytest.raises(ValueError, match="Invalid S3 URI"):
+        _fetch_s3_to_temp("s3://bucket-only")

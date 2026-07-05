@@ -168,3 +168,54 @@ def test_corrupt_file_returns_error(tmp_path):
     ctx = _parse(p, tmp_path)
     assert ctx.document is None
     assert any(e.code == "DOCX_PARSE_ERROR" for e in ctx.validation.errors)
+
+
+# ── Page tracking ────────────────────────────────────────────────────────────
+
+def test_page_tracking_with_explicit_break(tmp_path):
+    """Blocks after an explicit w:br[@w:type='page'] should be on page 2."""
+    def build(doc):
+        doc.add_paragraph("Before the break.")
+        doc.add_page_break()           # inserts w:br[@w:type='page']
+        doc.add_paragraph("After the break.")
+
+    path = _make_docx(tmp_path, build)
+    ctx = _parse(path, tmp_path)
+    blocks = ctx.document.blocks
+    pages = {b.content: b.page for b in blocks if b.page is not None}
+    assert pages.get("Before the break.") == 1
+    assert pages.get("After the break.") == 2
+
+
+def test_no_page_break_all_page_one(tmp_path):
+    """A DOCX with no page breaks should report page 1 for every block."""
+    def build(doc):
+        doc.add_heading("Title", level=1)
+        doc.add_paragraph("First paragraph.")
+        doc.add_paragraph("Second paragraph.")
+
+    path = _make_docx(tmp_path, build)
+    ctx = _parse(path, tmp_path)
+    blocks_with_pages = [b for b in ctx.document.blocks if b.page is not None]
+    assert blocks_with_pages, "expected at least one block with a page number"
+    assert all(b.page == 1 for b in blocks_with_pages)
+
+
+def test_multiple_page_breaks_increment(tmp_path):
+    """Three explicit page breaks should produce pages 1, 2, 3, and 4."""
+    def build(doc):
+        doc.add_paragraph("Page one.")
+        doc.add_page_break()
+        doc.add_paragraph("Page two.")
+        doc.add_page_break()
+        doc.add_paragraph("Page three.")
+        doc.add_page_break()
+        doc.add_paragraph("Page four.")
+
+    path = _make_docx(tmp_path, build)
+    ctx = _parse(path, tmp_path)
+    pages = {b.content: b.page for b in ctx.document.blocks if b.page is not None}
+    assert pages.get("Page one.") == 1
+    assert pages.get("Page two.") == 2
+    assert pages.get("Page three.") == 3
+    assert pages.get("Page four.") == 4

@@ -126,3 +126,43 @@ def test_empty_body_produces_empty_document(tmp_path):
 def test_title_extracted(tmp_path):
     ctx = _parse("<html><head><title>My Doc</title></head><body><p>hi</p></body></html>", tmp_path)
     assert ctx.document.title == "My Doc"
+
+
+# ── Admonition blocks ────────────────────────────────────────────────────────
+
+def test_admonition_by_css_class(tmp_path):
+    """A <blockquote class='note'> should produce an ADMONITION, not BLOCKQUOTE."""
+    html = "<html><body><blockquote class='note'><p>This is a note.</p></blockquote></body></html>"
+    ctx = _parse(html, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "note"
+    assert "note" in admonitions[0].content.lower()
+
+
+def test_admonition_warning_class(tmp_path):
+    """A <blockquote class='warning'> should produce an ADMONITION with type warning."""
+    html = "<html><body><blockquote class='warning'><p>Careful here.</p></blockquote></body></html>"
+    ctx = _parse(html, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "warning"
+
+
+def test_admonition_github_pattern_in_html(tmp_path):
+    """A blockquote whose first paragraph starts with [!NOTE] should be an ADMONITION."""
+    html = "<html><body><blockquote><p>[!NOTE] Something important.</p></blockquote></body></html>"
+    ctx = _parse(html, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "note"
+
+
+def test_plain_blockquote_html_unchanged(tmp_path):
+    """A <blockquote> without any admonition markers stays as BLOCKQUOTE."""
+    html = "<html><body><blockquote><p>Just a quote.</p></blockquote></body></html>"
+    ctx = _parse(html, tmp_path)
+    bqs = [b for b in ctx.document.blocks if b.type == BlockType.BLOCKQUOTE]
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(bqs) == 1
+    assert len(admonitions) == 0
