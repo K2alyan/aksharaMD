@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aksharamd"
-version = "0.1.0"
+version = "0.2.0"
 description = "AksharaMD AI Document Compiler — compile documents into token-efficient, semantically complete representations for LLMs"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
