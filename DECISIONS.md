@@ -97,6 +97,24 @@ The geometry check gates `page.find_tables()` — if `_has_ruled_table()` is
 False, we skip PyMuPDF table extraction entirely for that page and fall through
 to pdfplumber whitespace-strategy detection.
 
+### Decision: secondary path for horizontal-only ruled tables
+
+Some tables are drawn with an outer border rectangle plus horizontal row-divider
+lines but **no internal vertical column dividers** — columns are separated by
+whitespace only.  These tables produce zero interior crossings (h-lines and
+v-lines only meet at endpoints) so the interior intersection check returns False,
+causing `find_tables()` to be skipped and pdfplumber to attempt detection instead.
+
+Added a secondary fallback: if there are ≥ 3 h-lines whose widths are within 15%
+of the median h-line width (and the median is ≥ 50 pt), those are parallel
+row-dividers in the same table.  A single page-border rectangle produces exactly
+2 h-lines (top + bottom), which is below the threshold of 3, so it cannot
+trigger this path alone.
+
+**Do not replace the interior intersection check with this.**  This is a
+supplementary OR condition, not a replacement.  The intersection check handles
+fully-gridded tables; the width-similarity check handles row-only ruled tables.
+
 ---
 
 ## 3. Borderless table detection (`_try_pdfplumber_tables`)
@@ -115,13 +133,21 @@ Settings used (`_PDFPLUMBER_TEXT_SETTINGS`):
     "horizontal_strategy": "text",
     "snap_x_tolerance": 3,
     "snap_y_tolerance": 3,
-    "min_words_vertical": 3,
+    "min_words_vertical": 5,
     "min_words_horizontal": 3,
 }
 ```
 
-`min_words_*` = 3 prevents single-column text flows from being detected as
-tables.  Lower values produce too many false positives on dense narrative pages.
+`min_words_vertical` = 5 (raised from 3) means pdfplumber requires at least
+5 words aligned in a column before declaring it a table column.  This prevents
+short multi-column blocks — title pages, masthead layouts, 2–4 item sidebars —
+from being detected as tables.  Legitimate borderless tables need ≥ 5 rows to
+be detected; this is acceptable because smaller tables are either caught by the
+ruled-line path or are too small to matter structurally.
+
+**Do not lower `min_words_vertical` back to 3.**  It caused title-page and
+credits-block text (2–4 word "columns") to be extracted as tables, generating
+spurious pipe-table output that dominated the document.
 
 pdfplumber is skipped for pages with `total_chars > _PDFPLUMBER_CHAR_LIMIT`
 (~8,000 chars) because on dense pages it clusters almost everything as a table.

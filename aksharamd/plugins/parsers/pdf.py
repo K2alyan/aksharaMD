@@ -93,10 +93,27 @@ def _has_ruled_table(page: fitz.Page) -> bool:
                     v_lines.append((r.x0, r.y0, r.y1))
                     v_lines.append((r.x1, r.y0, r.y1))
 
-    if not h_lines or not v_lines:
+    if not h_lines:
         return False
 
-    return _has_interior_intersections(h_lines, v_lines)
+    if v_lines and _has_interior_intersections(h_lines, v_lines):
+        return True
+
+    # Fallback for tables with only horizontal row-dividers and no vertical column
+    # lines (columns separated by whitespace).  Three or more h-lines whose widths
+    # are within 15% of the median width indicate parallel row-dividers in the same
+    # table — not decorative rules at varying spans.  A single page-border rectangle
+    # contributes only 2 h-lines (top + bottom), which is below the threshold of 3,
+    # so it cannot trigger this path on its own.
+    if len(h_lines) >= 3:
+        widths = sorted(x1 - x0 for _, x0, x1 in h_lines)
+        median_w = widths[len(widths) // 2]
+        if median_w >= 50:  # ignore very short decorative rules
+            similar = sum(1 for w in widths if abs(w - median_w) / median_w <= 0.15)
+            if similar >= 3:
+                return True
+
+    return False
 
 
 def _has_interior_intersections(
@@ -171,6 +188,15 @@ def _is_quality_table(markdown: str) -> bool:
             empty_data_cells += sum(1 for c in inner if not c.strip())
     if total_data_cells > 0 and empty_data_cells / total_data_cells > 0.5:
         return False
+
+    # Reject tables where data cells contain prose-length text — these are 2-column
+    # page layouts (narrative chapters, cover text) that pdfplumber's text-strategy
+    # detected as multi-column tables.  Real data table cells are short labels or
+    # values; cells averaging > 8 words indicate sentence fragments across columns.
+    if all_cells:
+        word_counts = [len(c.split()) for c in all_cells]
+        if sum(word_counts) / len(word_counts) > 8:
+            return False
 
     # Reject tables where rows are clearly word-split across columns.
     # Pattern A: first non-empty cell in a row is a single letter AND the next
@@ -263,7 +289,7 @@ _PDFPLUMBER_TEXT_SETTINGS = {
     "horizontal_strategy": "text",
     "snap_x_tolerance": 3,
     "snap_y_tolerance": 3,
-    "min_words_vertical": 3,    # at least 3 aligned words to declare a column (was 2)
+    "min_words_vertical": 5,    # at least 5 aligned words to declare a column (raised from 3)
     "min_words_horizontal": 3,  # at least 3 words per row to form a table (was 1)
 }
 _TOC_DOT_RE = re.compile(r"\.{5,}")  # 5+ consecutive dots = dot-leader; excludes ellipsis (…)
@@ -271,6 +297,9 @@ _TOC_DOT_RE = re.compile(r"\.{5,}")  # 5+ consecutive dots = dot-leader; exclude
 _FRAG_WHITELIST = frozenset({
     "yes", "no", "na", "n/a", "tbd", "low", "mid", "high", "all", "and",
     "or", "per", "vs", "avg", "max", "min", "sum", "net", "the", "for",
+    # Unit and stat abbreviations — legitimate short table cell values
+    "yds", "ypc", "rec", "att", "tds", "int", "pts", "pct", "avg", "est",
+    "lbs", "mph", "rpm", "hrs", "min", "sec", "deg", "psi", "cfm", "gpm",
 })
 
 

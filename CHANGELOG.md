@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed — PDF parser (feed-sid, 2026-07-05, continued 4)
+- **Horizontal-only ruled tables bypassing `find_tables()` (regression)**: Tables drawn with an outer border rectangle and horizontal row-divider lines but no internal vertical column dividers produce zero interior crossings — `_has_ruled_table` returned False, `find_tables()` was skipped, and pdfplumber's text-strategy produced garbled output. Added a secondary detection path: ≥ 3 h-lines whose widths are within 15% of the median width indicate parallel row-dividers. A single page-border rectangle adds only 2 h-lines and cannot trigger this path.
+- **2-column prose pages misdetected as tables**: pdfplumber's `min_words_vertical` was 3, easily met by any prose column. Raised to 5 so column detection requires more evidence; this filters out short multi-column blocks (title pages, masthead layouts) while still catching legitimate borderless tables with 5+ rows.
+- **Prose-length cells not rejected**: added an avg-words-per-cell guard to `_is_quality_table` — if the average non-empty data cell exceeds 8 words it is narrative text wrapped across columns, not tabular data.
+- **Sports/unit abbreviations flagged as word-split fragments**: "yds", "rec", "att", "tds", "pts", "lbs", "mph" and similar short abbreviations were counted by the `short_alpha` fragment check and could cause legitimate stat tables to be rejected. Added to `_FRAG_WHITELIST`.
+
 ### Fixed — PDF parser (feed-sid, 2026-07-05, continued 3)
 - **Word-split tables with 2 data rows not rejected**: `_is_quality_table` Pattern B (adj-cell split ratio) was guarded by `len(data_rows) >= 3`, so 2-row word-split tables slipped through as "quality". Lowered threshold to `>= 2`.
 - **Layout-column tables with sparse data not rejected**: pdfplumber whitespace-strategy occasionally detects paragraph-in-column layouts as multi-column tables where >50% of cells are empty spacers. Added a pre-Pattern-B guard: if more than 50% of data cells across all rows are empty, the table is rejected as a layout artifact.

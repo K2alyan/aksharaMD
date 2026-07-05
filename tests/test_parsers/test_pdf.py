@@ -214,6 +214,29 @@ def test_quality_rejects_mostly_empty_cells():
     assert not _is_quality_table(md)
 
 
+def test_quality_rejects_prose_cells_avg_word_count():
+    """Tables where avg cell has > 8 words are prose wrapped as columns, not real tables."""
+    # 2-column chapter page: each cell is a sentence fragment
+    md = (
+        "| Col A | Col B |\n| --- | --- |\n"
+        "| the quarterback needs to read the defense before | throwing the ball downfield to the receiver |\n"
+        "| running backs are often used in short yardage | situations when the offensive line can open |\n"
+        "| receivers must run precise routes in order to | get separation from the defensive backs covering |\n"
+    )
+    assert not _is_quality_table(md)
+
+
+def test_quality_accepts_real_table_short_cells():
+    """A real table with short data cells must not be rejected by the prose-cell check."""
+    md = (
+        "| Stat | Player | Score |\n| --- | --- | --- |\n"
+        "| Passing | Tom Brady | 24.5 |\n"
+        "| Rushing | Chris Johnson | 18.0 |\n"
+        "| Receiving | Larry Fitzgerald | 21.0 |\n"
+    )
+    assert _is_quality_table(md)
+
+
 # ── _has_interior_intersections ─────────────────────────────────────────────
 
 def test_page_border_has_no_interior_intersections():
@@ -361,7 +384,10 @@ def test_filter_leaves_interior_integers_alone():
 
 
 def _make_borderless_pdf(tmp_path):
-    """Build a PDF whose table has no ruling lines — pdfplumber text strategy needed."""
+    """Build a PDF whose table has no ruling lines — pdfplumber text strategy needed.
+
+    Uses 6 rows so each column contains >= 5 words, meeting min_words_vertical=5.
+    """
     import fitz
 
     doc = fitz.open()
@@ -372,6 +398,8 @@ def _make_borderless_pdf(tmp_path):
         ("Engineering", "45", "2000000"),
         ("Marketing", "12", "500000"),
         ("Operations", "30", "800000"),
+        ("HR", "8", "250000"),
+        ("Legal", "5", "300000"),
     ]
     for row_idx, row in enumerate(rows):
         y = 120 + row_idx * 20
