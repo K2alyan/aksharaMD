@@ -13,6 +13,7 @@ from . import (
     markdown,
     notebook,
     odf,
+    pandoc_parser,
     pdf,
     pptx,
     rst,  # must come after text so it overrides the TextParser fallback for .rst
@@ -25,5 +26,5 @@ __all__ = [
     "pdf", "markdown", "html", "text",
     "docx", "pptx", "spreadsheet", "epub", "data", "notebook", "email", "archive", "image", "eml",
     "odf", "archive_tar", "rtf", "legacy_office", "audio",
-    "rst",
+    "rst", "pandoc_parser",
 ]

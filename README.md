@@ -109,6 +109,7 @@ pip install -e .
 | Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install pytesseract` |
 | Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install openai-whisper` |
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
+| Pandoc | [Pandoc](https://pandoc.org/installing.html) binary on PATH — enables AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff, and OPML |
 
 ---
 
