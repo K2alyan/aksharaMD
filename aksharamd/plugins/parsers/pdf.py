@@ -25,9 +25,12 @@ _PAGE_NUM_RE = re.compile(
     r"^\d+$"
     r"|^\d+[-–]\d+$"
     r"|^-\s*\d+\s*-$"
-    r"|^page\s+\d+(\s+of\s+\d+)?$",
+    r"|^page\s+\d+(\s+of\s+\d+)?$"
+    # Print timestamps from PDF authoring tools: "5/31/07 10:22 AM Page i"
+    r"|^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$",
     re.IGNORECASE,
 )
+_CID_RE = re.compile(r"\(cid:\d+\)")
 _CAPTION_RE = re.compile(
     r"^(figure|fig\.?|table|exhibit|appendix)\s+\d",
     re.IGNORECASE,
@@ -77,7 +80,15 @@ def _is_quality_table(markdown: str) -> bool:
     if len(cols) < 2:
         return False
     data_rows = [ln for ln in lines[2:] if "|" in ln and not ln.startswith("|---")]
-    return bool(data_rows)
+    if not data_rows:
+        return False
+
+    # Reject TOC dot-leader rows: most rows contain "....." sequences
+    dot_rows = sum(1 for r in data_rows if _TOC_DOT_RE.search(r))
+    if dot_rows > len(data_rows) * 0.4:
+        return False
+
+    return True
 
 
 def _cells_to_markdown(cells: list[list]) -> str:
@@ -123,9 +134,10 @@ _PDFPLUMBER_TEXT_SETTINGS = {
     "horizontal_strategy": "text",
     "snap_x_tolerance": 3,
     "snap_y_tolerance": 3,
-    "min_words_vertical": 2,    # at least 2 aligned words needed to declare a column
-    "min_words_horizontal": 1,
+    "min_words_vertical": 3,    # at least 3 aligned words to declare a column (was 2)
+    "min_words_horizontal": 3,  # at least 3 words per row to form a table (was 1)
 }
+_TOC_DOT_RE = re.compile(r"\.{3,}")  # 3+ consecutive dots = dot-leader (TOC row)
 
 
 def _try_pdfplumber_tables(
@@ -203,7 +215,7 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
             continue
         for line in block.get("lines", []):
             for span in line.get("spans", []):
-                text = span["text"].strip()
+                text = _CID_RE.sub("", span["text"]).strip()
                 if text:
                     spans.append({
                         "text": text,
