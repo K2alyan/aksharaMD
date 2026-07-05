@@ -132,6 +132,63 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
     if heading_issues > 0:
         score -= min(8, heading_issues * 2)
 
+    # ── New quality-signal penalties ───────────────────────────────────────────
+
+    # OCR required but unavailable: most severe — content is simply missing
+    if warnings_by_code.get("OCR_REQUIRED", 0):
+        classification = doc.metadata.get("pdf_classification", "")
+        image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
+        total_pages = max(doc.pages, 1)
+        image_ratio = image_pages / total_pages
+        # Scale penalty: fully scanned = -40, hybrid = proportional
+        deduction = min(40, int(40 * image_ratio) + 10)
+        score -= deduction
+        notes.append(
+            f"PDF is '{classification}' with {image_pages} image-only page(s) — "
+            "OCR not installed; this content was not extracted. "
+            "Install pytesseract for full extraction: pip install aksharamd[ocr]"
+        )
+
+    # Near-empty output: catastrophic — essentially nothing was extracted
+    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0):
+        score -= 25
+        notes.append(
+            "Output is nearly empty relative to page count — "
+            "source document may be image-only, encrypted, or have encoding issues."
+        )
+
+    # Low text density: serious quality signal
+    if warnings_by_code.get("LOW_TEXT_DENSITY", 0):
+        score -= 20
+        notes.append(
+            "Low text density detected — extracted text is sparse relative to page count. "
+            "Enable OCR for image-heavy pages: pip install aksharamd[ocr]"
+        )
+
+    # CID glyph artifacts: extracted text is likely garbled
+    if warnings_by_code.get("GLYPH_ARTIFACTS", 0):
+        score -= 15
+        notes.append(
+            "CID font artifacts detected in extracted text — "
+            "PDF uses non-embedded fonts; portions of the text may be unreadable."
+        )
+
+    # Repeated content: boilerplate not cleaned
+    if warnings_by_code.get("REPEATED_CONTENT", 0):
+        score -= 8
+        notes.append(
+            "Repeated content lines detected — "
+            "headers, footers, or boilerplate may not have been fully removed."
+        )
+
+    # Token bloat: likely duplication or failed cleanup
+    if warnings_by_code.get("TOKEN_BLOAT", 0):
+        score -= 8
+        notes.append(
+            "Unusually high token count per page — "
+            "content may have been extracted multiple times or boilerplate was not removed."
+        )
+
     # ── Structural signals ─────────────────────────────────────────────────────
 
     # No headings in a multi-page document → structure likely lost
@@ -184,6 +241,30 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
             + ("text content extracted via OCR." if file_type in ("jpg", "jpeg", "png", "tiff", "tif", "bmp", "webp", "gif")
                else "image content not transcribed.")
         )
+
+    # PDF classification note
+    if file_type == "pdf":
+        classification = doc.metadata.get("pdf_classification", "")
+        stats = doc.metadata.get("pdf_stats", {})
+        if classification:
+            label_map = {
+                "native_text": "native text PDF",
+                "scanned": "scanned/image PDF",
+                "hybrid": "hybrid PDF (mixed text and image pages)",
+                "table_heavy": "table-heavy PDF",
+                "layout_heavy": "multi-column/layout-heavy PDF",
+                "low_confidence": "PDF with low extraction confidence",
+            }
+            label = label_map.get(classification, classification)
+            ip = stats.get("image_pages", 0)
+            tp = stats.get("table_pages", 0)
+            detail_parts = []
+            if ip:
+                detail_parts.append(f"{ip} image-only page(s)")
+            if tp:
+                detail_parts.append(f"{tp} table page(s)")
+            detail = f" ({', '.join(detail_parts)})" if detail_parts else ""
+            notes.append(f"PDF classified as: {label}{detail}.")
 
     # Format-specific notes
     if file_type == "rtf":

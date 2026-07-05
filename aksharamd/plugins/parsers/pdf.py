@@ -562,6 +562,79 @@ def _median_font_size(all_pages: list[RawPage]) -> float:
     return statistics.median(sizes) if sizes else 12.0
 
 
+def _classify_pdf(raw_pages: list[RawPage]) -> tuple[str, dict]:
+    """Classify PDF at document level based on per-page content characteristics.
+
+    Returns (classification_label, stats_dict) where label is one of:
+      native_text  — >80% pages have a substantial text layer
+      scanned      — >60% pages are image-only (no text layer)
+      hybrid       — 20–60% pages are image-only
+      table_heavy  — >30% pages have extracted tables, majority are text pages
+      layout_heavy — majority text, >30% pages appear to be multi-column
+      low_confidence — doesn't fit a clear category
+    """
+    page_count = len(raw_pages)
+    if page_count == 0:
+        return "low_confidence", {}
+
+    image_pages = 0
+    text_pages = 0
+    table_pages = 0
+    multi_col_pages = 0
+
+    for raw in raw_pages:
+        page_chars = sum(len(s.get("text", "").strip()) for s in raw.spans)
+        if page_chars < _OCR_TEXT_THRESHOLD:
+            image_pages += 1
+        else:
+            text_pages += 1
+
+        if raw.tables:
+            table_pages += 1
+
+        # Rough multi-column heuristic: span x-positions span >40% of page width
+        # and have both left and right clusters (not just a wide single column).
+        if raw.spans and page_chars >= _OCR_TEXT_THRESHOLD and raw.width > 0:
+            xs = [s["x"] for s in raw.spans]
+            if len(xs) >= 12:
+                x_min, x_max = min(xs), max(xs)
+                if (x_max - x_min) > raw.width * 0.40:
+                    mid = (x_min + x_max) / 2
+                    left = sum(1 for x in xs if x < mid)
+                    right = sum(1 for x in xs if x >= mid)
+                    if left >= 4 and right >= 4:
+                        multi_col_pages += 1
+
+    image_ratio = image_pages / page_count
+    table_ratio = table_pages / page_count
+    multi_col_ratio = multi_col_pages / page_count
+
+    if image_ratio >= 0.70:
+        label = "scanned"
+    elif image_ratio >= 0.20:
+        label = "hybrid"
+    elif table_ratio >= 0.30:
+        label = "table_heavy"
+    elif multi_col_ratio >= 0.30:
+        label = "layout_heavy"
+    elif (text_pages / page_count) >= 0.80:
+        label = "native_text"
+    else:
+        label = "low_confidence"
+
+    stats: dict = {
+        "page_count": page_count,
+        "text_pages": text_pages,
+        "image_pages": image_pages,
+        "table_pages": table_pages,
+        "multi_col_pages": multi_col_pages,
+        "image_ratio": round(image_ratio, 2),
+        "table_ratio": round(table_ratio, 2),
+        "multi_col_ratio": round(multi_col_ratio, 2),
+    }
+    return label, stats
+
+
 def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
     page_count = len(all_pages)
     to_remove: set[str] = set()
@@ -1000,6 +1073,7 @@ class PDFParser(ParserPlugin):
         median = _median_font_size(raw_pages)
         removable = _detect_removable_spans(raw_pages)
         has_toc = len(toc) >= 3
+        pdf_classification, pdf_stats = _classify_pdf(raw_pages)
 
         # Phase 3: Parallel processing — pure Python, no shared state
         results: dict[int, tuple[list[Block], list[Asset]]] = {}
@@ -1030,6 +1104,10 @@ class PDFParser(ParserPlugin):
                 all_blocks.append(block.model_copy(update={"index": idx}))
                 idx += 1
             all_assets.extend(assets)
+
+        pdf_metadata["pdf_classification"] = pdf_classification
+        pdf_metadata["pdf_stats"] = pdf_stats
+        pdf_metadata["pdf_ocr_available"] = _ocr_available()
 
         doc = Document(
             source=str(path),
