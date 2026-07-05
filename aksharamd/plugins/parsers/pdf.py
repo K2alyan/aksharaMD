@@ -51,40 +51,67 @@ def _is_bold(flags: int) -> bool:
 
 def _has_ruled_table(page: fitz.Page) -> bool:
     """
-    Geometry pre-screen — returns True only if the page has enough horizontal
-    and vertical line segments to plausibly contain a ruled table.
-    Skipping find_tables() on text-only pages is the primary speed win.
+    Geometry pre-screen using interior line intersection analysis.
 
-    Uses distinct positional buckets (10 px) rather than raw line counts so
-    that decorative page borders (which contribute h+v line segments but only
-    2 distinct y-positions and 2 distinct x-positions) don't trigger.
-    A real table needs ≥3 distinct horizontal positions (header top, row
-    dividers, bottom) and ≥2 distinct vertical positions (column dividers).
+    The key distinction between a ruled table and a decorative page border:
+    - A table has column-divider lines that cross row-divider lines at INTERIOR
+      points (in the middle of the horizontal line, not at its endpoints).
+    - A page border (rectangle) only produces corner intersections — the
+      vertical sides hit the horizontal sides exactly at their endpoints.
+
+    We collect all h-lines (y, x0, x1) and v-lines (x, y0, y1) from drawings,
+    then count intersections where the v-line x is strictly inside the h-line
+    span (hx0 + tol < vx < hx1 - tol). Three or more such interior crossings
+    confirms a genuine grid rather than a border or decorative frame.
     """
-    h_ys: set[int] = set()
-    v_xs: set[int] = set()
-
-    def _bucket(val: float) -> int:
-        return int(val / 10)
+    h_lines: list[tuple[float, float, float]] = []  # (y, x0, x1)
+    v_lines: list[tuple[float, float, float]] = []  # (x, y0, y1)
 
     for path in page.get_drawings():
         for item in path.get("items", []):
             if item[0] == "l":
                 p1, p2 = item[1], item[2]
-                dx = abs(p2.x - p1.x)
-                dy = abs(p2.y - p1.y)
+                dx, dy = abs(p2.x - p1.x), abs(p2.y - p1.y)
                 if dx > 20 and dy < 3:
-                    h_ys.add(_bucket((p1.y + p2.y) / 2))
+                    h_lines.append(((p1.y + p2.y) / 2, min(p1.x, p2.x), max(p1.x, p2.x)))
                 elif dy > 10 and dx < 3:
-                    v_xs.add(_bucket((p1.x + p2.x) / 2))
+                    v_lines.append(((p1.x + p2.x) / 2, min(p1.y, p2.y), max(p1.y, p2.y)))
             elif item[0] == "re":
                 r = item[1]
                 if r.width > 30 and r.height > 5:
-                    h_ys.add(_bucket(r.y0))
-                    h_ys.add(_bucket(r.y1))
-                    v_xs.add(_bucket(r.x0))
-        if len(h_ys) >= 3 and len(v_xs) >= 2:
-            return True
+                    h_lines.append((r.y0, r.x0, r.x1))
+                    h_lines.append((r.y1, r.x0, r.x1))
+                    v_lines.append((r.x0, r.y0, r.y1))
+                    v_lines.append((r.x1, r.y0, r.y1))
+
+    if not h_lines or not v_lines:
+        return False
+
+    return _has_interior_intersections(h_lines, v_lines)
+
+
+def _has_interior_intersections(
+    h_lines: list[tuple[float, float, float]],
+    v_lines: list[tuple[float, float, float]],
+    tol: float = 5.0,
+    threshold: int = 3,
+) -> bool:
+    """Return True when h_lines/v_lines contain ≥ threshold interior crossings.
+
+    An interior crossing is one where the vertical line's x falls strictly inside
+    the horizontal line's x-span (not at the endpoints). This separates real table
+    grids (which have column-dividers crossing multiple row-dividers internally)
+    from decorative page borders (whose corner intersections are at endpoints).
+
+    Exposed for testing without requiring a live fitz.Page object.
+    """
+    count = 0
+    for hy, hx0, hx1 in h_lines:
+        for vx, vy0, vy1 in v_lines:
+            if vy0 - tol <= hy <= vy1 + tol and hx0 + tol < vx < hx1 - tol:
+                count += 1
+                if count >= threshold:
+                    return True
     return False
 
 

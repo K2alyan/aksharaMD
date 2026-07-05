@@ -4,6 +4,7 @@ from aksharamd.plugins.parsers.pdf import (
     _PDFPLUMBER_CHAR_LIMIT,
     _cells_to_markdown,
     _detect_column_boundaries,
+    _has_interior_intersections,
     _is_quality_table,
     _try_pdfplumber_tables,
 )
@@ -173,6 +174,40 @@ def test_quality_rejects_empty():
 def test_quality_accepts_many_columns():
     md = "| A | B | C | D |\n| --- | --- | --- | --- |\n| 1 | 2 | 3 | 4 |"
     assert _is_quality_table(md)
+
+
+# ── _has_interior_intersections ─────────────────────────────────────────────
+
+def test_page_border_has_no_interior_intersections():
+    """A single rectangle (page border) only produces corner intersections — rejected."""
+    # Rectangle from (50,50) to (550,750): 2 h-lines + 2 v-lines, all corners
+    h_lines = [(50.0, 50.0, 550.0), (750.0, 50.0, 550.0)]
+    v_lines = [(50.0, 50.0, 750.0), (550.0, 50.0, 750.0)]
+    assert not _has_interior_intersections(h_lines, v_lines)
+
+
+def test_two_column_table_has_interior_intersections():
+    """A 2-column, 3-row table (3 h-lines, 3 v-lines including 1 column divider) passes."""
+    # Horizontal lines at y=100, y=200, y=300 spanning x=50..550
+    h_lines = [(100.0, 50.0, 550.0), (200.0, 50.0, 550.0), (300.0, 50.0, 550.0)]
+    # Vertical lines: left border x=50, column divider x=300, right border x=550
+    v_lines = [(50.0, 100.0, 300.0), (300.0, 100.0, 300.0), (550.0, 100.0, 300.0)]
+    # x=300 (divider) is interior to h-lines spanning 50..550 → 3 interior crossings
+    assert _has_interior_intersections(h_lines, v_lines)
+
+
+def test_border_plus_one_interior_divider_not_enough():
+    """A decorative box with a single column divider produces only 2 interior crossings."""
+    # Rectangle border: 2 h-lines, 2 v-lines (at endpoints)
+    h_lines = [(50.0, 50.0, 550.0), (750.0, 50.0, 550.0)]
+    v_lines = [(50.0, 50.0, 750.0), (550.0, 50.0, 750.0), (300.0, 50.0, 750.0)]
+    # x=300 is interior to both h-lines → 2 interior crossings, below threshold of 3
+    assert not _has_interior_intersections(h_lines, v_lines)
+
+
+def test_empty_lines_returns_false():
+    assert not _has_interior_intersections([], [])
+    assert not _has_interior_intersections([(100.0, 0.0, 500.0)], [])
 
 
 # ── _try_pdfplumber_tables ───────────────────────────────────────────────────
