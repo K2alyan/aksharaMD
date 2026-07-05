@@ -549,7 +549,20 @@ def _column_of(x: float, page_width: float, boundaries: list[float]) -> int:
 
 def _heading_level(size: float, bold: bool, median: float, text: str, centered: bool, has_toc: bool = False) -> int | None:
     ratio = size / median if median else 1.0
-    is_caps = text.isupper() and len(text) > 3
+    # isupper() returns True if ALL cased characters are uppercase.  Exclude
+    # geographic abbreviations like "CA, USA." by requiring no mixed punctuation.
+    is_caps = text.isupper() and len(text) > 3 and not ("," in text and "." in text)
+
+    # Prose signals that indicate this span is body text, not a heading:
+    #   - starts with lowercase or punctuation → mid-sentence fragment
+    #   - ends in comma/semicolon → sentence continues on the next line
+    #   - contains a URL → metadata annotation, never a heading
+    _prose = bool(
+        (text and (text[0].islower() or text[0] in ".,;:("))
+        or text.endswith(",")
+        or text.endswith(";")
+        or "http" in text
+    )
 
     if has_toc:
         # Real TOC exists → only trust strongly dominant font sizes; suppress noisy small headings
@@ -564,12 +577,21 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     if ratio >= 1.6:
         return 2
     if ratio >= 1.3:
-        return 3
-    if ratio >= 1.15 and (bold or is_caps):
+        # In 2-column journals, footnote/reference text pulls the document median
+        # down so body-text spans appear at ratio >= 1.3.  Only accept as H3 if
+        # there is clear heading evidence (bold/caps) and no prose signals.
+        # At higher ratios (>= 1.5), short unlabelled headings (e.g. arXiv-style)
+        # are also accepted.
+        if not _prose:
+            if bold or is_caps:
+                return 3
+            if ratio >= 1.5 and len(text.split()) <= 5:
+                return 3
+    if ratio >= 1.15 and not _prose and (bold or is_caps):
         return 4
-    if ratio >= 1.05 and bold:
+    if ratio >= 1.05 and bold and not _prose:
         return 5
-    if is_caps and centered and len(text) < 80:
+    if is_caps and centered and not _prose and len(text) < 80:
         return 4
     return None
 
