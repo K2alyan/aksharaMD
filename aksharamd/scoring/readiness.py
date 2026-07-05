@@ -134,8 +134,12 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
 
     # ── New quality-signal penalties ───────────────────────────────────────────
 
-    # OCR required but unavailable: most severe — content is simply missing
-    if warnings_by_code.get("OCR_REQUIRED", 0):
+    # OCR required but unavailable: most severe — content is simply missing.
+    # When this fires, NEAR_EMPTY_OUTPUT and LOW_TEXT_DENSITY are measuring
+    # the same gap from different angles — suppress their penalties to avoid
+    # triple-counting the same missing-content problem.
+    ocr_required_fired = bool(warnings_by_code.get("OCR_REQUIRED", 0))
+    if ocr_required_fired:
         classification = doc.metadata.get("pdf_classification", "")
         image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
         total_pages = max(doc.pages, 1)
@@ -149,25 +153,29 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
             "Install pytesseract for full extraction: pip install aksharamd[ocr]"
         )
 
-    # Near-empty output: catastrophic — essentially nothing was extracted
-    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0):
+    # Near-empty output: catastrophic — essentially nothing was extracted.
+    # Skipped when OCR_REQUIRED already explains the missing content.
+    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0) and not ocr_required_fired:
         score -= 25
         notes.append(
             "Output is nearly empty relative to page count — "
             "source document may be image-only, encrypted, or have encoding issues."
         )
 
-    # Low text density: serious quality signal
-    if warnings_by_code.get("LOW_TEXT_DENSITY", 0):
+    # Low text density: serious quality signal.
+    # Skipped when OCR_REQUIRED already explains why text is sparse.
+    if warnings_by_code.get("LOW_TEXT_DENSITY", 0) and not ocr_required_fired:
         score -= 20
         notes.append(
             "Low text density detected — extracted text is sparse relative to page count. "
             "Enable OCR for image-heavy pages: pip install aksharamd[ocr]"
         )
 
-    # CID glyph artifacts: extracted text is likely garbled
+    # CID glyph artifacts: extracted text is likely garbled by non-embedded fonts.
+    # -25 penalty pushes into RISKY band (<70) since CID-garbled text is unusable
+    # by LLMs even if it was technically "extracted".
     if warnings_by_code.get("GLYPH_ARTIFACTS", 0):
-        score -= 15
+        score -= 25
         notes.append(
             "CID font artifacts detected in extracted text — "
             "PDF uses non-embedded fonts; portions of the text may be unreadable."

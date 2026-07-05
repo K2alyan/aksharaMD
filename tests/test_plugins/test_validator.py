@@ -102,12 +102,23 @@ def test_near_empty_output_does_not_fire_on_dense_extraction():
 
 # ── LOW_TEXT_DENSITY ──────────────────────────────────────────────────────────
 
-def test_low_text_density_fires_when_only_tables():
-    # Only IMAGE blocks — no paragraph/heading chars
+def test_low_text_density_fires_when_only_images():
+    # Only IMAGE blocks — no paragraph/heading/table chars
     image_block = Block(type=BlockType.IMAGE, content="Image on page 1", page=1, index=0)
     ctx = _make_ctx([image_block], pages=3)
     StructureValidator().execute(ctx)
     assert "LOW_TEXT_DENSITY" in _warning_codes(ctx)
+
+
+def test_low_text_density_does_not_fire_on_table_heavy_pdf():
+    # TABLE blocks count toward text density — a well-extracted table-heavy PDF
+    # should not be penalized for having few paragraph blocks.
+    table_content = "| Col A | Col B | Col C |\n| --- | --- | --- |\n" + \
+                    "| data  | data  | data  |\n" * 10  # ~300 chars of table
+    table_block = Block(type=BlockType.TABLE, content=table_content, page=1, index=0)
+    ctx = _make_ctx([table_block] * 3, pages=3)
+    StructureValidator().execute(ctx)
+    assert "LOW_TEXT_DENSITY" not in _warning_codes(ctx)
 
 
 def test_low_text_density_does_not_fire_on_normal_pdf():
@@ -177,8 +188,8 @@ def test_repeated_content_does_not_fire_on_unique_content():
 
 def test_token_bloat_fires_on_high_token_density():
     blocks = [_para("word " * 100, page=i) for i in range(1, 5)]
-    # Simulate 15000 original tokens on 4 pages → 3750/page > 2500 threshold
-    ctx = _make_ctx(blocks, pages=4, original_tokens=15_000)
+    # Simulate 9000 original tokens on 4 pages → 2250/page > 1500 threshold
+    ctx = _make_ctx(blocks, pages=4, original_tokens=9_000)
     StructureValidator().execute(ctx)
     assert "TOKEN_BLOAT" in _warning_codes(ctx)
 

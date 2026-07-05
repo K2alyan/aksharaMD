@@ -123,3 +123,63 @@ def test_large_block_warning_deducts():
     ]
     result = compute_confidence(_ctx("pdf", issues=issues))
     assert result.score < 87
+
+
+# ── Penalty-suppression calibration tests ──────────────────────────────────────
+
+def test_ocr_required_suppresses_near_empty_penalty():
+    """When OCR_REQUIRED fires, NEAR_EMPTY_OUTPUT penalty should be suppressed
+    to avoid triple-counting the same missing-content problem."""
+    all_three = [
+        ValidationIssue(severity=Severity.WARNING, code="NEAR_EMPTY_OUTPUT", message="sparse"),
+        ValidationIssue(severity=Severity.WARNING, code="LOW_TEXT_DENSITY", message="low"),
+        ValidationIssue(severity=Severity.WARNING, code="OCR_REQUIRED", message="no ocr"),
+    ]
+    just_ocr = [
+        ValidationIssue(severity=Severity.WARNING, code="OCR_REQUIRED", message="no ocr"),
+    ]
+    blocks = [Block(type=BlockType.PARAGRAPH, content="minimal text", index=0)]
+    doc_meta = {
+        "pdf_classification": "scanned",
+        "pdf_stats": {"image_pages": 3, "page_count": 3},
+    }
+    from aksharamd.models.document import Document
+    doc_all = Document(source="x.pdf", file_type="pdf", pages=3, blocks=blocks,
+                       metadata=doc_meta)
+    ctx_all = CompilationContext(source="x.pdf",
+                                 document=doc_all,
+                                 validation=ValidationReport(issues=all_three),
+                                 original_tokens=100)
+    ctx_just = CompilationContext(source="x.pdf",
+                                  document=doc_all,
+                                  validation=ValidationReport(issues=just_ocr),
+                                  original_tokens=100)
+    score_all = compute_confidence(ctx_all).score
+    score_just = compute_confidence(ctx_just).score
+    # With suppression: all-three should equal just-ocr (same penalty applied)
+    assert score_all == score_just, (
+        f"Penalty stacking: all-three scored {score_all}, just-OCR scored {score_just}; "
+        "NEAR_EMPTY and LOW_TEXT should be suppressed when OCR_REQUIRED fires"
+    )
+
+
+def test_glyph_artifacts_penalty_drops_into_risky_band():
+    """CID-garbled text is unusable by LLMs — score should drop below 70."""
+    issues = [
+        ValidationIssue(severity=Severity.WARNING, code="GLYPH_ARTIFACTS", message="cid")
+    ]
+    result = compute_confidence(_ctx("pdf", issues=issues))
+    assert result.score < 70, (
+        f"GLYPH_ARTIFACTS should push score below 70 (got {result.score}); "
+        "CID-garbled text is not usable by LLMs"
+    )
+
+
+def test_near_empty_without_ocr_required_still_deducts():
+    """NEAR_EMPTY_OUTPUT penalty should fire normally when OCR_REQUIRED is absent
+    (e.g., encrypted or corrupt PDF, not a scanned one)."""
+    issues = [
+        ValidationIssue(severity=Severity.WARNING, code="NEAR_EMPTY_OUTPUT", message="sparse"),
+    ]
+    result = compute_confidence(_ctx("pdf", issues=issues))
+    assert result.score < 87

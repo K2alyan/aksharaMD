@@ -609,7 +609,7 @@ def _classify_pdf(raw_pages: list[RawPage]) -> tuple[str, dict]:
     table_ratio = table_pages / page_count
     multi_col_ratio = multi_col_pages / page_count
 
-    if image_ratio >= 0.70:
+    if image_ratio >= 0.80:
         label = "scanned"
     elif image_ratio >= 0.20:
         label = "hybrid"
@@ -1047,6 +1047,17 @@ class PDFParser(ParserPlugin):
         except Exception as exc:
             ctx.error("PARSE_FAILED", f"Could not open PDF: {exc}")
             return ctx
+
+        if pdf.is_encrypted and not pdf.authenticate(""):
+            pdf.close()
+            ctx.warn(
+                "ENCRYPTED_PDF",
+                "PDF is password-protected and could not be read. "
+                "Provide a decrypted copy or supply the password via the API.",
+            )
+            ctx.error("PARSE_FAILED", "PDF is encrypted and no password was supplied.")
+            return ctx
+
         page_count = pdf.page_count
 
         # Open pdfplumber alongside fitz for borderless-table fallback.

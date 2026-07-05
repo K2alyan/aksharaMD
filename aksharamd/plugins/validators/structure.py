@@ -17,7 +17,7 @@ _MIN_CID_COUNT = 10               # don't warn on a handful of isolated glyphs
 _REPEATED_LINE_MIN_LEN = 20       # ignore short lines when counting repeats
 _REPEATED_LINE_THRESHOLD = 5      # line appearing this many times → noise
 _REPEATED_LINE_MIN_UNIQUE = 3     # at least this many distinct repeated lines → warn
-_MAX_TOKENS_PER_PAGE = 2500       # PDF pages only; above this → TOKEN_BLOAT
+_MAX_TOKENS_PER_PAGE = 1500       # PDF pages only; above this → TOKEN_BLOAT
 _TOKEN_BLOAT_MIN_PAGES = 3        # don't fire on very short docs
 _NEAR_EMPTY_CHARS_PER_PAGE = 80   # total output chars/page below this → NEAR_EMPTY_OUTPUT
 
@@ -94,11 +94,13 @@ class StructureValidator(ValidatorPlugin):
             )
 
         # ── Low text density (PDF-specific) ───────────────────────────────────
+        # Count PARAGRAPH, HEADING, and TABLE blocks — tables are real extracted
+        # text content and excluding them causes false positives on table-heavy PDFs.
         if doc.file_type == "pdf" and doc.pages > 0:
             text_chars = sum(
                 len(b.content.strip())
                 for b in blocks
-                if b.type in (BlockType.PARAGRAPH, BlockType.HEADING)
+                if b.type in (BlockType.PARAGRAPH, BlockType.HEADING, BlockType.TABLE)
             )
             avg_text_per_page = text_chars / doc.pages
             if avg_text_per_page < _MIN_CHARS_PER_PAGE:
