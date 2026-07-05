@@ -20,6 +20,7 @@ _REPEATED_LINE_MIN_UNIQUE = 3     # at least this many distinct repeated lines �
 _MAX_TOKENS_PER_PAGE = 1500       # PDF pages only; above this → TOKEN_BLOAT
 _TOKEN_BLOAT_MIN_PAGES = 3        # don't fire on very short docs
 _NEAR_EMPTY_CHARS_PER_PAGE = 80   # total output chars/page below this → NEAR_EMPTY_OUTPUT
+_NEAR_EMPTY_MIN_PAGES = 3         # don't fire on short single/two-page documents
 
 
 class StructureValidator(ValidatorPlugin):
@@ -84,15 +85,24 @@ class StructureValidator(ValidatorPlugin):
         total_content_chars = sum(len(b.content.strip()) for b in blocks)
 
         # ── Near-empty output despite having pages ─────────────────────────────
-        if doc.pages > 0 and total_content_chars < doc.pages * _NEAR_EMPTY_CHARS_PER_PAGE:
+        # Require at least 3 pages before firing — single/two-page documents can
+        # legitimately be short and should not trigger a RISKY score penalty.
+        # PDFs are covered by LOW_TEXT_DENSITY even at 1 page.
+        if (
+            doc.pages >= _NEAR_EMPTY_MIN_PAGES
+            and total_content_chars < doc.pages * _NEAR_EMPTY_CHARS_PER_PAGE
+        ):
             avg = total_content_chars // max(doc.pages, 1)
+            ocr_note = (
+                " If the document contains scanned pages, install OCR: pip install aksharamd[ocr]"
+                if doc.file_type == "pdf" else ""
+            )
             ctx.warn(
                 "NEAR_EMPTY_OUTPUT",
                 f"Very little text was extracted: {total_content_chars:,} characters across "
                 f"{doc.pages} page(s) (average {avg} chars/page, minimum expected is "
                 f"{_NEAR_EMPTY_CHARS_PER_PAGE}). The document may be image-only, encrypted, "
-                "or use a font encoding that could not be read. "
-                "If the PDF contains scanned pages, install OCR: pip install aksharamd[ocr]",
+                f"or use a font encoding that could not be read.{ocr_note}",
             )
 
         # ── Low text density (PDF-specific) ───────────────────────────────────

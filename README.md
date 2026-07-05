@@ -571,4 +571,4 @@ Bug reports and pull requests are welcome. Please open an issue first to discuss
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for personal and non-commercial use. Contact [kalyan.kottapalli@poppy.com](mailto:kalyan.kottapalli@poppy.com) for a commercial license.

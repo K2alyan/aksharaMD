@@ -198,7 +198,7 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
         ]
         if visible_warnings and score < 85:
             warn_lines = "\n".join(
-                f"  [yellow]⚠[/]  [{w.code}] {escape(w.message)}" for w in visible_warnings
+                f"  [yellow]![/]  [{w.code}] {escape(w.message)}" for w in visible_warnings
             )
             console.print(Panel(
                 warn_lines,
