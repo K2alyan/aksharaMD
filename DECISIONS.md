@@ -239,10 +239,11 @@ each line of the header is a separate bold span in the PDF.
 | Issue | Impact | Notes |
 |-------|--------|-------|
 | Median pulled by reference text | H3 false positives suppressed but H4/H5 at bold could still misfire in extreme cases | Consider 70th-percentile baseline |
-| 2-column para interleaving | Substantially reduced by gap-based flush (§9); section headings at body font size still merge with the first sentence after them | Could be improved by fuzzy heading detection using bold+short-length heuristic |
+| 2-column para interleaving | Substantially reduced by gap-based flush (§9); body-font bold headings now detected (§12) | Remaining: section headings still merge with following sentence in extreme column layouts |
 | Multi-line header fragmentation | "Section / Title / Subtitle" becomes 3 H3 blocks | Consecutive same-level heading spans should be joined |
 | Scanned PDFs | OCR path falls back to Tesseract page-raster; structure (headings, tables) not recovered | Future: Tesseract HOCR output parsing |
 | Table caption detection | `_CAPTION_RE` covers "Figure N" / "Table N" but not numbered equations or boxes | Extend regex if false negatives observed |
+| Reference bracket encoding | Citation numbers `[13]` appear as bare `[` — PDFium decodes the symbol font; PyMuPDF does not | Future: font remapping or bracket-digit span merging |
 
 ---
 
@@ -371,4 +372,82 @@ signal for running text.
 **Do NOT lower the floor back to 2** — short PDFs (email exports, receipts,
 one-pagers) routinely have the same text block on every page by design, not
 because it is a running header.
+
+---
+
+## 12. Bold body-font heading detection (`_heading_level`)
+
+### Problem
+Technical reports and scientific papers often label sections with bold text at
+**body font size** — ratio ≈ 1.0 — rather than at a larger point size.
+Examples: "Introduction", "Phase I", "Problem Statement", "Brief Conclusion".
+Because `_heading_level` previously required `ratio >= 1.05` to detect any
+bold heading, these spans fell through to `return None` and were absorbed into
+the following paragraph as prose.
+
+### Decision: promote bold + short + non-prose spans to H4
+
+```python
+if bold and not _prose and not text.endswith(":") and 1 <= len(text.split()) <= 4:
+    return 4
+```
+
+This rule fires only when no TOC is present (the `has_toc` branch returns
+`None` early for `ratio < 1.6`, so it never reaches this line).
+
+**Guard rationale:**
+- `bold`: must be explicitly bold — avoids promoting body text that happens
+  to be short.
+- `not _prose`: reuses the existing prose signal (starts lowercase/punctuation,
+  ends `,`/`;`, contains URL) to exclude mid-sentence bold fragments.
+- `not text.endswith(":")`: keeps inline labels ("Note:", "Warning:") from
+  becoming false headings.
+- `1 <= len(text.split()) <= 4`: section heading word count.  Five+ word bold
+  spans are usually bold emphasis mid-sentence or table headers, not standalone
+  section labels.  The lower bound of 1 excludes empty strings.
+
+**What was NOT done:**
+- A `ratio >= X` floor was not added — the whole point is to catch headings at
+  ratio ≈ 1.0, so any positive floor defeats the purpose.
+- The rule was not applied when `has_toc=True` — documents with a TOC have
+  reliable size-based hierarchy; adding a bold rule on top risks promoting
+  bold text inside figure captions or table cells that were already filtered
+  out by other means.
+
+**Do NOT add a size-ratio floor to this rule** — body-font headings are, by
+definition, at ratio ≈ 1.0.  If false positives appear, tighten the word
+count or add a title-case check, not a ratio floor.
+
+---
+
+## Competitors
+
+### LiteParse (`run-llama/liteparse`)
+
+Open-source, local PDF parser using **PDFium** (Google's C library via a
+Rust binding), with Tesseract OCR for scanned pages.  Also handles Office
+formats via LibreOffice and images via ImageMagick.  CLI + Python + Node.js
++ WebAssembly interfaces.  Apache 2.0 license.
+
+**Where LiteParse is stronger than AksharaMD:**
+- Reference bracket encoding: PDFium decodes symbol-font digits inside `[N]`
+  citations correctly; PyMuPDF emits bare `[`.
+- Language targets: TypeScript/Node.js and WASM bindings extend reach beyond
+  Python.
+
+**Where AksharaMD is stronger:**
+- No bold false positive: LiteParse promotes an entire paper's body text to
+  `**bold**` when the PDF uses a slightly heavier typeface for body text.
+- Logo/header text suppression: LiteParse emits logo glyphs (e.g. "ER®SOL",
+  "aboratories") as `#`/`##` headings on every page.
+- Diagram text filtering: LiteParse extracts text from inside diagrams
+  verbatim; AksharaMD emits a clean `![Image]` placeholder.
+- Word-split table rejection (Pattern A/B): LiteParse has no quality filter;
+  word-wrapped paragraphs appear as pipe tables.
+- Format breadth: audio (Whisper), EML/MSG, Jupyter notebooks, archives —
+  LiteParse is PDF-first.
+
+**Future work (from LiteParse comparison):**
+- Font remapping or bracket-digit span merging to fix reference number
+  encoding (see §8 Known Limitations).
 

@@ -5,6 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed — PDF parser (feed-sid, 2026-07-05, continued 2)
+- **Bold body-font headings not detected**: section labels like "Introduction", "Phase I", and "Problem Statement" sit at body font size (ratio ≈ 1.0) and were absorbed into paragraph text because `_heading_level` required `ratio >= 1.05` to detect any bold heading. Added a fallback rule: if a span is bold, ≤4 words, not prose, and does not end with `:`, it is promoted to H4. Fires only when no TOC is present (the `has_toc` path returns early). The colon exclusion keeps inline labels ("Note:", "Warning:") from becoming spurious headings.
+
 ### Fixed — PDF parser (feed-sid, 2026-07-05, continued)
 - **Cover-page bordered layouts rendered as garbled word-split tables**: Some technical reports have a bordered letterhead grid on the cover page. PyMuPDF detected this as a table and extracted it with mid-word cell splits (e.g. "Company Nam L" | "e, Inc."). The Pattern B adj_split ratio was 27%, just below the 30% rejection threshold. Fixed by including the header row in the adj_split/adj_total count (after stripping cell padding spaces); the header's own word-split pair pushes the combined ratio to 33% → rejected. The cover page content now flows as clean prose.
 - **Standalone digit spans removed as page numbers mid-page**: `_PAGE_NUM_RE` matched `^\d+$` anywhere on the page, silently dropping order quantities ("1"), footnote numbers, and list counters mid-page. Fixed by applying the bare-digit pattern only when the span is in the top 12% or bottom 12% of the page (where actual page numbers live). Multi-token patterns ("Page N of M", print timestamps, ranges) are still removed globally.

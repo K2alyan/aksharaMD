@@ -42,6 +42,9 @@ _CAPTION_RE = re.compile(
     r"^(figure|fig\.?|table|exhibit|appendix)\s+\d",
     re.IGNORECASE,
 )
+# Bold body-font heading guard: spans starting with "Figure N" or "Table N"
+# are figure/table captions, never section headings.
+_BOLD_HDR_CAPTION_RE = re.compile(r"^(Figure|Table|Fig\.|Tab\.)\s", re.IGNORECASE)
 # LaTeX \lineno detection: "1 S" header means line-number 1 bled into first char 'S'
 _LINE_NUM_BLEED_RE = re.compile(r"^\d{1,3}\s+[A-Z]")
 # Extract leading integer from a cell that may contain line-number + bleed text
@@ -661,6 +664,31 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     if ratio >= 1.05 and bold and not _prose:
         return 5
     if is_caps and centered and not _prose and len(text) < 80:
+        return 4
+    # Bold body-font heading: same size as body text but bold and short.
+    # Catches unlabelled section headings like "Introduction", "Phase I",
+    # "Problem Statement" that sit at ratio ≈ 1.0 and would otherwise be
+    # absorbed into paragraph text.  Only fires when no TOC is present
+    # (has_toc path returns early above).
+    # Guards:
+    #   - not ending ":" → keeps "Note:", "Warning:" as labels, not headings
+    #   - not ending "." → keeps unit labels ("2000 CFM.") and caption
+    #     continuations from being promoted
+    #   - len(text) >= 3 → excludes bare single/double letter section markers
+    #   - not starting "Figure"/"Table" → figure/table captions are not headings
+    _words = text.split()
+    if (
+        bold
+        and not _prose
+        and not text.endswith(":")
+        and not text.endswith(".")
+        and len(text) >= 3
+        and not _BOLD_HDR_CAPTION_RE.match(text)
+        and 1 <= len(_words) <= 4
+        # Single all-caps tokens are abbreviations/units ("CFM", "SMACNA"),
+        # not section headings.  Multi-word all-caps ("APPENDIX B") are fine.
+        and not (len(_words) == 1 and text.isupper())
+    ):
         return 4
     return None
 
