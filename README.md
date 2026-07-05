@@ -11,30 +11,39 @@
 
 # AksharaMD
 
-**An LLM document ingestion pipeline. Not a Markdown converter — a pre-processing layer that strips noise, preserves structure, and produces token-efficient content your LLM can actually use.**
+**An LLM document ingestion pipeline with a built-in quality gate.**
 
-AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and 35+ more — and produces structured, token-efficient text designed to be fed directly to an LLM. The goal is not a perfect Markdown replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content while spending dramatically fewer tokens than it would on the raw file.
+Every compilation returns a **0–100 AI Readiness Score** and per-block extraction confidence — so you know whether to trust the output before it reaches your vector store, not after your LLM gives a wrong answer.
 
-Feed AksharaMD instead of the raw file. Your LLM gets less noise, better structure, and the same information — for a fraction of the context cost.
+AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and 35+ more — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
 
-Runs entirely on-device, deterministically, with no AI dependencies.
+Runs entirely on-device. No cloud calls, no data leaving your machine, no API keys required.
 
 ---
 
 ## Why AksharaMD
 
-**Why not just pass the raw file?**
+### The problem no parser solves: you don't know if the output is trustworthy
 
-Every format wastes tokens in a different way: a PDF with headers, footers, watermarks, and scanned pages; a DOCX with revision history and embedded metadata; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM ever sees it. What remains is the content — structured by heading, table, and code block — at a fraction of the original token cost.
+Every parser returns text. None of them tell you whether that text is reliable enough to embed. A scanned PDF, a table-heavy report, or a document with garbled OCR can produce output that looks complete — until the LLM answers a question wrong. By then, bad data is already in your vector store.
 
-The output is not meant to be a beautiful document. It is the minimum viable text an LLM needs to answer questions, extract data, or summarise — with an AI Readiness Score so you know when the extraction is reliable enough to use.
+AksharaMD produces a quality signal alongside the content:
+
+- **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — on every compilation
+- **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
+- **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, and five more — tell you exactly what's wrong and how to fix it
+- **Score drops automatically** when extraction is unreliable — no manual checking required
+
+### The token problem
+
+Every format also wastes tokens differently: a PDF with headers, footers, watermarks, and scanned pages; a DOCX with revision history and embedded metadata; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it. What remains is the content — structured by heading, table, and code block — at a fraction of the original token cost.
 
 - **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on equivalent documents — measured across 23 format types
 - **98.5% less noise** — 3.7 avg noise lines vs 250.1 for MarkItDown
-- **27× faster than [Docling](https://github.com/DS4SD/docling)** on PDF with higher extraction quality
-- **Structured output** — emits real headings, tables, code blocks; MarkItDown produces flat text
-- **AI Readiness Score** — every compilation returns a 0–100 confidence score so you know what you're working with
-- **No ML dependencies** — fast, memory-efficient, and fully reproducible
+- **27× faster than [Docling](https://github.com/DS4SD/docling)** on PDF with comparable quality
+- **Structured output** — real headings, tables, code blocks; not flat text
+- **No ML dependencies** — fast, memory-efficient, deterministic, and fully reproducible
+- **Fully local** — no cloud API, no document upload, no data retention concerns
 
 ---
 
@@ -380,7 +389,7 @@ AksharaMD operates as a **document ingestion layer** — it handles format conve
 
 ### LangChain
 
-Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document` and supports the full range of 40+ formats LangChain loaders do not cover.
+Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document`. Check the readiness score before embedding — skip or flag documents that score RISKY or POOR.
 
 ```python
 from aksharamd.compiler import Compiler
@@ -389,19 +398,27 @@ from langchain_core.documents import Document
 compiler = Compiler()
 text, ctx = compiler.compile_to_string("report.pdf")
 
-doc = Document(
-    page_content=text,
-    metadata={
-        "source": ctx.manifest.source,
-        "file_type": ctx.manifest.file_type,
-        "readiness_score": ctx.manifest.readiness_score,
-    },
-)
+# Skip unreliable extractions before they reach the vector store
+if ctx.manifest.readiness_score < 50:
+    print(f"POOR extraction ({ctx.manifest.readiness_score}/100) — skipping embedding")
+    for w in ctx.validation.warnings:
+        print(f"  [{w.code}] {w.message}")
+else:
+    doc = Document(
+        page_content=text,
+        metadata={
+            "source": ctx.manifest.source,
+            "file_type": ctx.manifest.file_type,
+            "readiness_score": ctx.manifest.readiness_score,
+            "quality_band": ctx.manifest.quality_band,       # HIGH / OK / RISKY / POOR
+            "page_count": ctx.manifest.pages,
+        },
+    )
 ```
 
 ### LlamaIndex
 
-Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats.
+Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats. Store the readiness score as metadata so retrieval results can be filtered by extraction quality.
 
 ```python
 from aksharamd.compiler import Compiler
@@ -411,7 +428,14 @@ compiler = Compiler()
 text, ctx = compiler.compile_to_string("report.pdf")
 
 index = VectorStoreIndex.from_documents([
-    Document(text=text, metadata={"source": ctx.manifest.source}),
+    Document(
+        text=text,
+        metadata={
+            "source": ctx.manifest.source,
+            "readiness_score": ctx.manifest.readiness_score,
+            "quality_band": ctx.manifest.quality_band,
+        },
+    ),
 ])
 ```
 
