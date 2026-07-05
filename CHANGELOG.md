@@ -5,6 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed — PDF parser (feed-sid, 2026-07-05)
+- **Heading over-detection in 2-column journals**: `_heading_level()` now requires bold or all-caps evidence for the H3 threshold (ratio 1.3–1.6). Previously, any span at ratio ≥ 1.3 unconditionally became H3. In Lancet-style articles where reference text dominates the document (median ~7pt vs 10pt body text), this caused every body-text line to be classified as a heading (20+ false H3 per page). Fix also adds a `_prose` guard (starts lowercase/punctuation, ends `,`/`;`, or contains a URL) applied across H3, H4, H5, and the is_caps fallback rule.
+- **`is_caps` false positive on geographic abbreviations**: Python's `str.isupper()` returns `True` for `"CA, USA."` (all *cased* characters are uppercase). Added an exclusion for texts that contain both a comma and a period.
+- **Table over-detection**: replaced raw drawing-line counts with interior intersection geometry (`_has_interior_intersections`). A decorative page border (single rectangle) generates zero interior crossings; a real table grid crosses column-dividers against row-dividers at ≥ 3 interior points. Threshold = 3.
+- **Duplicate table content in body text**: `_filter_table_spans()` used exact center-point matching; spans whose center was just outside the table bbox leaked into prose. Added a 6pt margin on each side.
+- **CID glyph artifacts in table cells**: `_CID_RE.sub()` was applied to span text but not to table cells extracted via `tab.extract()`. Now also applied inside `norm()` in `_cells_to_markdown()`.
+- **Page furniture leaking into table cells**: print timestamps (`MM/DD/YYYY HH:MM AM Page N`) and copyright year strings appeared as table cell content. Removed via `_CELL_FURNITURE_RE` inside `norm()`.
+- **TOC dot-leader rows**: tightened pattern from `\.{3,}` to `\.{5,}` to avoid rejecting cells containing ellipsis (`...`).
+- **Column count cap**: tables with >8 columns are rejected as garbage (pdfplumber word-strategy false positives on dense pages).
+
 ### Added
 - PDF table extraction via `tab.extract()` + custom renderer — eliminates ColN artifacts from multi-row headers
 - PDF embedded image OCR: JBIG2/CCITT formats now decoded via Pixmap before passing to Tesseract
