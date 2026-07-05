@@ -10,9 +10,40 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import NamedTuple
 
+import importlib.util
+
 import fitz  # PyMuPDF
 
 logger = logging.getLogger(__name__)
+
+
+def _tesseract_available() -> bool:
+    """Return True if pytesseract and its Tesseract binary are accessible."""
+    if importlib.util.find_spec("pytesseract") is None:
+        return False
+    try:
+        import pytesseract
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        return False
+
+
+_TESSERACT_AVAILABLE: bool | None = None  # lazily cached
+
+
+def _ocr_available() -> bool:
+    global _TESSERACT_AVAILABLE
+    if _TESSERACT_AVAILABLE is None:
+        _TESSERACT_AVAILABLE = _tesseract_available()
+    return _TESSERACT_AVAILABLE
+
+
+_OCR_UNAVAILABLE_MSG = (
+    "[Image not extracted — OCR unavailable. "
+    "Install pytesseract and Tesseract to extract text from images: "
+    "pip install aksharamd[ocr]"
+)
 
 from ...context import CompilationContext
 from ...models.asset import Asset
@@ -889,15 +920,32 @@ def _process_raw_page(
     flush()
 
     if raw.ocr_pixmap is not None:
-        _apply_page_ocr(raw.ocr_pixmap, raw.page_num, blocks)
+        if _ocr_available():
+            _apply_page_ocr(raw.ocr_pixmap, raw.page_num, blocks)
+        else:
+            blocks.append(Block(
+                type=BlockType.PARAGRAPH, content=_OCR_UNAVAILABLE_MSG,
+                page=raw.page_num, index=0,
+                confidence=ExtractionConfidence.AMBIGUOUS,
+            ))
 
-    for img_bytes in raw.embedded_image_bytes:
-        _apply_page_ocr(img_bytes, raw.page_num, blocks)
+    if raw.embedded_image_bytes:
+        if _ocr_available():
+            for img_bytes in raw.embedded_image_bytes:
+                _apply_page_ocr(img_bytes, raw.page_num, blocks)
+        else:
+            blocks.append(Block(
+                type=BlockType.PARAGRAPH, content=_OCR_UNAVAILABLE_MSG,
+                page=raw.page_num, index=0,
+                confidence=ExtractionConfidence.AMBIGUOUS,
+            ))
 
-    # Add IMAGE blocks for content images (after text, for multimodal output)
+    # Add IMAGE blocks for content images (after text, for multimodal output).
+    # The placeholder label is shown in MD output so images are never silently dropped.
     for asset_id, _img_bytes in raw.content_images:
         blocks.append(Block(
-            type=BlockType.IMAGE, content="",
+            type=BlockType.IMAGE,
+            content=f"Image on page {raw.page_num}",
             page=raw.page_num, index=0,
             metadata={"asset_id": asset_id},
         ))

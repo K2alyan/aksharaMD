@@ -464,3 +464,49 @@ def test_pdfplumber_empty_rows_filtered(tmp_path):
         if cells and all(c == "---" for c in cells):
             continue  # separator row is fine
         assert not all(c == "" for c in cells), f"Empty row found: {line!r}"
+
+
+# ── OCR-unavailable notice ───────────────────────────────────────────────────
+
+def _make_image_only_pdf(tmp_path):
+    """Build a PDF whose single page is a rasterised image (no text layer)."""
+    import fitz
+
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    # Draw a filled rectangle to simulate image content (PyMuPDF drawing, not a text span)
+    page.draw_rect(fitz.Rect(50, 50, 545, 792), color=(0, 0, 0), fill=(0.8, 0.8, 0.8))
+    path = tmp_path / "image_only.pdf"
+    doc.save(str(path))
+    return path
+
+
+def test_ocr_unavailable_emits_notice_on_scanned_page(tmp_path, monkeypatch):
+    """A page with no text layer must emit an OCR-unavailable notice when pytesseract is absent."""
+    import aksharamd.plugins.parsers.pdf as pdf_mod
+    from aksharamd.context import CompilationContext
+    from aksharamd.plugins.parsers.pdf import PDFParser, _OCR_UNAVAILABLE_MSG
+
+    monkeypatch.setattr(pdf_mod, "_TESSERACT_AVAILABLE", False)
+
+    path = _make_image_only_pdf(tmp_path)
+    ctx = CompilationContext(source=str(path), output_dir=str(tmp_path / "out"))
+    ctx = PDFParser().execute(ctx)
+
+    all_text = " ".join(b.content for b in ctx.document.blocks)
+    assert "pytesseract" in all_text, "OCR-unavailable notice not emitted for scanned page"
+
+
+def test_content_image_label_not_empty(tmp_path):
+    """IMAGE blocks from content images must carry a descriptive label, not empty string."""
+    from aksharamd.context import CompilationContext
+    from aksharamd.models.block import BlockType
+    from aksharamd.plugins.parsers.pdf import PDFParser
+
+    path = _make_borderless_pdf(tmp_path)
+    ctx = CompilationContext(source=str(path), output_dir=str(tmp_path / "out"))
+    ctx = PDFParser().execute(ctx)
+
+    image_blocks = [b for b in ctx.document.blocks if b.type == BlockType.IMAGE]
+    for blk in image_blocks:
+        assert blk.content, f"IMAGE block on page {blk.page} has empty content label"
