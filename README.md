@@ -11,19 +11,29 @@
 
 # AksharaMD
 
-**Compile any document into token-efficient, structured Markdown for LLM workflows.**
+**An LLM document ingestion pipeline. Not a Markdown converter — a pre-processing layer that strips noise, preserves structure, and produces token-efficient content your LLM can actually use.**
 
-AksharaMD is a document processing pipeline that ingests 40+ file formats and produces clean, semantically complete Markdown — preserving headings, tables, code blocks, and metadata while eliminating boilerplate. Runs entirely on-device, deterministically, with no AI dependencies.
+AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and 35+ more — and produces structured, token-efficient text designed to be fed directly to an LLM. The goal is not a perfect Markdown replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content while spending dramatically fewer tokens than it would on the raw file.
+
+Feed AksharaMD instead of the raw file. Your LLM gets less noise, better structure, and the same information — for a fraction of the context cost.
+
+Runs entirely on-device, deterministically, with no AI dependencies.
 
 ---
 
 ## Why AksharaMD
 
+**Why not just pass the raw file?**
+
+Every format wastes tokens in a different way: a PDF with headers, footers, watermarks, and scanned pages; a DOCX with revision history and embedded metadata; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM ever sees it. What remains is the content — structured by heading, table, and code block — at a fraction of the original token cost.
+
+The output is not meant to be a beautiful document. It is the minimum viable text an LLM needs to answer questions, extract data, or summarise — with an AI Readiness Score so you know when the extraction is reliable enough to use.
+
 - **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on equivalent documents — measured across 23 format types
 - **98.5% less noise** — 3.7 avg noise lines vs 250.1 for MarkItDown
 - **27× faster than [Docling](https://github.com/DS4SD/docling)** on PDF with higher extraction quality
 - **Structured output** — emits real headings, tables, code blocks; MarkItDown produces flat text
-- **AI Readiness Score** — every compilation returns a 0–100 confidence score
+- **AI Readiness Score** — every compilation returns a 0–100 confidence score so you know what you're working with
 - **No ML dependencies** — fast, memory-efficient, and fully reproducible
 
 ---

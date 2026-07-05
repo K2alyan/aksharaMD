@@ -13,6 +13,16 @@ def _get_version() -> str:
 from pydantic import BaseModel, Field
 
 
+def _quality_band(score: int) -> str:
+    if score >= 85:
+        return "HIGH"
+    if score >= 70:
+        return "OK"
+    if score >= 50:
+        return "RISKY"
+    return "POOR"
+
+
 class Manifest(BaseModel):
     source: str
     file_type: str = ""
@@ -27,11 +37,16 @@ class Manifest(BaseModel):
     headers_removed: int = 0
     footers_removed: int = 0
     readiness_score: int = 0
+    quality_band: str = ""           # HIGH | OK | RISKY | POOR
+    pdf_classification: str = ""    # native_text | scanned | hybrid | table_heavy | layout_heavy | low_confidence
+    ocr_available: bool | None = None
+    image_pages: int = 0            # number of image-only pages (PDF only)
     confidence_notes: list[str] = Field(default_factory=list)
     elapsed_seconds: float = 0.0
     stage_timings: dict[str, float] = Field(default_factory=dict)
     ai_plugins_used: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    warning_codes: list[str] = Field(default_factory=list)  # machine-readable codes
     errors: list[str] = Field(default_factory=list)
     compiled_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()

@@ -442,7 +442,10 @@ class Compiler:
             with timed("parse"):
                 ctx = parser.execute(ctx)
             if ctx.document is None:
-                ctx.error("PARSE_FAILED", "Parser produced no document")
+                # Don't add a redundant PARSE_FAILED when the parser already
+                # set a specific error explaining why (e.g., ENCRYPTED_PDF).
+                if not ctx.validation.errors:
+                    ctx.error("PARSE_FAILED", "Parser produced no document")
                 return ctx, stage_timings, t0
             ctx.document = ctx.document.model_copy(update={"file_type": file_type})
 
@@ -501,6 +504,11 @@ class Compiler:
             blocks_inferred  = sum(1 for b in doc.blocks if b.confidence == ExtractionConfidence.INFERRED)  if doc else 0
             blocks_ambiguous = sum(1 for b in doc.blocks if b.confidence == ExtractionConfidence.AMBIGUOUS) if doc else 0
 
+            pdf_meta = doc.metadata if doc else {}
+            pdf_classification = pdf_meta.get("pdf_classification", "")
+            ocr_available = pdf_meta.get("pdf_ocr_available")
+            image_pages = pdf_meta.get("pdf_stats", {}).get("image_pages", 0) if pdf_meta else 0
+
             ctx.manifest = Manifest(
                 source=source,
                 file_type=file_type,
@@ -519,14 +527,20 @@ class Compiler:
                 blocks_ambiguous=blocks_ambiguous,
                 elapsed_seconds=round(time.perf_counter() - t0, 3),
                 stage_timings=stage_timings,
+                pdf_classification=pdf_classification,
+                ocr_available=ocr_available,
+                image_pages=image_pages,
                 warnings=[i.message for i in ctx.validation.warnings],
+                warning_codes=[i.code for i in ctx.validation.warnings],
                 errors=[i.message for i in ctx.validation.errors],
             )
 
             # 9. Extraction Confidence Score
+            from .models.manifest import _quality_band
             confidence = compute_confidence(ctx)
             ctx.manifest = ctx.manifest.model_copy(update={
                 "readiness_score": confidence.score,
+                "quality_band": _quality_band(confidence.score),
                 "confidence_notes": confidence.notes,
             })
 

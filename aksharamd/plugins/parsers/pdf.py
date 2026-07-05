@@ -1052,10 +1052,12 @@ class PDFParser(ParserPlugin):
             pdf.close()
             ctx.warn(
                 "ENCRYPTED_PDF",
-                "PDF is password-protected and could not be read. "
-                "Provide a decrypted copy or supply the password via the API.",
+                "This PDF is password-protected and could not be read. "
+                "No text could be extracted. To fix this, either open the PDF in a reader, "
+                "remove the password, and save a new copy — or, if you have the password, "
+                "decrypt the file first (e.g. qpdf --decrypt --password=PASS in.pdf out.pdf).",
             )
-            ctx.error("PARSE_FAILED", "PDF is encrypted and no password was supplied.")
+            ctx.error("PARSE_FAILED", "PDF is password-protected — provide a decrypted copy.")
             return ctx
 
         page_count = pdf.page_count

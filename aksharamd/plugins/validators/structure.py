@@ -88,9 +88,11 @@ class StructureValidator(ValidatorPlugin):
             avg = total_content_chars // max(doc.pages, 1)
             ctx.warn(
                 "NEAR_EMPTY_OUTPUT",
-                f"Only {total_content_chars:,} chars extracted across {doc.pages} pages "
-                f"({avg} avg chars/page) — document may be scanned, image-only, "
-                "or have a font encoding problem.",
+                f"Very little text was extracted: {total_content_chars:,} characters across "
+                f"{doc.pages} page(s) (average {avg} chars/page, minimum expected is "
+                f"{_NEAR_EMPTY_CHARS_PER_PAGE}). The document may be image-only, encrypted, "
+                "or use a font encoding that could not be read. "
+                "If the PDF contains scanned pages, install OCR: pip install aksharamd[ocr]",
             )
 
         # ── Low text density (PDF-specific) ───────────────────────────────────
@@ -106,9 +108,10 @@ class StructureValidator(ValidatorPlugin):
             if avg_text_per_page < _MIN_CHARS_PER_PAGE:
                 ctx.warn(
                     "LOW_TEXT_DENSITY",
-                    f"Average {avg_text_per_page:.0f} text chars/page — "
-                    "PDF may be primarily image-based or have a font encoding problem. "
-                    "Consider enabling OCR (pip install aksharamd[ocr]).",
+                    f"This PDF has very little extractable text: {avg_text_per_page:.0f} "
+                    f"characters/page on average. The document may be primarily composed of "
+                    "images or scanned pages. "
+                    "To extract text from image pages, install OCR: pip install aksharamd[ocr]",
                 )
 
         # ── CID glyph artifacts ────────────────────────────────────────────────
@@ -119,9 +122,11 @@ class StructureValidator(ValidatorPlugin):
             if cid_ratio > _MAX_CID_RATIO:
                 ctx.warn(
                     "GLYPH_ARTIFACTS",
-                    f"{cid_count} CID glyph artifacts detected ({cid_ratio:.1%} of text) — "
-                    "PDF uses a non-embedded or obfuscated font; extracted text is likely garbled. "
-                    "OCR on a rasterized version may produce better results.",
+                    f"The extracted text contains {cid_count} unreadable glyph sequences "
+                    f"({cid_ratio:.1%} of total text). This happens when a PDF uses fonts "
+                    "that are not properly embedded, making the extracted text garbled or "
+                    "unreadable. The output is likely not usable as-is. "
+                    "Try re-exporting the original document to PDF with fonts embedded.",
                 )
 
         # ── Repeated content (incomplete boilerplate removal) ─────────────────
@@ -141,8 +146,10 @@ class StructureValidator(ValidatorPlugin):
         if len(repeated) >= _REPEATED_LINE_MIN_UNIQUE:
             ctx.warn(
                 "REPEATED_CONTENT",
-                f"{len(repeated)} content lines each appear ≥{_REPEATED_LINE_THRESHOLD}× — "
-                "header/footer removal may be incomplete or the document has excessive boilerplate.",
+                f"{len(repeated)} text lines each appear {_REPEATED_LINE_THRESHOLD} or more "
+                "times across the document. This usually means headers, footers, or watermarks "
+                "were not fully removed. The output may contain significant boilerplate that "
+                "wastes tokens and reduces quality for LLM use.",
             )
 
         # ── Token bloat (PDF-specific) ─────────────────────────────────────────
@@ -155,8 +162,10 @@ class StructureValidator(ValidatorPlugin):
             if tokens_per_page > _MAX_TOKENS_PER_PAGE:
                 ctx.warn(
                     "TOKEN_BLOAT",
-                    f"{tokens_per_page:,.0f} tokens/page (total {ctx.original_tokens:,}) — "
-                    "extraction may have duplicated content or failed to remove boilerplate.",
+                    f"This PDF produced {tokens_per_page:,.0f} tokens/page "
+                    f"(total {ctx.original_tokens:,} tokens across {doc.pages} pages), "
+                    "which is unusually high. Content may have been extracted multiple times, "
+                    "or boilerplate was not removed. Review the output before using it with an LLM.",
                 )
 
         # ── OCR required but unavailable ───────────────────────────────────────
@@ -168,9 +177,10 @@ class StructureValidator(ValidatorPlugin):
             if classification in ("scanned", "hybrid") and not ocr_available and image_pages > 0:
                 ctx.warn(
                     "OCR_REQUIRED",
-                    f"PDF classified as '{classification}': {image_pages} image-only page(s) "
-                    "could not be extracted because OCR (pytesseract) is not installed. "
-                    "Install it to recover this content: pip install aksharamd[ocr]",
+                    f"This PDF has {image_pages} page(s) that contain only images — the text "
+                    "on those pages could not be extracted because OCR is not installed. "
+                    "To recover this content, install Tesseract OCR and the pytesseract package: "
+                    "pip install aksharamd[ocr]  (also requires Tesseract on your PATH)",
                 )
 
         return ctx

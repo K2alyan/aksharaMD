@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import click
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
@@ -81,7 +82,7 @@ def _dollar_row(tokens_saved: int) -> str:
 @click.group()
 @click.version_option()
 def main():
-    """AksharaMD — AI Document Compiler"""
+    """AksharaMD — LLM Document Ingestion Pipeline"""
 
 
 @main.command()
@@ -114,46 +115,95 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
         pages_per_sec = round(m.pages / m.elapsed_seconds, 1) if m.elapsed_seconds > 0 and m.pages > 0 else 0
         tokens_per_sec = round(m.original_tokens / m.elapsed_seconds) if m.elapsed_seconds > 0 and m.original_tokens > 0 else 0
 
+        score = m.readiness_score
+        band = m.quality_band or ("HIGH" if score >= 85 else "OK" if score >= 70 else "RISKY" if score >= 50 else "POOR")
+
+        if score >= 85:
+            score_str = f"[bold green]{score}/100  {band}[/]"
+            panel_color = "green"
+            panel_title = "[bold green]Compilation Complete[/]"
+        elif score >= 70:
+            score_str = f"[bold yellow]{score}/100  {band}[/]"
+            panel_color = "yellow"
+            panel_title = "[bold yellow]Compilation Complete[/]"
+        elif score >= 50:
+            score_str = f"[bold red]{score}/100  {band}[/]"
+            panel_color = "red"
+            panel_title = "[bold red]Compilation Complete — Review Warnings[/]"
+        else:
+            score_str = f"[bold red]{score}/100  {band}[/]"
+            panel_color = "red"
+            panel_title = "[bold red]Compilation Complete — Poor Extraction[/]"
+
         t = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
         t.add_column(style="bold")
         t.add_column()
 
         t.add_row("Source",           m.source)
-        t.add_row("Type",             m.file_type)
+
+        # For PDFs show the classification alongside the type
+        type_label = m.file_type
+        if m.pdf_classification:
+            _cls_labels = {
+                "native_text": "native text",
+                "scanned": "scanned / image-only",
+                "hybrid": "hybrid (text + scanned pages)",
+                "table_heavy": "table-heavy",
+                "layout_heavy": "multi-column layout",
+                "low_confidence": "low-confidence",
+            }
+            type_label = f"{m.file_type}  [{_cls_labels.get(m.pdf_classification, m.pdf_classification)}]"
+
+        t.add_row("Type",             type_label)
         t.add_row("Pages",            str(m.pages))
+        if m.image_pages:
+            t.add_row("Image pages",  f"[yellow]{m.image_pages}[/]  (no text layer)")
         t.add_row("Chunks",           str(m.chunks))
         t.add_row("Tables",           str(m.tables))
         t.add_row("Images",           str(m.images))
-        t.add_row("", "")  # spacer
+        t.add_row("", "")
+
         t.add_row("Before (tokens)",  f"{m.original_tokens:,}")
         t.add_row("After  (tokens)",  f"{m.optimized_tokens:,}")
         t.add_row("Tokens saved",     f"[bold green]{tokens_saved:,}[/]  ({m.token_reduction_percent:.1f}%)")
         if tokens_saved > 0:
             t.add_row("Cost saved",    f"[green]{_dollar_row(tokens_saved)}[/]")
         t.add_row("", "")
-        conf = m.readiness_score
-        if conf >= 85:
-            conf_str = f"[bold green]{conf}/100[/]"
-        elif conf >= 65:
-            conf_str = f"[bold yellow]{conf}/100[/]"
-        else:
-            conf_str = f"[bold red]{conf}/100[/]"
-        t.add_row("Confidence",       conf_str)
+        t.add_row("Readiness",        score_str)
         t.add_row("Total time",       f"{m.elapsed_seconds:.2f}s")
         if m.pages > 0:
             t.add_row("Throughput",   f"{pages_per_sec} pages/s  /{tokens_per_sec:,} tokens/s")
         if m.errors:
             t.add_row("Errors",       f"[red]{len(m.errors)}[/]")
 
-        console.print(Panel(t, title="[bold green]Compilation Complete[/]", border_style="green"))
+        console.print(Panel(t, title=panel_title, border_style=panel_color))
 
+        # Show extraction notes (quality signals from the scoring engine)
         if m.confidence_notes:
-            note_lines = "\n".join(f"  - {n}" for n in m.confidence_notes)
-            border = "yellow" if conf < 85 else "green"
+            note_lines = "\n".join(f"  {escape(n)}" for n in m.confidence_notes)
             console.print(Panel(
                 note_lines,
-                title=f"[bold]Extraction Notes  {conf}/100[/]",
-                border_style=border,
+                title=f"[bold]Extraction Quality  {score}/100 — {band}[/]",
+                border_style=panel_color,
+            ))
+
+        # Show validation warnings if score is below HIGH — these contain
+        # actionable guidance that scoring notes may not cover
+        actionable_codes = {"ENCRYPTED_PDF", "OCR_REQUIRED", "GLYPH_ARTIFACTS",
+                            "NEAR_EMPTY_OUTPUT", "LOW_TEXT_DENSITY", "TOKEN_BLOAT",
+                            "REPEATED_CONTENT"}
+        visible_warnings = [
+            w for w in ctx.validation.warnings
+            if w.code in actionable_codes
+        ]
+        if visible_warnings and score < 85:
+            warn_lines = "\n".join(
+                f"  [yellow]⚠[/]  [{w.code}] {escape(w.message)}" for w in visible_warnings
+            )
+            console.print(Panel(
+                warn_lines,
+                title="[bold yellow]Warnings[/]",
+                border_style="yellow",
             ))
 
         if timings and m.stage_timings:
@@ -167,11 +217,28 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
                 st.add_row(stage, f"{secs:.3f}s", share)
             console.print(Panel(st, title="[bold]Stage Timings[/]", border_style="dim"))
 
-        console.print(f"Output written to [cyan]{file_output}/[/]")
+        # Always show output locations so user knows where to look
+        output_files = [
+            ("document.md",     "compiled Markdown"),
+            ("document.json",   "structured block model"),
+            ("manifest.json",   "token counts, score, metadata"),
+            ("validation.json", "all validation issues"),
+        ]
+        file_lines = "\n".join(
+            f"  [cyan]{file_output}/{name}[/]  [dim]{desc}[/]"
+            for name, desc in output_files
+        )
+        console.print(Panel(file_lines, title="[bold]Output Files[/]", border_style="dim"))
+
+    # When the pipeline fails before building a manifest (e.g. encrypted PDF),
+    # still surface any actionable warnings so the user knows what to do.
+    if not quiet and ctx.manifest is None and ctx.validation.warnings:
+        for w in ctx.validation.warnings:
+            console.print(f"[yellow]WARNING[/] [{w.code}] {escape(w.message)}")
 
     if ctx.validation.errors:
         for err in ctx.validation.errors:
-            console.print(f"[red]ERROR[/] {err.code}: {err.message}")
+            console.print(f"[red]ERROR[/] [{err.code}] {err.message}")
         sys.exit(1)
 
 
