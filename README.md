@@ -44,8 +44,9 @@ Requires **Python 3.11 or later**.
 
 ```bash
 pip install aksharamd
-
 aksharamd compile report.pdf
+aksharamd validate report.pdf
+aksharamd formats
 ```
 
 Output is written to `output/report/`:
@@ -57,6 +58,22 @@ output/report/
 ├── manifest.json     # token counts, timings, readiness score
 ├── validation.json   # extraction issues
 └── chunks/           # semantic chunks as JSON
+```
+
+**Scanned PDFs** (requires Tesseract 5+ installed at the system level — `pip install` alone is not enough):
+
+```bash
+pip install "aksharamd[ocr]"
+# Install Tesseract 5+ separately: https://github.com/tesseract-ocr/tesseract
+# Make sure the tesseract binary is on your PATH, then:
+aksharamd compile scanned.pdf
+```
+
+**Claude Desktop (MCP):**
+
+```bash
+aksharamd mcp-config --write
+# Restart Claude Desktop — AksharaMD will appear in the tools panel
 ```
 
 ---
@@ -92,6 +109,27 @@ pip install -e .
 | Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install pytesseract` |
 | Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install openai-whisper` |
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
+
+---
+
+## Private Beta Notes
+
+This is a private beta release. The core pipeline is stable and production-tested across 118 file extensions, but please note the following before using in production workflows.
+
+**OCR for scanned PDFs requires a system binary.**
+`pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a POOR score and an `OCR_REQUIRED` warning.
+
+**Complex PPTX layouts are supported but experimental.**
+Standard slide content, bullet points, and embedded tables extract reliably. Complex animations, heavily layered slide masters, and custom layout templates may produce incomplete output.
+
+**Outlook `.msg` parsing is lower-confidence than EML/DOCX/PDF.**
+The `.msg` format is a proprietary binary container. Body text and attachments extract correctly in most cases, but embedded calendar objects, rich-text encoding edge cases, and S/MIME-signed messages may not parse completely.
+
+**Windows: prefer Windows Terminal or PowerShell 7.**
+Legacy `cmd.exe` uses the cp1252 code page, which cannot render some Unicode characters used in the CLI output (e.g. box-drawing lines from Rich). Run AksharaMD in [Windows Terminal](https://aka.ms/terminal), VS Code's integrated terminal, or PowerShell 7. Setting `PYTHONUTF8=1` also resolves most encoding issues.
+
+**`mcp-config --write` creates an automatic backup.**
+Before overwriting your Claude Desktop config, AksharaMD saves a timestamped copy (e.g. `claude_desktop_config.1720123456.bak.json`) in the same directory. No data is lost, but you may want to clean these up manually after confirming the new config works.
 
 ---
 
@@ -571,4 +609,4 @@ Bug reports and pull requests are welcome. Please open an issue first to discuss
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — free for personal and non-commercial use. Contact [kalyan.kottapalli@poppy.com](mailto:kalyan.kottapalli@poppy.com) for a commercial license.
+[PolyForm Noncommercial 1.0.0](LICENSE) — free for personal and non-commercial use. For commercial licensing inquiries, please open an issue in this repository.

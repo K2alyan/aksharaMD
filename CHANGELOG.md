@@ -5,6 +5,65 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-05 — Private Beta
+
+### Added
+- **AI Readiness Score with quality bands**: every compilation returns a 0–100 confidence score
+  labelled HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50). Score and band appear in the
+  CLI panel, `manifest.json`, and the Python API (`manifest.readiness_score`, `manifest.quality_band`).
+- **Plain-English validation warnings**: nine warning codes (OCR_REQUIRED, GLYPH_ARTIFACTS,
+  NEAR_EMPTY_OUTPUT, LOW_TEXT_DENSITY, TOKEN_BLOAT, REPEATED_CONTENT, ENCRYPTED_PDF,
+  MISSING_PAGE, LARGE_BLOCK) rewritten as actionable, non-developer messages with install
+  instructions and fix suggestions.
+- **PDF classification**: each PDF is classified as `native_text`, `scanned`, `hybrid`,
+  `table_heavy`, `layout_heavy`, or `low_confidence` and reported in the CLI, manifest, and
+  confidence notes.
+- **Encrypted PDF detection**: password-protected PDFs are detected before parsing and produce
+  a clear user-facing error with decryption instructions (`qpdf --decrypt`).
+- **OCR-required warning**: scanned and hybrid PDFs without Tesseract installed produce a
+  POOR score and a targeted install instruction rather than silent empty output.
+- **Manifest clarity fields**: `quality_band`, `pdf_classification`, `ocr_available`,
+  `image_pages`, `warning_codes` added to `manifest.json` and the `Manifest` Pydantic model.
+- **Output Files panel**: CLI always shows the exact paths of all output files after compilation.
+- **MCP server**: `aksharamd mcp-config --write` wires AksharaMD into Claude Desktop as
+  four tools — `compile_document`, `compile_document_multimodal`, `get_supported_formats`,
+  `get_stats`. HTTP mode with rate limiting and path-restriction is also supported.
+- **Corpus pipeline**: `aksharamd corpus <dir>` walks a directory, deduplicates near-identical
+  documents via MinHash LSH, and packs results into token-budget-bounded chunks ready for
+  vector stores and RAG pipelines. Python API: `Compiler.compile_corpus()`.
+- **Multimodal output**: `Compiler.compile_to_multimodal()` returns an Anthropic-compatible
+  content array with text and base64 images interleaved at their document positions.
+- **118 registered extensions** across 40+ user-facing document categories.
+
+### Fixed
+- **Windows CLI crash (U+26A0 ⚠)**: the WARNING SIGN character is not encodable in the
+  legacy Windows cp1252 console; replaced with ASCII `!` in the Warnings panel.
+- **NEAR_EMPTY_OUTPUT false positive on short files**: single-page and two-page documents
+  (`.txt`, `.md`, and other formats) no longer score RISKY due to low byte count. The check
+  now requires ≥ 3 pages. Single/two-page PDFs are still covered by `LOW_TEXT_DENSITY`.
+- **NEAR_EMPTY_OUTPUT message referenced "PDF" for non-PDF files**: message is now
+  format-aware; the OCR install hint only appears for PDF files.
+- **Penalty stacking on scanned PDFs**: OCR_REQUIRED, NEAR_EMPTY_OUTPUT, and LOW_TEXT_DENSITY
+  were all deducting independently for the same missing-content gap. OCR_REQUIRED now
+  suppresses the other two penalties when it fires.
+- **LOW_TEXT_DENSITY false positive on table-heavy PDFs**: TABLE blocks now counted alongside
+  PARAGRAPH and HEADING in the density calculation.
+- **TOKEN_BLOAT unreachable threshold**: lowered from 2500 to 1500 tokens/page to match
+  realistic dense PDF output (600–1200 tokens/page typical).
+- **Scanned PDF misclassified as hybrid**: image-ratio threshold raised from 0.70 to 0.80.
+- **Encrypted PDF manifest gap**: pipeline now surfaces ENCRYPTED_PDF warning in the CLI even
+  when manifest building is skipped due to early-exit.
+- **README license footer**: corrected "MIT" to "PolyForm Noncommercial 1.0.0".
+- **`[ocr]` stripped as Rich markup**: warning messages and confidence notes now passed through
+  `rich.markup.escape()` so bracket-containing install commands render correctly.
+
+### Changed
+- README repositioned: AksharaMD is an LLM ingestion pipeline, not a Markdown converter.
+  "Why AksharaMD" section now leads with the raw-file problem before benchmark numbers.
+- CLI `--help` description updated to "LLM Document Ingestion Pipeline".
+- GLYPH_ARTIFACTS penalty increased from −15 to −25 to push garbled-text extractions into
+  the RISKY band (<70) where they belong.
+
 ## [0.2.0] — 2026-07-05
 
 ### Fixed — PDF parser
