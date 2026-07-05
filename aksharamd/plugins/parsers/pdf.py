@@ -434,12 +434,19 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     page = pdf[page_num - 1]
 
     spans = []
-    for block in page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]:
+    for block in page.get_text("rawdict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]:
         if block["type"] != 0:
             continue
         for line in block.get("lines", []):
             for span in line.get("spans", []):
-                text = _CID_RE.sub("", span["text"]).strip()
+                # Exclude chars with PDF text rendering mode 3 (Tr=3: no fill, no stroke —
+                # the text is invisible on screen but present in the byte stream). Lower 4 bits
+                # of char["flags"] encode the rendering mode in PyMuPDF rawdict output.
+                visible_chars = [
+                    ch["c"] for ch in span.get("chars", [])
+                    if (ch.get("flags", 0) & 0xF) != 3
+                ]
+                text = _CID_RE.sub("", "".join(visible_chars)).strip()
                 if text:
                     spans.append({
                         "text": text,

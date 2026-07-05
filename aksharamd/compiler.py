@@ -159,6 +159,53 @@ def _fetch_url_to_temp(url: str) -> str:
     return tmp.name
 
 
+def _fetch_s3_to_temp(uri: str) -> str:
+    """Download an s3://bucket/key URI to a NamedTemporaryFile; return the temp file path.
+
+    Requires boto3 (pip install aksharamd[cloud]). Credentials are resolved by the
+    standard boto3 chain (env vars, ~/.aws/credentials, IAM role, etc.).
+    """
+    import tempfile
+    from urllib.parse import urlparse
+
+    try:
+        import boto3
+        from botocore.exceptions import BotoCoreError, ClientError
+    except ImportError:
+        raise ValueError(
+            "S3 input requires boto3: pip install aksharamd[cloud]"
+        )
+
+    parsed = urlparse(uri)
+    bucket = parsed.netloc
+    key = parsed.path.lstrip("/")
+    if not bucket or not key:
+        raise ValueError(f"Invalid S3 URI {uri!r}: expected s3://bucket/key")
+
+    try:
+        s3 = boto3.client("s3")
+        response = s3.get_object(Bucket=bucket, Key=key)
+    except (BotoCoreError, ClientError) as exc:
+        raise ValueError(f"Failed to fetch {uri!r}: {exc}") from exc
+
+    suffix = Path(key).suffix or ""
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        body = response["Body"]
+        downloaded = 0
+        for chunk in iter(lambda: body.read(8192), b""):
+            downloaded += len(chunk)
+            if downloaded > _MAX_FILE_BYTES:
+                raise ValueError(
+                    f"S3 object exceeds size limit of {_MAX_FILE_BYTES:,} bytes. "
+                    "Increase AKSHARAMD_MAX_FILE_BYTES to allow larger files."
+                )
+            tmp.write(chunk)
+    finally:
+        tmp.close()
+    return tmp.name
+
+
 def _detect_file_type(path: str) -> str:
     p = Path(path)
     ext = p.suffix.lstrip(".").lower()
@@ -403,9 +450,17 @@ class Compiler:
                 ctx = CompilationContext(source=_original_source, output_dir=self.output_dir)
                 ctx.error("URL_FETCH_ERROR", str(exc))
                 return ctx, stage_timings, t0
+        elif source.startswith("s3://"):
+            try:
+                source = _fetch_s3_to_temp(source)
+                _temp_path = source
+            except ValueError as exc:
+                ctx = CompilationContext(source=_original_source, output_dir=self.output_dir)
+                ctx.error("URL_FETCH_ERROR", str(exc))
+                return ctx, stage_timings, t0
         elif "://" in source:
             ctx = CompilationContext(source=source, output_dir=self.output_dir)
-            ctx.error("URL_FETCH_ERROR", f"Unsupported URL scheme in {source!r}. Only http and https are supported.")
+            ctx.error("URL_FETCH_ERROR", f"Unsupported URL scheme in {source!r}. Only http, https, and s3 are supported.")
             return ctx, stage_timings, t0
 
         try:

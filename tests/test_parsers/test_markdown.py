@@ -99,3 +99,54 @@ def test_list_items_not_double_emitted(tmp_path):
     # Items must NOT appear as extra paragraph blocks
     para_text = " ".join(b.content for b in paras)
     assert "Item one" not in para_text
+
+
+# ── Admonition blocks ────────────────────────────────────────────────────────
+
+def test_github_admonition_note(tmp_path):
+    """GitHub/Obsidian [!NOTE] blockquote produces an ADMONITION block."""
+    md = "> [!NOTE]\n> This is important.\n"
+    ctx = _parse(md, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "note"
+    assert "important" in admonitions[0].content
+
+
+def test_github_admonition_warning_multiline(tmp_path):
+    """GitHub [!WARNING] with multiple body lines keeps all body text."""
+    md = "> [!WARNING]\n> First line.\n> Second line.\n"
+    ctx = _parse(md, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "warning"
+    assert "First line" in admonitions[0].content
+
+
+def test_mkdocs_admonition(tmp_path):
+    """MkDocs !!! note syntax produces an ADMONITION block."""
+    md = "!!! warning Some danger ahead\n"
+    ctx = _parse(md, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "warning"
+
+
+def test_plain_blockquote_not_converted(tmp_path):
+    """A regular blockquote without [!TYPE] stays as BLOCKQUOTE, not ADMONITION."""
+    md = "> Just a regular quote.\n"
+    ctx = _parse(md, tmp_path)
+    bqs = [b for b in ctx.document.blocks if b.type == BlockType.BLOCKQUOTE]
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(bqs) == 1
+    assert len(admonitions) == 0
+    assert "regular quote" in bqs[0].content
+
+
+def test_admonition_case_insensitive(tmp_path):
+    """[!TIP] should match regardless of case."""
+    md = "> [!TIP]\n> Pro tip.\n"
+    ctx = _parse(md, tmp_path)
+    admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
+    assert len(admonitions) == 1
+    assert admonitions[0].metadata.get("admonition_type") == "tip"

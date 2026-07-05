@@ -5,6 +5,43 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-07-05
+
+AksharaMD v0.3.2 is a parser-polish and input-support patch.
+
+### Added
+
+- **DOCX page-break tracking**: blocks after explicit page breaks now carry accurate page numbers,
+  improving chunk provenance for RAG retrieval.
+- **Markdown admonition support**: GitHub-style `> [!NOTE]`, `> [!WARNING]`, `> [!TIP]`,
+  `> [!IMPORTANT]`, `> [!CAUTION]` and MkDocs `!!! type` callout blocks are parsed as
+  `ADMONITION` blocks with typed metadata instead of generic blockquotes.
+- **HTML admonition support**: blockquotes with common CSS classes (`note`, `warning`, `tip`,
+  `important`, `caution`, `danger`) and GitHub-style `[!TYPE]` first-paragraph patterns are
+  detected and emitted as typed `ADMONITION` blocks.
+- **S3 input support**: documents can now be compiled directly from `s3://bucket/key` URIs.
+  Requires `pip install aksharamd[cloud]`. Credentials follow the standard boto3 chain
+  (env vars, `~/.aws/credentials`, IAM role).
+- **OneNote detection**: `.one` files now produce a clear `LIBREOFFICE_REQUIRED` error with
+  install instructions instead of a generic parse failure.
+
+### Improved
+
+- **PDF invisible-text filtering**: `_extract_raw_page()` now uses PyMuPDF's `rawdict` mode
+  and filters characters with PDF text rendering mode `Tr=3` (no fill, no stroke — visually
+  invisible but present in the byte stream). Prevents ghost text from polluting chunks and
+  inflating token counts on PDFs that embed invisible overlay layers.
+- **README positioning**: opening section and "Why AksharaMD" now lead with the AI Readiness
+  Score / trust-before-embedding story. Token-efficiency data and benchmark numbers are
+  preserved unchanged. LangChain and LlamaIndex examples updated with readiness-score gating
+  patterns.
+
+### Tests
+
+- 18 new regression tests covering DOCX page tracking, Markdown admonitions, HTML admonitions,
+  PDF invisible-text filtering, and S3 input.
+- Full suite: **542 passed, 1 skipped**.
+
 ## [0.3.1] — 2026-07-05
 
 ### Added
