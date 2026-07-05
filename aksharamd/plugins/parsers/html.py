@@ -249,9 +249,12 @@ def _walk(
             text = child.get_text(separator=" ", strip=True)
             if text:
                 # Detect admonition by CSS class (MkDocs, Sphinx, Python-Markdown)
-                css = child.get("class") or []
-                if isinstance(css, str):
-                    css = css.split()
+                css: list[str] = []
+                _cls = child.get("class")
+                if isinstance(_cls, str):
+                    css = _cls.split()
+                elif _cls:
+                    css = list(_cls)
                 admonition_type: str | None = None
                 for cls in css:
                     if cls.lower() in _ADMONITION_CLASSES and cls.lower() != "admonition":
