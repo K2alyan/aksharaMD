@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aksharamd"
-version = "0.3.1"
+version = "0.3.2"
 description = "AksharaMD — LLM document ingestion pipeline. Compile any document into token-efficient, structured content for AI workflows."
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
