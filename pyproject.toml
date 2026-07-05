@@ -58,11 +58,14 @@ dev = [
 audio = [
     "openai-whisper>=20231117",
 ]
+cloud = [
+    "boto3>=1.28",
+]
 ocr = [
     "pytesseract>=0.3",
 ]
 full = [
-    "aksharamd[audio,ocr]",
+    "aksharamd[audio,ocr,cloud]",
 ]
 eval = [
     "anthropic>=0.40",

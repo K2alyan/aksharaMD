@@ -21,6 +21,12 @@ def _block_to_md(block: Block) -> str:
     elif block.type == BlockType.BLOCKQUOTE:
         lines = block.content.splitlines()
         return "\n".join(f"> {line}" for line in lines)
+    elif block.type == BlockType.ADMONITION:
+        kind = block.metadata.get("admonition_type", "note").upper()
+        lines = block.content.splitlines()
+        first = f"> **{kind}**: {lines[0]}" if lines else f"> **{kind}**:"
+        rest = [f"> {ln}" for ln in lines[1:]]
+        return "\n".join([first] + rest)
     elif block.type == BlockType.IMAGE:
         label = block.content or block.metadata.get("src", "Image")
         return f"![{label}]"

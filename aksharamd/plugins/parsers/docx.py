@@ -15,6 +15,16 @@ _REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 _LEVEL_SUFFIX_RE = re.compile(r'\s+(\d+)$')
+_W_BR = f"{{{_W_NS}}}br"
+_W_TYPE = f"{{{_W_NS}}}type"
+
+
+def _has_page_break(para_el) -> bool:
+    """Return True if this paragraph element contains an explicit page break."""
+    for br in para_el.iter(_W_BR):
+        if br.get(_W_TYPE) == "page":
+            return True
+    return False
 
 
 def _extract_drawing_bytes(para_el, doc_part) -> list[bytes]:
@@ -219,16 +229,23 @@ class DocxParser(ParserPlugin):
                     prefix = "-"
                 lines.append(f"{indent}{prefix} {text}")
                 prev_ilvl = ilvl
-            blocks.append(Block(type=BlockType.LIST, content="\n".join(lines), index=idx))
+            blocks.append(Block(type=BlockType.LIST, content="\n".join(lines), index=idx,
+                                page=current_page))
             idx += 1
             list_items.clear()
             current_list_key = None
+
+        current_page = 1
 
         for child in body:
             tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
 
             if tag == "p" and child in para_map:
                 para = para_map[child]
+
+                # Page break detection — increment before processing this paragraph's content
+                if _has_page_break(child):
+                    current_page += 1
 
                 # Inline images flush the current list (images break list continuity)
                 img_list = _extract_drawing_bytes(child, doc.part)
@@ -238,7 +255,7 @@ class DocxParser(ParserPlugin):
                         asset_id = f"img_{idx}"
                         assets.append(Asset(id=asset_id, type="image", image_bytes=img_bytes))
                         blocks.append(Block(type=BlockType.IMAGE, content="", index=idx,
-                                            metadata={"asset_id": asset_id}))
+                                            metadata={"asset_id": asset_id}, page=current_page))
                         idx += 1
 
                 # Build mixed text+math content by walking child nodes in order
@@ -293,11 +310,13 @@ class DocxParser(ParserPlugin):
                     if not title and level == 1:
                         title = display_text
                     blocks.append(Block(type=BlockType.HEADING, content=display_text,
-                                        level=level, index=idx))
+                                        level=level, index=idx, page=current_page))
                 elif "code" in style_name or "mono" in style_name:
-                    blocks.append(Block(type=BlockType.CODE_BLOCK, content=display_text, index=idx))
+                    blocks.append(Block(type=BlockType.CODE_BLOCK, content=display_text,
+                                        index=idx, page=current_page))
                 else:
-                    blocks.append(Block(type=BlockType.PARAGRAPH, content=display_text, index=idx))
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=display_text,
+                                        index=idx, page=current_page))
                 idx += 1
 
             elif tag == "oMathPara":
@@ -305,7 +324,7 @@ class DocxParser(ParserPlugin):
                 latex = _omml_to_latex(child).strip()
                 if latex:
                     blocks.append(Block(type=BlockType.PARAGRAPH,
-                                        content=f"$${latex}$$", index=idx))
+                                        content=f"$${latex}$$", index=idx, page=current_page))
                     idx += 1
 
             elif tag == "tbl" and child in table_map:
@@ -313,7 +332,8 @@ class DocxParser(ParserPlugin):
                 table = table_map[child]
                 md = _table_to_markdown(table)
                 if md:
-                    blocks.append(Block(type=BlockType.TABLE, content=md, index=idx))
+                    blocks.append(Block(type=BlockType.TABLE, content=md, index=idx,
+                                        page=current_page))
                     idx += 1
 
         flush_list()

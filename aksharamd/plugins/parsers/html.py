@@ -48,6 +48,9 @@ def _extract_image_bytes(src: str, source_path: Path | None) -> bytes | None:
     return None
 
 
+_GH_ADMONITION_RE = re.compile(r"^\[!(NOTE|WARNING|TIP|IMPORTANT|CAUTION|DANGER)\]", re.IGNORECASE)
+_ADMONITION_CLASSES = frozenset({"note", "warning", "tip", "important", "caution", "danger", "error", "admonition"})
+
 _SKIP_TAGS = {
     "nav", "header", "aside", "script", "style",
     "noscript", "iframe", "form", "menu", "menuitem",
@@ -241,15 +244,39 @@ def _walk(
                 ))
                 idx[0] += 1
 
-        # ── Blockquotes ────────────────────────────────────────────────────────
+        # ── Blockquotes / Admonitions ──────────────────────────────────────────
         elif tag == "blockquote":
             text = child.get_text(separator=" ", strip=True)
             if text:
-                blocks.append(Block(
-                    type=BlockType.BLOCKQUOTE,
-                    content=text,
-                    index=idx[0],
-                ))
+                # Detect admonition by CSS class (MkDocs, Sphinx, Python-Markdown)
+                css = child.get("class") or []
+                if isinstance(css, str):
+                    css = css.split()
+                admonition_type: str | None = None
+                for cls in css:
+                    if cls.lower() in _ADMONITION_CLASSES and cls.lower() != "admonition":
+                        admonition_type = cls.lower()
+                        break
+                # Detect admonition by GitHub/Obsidian [!TYPE] first-paragraph pattern
+                if admonition_type is None:
+                    first_p = child.find("p")
+                    first_text = (first_p.get_text(strip=True) if first_p else "").strip()
+                    m = _GH_ADMONITION_RE.match(first_text)
+                    if m:
+                        admonition_type = m.group(1).lower()
+                if admonition_type is not None:
+                    blocks.append(Block(
+                        type=BlockType.ADMONITION,
+                        content=text,
+                        index=idx[0],
+                        metadata={"admonition_type": admonition_type},
+                    ))
+                else:
+                    blocks.append(Block(
+                        type=BlockType.BLOCKQUOTE,
+                        content=text,
+                        index=idx[0],
+                    ))
                 idx[0] += 1
 
         # ── Images ─────────────────────────────────────────────────────────────

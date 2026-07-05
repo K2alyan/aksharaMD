@@ -14,6 +14,7 @@ class BlockType(StrEnum):
     IMAGE = "image"
     LIST = "list"
     BLOCKQUOTE = "blockquote"
+    ADMONITION = "admonition"
     FOOTNOTE = "footnote"
     CAPTION = "caption"
     METADATA = "metadata"

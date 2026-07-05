@@ -156,7 +156,7 @@ def _html_to_blocks(html_path: Path) -> list[Block]:
 
 class LegacyOfficeParser(ParserPlugin):
     name = "legacy_office_parser"
-    supported_types = ["doc", "ppt", "pptm", "docm"]
+    supported_types = ["doc", "ppt", "pptm", "docm", "one"]
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         path = Path(ctx.source)
@@ -178,6 +178,15 @@ class LegacyOfficeParser(ParserPlugin):
             return ctx
 
         # Fallback: OLE stream extraction (no LibreOffice required, reduced fidelity)
+        # .one (OneNote) has no OLE fallback — LibreOffice is required.
+        if file_type == "one":
+            ctx.error(
+                "LIBREOFFICE_REQUIRED",
+                f"Parsing {path.name} requires LibreOffice. "
+                "Install it from https://www.libreoffice.org/ and ensure 'soffice' is on PATH.",
+            )
+            return ctx
+
         logger.warning(
             "LibreOffice not found — using best-effort OLE extraction for %s "
             "(install LibreOffice for full fidelity: https://www.libreoffice.org/)",

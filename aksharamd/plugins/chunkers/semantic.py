@@ -28,6 +28,9 @@ def _block_to_markdown(block: Block) -> str:
         return block.content
     elif block.type == BlockType.BLOCKQUOTE:
         return f"> {block.content}"
+    elif block.type == BlockType.ADMONITION:
+        kind = block.metadata.get("admonition_type", "note").upper()
+        return f"> **{kind}**: {block.content}"
     elif block.type == BlockType.IMAGE:
         return f"![{block.content}]"
     else:

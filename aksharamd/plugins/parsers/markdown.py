@@ -8,6 +8,11 @@ from markdown_it import MarkdownIt
 
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
+
+# GitHub / Obsidian callout syntax: > [!NOTE], > [!WARNING], etc.
+_GH_ADMONITION_RE = re.compile(r"^\[!(NOTE|WARNING|TIP|IMPORTANT|CAUTION|DANGER)\]", re.IGNORECASE)
+# MkDocs / Python-Markdown admonition syntax: !!! note, !!! warning "Title", ??? note
+_MKDOCS_ADMONITION_RE = re.compile(r"^[!?]{3}\s+(note|warning|tip|important|caution|danger|error)\b", re.IGNORECASE)
 from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
@@ -81,12 +86,22 @@ class MarkdownParser(ParserPlugin):
                 inline = tokens[i + 1] if i + 1 < len(tokens) else None
                 content = inline.content if inline else ""
                 content = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", content)  # strip links
-                if content.strip():
-                    blocks.append(Block(
-                        type=BlockType.PARAGRAPH,
-                        content=content.strip(),
-                        index=block_index,
-                    ))
+                stripped = content.strip()
+                if stripped:
+                    m = _MKDOCS_ADMONITION_RE.match(stripped)
+                    if m:
+                        blocks.append(Block(
+                            type=BlockType.ADMONITION,
+                            content=stripped[m.end():].strip(),
+                            index=block_index,
+                            metadata={"admonition_type": m.group(1).lower()},
+                        ))
+                    else:
+                        blocks.append(Block(
+                            type=BlockType.PARAGRAPH,
+                            content=stripped,
+                            index=block_index,
+                        ))
                     block_index += 1
                 i += 3
                 continue
@@ -136,11 +151,26 @@ class MarkdownParser(ParserPlugin):
                         parts.append(tokens[j].content)
                     j += 1
                 if parts:
-                    blocks.append(Block(
-                        type=BlockType.BLOCKQUOTE,
-                        content="\n".join(parts),
-                        index=block_index,
-                    ))
+                    m = _GH_ADMONITION_RE.match(parts[0].strip())
+                    if m:
+                        admonition_type = m.group(1).lower()
+                        # Body is everything after the [!TYPE] tag on the first line,
+                        # plus all subsequent lines.
+                        first_body = parts[0].strip()[m.end():].strip()
+                        rest = parts[1:]
+                        body = "\n".join(filter(None, [first_body] + rest)).strip()
+                        blocks.append(Block(
+                            type=BlockType.ADMONITION,
+                            content=body,
+                            index=block_index,
+                            metadata={"admonition_type": admonition_type},
+                        ))
+                    else:
+                        blocks.append(Block(
+                            type=BlockType.BLOCKQUOTE,
+                            content="\n".join(parts),
+                            index=block_index,
+                        ))
                     block_index += 1
 
             i += 1
