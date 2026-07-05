@@ -42,6 +42,10 @@ _CAPTION_RE = re.compile(
     r"^(figure|fig\.?|table|exhibit|appendix)\s+\d",
     re.IGNORECASE,
 )
+# LaTeX \lineno detection: "1 S" header means line-number 1 bled into first char 'S'
+_LINE_NUM_BLEED_RE = re.compile(r"^\d{1,3}\s+[A-Z]")
+# Extract leading integer from a cell that may contain line-number + bleed text
+_LINE_NUM_COL_RE = re.compile(r"^(\d{1,3})(\s.*)?$")
 
 _HEADER_ZONE = 0.12
 _FOOTER_ZONE = 0.88
@@ -175,6 +179,17 @@ def _is_quality_table(markdown: str) -> bool:
         if adj_total and adj_split / adj_total > 0.3:
             return False
 
+    # Reject LaTeX \lineno line-number tables.  Two patterns:
+    # A) Header first cell is "N LETTER" — line-number bled into first char of text
+    #    (e.g. "1 S" = line 1 starting with 'S' of "Supplementary").
+    # B) ≤3-column table whose header first cell is a small bare integer (≤20).
+    #    pdfplumber whitespace-strategy detects line numbers as a left column.
+    hdr_first = cols[0].strip()
+    if _LINE_NUM_BLEED_RE.match(hdr_first):
+        return False
+    if len(cols) <= 3 and hdr_first.isdigit() and 1 <= int(hdr_first) <= 20:
+        return False
+
     return True
 
 
@@ -231,6 +246,35 @@ _FRAG_WHITELIST = frozenset({
     "yes", "no", "na", "n/a", "tbd", "low", "mid", "high", "all", "and",
     "or", "per", "vs", "avg", "max", "min", "sum", "net", "the", "for",
 })
+
+
+def _filter_latex_line_numbers(spans: list[dict], page_width: float) -> list[dict]:
+    """Remove LaTeX \\lineno package margin line numbers from the span list.
+
+    Line numbers appear as small integers at x < 8 % of page width in a
+    monotonically increasing sequence (the lineno package numbers every line or
+    every N-th line).  They are metadata, not document content, and should not
+    appear as paragraph text or trigger false table detection.
+    """
+    if page_width == 0 or not spans:
+        return spans
+    left_int_spans = [
+        s for s in spans
+        if s["x"] / page_width < 0.08
+        and s["text"].isdigit()
+        and 1 <= int(s["text"]) <= 999
+    ]
+    if len(left_int_spans) < 6:
+        return spans
+    vals = sorted(int(s["text"]) for s in left_int_spans)
+    diffs = [vals[i + 1] - vals[i] for i in range(len(vals) - 1)]
+    # Accept only sequences where the average step is ≤ 3 (handles "every 5th
+    # line" numbering style).  A larger average means the integers are data, not
+    # line numbers.
+    if not diffs or sum(diffs) / len(diffs) > 3.0:
+        return spans
+    to_remove = {id(s) for s in left_int_spans}
+    return [s for s in spans if id(s) not in to_remove]
 
 
 def _try_pdfplumber_tables(
@@ -318,6 +362,10 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                         "x": span["origin"][0],
                         "bbox": span["bbox"],
                     })
+
+    # Strip LaTeX \lineno margin line-numbers before further processing so they
+    # don't pollute table cells or paragraph text.
+    spans = _filter_latex_line_numbers(spans, page.rect.width)
 
     tables = []
     if _has_ruled_table(page):
@@ -666,10 +714,24 @@ def _process_raw_page(
             ))
         current_parts.clear()
 
+    prev_text_span: dict | None = None  # last span that was appended to current_parts
+
     for span in spans:
         text = span["text"]
         if text in removable:
             continue
+
+        # Paragraph-break detection: a vertical gap larger than 1.8 × the previous
+        # span's font size within the same column signals a new paragraph.  This
+        # separates distinct paragraphs that share no heading or caption to act as
+        # a natural separator — common in 2-column academic papers.
+        if prev_text_span is not None and current_parts:
+            curr_col = _column_of(span["x"], raw.width, boundaries)
+            prev_col = _column_of(prev_text_span["x"], raw.width, boundaries)
+            if curr_col == prev_col:
+                gap = span["y"] - prev_text_span["y"]
+                if gap > prev_text_span["size"] * 1.8:
+                    flush()
 
         rel_y = span["y"] / raw.height if raw.height > 0 else 0.5
         centered = raw.width > 0 and 0.2 < span["x"] / raw.width < 0.8
@@ -686,6 +748,7 @@ def _process_raw_page(
                 page=raw.page_num,
                 index=0,
             ))
+            prev_text_span = None
             continue
 
         # Caption: "Figure N", "Table N", "Fig. N", etc.
@@ -697,6 +760,7 @@ def _process_raw_page(
                 page=raw.page_num,
                 index=0,
             ))
+            prev_text_span = None
             continue
 
         level = _heading_level(span["size"], span["bold"], median, text, centered, has_toc=has_toc)
@@ -710,8 +774,10 @@ def _process_raw_page(
                 index=0,
                 confidence=ExtractionConfidence.INFERRED,  # inferred from font size/bold, not a markup heading
             ))
+            prev_text_span = None
         else:
             current_parts.append(text)
+            prev_text_span = span
 
     flush()
 

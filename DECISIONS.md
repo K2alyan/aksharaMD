@@ -241,7 +241,95 @@ separate bold span in the PDF.
 | Issue | Impact | Notes |
 |-------|--------|-------|
 | Median pulled by reference text | H3 false positives suppressed but H4/H5 at bold could still misfire in extreme cases | Consider 70th-percentile baseline |
-| 2-column para interleaving | Some sentences from adjacent columns merge into one paragraph block | Requires paragraph-boundary detection across columns |
+| 2-column para interleaving | Substantially reduced by gap-based flush (§9); section headings at body font size still merge with the first sentence after them | Could be improved by fuzzy heading detection using bold+short-length heuristic |
 | Correction-page header fragmentation | "Correction to / Lancet Infect Dis / 3099(20)30159-6" becomes 3 H3 blocks | Consecutive same-level heading spans should be joined |
 | Scanned PDFs | OCR path falls back to Tesseract page-raster; structure (headings, tables) not recovered | Future: Tesseract HOCR output parsing |
 | Table caption detection | `_CAPTION_RE` covers "Figure N" / "Table N" but not numbered equations or boxes | Extend regex if false negatives observed |
+
+---
+
+## 9. Paragraph gap detection (`_process_raw_page`)
+
+### Problem
+In multi-column academic papers the span-level extraction accumulates all text
+within a column into one massive paragraph: there was no mechanism to detect the
+vertical space between consecutive paragraphs.  The "turning-up-the-heat" paper
+produced 10,000-word single paragraph blocks mixing multiple paragraphs from
+the Introduction, Method, and Results sections.
+
+### Decision: flush on baseline gap > 1.8 × previous span's font size
+
+After sorting spans into column-then-y order, the loop tracks `prev_text_span`
+(the last span added to `current_parts`).  When the next span in the **same
+column** has a baseline-to-baseline y-gap larger than `1.8 × prev_span.size`,
+`flush()` is called before appending the new span.
+
+**Threshold rationale:**
+- Same-paragraph line spacing ≈ 1.2 × font size (12 pt for 10 pt text)
+- Paragraph gap ≈ 1.8–2.5 × font size (18–25 pt for 10 pt text)
+- 1.8× sits safely above same-paragraph spacing but catches typical paragraph
+  breaks; tighter values (e.g. 1.5×) risk splitting long lines with sub/superscripts.
+
+**Why not reset `prev_text_span` on non-gap flush (headings/captions/footnotes)?**  
+Those events already call `flush()` and the guard `current_parts is non-empty`
+prevents a spurious second flush when the very next span after a heading is
+processed.  Tracking only text spans (not heading/footnote spans) in
+`prev_text_span` keeps the comparison meaningful.
+
+**What was NOT done:** comparing against a rolling average of recent line
+spacing — this would handle documents with unusually large lead, but was judged
+too complex for the improvement it would provide.
+
+---
+
+## 10. LaTeX `\lineno` line-number filtering and rejection
+
+### Problem
+The user's own document (`supplementary_analysis_v2.pdf`) is a LaTeX-typeset
+paper using the `lineno` package, which prints sequential line numbers in the
+left margin.  These numbers — one per line at x ≈ 30 pt — created two symptoms:
+
+1. **False pipe table (pdfplumber whitespace strategy):** pdfplumber saw the
+   left-margin numbers as a consistent "column" and the paragraph text as a
+   second column, producing a 2-column "table" that spanned every page — the
+   entire document appeared as one massive pipe table.
+2. **False pipe table (PyMuPDF `find_tables`):** on the title page (< 3000
+   chars → pdfplumber triggered) a 7-column table appeared because line number
+   "1" bled into the first character of the title ("S" of "Supplementary"),
+   producing a header cell of "1 S".
+
+### Decision A — `_is_quality_table` two-pattern guard
+
+Two quick checks at the end of `_is_quality_table`:
+
+- **Pattern A (bleed):** if the header's first cell matches `^\d{1,3}\s+[A-Z]`
+  (integer followed by uppercase letter), it is a line-number that ran into the
+  start of a new word.  Reject immediately.
+- **Pattern B (bare integer header):** if the table has ≤ 3 columns AND the
+  header first cell is a bare integer 1–20, it is a line-number table.  Reject.
+
+Upper bound 20 (not 50 or 100) to avoid rejecting tables where the first column
+header is a legitimate year (e.g. "2020") — four-digit years are always > 20.
+
+**Do NOT widen the guard to all column counts:** a 4-column table with integer
+first column is likely a legitimate data table (ID, name, value, unit).  Only
+narrow (≤ 3 column) tables with bare-integer headers are safe to reject.
+
+### Decision B — `_filter_latex_line_numbers` span-level filter
+
+Even with the table rejection in place, line-number spans would accumulate into
+paragraph text or be sorted into "column 0" (far-left) by the column reader.
+`_filter_latex_line_numbers` removes them at the source:
+
+- Collects spans at `x < 8 %` of page width whose text is a pure integer 1–999.
+- Requires ≥ 6 such spans per page (avoids removing isolated page numbers).
+- Checks that the average step between consecutive integer values is ≤ 3
+  (handles lineno styles that number every 5th line: step = 5, avg ≤ 3 fails
+  → not filtered; most documents are every-line or every-5 so avg ≤ 5, but
+  threshold is conservative at 3 to avoid removing data tables with row IDs).
+- Called after span extraction, before `total_chars` is computed and before
+  table detection runs.
+
+**8% threshold:** standard LaTeX left margin ≈ 1 inch = 72 pt on 612 pt wide
+letter paper = 11.8%; line numbers sit at ≈ 30–50 pt = 5–8%.  Main-column
+text always starts at ≥ 9–10%, safely above the threshold.

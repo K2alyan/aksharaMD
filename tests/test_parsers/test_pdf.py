@@ -4,6 +4,7 @@ from aksharamd.plugins.parsers.pdf import (
     _PDFPLUMBER_CHAR_LIMIT,
     _cells_to_markdown,
     _detect_column_boundaries,
+    _filter_latex_line_numbers,
     _has_interior_intersections,
     _is_quality_table,
     _try_pdfplumber_tables,
@@ -249,6 +250,77 @@ def test_pdfplumber_handles_unavailable_gracefully():
         page_height=842,
     )
     assert result == []
+
+
+# ── _is_quality_table — LaTeX line-number rejection ─────────────────────────
+
+def test_quality_rejects_line_number_bleed_header():
+    """Header first cell 'N LETTER' (e.g. '1 S') is a LaTeX line-number bleed."""
+    md = "| 1 S | upplementary Analysis |\n| --- | --- |\n| 2 | Results Supporting |\n| 3 Gu | ideline 44 |"
+    assert not _is_quality_table(md)
+
+
+def test_quality_rejects_small_integer_header_narrow_table():
+    """A 2-column table whose header first cell is a small integer (≤20) is a line-number table."""
+    md = "| 1 | 3 Model Parameters 5 |\n| --- | --- |\n| 2 | 3.1 Antonopoulos 5 |\n| 3 | 3.2 Derived Cycling 5 |\n| 4 | 3.3 Commercial Building 6 |\n| 5 | 4 Numerical Results 6 |"
+    assert not _is_quality_table(md)
+
+
+def test_quality_accepts_real_two_column_numbered_table():
+    """A two-column table with a proper named header must not be rejected."""
+    md = "| No. | Description |\n| --- | --- |\n| 1 | First item |\n| 2 | Second item |"
+    assert _is_quality_table(md)
+
+
+def test_quality_accepts_wide_numbered_table():
+    """A >3-column table with integer first column should NOT be rejected by the narrow-table guard."""
+    md = "| 1 | Parameter | Value | Unit |\n| --- | --- | --- | --- |\n| 2 | Temperature | 28 | C |\n| 3 | Humidity | 45 | pct |"
+    assert _is_quality_table(md)
+
+
+# ── _filter_latex_line_numbers ───────────────────────────────────────────────
+
+def _make_ln_span(n: int, page_width: float = 612.0) -> dict:
+    """Simulate a LaTeX \\lineno margin span at x ≈ 30 pt."""
+    return {"x": 30.0, "y": 100.0 + n * 12, "text": str(n), "size": 8,
+            "bold": False, "bbox": (30, 100 + n * 12, 45, 110 + n * 12)}
+
+
+def test_filter_removes_sequential_left_margin_integers():
+    """Sequential integers at x < 8 % of page width are removed."""
+    page_width = 612.0
+    spans = [_make_ln_span(i) for i in range(1, 16)]  # 15 line-number spans
+    spans.append({"x": 90.0, "y": 110.0, "text": "body text", "size": 10,
+                  "bold": False, "bbox": (90, 110, 200, 120)})
+    result = _filter_latex_line_numbers(spans, page_width)
+    assert len(result) == 1
+    assert result[0]["text"] == "body text"
+
+
+def test_filter_leaves_sparse_integers_alone():
+    """Fewer than 6 candidate spans = no filtering (avoids removing page numbers)."""
+    page_width = 612.0
+    spans = [_make_ln_span(i) for i in range(1, 5)]  # only 4 spans
+    result = _filter_latex_line_numbers(spans, page_width)
+    assert len(result) == 4
+
+
+def test_filter_leaves_non_sequential_integers_alone():
+    """Non-sequential integers (avg step > 3) are not line numbers."""
+    page_width = 612.0
+    spans = [_make_ln_span(i * 10) for i in range(1, 12)]  # steps of 10
+    result = _filter_latex_line_numbers(spans, page_width)
+    assert len(result) == 11  # unchanged
+
+
+def test_filter_leaves_interior_integers_alone():
+    """Integers at x > 8 % of page width are not margin line numbers."""
+    page_width = 612.0
+    spans = [{"x": 100.0, "y": 100.0 + i * 12, "text": str(i), "size": 10,
+              "bold": False, "bbox": (100, 100 + i * 12, 120, 110 + i * 12)}
+             for i in range(1, 15)]
+    result = _filter_latex_line_numbers(spans, page_width)
+    assert len(result) == 14  # unchanged
 
 
 def _make_borderless_pdf(tmp_path):
