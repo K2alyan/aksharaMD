@@ -193,10 +193,15 @@ def test_cli_shows_no_scary_warnings_for_clean_pdf(runner, tmp_path):
 def test_cli_shows_output_file_locations(runner, tmp_path):
     pdf = tmp_path / "clean.pdf"
     _make_clean_native_pdf(pdf)
-    result = runner.invoke(main, ["compile", str(pdf), "-o", str(tmp_path / "out")])
+    out_dir = tmp_path / "out"
+    result = runner.invoke(main, ["compile", str(pdf), "-o", str(out_dir)])
     assert result.exit_code == 0, result.output
-    assert "document.md" in result.output
-    assert "manifest.json" in result.output
+    # Verify the promised output files are actually written to disk —
+    # the CLI panel names these files; the real user value is that they exist.
+    compiled = out_dir / "clean"
+    assert (compiled / "document.md").exists(), "document.md not written"
+    assert (compiled / "manifest.json").exists(), "manifest.json not written"
+    assert (compiled / "validation.json").exists(), "validation.json not written"
 
 
 # ── 4. CLI output — scanned PDF (poor extraction) ────────────────────────────
