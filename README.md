@@ -475,9 +475,15 @@ for chunk in chunks:
 
 ## Benchmarks
 
-Evaluated against [MarkItDown](https://github.com/microsoft/markitdown) (Microsoft) and [Docling](https://github.com/DS4SD/docling) (IBM) on an internal corpus of production documents — June 2026.
+These are two independent studies. The first measures token efficiency and speed on a small internal corpus. The second measures whether token savings actually produce better LLM answers, using a larger independent corpus with an LLM judge.
 
-### PDF (20 documents — arXiv papers, technical reports)
+---
+
+### Study 1 — Token efficiency and speed
+
+**Corpus:** 101 documents across 23 format types (internal production corpus, June 2026). The PDF sub-table uses a 20-document arXiv / technical-report subset where Docling was also evaluated.
+
+#### PDF (20 documents — arXiv papers, technical reports)
 
 | Metric | AksharaMD | MarkItDown | Docling |
 |--------|-----------|------------|---------|
@@ -487,7 +493,7 @@ Evaluated against [MarkItDown](https://github.com/microsoft/markitdown) (Microso
 
 AksharaMD is **27× faster than Docling** on PDF with comparable quality and **49% fewer tokens than MarkItDown**.
 
-### All formats (23 types covered)
+#### All formats (101 documents, 23 types)
 
 | Metric | AksharaMD | MarkItDown |
 |--------|-----------|------------|
@@ -498,7 +504,7 @@ AksharaMD is **27× faster than Docling** on PDF with comparable quality and **4
 
 AksharaMD produces **15× fewer tokens** and **98.5% less noise** across the full corpus. MarkItDown is faster on simple formats; AksharaMD is slower due to deeper extraction (structure detection, deduplication, chunking).
 
-### Per-format quality scores
+#### Per-format quality scores
 
 | Format | AksharaMD | MarkItDown |
 |--------|-----------|------------|
@@ -511,9 +517,13 @@ AksharaMD produces **15× fewer tokens** and **98.5% less noise** across the ful
 
 Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7z`, `.jsonl`, `.xml`, `.rss`, `.atom`, `.eml`, `.rtf`, `.ipynb`, `.odt`, `.ods`, `.odp`, legacy Office via LibreOffice.
 
-### Downstream LLM accuracy
+---
 
-Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this directly on a stratified corpus of ~1,000 documents across 12 formats (83 per format), deliberately spanning the full complexity range found in enterprise workloads. Documents were selected across three tiers — following the taxonomy used in document AI benchmarks such as [DocBank](https://github.com/doc-analysis/DocBank) and [PubLayNet](https://github.com/ibm-aur-nlp/PubLayNet):
+### Study 2 — Downstream LLM accuracy
+
+**Corpus:** ~1,000 documents across 12 formats (83 per format) — a separate, independent dataset from Study 1.
+
+Token efficiency is necessary but not sufficient — cleaner extraction only matters if it produces better LLM answers. We tested this with a stratified corpus spanning the full complexity range found in enterprise workloads. Documents were selected across three tiers — following the taxonomy used in document AI benchmarks such as [DocBank](https://github.com/doc-analysis/DocBank) and [PubLayNet](https://github.com/ibm-aur-nlp/PubLayNet):
 
 | Tier | Description | Example formats |
 |------|-------------|-----------------|
