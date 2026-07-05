@@ -99,6 +99,9 @@ pip install "aksharamd[ocr]"
 # With audio transcription (requires ffmpeg on PATH)
 pip install "aksharamd[audio]"
 
+# With S3 input support (s3://bucket/key URIs)
+pip install "aksharamd[cloud]"
+
 # Everything
 pip install "aksharamd[full]"
 ```
@@ -115,8 +118,9 @@ pip install -e .
 
 | Feature | Requirement |
 |---------|-------------|
-| Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install pytesseract` |
-| Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install openai-whisper` |
+| Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install "aksharamd[ocr]"` |
+| Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install "aksharamd[audio]"` |
+| S3 input (`s3://` URIs) | `pip install "aksharamd[cloud]"` — no system binary required |
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
 | Pandoc | [Pandoc](https://pandoc.org/installing.html) binary on PATH — enables AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff, and OPML |
 
