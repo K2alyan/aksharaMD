@@ -297,9 +297,9 @@ _TOC_DOT_RE = re.compile(r"\.{5,}")  # 5+ consecutive dots = dot-leader; exclude
 _FRAG_WHITELIST = frozenset({
     "yes", "no", "na", "n/a", "tbd", "low", "mid", "high", "all", "and",
     "or", "per", "vs", "avg", "max", "min", "sum", "net", "the", "for",
-    # Unit and stat abbreviations — legitimate short table cell values
-    "yds", "ypc", "rec", "att", "tds", "int", "pts", "pct", "avg", "est",
-    "lbs", "mph", "rpm", "hrs", "min", "sec", "deg", "psi", "cfm", "gpm",
+    # Common unit and measurement abbreviations — legitimate short table cell values
+    "pct", "avg", "est", "lbs", "mph", "rpm", "hrs", "sec", "deg",
+    "psi", "cfm", "gpm", "kpa", "bar", "kwh", "mbps", "qty", "ref",
 })
 
 

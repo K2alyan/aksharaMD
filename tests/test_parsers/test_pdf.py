@@ -219,9 +219,9 @@ def test_quality_rejects_prose_cells_avg_word_count():
     # 2-column chapter page: each cell is a sentence fragment
     md = (
         "| Col A | Col B |\n| --- | --- |\n"
-        "| the quarterback needs to read the defense before | throwing the ball downfield to the receiver |\n"
-        "| running backs are often used in short yardage | situations when the offensive line can open |\n"
-        "| receivers must run precise routes in order to | get separation from the defensive backs covering |\n"
+        "| the algorithm must process all incoming requests before | returning the aggregated result to the calling service |\n"
+        "| cache invalidation is triggered whenever the upstream | data source signals a change to the subscriber |\n"
+        "| retry logic applies an exponential backoff strategy | so that transient failures do not cascade downstream |\n"
     )
     assert not _is_quality_table(md)
 
@@ -229,10 +229,10 @@ def test_quality_rejects_prose_cells_avg_word_count():
 def test_quality_accepts_real_table_short_cells():
     """A real table with short data cells must not be rejected by the prose-cell check."""
     md = (
-        "| Stat | Player | Score |\n| --- | --- | --- |\n"
-        "| Passing | Tom Brady | 24.5 |\n"
-        "| Rushing | Chris Johnson | 18.0 |\n"
-        "| Receiving | Larry Fitzgerald | 21.0 |\n"
+        "| Category | Item | Value |\n| --- | --- | --- |\n"
+        "| Memory | Cache | 24.5 |\n"
+        "| Compute | Worker | 18.0 |\n"
+        "| Storage | Buffer | 21.0 |\n"
     )
     assert _is_quality_table(md)
 
