@@ -174,6 +174,16 @@ def _is_quality_table(markdown: str) -> bool:
                     adj_total += 1
                     if cells[i] and cells[i][-1].isalpha() and cells[i + 1][0].islower():
                         adj_split += 1
+        # Include the header row in the adj_split count.  Cover-page bordered
+        # layouts can produce word-split cells in the header itself — e.g.
+        # "Company Nam L" | "e, Inc." — which pushes the combined ratio over
+        # 30% even when the data-row ratio alone is just below the threshold.
+        for i in range(len(cols) - 1):
+            adj_total += 1
+            left = cols[i].strip()
+            right = cols[i + 1].strip()
+            if left and left[-1].isalpha() and right and right[0].islower():
+                adj_split += 1
         if single_letter_split / len(data_rows) > 0.2:
             return False
         if adj_total and adj_split / adj_total > 0.3:
@@ -490,9 +500,18 @@ def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
             text = span["text"].strip()
             if not text:
                 continue
+            rel_y = span["y"] / raw.height if raw.height > 0 else 0.5
+            # Bare digits (^\d+$) are only treated as page numbers when they
+            # appear in the header or footer zone.  Bare "1" mid-page is a
+            # quantity, footnote number, or list item — not a page number.
+            # Other _PAGE_NUM_RE patterns (ranges, "Page N of M", timestamps)
+            # are structural noise regardless of position and are always removed.
             if _PAGE_NUM_RE.match(text):
-                to_remove.add(text)
-                continue
+                is_bare_digit = bool(re.match(r"^\d+$", text))
+                in_zone = rel_y < _HEADER_ZONE or rel_y > _FOOTER_ZONE
+                if not is_bare_digit or in_zone:
+                    to_remove.add(text)
+                    continue
             if text not in seen_page:
                 global_counter[text] += 1
                 seen_page.add(text)
@@ -505,8 +524,10 @@ def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
                     footer_counter[text] += 1
                     seen_footer.add(text)
 
-    zone_threshold = max(2, int(page_count * 0.3))
-    global_threshold = max(2, int(page_count * 0.4))
+    # Minimum of 3 prevents false removal on 1–2 page documents (e.g. email PDFs
+    # where the same amount appears in both the summary page and the receipt page).
+    zone_threshold = max(3, int(page_count * 0.3))
+    global_threshold = max(3, int(page_count * 0.4))
 
     for text, count in header_counter.items():
         if count >= zone_threshold:

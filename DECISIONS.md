@@ -11,7 +11,7 @@ the fix is not obvious from the code alone.
 
 ### Problem
 `_heading_level` compares a span's font size against the **document-wide median**
-font size.  In 2-column academic journals (Lancet, Nature Medicine) a single page
+font size.  In 2-column academic journals a single page
 often has:
 
 | Text type       | Typical size | Approx. % of spans |
@@ -23,7 +23,7 @@ often has:
 Because reference text dominates the document, `statistics.median()` lands at
 ~7 pt.  Body text at 10 pt then has **ratio = 1.43**, which exceeded the old
 unconditional `if ratio >= 1.3: return 3` threshold.  Every line of body text
-became an H3 heading (20+ false positives per page on the Lancet mpox article).
+became an H3 heading (20+ false H3 per page).
 
 ### Decision: require bold or all-caps for H3 at ratio 1.3–1.5
 
@@ -43,7 +43,7 @@ where body-text contamination is much rarer.
   document's heading ratios simultaneously — high regression risk, punted.
 
 **Do not revert to the unconditional `return 3`.**  It catastrophically breaks
-all Lancet-style journals.
+all 2-column academic journals.
 
 ### Decision: `_prose` signal applied to ALL heading levels
 
@@ -53,7 +53,7 @@ A span is considered body prose if:
 - `"http" in text` — URL/DOI metadata annotation, never a heading
 
 This guard is now applied to H3, H4, H5, and the is_caps fallback rule.  It
-was scoped to H3 initially but "yap.boum2@pasteur-bangui.cf; @YapBoum2"
+was scoped to H3 initially but a bold footer span starting with an email address
 (bold, 8.5 pt, ratio 1.21) still hit the H4 rule without the guard.
 
 ### Decision: `is_caps` excludes texts with both comma and period
@@ -64,8 +64,8 @@ abbreviations were triggering the all-caps heading path.
 
 Fix: `is_caps = text.isupper() and len(text) > 3 and not ("," in text and "." in text)`
 
-Legitimate all-caps headings (`INTRODUCTION`, `METHODS`, `THE LANCET INFECTIOUS
-DISEASES`) do not contain both a comma and a period.
+Legitimate all-caps headings (`INTRODUCTION`, `METHODS`, `RESULTS`) do not
+contain both a comma and a period.
 
 ---
 
@@ -73,9 +73,8 @@ DISEASES`) do not contain both a comma and a period.
 
 ### Problem
 PyMuPDF's `page.find_tables()` fires on any page that has drawing lines,
-including decorative page borders.  A TÜV SÜD quote PDF with a single
-rectangular border on every page was producing 5 spurious table extractions
-per page.
+including decorative page borders.  A PDF with a single rectangular border on every page was producing 5 spurious
+table extractions per page.
 
 ### Decision: interior intersection geometry, not line counts
 
@@ -158,7 +157,7 @@ Filters are applied in order; first match that rejects wins.
 | Pattern B: adjacent cells left-ends-alpha, right-starts-lowercase | > 30% pairs | word-split paragraphs |
 
 **The column cap was changed from ≤ 6 to ≤ 8.**  A cap of 6 rejected a
-legitimate 7-column pricing table in the TÜV SÜD document.  A cap of 8 still
+legitimate 7-column pricing table in a tested document.  A cap of 8 still
 rejects the worst word-split false positives (10–15 columns).
 
 **The dot-leader threshold was changed from `\.{3,}` to `\.{5,}`.**  Three
@@ -207,7 +206,7 @@ def norm(v) -> str:
   These appear as literal `(cid:42)` strings in PyMuPDF's table extraction
   output and were appearing verbatim in table cells.
 - `_CELL_FURNITURE_RE`: removes print timestamps, "Page N of M", and
-  `"20XX ©"` copyright strings that Lancet/Elsevier PDFs embed in table cells.
+  `"20XX ©"` copyright strings that academic journal PDFs embed in table cells.
   Note: `_PAGE_NUM_RE` was used here initially but it includes `^\d+$`, which
   matched numeric data like "100".  `_CELL_FURNITURE_RE` is intentionally
   narrower to avoid rejecting valid numeric cells.
@@ -229,10 +228,9 @@ relaxed in the current implementation (the check is on `xs[i]`, the right
 column's leftmost x, not the midpoint).  For 3-column layouts with columns at
 ~4%, ~37%, ~67% of page width, this correctly detects two boundaries.
 
-For Lancet corrections pages (3-column of correction notices), the reading order
-is correct (col1 → col2 → col3), but the correction headers are still
-fragmented into multiple heading blocks because each line of the header is a
-separate bold span in the PDF.
+For 3-column layout pages, the reading order is correct (col1 → col2 → col3),
+but multi-line headers are still fragmented into multiple heading blocks because
+each line of the header is a separate bold span in the PDF.
 
 ---
 
@@ -242,7 +240,7 @@ separate bold span in the PDF.
 |-------|--------|-------|
 | Median pulled by reference text | H3 false positives suppressed but H4/H5 at bold could still misfire in extreme cases | Consider 70th-percentile baseline |
 | 2-column para interleaving | Substantially reduced by gap-based flush (§9); section headings at body font size still merge with the first sentence after them | Could be improved by fuzzy heading detection using bold+short-length heuristic |
-| Correction-page header fragmentation | "Correction to / Lancet Infect Dis / 3099(20)30159-6" becomes 3 H3 blocks | Consecutive same-level heading spans should be joined |
+| Multi-line header fragmentation | "Section / Title / Subtitle" becomes 3 H3 blocks | Consecutive same-level heading spans should be joined |
 | Scanned PDFs | OCR path falls back to Tesseract page-raster; structure (headings, tables) not recovered | Future: Tesseract HOCR output parsing |
 | Table caption detection | `_CAPTION_RE` covers "Figure N" / "Table N" but not numbered equations or boxes | Extend regex if false negatives observed |
 
@@ -253,9 +251,9 @@ separate bold span in the PDF.
 ### Problem
 In multi-column academic papers the span-level extraction accumulates all text
 within a column into one massive paragraph: there was no mechanism to detect the
-vertical space between consecutive paragraphs.  The "turning-up-the-heat" paper
+vertical space between consecutive paragraphs.  A multi-column academic paper
 produced 10,000-word single paragraph blocks mixing multiple paragraphs from
-the Introduction, Method, and Results sections.
+distinct sections.
 
 ### Decision: flush on baseline gap > 1.8 × previous span's font size
 
@@ -285,9 +283,8 @@ too complex for the improvement it would provide.
 ## 10. LaTeX `\lineno` line-number filtering and rejection
 
 ### Problem
-The user's own document (`supplementary_analysis_v2.pdf`) is a LaTeX-typeset
-paper using the `lineno` package, which prints sequential line numbers in the
-left margin.  These numbers — one per line at x ≈ 30 pt — created two symptoms:
+A LaTeX-typeset paper using the `lineno` package, which prints sequential line
+numbers in the left margin, created two symptoms:
 
 1. **False pipe table (pdfplumber whitespace strategy):** pdfplumber saw the
    left-margin numbers as a consistent "column" and the paragraph text as a
@@ -295,8 +292,8 @@ left margin.  These numbers — one per line at x ≈ 30 pt — created two symp
    entire document appeared as one massive pipe table.
 2. **False pipe table (PyMuPDF `find_tables`):** on the title page (< 3000
    chars → pdfplumber triggered) a 7-column table appeared because line number
-   "1" bled into the first character of the title ("S" of "Supplementary"),
-   producing a header cell of "1 S".
+   "1" bled into the first character of the following word, producing a header
+   cell of "1 S".
 
 ### Decision A — `_is_quality_table` two-pattern guard
 
@@ -333,3 +330,45 @@ paragraph text or be sorted into "column 0" (far-left) by the column reader.
 **8% threshold:** standard LaTeX left margin ≈ 1 inch = 72 pt on 612 pt wide
 letter paper = 11.8%; line numbers sit at ≈ 30–50 pt = 5–8%.  Main-column
 text always starts at ≥ 9–10%, safely above the threshold.
+
+---
+
+## 11. Global span deduplication (`_detect_removable_spans`)
+
+### Problem
+`_detect_removable_spans` computes two removal thresholds:
+
+```python
+zone_threshold  = max(2, int(page_count * 0.3))   # header/footer zone
+global_threshold = max(2, int(page_count * 0.4))  # cross-page duplicates
+```
+
+For a 2-page document (e.g. a 2-page email receipt export that includes a
+charge-summary page *and* a full itemised receipt page), `int(2 × 0.4) = 0`,
+so both thresholds
+become 2.  Any text that happens to appear on both pages — dollar amounts, line-
+item labels, totals — satisfies `count >= 2` and is added to `removable`.  The
+financial data then disappears entirely from the output because every matching
+span is skipped in `_process_raw_page`.
+
+### Decision: minimum threshold of 3
+
+The floor was raised from `max(2, …)` to `max(3, …)`:
+
+```python
+zone_threshold  = max(3, int(page_count * 0.3))
+global_threshold = max(3, int(page_count * 0.4))
+```
+
+A span can appear at most `page_count` times; requiring count ≥ 3 makes it
+impossible to remove any text from a ≤ 2-page document via cross-page
+deduplication.  For documents with ≥ 8 pages the formula already produces
+thresholds ≥ 3, so the change has no effect there.  For 3–7 page documents the
+minimum is 3 instead of 2, making deduplication slightly more conservative —
+headers now need to appear on 3+ pages rather than 2+, which is still a robust
+signal for running text.
+
+**Do NOT lower the floor back to 2** — short PDFs (email exports, receipts,
+one-pagers) routinely have the same text block on every page by design, not
+because it is a running header.
+

@@ -37,6 +37,7 @@ output/
 
 # Scratch files
 markitdown_*.md
+doc_*.md
 
 # OS
 .DS_Store
