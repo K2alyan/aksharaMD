@@ -31,6 +31,11 @@ _PAGE_NUM_RE = re.compile(
     re.IGNORECASE,
 )
 _CID_RE = re.compile(r"\(cid:\d+\)")
+# Narrower than _PAGE_NUM_RE: only strip print timestamps from table cells (not bare numbers)
+_CELL_FURNITURE_RE = re.compile(
+    r"^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$",
+    re.IGNORECASE,
+)
 _CAPTION_RE = re.compile(
     r"^(figure|fig\.?|table|exhibit|appendix)\s+\d",
     re.IGNORECASE,
@@ -49,8 +54,19 @@ def _has_ruled_table(page: fitz.Page) -> bool:
     Geometry pre-screen — returns True only if the page has enough horizontal
     and vertical line segments to plausibly contain a ruled table.
     Skipping find_tables() on text-only pages is the primary speed win.
+
+    Uses distinct positional buckets (10 px) rather than raw line counts so
+    that decorative page borders (which contribute h+v line segments but only
+    2 distinct y-positions and 2 distinct x-positions) don't trigger.
+    A real table needs ≥3 distinct horizontal positions (header top, row
+    dividers, bottom) and ≥2 distinct vertical positions (column dividers).
     """
-    h = v = 0
+    h_ys: set[int] = set()
+    v_xs: set[int] = set()
+
+    def _bucket(val: float) -> int:
+        return int(val / 10)
+
     for path in page.get_drawings():
         for item in path.get("items", []):
             if item[0] == "l":
@@ -58,15 +74,16 @@ def _has_ruled_table(page: fitz.Page) -> bool:
                 dx = abs(p2.x - p1.x)
                 dy = abs(p2.y - p1.y)
                 if dx > 20 and dy < 3:
-                    h += 1
+                    h_ys.add(_bucket((p1.y + p2.y) / 2))
                 elif dy > 10 and dx < 3:
-                    v += 1
+                    v_xs.add(_bucket((p1.x + p2.x) / 2))
             elif item[0] == "re":
                 r = item[1]
                 if r.width > 30 and r.height > 5:
-                    h += 2
-                    v += 1
-        if h >= 3 and v >= 2:
+                    h_ys.add(_bucket(r.y0))
+                    h_ys.add(_bucket(r.y1))
+                    v_xs.add(_bucket(r.x0))
+        if len(h_ys) >= 3 and len(v_xs) >= 2:
             return True
     return False
 
@@ -88,6 +105,18 @@ def _is_quality_table(markdown: str) -> bool:
     if dot_rows > len(data_rows) * 0.4:
         return False
 
+    # Reject word-fragmentation from layout over-segmentation: cells that are
+    # purely lowercase alphabetic and ≤4 chars are almost certainly word tails
+    # split mid-word (e.g. "ore" from "Signore", "sy" from "Fantasy").
+    all_cells = [c.strip() for row in data_rows for c in row.split("|") if c.strip()]
+    if all_cells:
+        fragments = sum(
+            1 for c in all_cells
+            if len(c) <= 4 and c.isalpha() and c.islower() and c not in _FRAG_WHITELIST
+        )
+        if fragments / len(all_cells) > 0.25:
+            return False
+
     return True
 
 
@@ -101,7 +130,8 @@ def _cells_to_markdown(cells: list[list]) -> str:
         return ""
 
     def norm(v) -> str:
-        return re.sub(r"\s+", " ", (v or "").replace("|", "\\|")).strip()
+        text = re.sub(r"\s+", " ", _CID_RE.sub("", (v or "")).replace("|", "\\|")).strip()
+        return "" if _CELL_FURNITURE_RE.match(text) else text
 
     rows = [[norm(c) for c in row] for row in cells]
     ncols = max((len(r) for r in rows), default=0)
@@ -137,7 +167,12 @@ _PDFPLUMBER_TEXT_SETTINGS = {
     "min_words_vertical": 3,    # at least 3 aligned words to declare a column (was 2)
     "min_words_horizontal": 3,  # at least 3 words per row to form a table (was 1)
 }
-_TOC_DOT_RE = re.compile(r"\.{3,}")  # 3+ consecutive dots = dot-leader (TOC row)
+_TOC_DOT_RE = re.compile(r"\.{5,}")  # 5+ consecutive dots = dot-leader; excludes ellipsis (…)
+# Common legitimate short lowercase table values — excluded from word-fragment detection
+_FRAG_WHITELIST = frozenset({
+    "yes", "no", "na", "n/a", "tbd", "low", "mid", "high", "all", "and",
+    "or", "per", "vs", "avg", "max", "min", "sum", "net", "the", "for",
+})
 
 
 def _try_pdfplumber_tables(
