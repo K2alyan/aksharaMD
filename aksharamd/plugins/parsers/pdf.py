@@ -26,6 +26,8 @@ _PAGE_NUM_RE = re.compile(
     r"|^\d+[-–]\d+$"
     r"|^-\s*\d+\s*-$"
     r"|^page\s+\d+(\s+of\s+\d+)?$"
+    # Web-print "X/N" pagination ("1/13", "12/13") — zone-restricted like bare digits
+    r"|^\d+/\d+$"
     # Print timestamps from PDF authoring tools: "5/31/07 10:22 AM Page i"
     r"|^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$",
     re.IGNORECASE,
@@ -546,15 +548,15 @@ def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
             if not text:
                 continue
             rel_y = span["y"] / raw.height if raw.height > 0 else 0.5
-            # Bare digits (^\d+$) are only treated as page numbers when they
-            # appear in the header or footer zone.  Bare "1" mid-page is a
-            # quantity, footnote number, or list item — not a page number.
+            # Bare digits (^\d+$) and X/N fractions (^\d+/\d+$) are only treated
+            # as page numbers when they appear in the header or footer zone.
+            # "1" mid-page is a quantity or footnote; "1/2" mid-page is a ratio.
             # Other _PAGE_NUM_RE patterns (ranges, "Page N of M", timestamps)
             # are structural noise regardless of position and are always removed.
             if _PAGE_NUM_RE.match(text):
-                is_bare_digit = bool(re.match(r"^\d+$", text))
+                is_zone_restricted = bool(re.match(r"^\d+$|^\d+/\d+$", text))
                 in_zone = rel_y < _HEADER_ZONE or rel_y > _FOOTER_ZONE
-                if not is_bare_digit or in_zone:
+                if not is_zone_restricted or in_zone:
                     to_remove.add(text)
                     continue
             if text not in seen_page:
@@ -663,9 +665,18 @@ def _column_of(x: float, page_width: float, boundaries: list[float]) -> int:
 
 def _heading_level(size: float, bold: bool, median: float, text: str, centered: bool, has_toc: bool = False) -> int | None:
     ratio = size / median if median else 1.0
-    # isupper() returns True if ALL cased characters are uppercase.  Exclude
-    # geographic abbreviations like "CA, USA." by requiring no mixed punctuation.
-    is_caps = text.isupper() and len(text) > 3 and not ("," in text and "." in text)
+    # isupper() returns True if ALL *cased* characters are uppercase, so
+    # "A + 2"" and "B - 2.5"" (dimension annotations) also pass.  Require that
+    # at least half the characters are alphabetic to exclude these.  Also
+    # exclude geographic abbreviations like "CA, USA." (mixed punctuation).
+    _alpha = [c for c in text if c.isalpha()]
+    is_caps = (
+        bool(_alpha)
+        and all(c.isupper() for c in _alpha)
+        and len(_alpha) / max(len(text), 1) >= 0.5
+        and len(text) > 3
+        and not ("," in text and "." in text)
+    )
 
     # Prose signals that indicate this span is body text, not a heading:
     #   - starts with lowercase or punctuation → mid-sentence fragment
@@ -702,10 +713,13 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
             if ratio >= 1.5 and len(text.split()) <= 5:
                 return 3
     if ratio >= 1.15 and not _prose and (bold or is_caps):
-        return 4
+        # Single all-caps abbreviations ("ASTM", "ASHRAE") at ratio ≈ 1.15 are
+        # institution names or acronyms in reference lists, not headings.
+        if not (len(text.split()) == 1 and text.isupper()):
+            return 4
     if ratio >= 1.05 and bold and not _prose:
         return 5
-    if is_caps and centered and not _prose and len(text) < 80:
+    if is_caps and centered and not _prose and ratio >= 0.95 and len(text) < 80:
         return 4
     # Bold body-font heading: same size as body text but bold and short.
     # Catches unlabelled section headings like "Introduction", "Phase I",
@@ -724,6 +738,8 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
         and not _prose
         and not text.endswith(":")
         and not text.endswith(".")
+        # Dimension annotations from technical drawings end with " (inch mark).
+        and not text.endswith('"')
         and len(text) >= 3
         and not _BOLD_HDR_CAPTION_RE.match(text)
         and 1 <= len(_words) <= 4
