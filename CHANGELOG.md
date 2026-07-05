@@ -5,6 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-07-05
+
+### Added
+- **Optional Pandoc parser backend**: AksharaMD now supports niche markup formats — AsciiDoc,
+  Org-mode, Textile, MediaWiki, OPML, DocBook, man, and roff — by delegating to the system
+  `pandoc` binary when available on PATH. Pandoc is not required for the base install and is
+  not used for core formats (PDF, DOCX, HTML, Markdown, CSV, JSON, XML, EPUB, RST, ODT).
+  Missing Pandoc produces a clear `PANDOC_UNAVAILABLE` user-facing error with install
+  instructions. 17 mocked unit tests added; integration test skips gracefully without Pandoc.
+
 ## [0.3.0] — 2026-07-05
 
 ### Added
