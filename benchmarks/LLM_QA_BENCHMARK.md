@@ -1,6 +1,6 @@
 # AksharaMD — Downstream LLM Accuracy Benchmark
 
-> **CONFIDENTIAL — Private Beta v0.1.0.** Do not distribute.
+> Benchmark results for AksharaMD v0.3.0.
 
 ---
 

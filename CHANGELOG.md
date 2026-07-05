@@ -5,7 +5,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
-## [0.3.0] — 2026-07-05 — Private Beta
+## [0.3.0] — 2026-07-05
 
 ### Added
 - **AI Readiness Score with quality bands**: every compilation returns a 0–100 confidence score

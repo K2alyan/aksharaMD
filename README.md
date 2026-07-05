@@ -112,9 +112,9 @@ pip install -e .
 
 ---
 
-## Private Beta Notes
+## Known Limitations
 
-This is a private beta release. The core pipeline is stable and production-tested across 118 file extensions, but please note the following before using in production workflows.
+The core pipeline is stable and production-tested across 118 file extensions, but please note the following before using in production workflows.
 
 **OCR for scanned PDFs requires a system binary.**
 `pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a POOR score and an `OCR_REQUIRED` warning.
