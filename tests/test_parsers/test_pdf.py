@@ -177,6 +177,43 @@ def test_quality_accepts_many_columns():
     assert _is_quality_table(md)
 
 
+def test_quality_rejects_word_split_two_data_rows():
+    """Pattern B fires on tables with exactly 2 data rows (threshold lowered from 3)."""
+    # Both rows have mid-word splits: "Engin|eering", "Analys|is"
+    md = "| Split | Header |\n| --- | --- |\n| Engin | eering |\n| Analys | is |"
+    assert not _is_quality_table(md)
+
+
+def test_quality_accepts_two_data_rows_clean():
+    """A legitimate 2-row table must not be rejected by Pattern B."""
+    md = "| Name | Score |\n| --- | --- |\n| Alice | 95 |\n| Bob | 87 |"
+    assert _is_quality_table(md)
+
+
+def test_quality_rejects_header_adj_split_borderplate():
+    """Header row word-split pushes combined adj_split ratio over 30% threshold."""
+    # Data rows alone: 1 split / 4 pairs = 25% (below threshold).
+    # Header "Company Nam L"|"e, Inc." adds 1 split → 2/5 = 40% → rejected.
+    md = (
+        "| Company Nam L | e, Inc. |\n| --- | --- |\n"
+        "| word end | ed item |\n"
+        "| normal | 123 |\n"
+        "| normal | 456 |\n"
+        "| normal | 789 |"
+    )
+    assert not _is_quality_table(md)
+
+
+def test_quality_rejects_mostly_empty_cells():
+    """Tables with >50% empty data cells are rejected as layout column artifacts."""
+    md = (
+        "| Col A | Col B | Col C |\n| --- | --- | --- |\n"
+        "| Long paragraph text here | | |\n"
+        "| Another paragraph here | | |"
+    )
+    assert not _is_quality_table(md)
+
+
 # ── _has_interior_intersections ─────────────────────────────────────────────
 
 def test_page_border_has_no_interior_intersections():

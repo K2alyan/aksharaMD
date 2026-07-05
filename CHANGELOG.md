@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed — PDF parser (feed-sid, 2026-07-05, continued 3)
+- **Word-split tables with 2 data rows not rejected**: `_is_quality_table` Pattern B (adj-cell split ratio) was guarded by `len(data_rows) >= 3`, so 2-row word-split tables slipped through as "quality". Lowered threshold to `>= 2`.
+- **Layout-column tables with sparse data not rejected**: pdfplumber whitespace-strategy occasionally detects paragraph-in-column layouts as multi-column tables where >50% of cells are empty spacers. Added a pre-Pattern-B guard: if more than 50% of data cells across all rows are empty, the table is rejected as a layout artifact.
+
 ### Fixed — PDF parser (feed-sid, 2026-07-05, continued 2)
 - **Bold body-font headings not detected**: section labels like "Introduction", "Phase I", and "Problem Statement" sit at body font size (ratio ≈ 1.0) and were absorbed into paragraph text because `_heading_level` required `ratio >= 1.05` to detect any bold heading. Added a fallback rule: if a span is bold, ≤4 words, not prose, and does not end with `:`, it is promoted to H4. Fires only when no TOC is present (the `has_toc` path returns early). The colon exclusion keeps inline labels ("Note:", "Warning:") from becoming spurious headings.
 

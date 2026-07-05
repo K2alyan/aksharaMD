@@ -159,12 +159,25 @@ def _is_quality_table(markdown: str) -> bool:
         if short_alpha / len(all_cells) > 0.25:
             return False
 
+    # Reject tables where >50% of data cells are empty — paragraph text forced
+    # into layout columns leaves most cells blank (e.g. a 3-column layout where
+    # prose sits in the first column and the others are empty spacers).
+    total_data_cells = 0
+    empty_data_cells = 0
+    for row in data_rows:
+        if "|" in row:
+            inner = row.split("|")[1:-1]
+            total_data_cells += len(inner)
+            empty_data_cells += sum(1 for c in inner if not c.strip())
+    if total_data_cells > 0 and empty_data_cells / total_data_cells > 0.5:
+        return False
+
     # Reject tables where rows are clearly word-split across columns.
     # Pattern A: first non-empty cell in a row is a single letter AND the next
     # non-empty cell starts with lowercase (e.g. "Q" | "uotation #:").
     # Pattern B: >30% of adjacent cell pairs have (left ends alpha, right starts
     # lowercase), indicating wrapped paragraph text chopped into columns.
-    if len(data_rows) >= 3:
+    if len(data_rows) >= 2:
         single_letter_split = 0
         adj_split = 0
         adj_total = 0
