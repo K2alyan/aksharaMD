@@ -33,7 +33,9 @@ _PAGE_NUM_RE = re.compile(
 _CID_RE = re.compile(r"\(cid:\d+\)")
 # Narrower than _PAGE_NUM_RE: only strip print timestamps from table cells (not bare numbers)
 _CELL_FURNITURE_RE = re.compile(
-    r"^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$",
+    r"^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$"  # print timestamps
+    r"|^page\s+\d+(\s+of\s+\d+)?$"                          # "Page 3 of 8"
+    r"|^\d{4}\s+©",                                          # "2020 © Acme Inc."
     re.IGNORECASE,
 )
 _CAPTION_RE = re.compile(
@@ -123,6 +125,12 @@ def _is_quality_table(markdown: str) -> bool:
     cols = [c for c in lines[0].split("|") if c.strip()]
     if len(cols) < 2:
         return False
+
+    # Very wide tables are almost always text blocks mis-detected as tables.
+    # Legitimate document tables rarely exceed 8 columns.
+    if len(cols) > 8:
+        return False
+
     data_rows = [ln for ln in lines[2:] if "|" in ln and not ln.startswith("|---")]
     if not data_rows:
         return False
@@ -137,11 +145,34 @@ def _is_quality_table(markdown: str) -> bool:
     # split mid-word (e.g. "ore" from "Signore", "sy" from "Fantasy").
     all_cells = [c.strip() for row in data_rows for c in row.split("|") if c.strip()]
     if all_cells:
-        fragments = sum(
+        short_alpha = sum(
             1 for c in all_cells
             if len(c) <= 4 and c.isalpha() and c.islower() and c not in _FRAG_WHITELIST
         )
-        if fragments / len(all_cells) > 0.25:
+        if short_alpha / len(all_cells) > 0.25:
+            return False
+
+    # Reject tables where rows are clearly word-split across columns.
+    # Pattern A: first non-empty cell in a row is a single letter AND the next
+    # non-empty cell starts with lowercase (e.g. "Q" | "uotation #:").
+    # Pattern B: >30% of adjacent cell pairs have (left ends alpha, right starts
+    # lowercase), indicating wrapped paragraph text chopped into columns.
+    if len(data_rows) >= 3:
+        single_letter_split = 0
+        adj_split = 0
+        adj_total = 0
+        for row in data_rows:
+            cells = [c.strip() for c in row.split("|") if c.strip()]
+            if len(cells) >= 2:
+                if len(cells[0]) == 1 and cells[0].isalpha() and cells[1][0].islower():
+                    single_letter_split += 1
+                for i in range(len(cells) - 1):
+                    adj_total += 1
+                    if cells[i] and cells[i][-1].isalpha() and cells[i + 1][0].islower():
+                        adj_split += 1
+        if single_letter_split / len(data_rows) > 0.2:
+            return False
+        if adj_total and adj_split / adj_total > 0.3:
             return False
 
     return True
@@ -443,15 +474,22 @@ def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
 
 
 def _filter_table_spans(spans: list[dict], table_bboxes: list[tuple]) -> list[dict]:
-    """Drop spans whose center falls inside a detected table bounding box."""
+    """Drop spans that fall inside a detected table bounding box.
+
+    Uses center-point check with a 6pt margin so spans that bleed slightly
+    outside the detected table boundary are still suppressed, preventing the
+    same text appearing as both a table row and a prose paragraph.
+    """
     if not table_bboxes:
         return spans
+
+    _MARGIN = 6.0
 
     def in_table(span: dict) -> bool:
         sx0, sy0, sx1, sy1 = span["bbox"]
         cx, cy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
         return any(
-            tx0 <= cx <= tx1 and ty0 <= cy <= ty1
+            tx0 - _MARGIN <= cx <= tx1 + _MARGIN and ty0 - _MARGIN <= cy <= ty1 + _MARGIN
             for tx0, ty0, tx1, ty1 in table_bboxes
         )
 
