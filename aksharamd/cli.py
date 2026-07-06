@@ -56,12 +56,11 @@ def _show_first_run_onboarding() -> None:
         pass  # non-fatal — just show it every time if we can't write
 
     t = Table(box=box.SIMPLE, show_header=True, padding=(0, 1))
-    t.add_column("If your documents include...", style="bold", min_width=36)
-    t.add_column("Extra", style="cyan", min_width=9)
-    t.add_column("Install command", style="dim", min_width=32)
+    t.add_column("If your documents include...", style="bold", min_width=38)
+    t.add_column("Install", style="cyan", min_width=9)
 
-    for doc_type, extra, cmd, _ in _EXTRAS_ROWS:
-        t.add_row(doc_type, escape(extra), cmd)
+    for doc_type, extra, _cmd, _ in _EXTRAS_ROWS:
+        t.add_row(doc_type, escape(extra))
 
     body = Text()
     body.append(
@@ -75,8 +74,11 @@ def _show_first_run_onboarding() -> None:
     lines = [body, t, Text()]
 
     footer = Text()
-    footer.append("Install everything at once:\n", style="bold")
-    footer.append('  pip install "aksharamd[full]"\n\n', style="cyan bold")
+    footer.append("Install an extra:  ", style="bold")
+    footer.append('pip install "aksharamd[ocr]"', style="cyan bold")
+    footer.append("  (replace [ocr] with the extra you need)\n\n")
+    footer.append("Install everything:  ", style="bold")
+    footer.append('pip install "aksharamd[full]"\n\n', style="cyan bold")
     footer.append(
         "You can skip extras for now. When AksharaMD encounters content it cannot\n"
         "fully extract, it flags it with a warning code and a lower readiness score\n"
