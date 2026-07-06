@@ -4,12 +4,15 @@ import logging
 import os
 import re
 import sys
+import time
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
 import click
 from rich import box
 from rich.console import Console
+from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
 from rich.progress import (
@@ -21,12 +24,145 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 from rich.table import Table
+from rich.text import Text
 
 from . import ledger as _ledger
 from .compiler import Compiler
 from .utils import DISPLAY_MODELS, TOKEN_PRICES, tokens_to_dollars
 
 console = Console(highlight=False)
+
+# ── First-run onboarding ──────────────────────────────────────────────────────
+
+_FIRST_RUN_MARKER = Path.home() / ".aksharamd" / ".initialized"
+
+_EXTRAS_ROWS = [
+    ("Scanned PDFs, image files",        "[ocr]",    'pip install "aksharamd[ocr]"',    "Tesseract OCR extracts text from pages with no text layer"),
+    ("Scanned PDFs with tables/layouts", "[vision]", 'pip install "aksharamd[vision]"', "Marker (neural layout model) reconstructs table structure — ~3 GB download"),
+    ("PDFs with math equations",         "[math]",   'pip install "aksharamd[math]"',   "pix2tex converts equation images to LaTeX — ~500 MB download"),
+    ("Audio or video files",             "[audio]",  'pip install "aksharamd[audio]"',  "Whisper transcribes speech — requires ffmpeg on PATH"),
+    ("Files in S3 buckets",              "[cloud]",  'pip install "aksharamd[cloud]"',  "Read directly from s3:// URIs"),
+]
+
+
+def _show_first_run_onboarding() -> None:
+    """Show the extras welcome panel once, on first use."""
+    if _FIRST_RUN_MARKER.exists():
+        return
+    try:
+        _FIRST_RUN_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        _FIRST_RUN_MARKER.touch()
+    except OSError:
+        pass  # non-fatal — just show it every time if we can't write
+
+    t = Table(box=box.SIMPLE, show_header=True, padding=(0, 1))
+    t.add_column("If your documents include...", style="bold", min_width=36)
+    t.add_column("Extra", style="cyan", min_width=9)
+    t.add_column("Install command", style="dim", min_width=32)
+
+    for doc_type, extra, cmd, _ in _EXTRAS_ROWS:
+        t.add_row(doc_type, escape(extra), cmd)
+
+    body = Text()
+    body.append(
+        "AksharaMD is installed. The base install handles PDFs (text layer), "
+        "Word, Excel, PowerPoint, HTML, EPUB, email, archives, and 35+ other formats "
+        "with no additional setup.\n\n",
+        style="dim",
+    )
+    body.append("For harder document types, install only what you need:\n\n")
+
+    lines = [body, t, Text()]
+
+    footer = Text()
+    footer.append("Install everything at once:\n", style="bold")
+    footer.append('  pip install "aksharamd[full]"\n\n', style="cyan bold")
+    footer.append(
+        "You can skip extras for now. When AksharaMD encounters content it cannot\n"
+        "fully extract, it flags it with a warning code and a lower readiness score\n"
+        "so you know exactly which extra to add - before bad data reaches your LLM.",
+        style="dim",
+    )
+    lines.append(footer)
+
+    from rich.console import Group
+    console.print(Panel(
+        Group(*lines),
+        title="[bold]AksharaMD - Optional Extras[/]",
+        border_style="blue",
+        padding=(1, 2),
+    ))
+    console.print()
+
+
+# ── Live compile progress ─────────────────────────────────────────────────────
+
+class _LiveProgress:
+    """Accumulates completed steps as Rich Text lines with elapsed times.
+
+    Usage::
+        with _LiveProgress(source) as lp:
+            ctx = compiler.compile(source, on_stage=lp.update)
+    """
+
+    def __init__(self, source: str) -> None:
+        self._source = Path(source).name if not source.startswith(("http", "s3")) else source
+        self._lines: list[str] = []
+        self._current: str = ""
+        self._t_step = time.perf_counter()
+        self._t_start = time.perf_counter()
+        self._lock = threading.Lock()
+        self._live: Live | None = None
+
+    def _render(self) -> Text:
+        from rich.text import Text as RText
+        out = RText()
+        out.append("  Compiling ", style="dim")
+        out.append(self._source, style="bold cyan")
+        out.append("\n\n")
+        for line in self._lines:
+            # lines are plain strings with embedded Rich markup — parse them
+            out.append_text(Text.from_markup(line + "\n"))
+        if self._current:
+            out.append("  >>  ", style="cyan")
+            out.append(self._current, style="")
+            out.append("...\n", style="dim")
+        return out
+
+    def update(self, message: str) -> None:
+        with self._lock:
+            now = time.perf_counter()
+            elapsed = now - self._t_step
+            if self._current:
+                # store as markup string; rendered in _render()
+                self._lines.append(
+                    f"  [bold green]OK[/bold green]  {escape(self._current)}"
+                    f"  [dim]{elapsed:.1f}s[/dim]"
+                )
+            self._current = message
+            self._t_step = now
+            if self._live:
+                self._live.update(self._render())
+
+    def __enter__(self) -> "_LiveProgress":
+        self._live = Live(self._render(), console=console, refresh_per_second=8, transient=False)
+        self._live.__enter__()
+        return self
+
+    def __exit__(self, *args) -> None:
+        with self._lock:
+            # Mark final step as complete
+            if self._current:
+                elapsed = time.perf_counter() - self._t_step
+                self._lines.append(
+                    f"  [bold green]OK[/bold green]  {escape(self._current)}"
+                    f"  [dim]{elapsed:.1f}s[/dim]"
+                )
+                self._current = ""
+            if self._live:
+                self._live.update(self._render())
+        if self._live:
+            self._live.__exit__(*args)
 
 
 class _SourceArg(click.ParamType):
@@ -271,16 +407,15 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
     file_output = str(Path(output) / _output_stem(source))
     compiler = Compiler(output_dir=file_output)
 
+    if not quiet:
+        _show_first_run_onboarding()
+
     if quiet:
         ctx = compiler.compile(source)
     else:
-        with console.status(
-            f"[bold blue]AksharaMD[/] compiling [cyan]{source}[/]...",
-            spinner="dots",
-        ) as status:
-            ctx = compiler.compile(source, on_stage=lambda s: status.update(
-                f"[bold blue]AksharaMD[/]  [dim]{s}[/]"
-            ))
+        with _LiveProgress(source) as lp:
+            ctx = compiler.compile(source, on_stage=lp.update)
+        console.print()
 
     if not quiet and ctx.manifest:
         m = ctx.manifest
@@ -302,11 +437,11 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
         elif score >= 50:
             score_str = f"[bold red]{score}/100  {band}[/]"
             panel_color = "red"
-            panel_title = "[bold red]Compilation Complete — Review Warnings[/]"
+            panel_title = "[bold red]Compilation Complete - Review Warnings[/]"
         else:
             score_str = f"[bold red]{score}/100  {band}[/]"
             panel_color = "red"
-            panel_title = "[bold red]Compilation Complete — Poor Extraction[/]"
+            panel_title = "[bold red]Compilation Complete - Poor Extraction[/]"
 
         t = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
         t.add_column(style="bold")
@@ -356,7 +491,7 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
             note_lines = "\n".join(f"  {escape(n)}" for n in m.confidence_notes)
             console.print(Panel(
                 note_lines,
-                title=f"[bold]Extraction Quality  {score}/100 — {band}[/]",
+                title=f"[bold]Extraction Quality  {score}/100 - {band}[/]",
                 border_style=panel_color,
             ))
 

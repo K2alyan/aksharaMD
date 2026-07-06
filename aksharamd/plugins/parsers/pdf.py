@@ -1615,6 +1615,21 @@ class PDFParser(ParserPlugin):
                     pdf_pl.close()
             pdf.close()
 
+        # Phase 1 complete — emit a summary of what was found so the CLI can
+        # show the user what's in the document before Phase 2 starts.
+        if ctx.progress:
+            image_pages = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
+            math_pages = sum(
+                1 for r in raw_pages if len(r.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+            )
+            text_pages = page_count - image_pages
+            parts = [f"{text_pages} text page{'s' if text_pages != 1 else ''}"]
+            if image_pages:
+                parts.append(f"{image_pages} image-only")
+            if math_pages:
+                parts.append(f"{math_pages} with equations")
+            ctx.progress(f"Scanned {page_count} pages: {', '.join(parts)}")
+
         # Phase 2: Global analysis
         median = _median_font_size(raw_pages)
         removable = _detect_removable_spans(raw_pages)
@@ -1654,12 +1669,27 @@ class PDFParser(ParserPlugin):
         # Phase 5: Vision enhancement — re-extract image-only pages with Marker
         vision_pages = 0
         if _marker_available():
+            image_page_count = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
+            if image_page_count and ctx.progress:
+                ctx.progress(
+                    f"Vision model: reconstructing {image_page_count} image page"
+                    f"{'s' if image_page_count != 1 else ''} (Marker)"
+                )
             all_blocks, vision_pages = _apply_marker_to_image_pages(path, raw_pages, all_blocks)
+            if vision_pages and ctx.progress:
+                ctx.progress(f"Vision complete: {vision_pages} page{'s' if vision_pages != 1 else ''} reconstructed")
 
         # Phase 6: Math OCR — recover undecodable font spans (math symbols) via pix2tex
         math_equations = 0
         if _math_available():
+            math_page_count = sum(
+                1 for r in raw_pages if len(r.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+            )
+            if math_page_count and ctx.progress:
+                ctx.progress(f"Math OCR: extracting equations from {math_page_count} page{'s' if math_page_count != 1 else ''} (pix2tex)")
             all_blocks, math_equations = _apply_math_ocr_to_blocks(path, raw_pages, all_blocks)
+            if math_equations and ctx.progress:
+                ctx.progress(f"Math OCR complete: {math_equations} equation{'s' if math_equations != 1 else ''} extracted")
 
         pdf_metadata["pdf_classification"] = pdf_classification
         pdf_metadata["pdf_stats"] = pdf_stats

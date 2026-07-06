@@ -465,6 +465,7 @@ class Compiler:
 
         try:
             ctx = CompilationContext(source=source, output_dir=self.output_dir)
+            ctx.progress = on_stage  # parsers can call ctx.progress() for fine-grained events
 
             def timed(name: str) -> _StageTimer:
                 return _StageTimer(stage_timings, name)
@@ -507,7 +508,7 @@ class Compiler:
             # 3. Clean
             if on_stage:
                 pages = ctx.document.pages if ctx.document else 0
-                page_info = f" — {pages} pages" if pages > 0 else ""
+                page_info = f" ({pages} pages)" if pages > 0 else ""
                 on_stage(f"Cleaning blocks{page_info}")
             with timed("clean"):
                 for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
