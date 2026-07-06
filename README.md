@@ -103,27 +103,49 @@ aksharamd mcp-config --write
 
 ## Installation
 
-```bash
-# Standard install
-pip install aksharamd
+### Base install
 
-# With image OCR (requires Tesseract — see below)
+```bash
+pip install aksharamd
+```
+
+The base install is intentionally lightweight. It handles the vast majority of documents out of the box — PDFs with a real text layer, Word, PowerPoint, Excel, HTML, Markdown, plain text, EPUB, RSS, email, archives, and 100+ other formats — with no system binaries and no large model downloads.
+
+### Optional extras
+
+AksharaMD uses a modular extras system. Each extra adds support for a specific document type or input source. Install only what your use case requires, or install everything and skip the decision.
+
+**Match your document types to the right extra:**
+
+| If your documents include… | Install | What it adds | Approx. added size |
+|---|---|---|---|
+| Scanned / image-only PDFs | `[ocr]` | Page-level image OCR via Tesseract | &lt;5 MB pip + [Tesseract binary](https://github.com/tesseract-ocr/tesseract) (~75 MB OS install) |
+| Scanned PDFs with image-based tables | `[vision]` | Layout-aware table reconstruction via [Marker](https://github.com/VikParuchuri/marker) | ~3 GB model weights (downloaded on first run; requires PyTorch) |
+| Math-heavy PDFs (equations, symbols) | `[math]` | LaTeX equation extraction via [pix2tex](https://github.com/lukas-blecher/LaTeX-OCR) | ~500 MB model weight (downloaded on first run; requires PyTorch) |
+| Audio or video files | `[audio]` | Speech-to-text transcription via [Whisper](https://github.com/openai/whisper) | 75 MB–1.5 GB depending on model size (requires PyTorch + [ffmpeg](https://ffmpeg.org) on PATH) |
+| Files stored in S3 (`s3://` URIs) | `[cloud]` | Direct S3 input, no local download required | ~20 MB |
+
+> **Note on PyTorch:** `[vision]`, `[math]`, and `[audio]` all depend on PyTorch. If you install more than one, PyTorch (~2 GB) is downloaded only once — the model weights are the per-extra cost.
+
+```bash
+# Install a single extra
 pip install "aksharamd[ocr]"
 
-# With audio transcription (requires ffmpeg on PATH)
-pip install "aksharamd[audio]"
+# Install multiple extras
+pip install "aksharamd[ocr,cloud]"
+```
 
-# With S3 input support (s3://bucket/key URIs)
-pip install "aksharamd[cloud]"
+### Install everything
 
-# With vision-based table reconstruction for scanned PDFs (requires PyTorch, ~3 GB models)
-pip install "aksharamd[vision]"
+If your documents are varied — or you simply don't want to make decisions about extras — install the full bundle:
 
-# Everything
+```bash
 pip install "aksharamd[full]"
 ```
 
-To install from source:
+`[full]` includes all extras and handles every document type AksharaMD supports. It is the largest install option: PyTorch plus all model weights requires approximately 5–6 GB on first run. If disk space or install time is a concern, use individual extras instead.
+
+### Install from source
 
 ```bash
 git clone https://github.com/K2alyan/aksharaMD.git
@@ -131,16 +153,14 @@ cd aksharaMD
 pip install -e .
 ```
 
-**Optional system dependencies:**
+### Optional system tools
 
-| Feature | Requirement |
-|---------|-------------|
-| Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install "aksharamd[ocr]"` |
-| Vision table reconstruction | `pip install "aksharamd[vision]"` — PyTorch required; downloads ~3 GB of [Marker](https://github.com/VikParuchuri/marker) models on first run |
-| Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install "aksharamd[audio]"` |
-| S3 input (`s3://` URIs) | `pip install "aksharamd[cloud]"` — no system binary required |
+These add support for niche formats and require no `pip install` — just the binary on your `PATH`:
+
+| Format | Requirement |
+|--------|-------------|
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
-| Pandoc | [Pandoc](https://pandoc.org/installing.html) binary on PATH — enables AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff, and OPML |
+| AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff, OPML | [Pandoc](https://pandoc.org/installing.html) on PATH |
 
 ---
 
