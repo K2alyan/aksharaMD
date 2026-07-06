@@ -67,8 +67,11 @@ ocr = [
 vision = [
     "marker-pdf>=1.6",
 ]
+math = [
+    "pix2tex>=0.1.1",
+]
 full = [
-    "aksharamd[audio,ocr,cloud,vision]",
+    "aksharamd[audio,ocr,cloud,vision,math]",
 ]
 eval = [
     "anthropic>=0.40",

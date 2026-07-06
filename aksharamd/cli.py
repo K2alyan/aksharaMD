@@ -89,6 +89,9 @@ def _check_optional_deps() -> list[dict]:
     except ImportError:
         marker_ok = False
 
+    # Math OCR (pix2tex)
+    math_ok = _has("pix2tex")
+
     # Audio (Whisper)
     whisper_ok = _has("whisper")
     ffmpeg_ok = shutil.which("ffmpeg") is not None
@@ -143,6 +146,13 @@ def _check_optional_deps() -> list[dict]:
             "install": "https://pandoc.org/installing.html  (OS-level install, not pip)",
             "note": None,
         },
+        {
+            "name": "Math OCR (pix2tex)",
+            "ok": math_ok,
+            "what": "Recover math equations from PDFs with unembedded font maps (LaTeX output)",
+            "install": 'pip install "aksharamd[math]"',
+            "note": "Requires PyTorch, downloads ~100 MB model on first run",
+        },
     ]
 
 
@@ -185,6 +195,20 @@ def _build_upgrade_hints(m) -> list[dict]:
             "desc": "Audio transcription requires Whisper - file was not transcribed",
             "cmd": 'pip install "aksharamd[audio]"',
             "note": "Also install ffmpeg on PATH: https://ffmpeg.org",
+        })
+
+    # Math hint: show when PDF has math pages but pix2tex is absent.
+    # We detect this via pdf_math_available=False AND pdf_math_equations=0 but the
+    # document has pages where fitz extracted very little (proxy for math-heavy content).
+    if (
+        m.file_type == "pdf"
+        and importlib.util.find_spec("pix2tex") is None
+        and getattr(m, "math_available", None) is False
+    ):
+        hints.append({
+            "desc": "PDF may contain math equations in unembedded fonts that could not be extracted",
+            "cmd": 'pip install "aksharamd[math]"',
+            "note": "Recovers LaTeX equations via pix2tex; ~100 MB model download on first run",
         })
 
     return hints

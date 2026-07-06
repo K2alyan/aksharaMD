@@ -477,6 +477,7 @@ class RawPage(NamedTuple):
     ocr_pixmap: bytes | None = None       # PNG bytes when page has < _OCR_TEXT_THRESHOLD chars
     embedded_image_bytes: list[bytes] = []  # per-image bytes for image-heavy pages (OCR use)
     content_images: list[tuple[str, bytes]] = []  # (asset_id, bytes) for multimodal output
+    math_bboxes: list[tuple[float, float, float, float]] = []  # bboxes of undecodable font spans (math candidates)
 
 
 def _chunk_pages(page_count: int, workers: int = _PARALLEL_IO_WORKERS) -> list[list[int]]:
@@ -520,16 +521,18 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     page = pdf[page_num - 1]
 
     spans = []
+    math_bboxes: list[tuple[float, float, float, float]] = []
     for block in page.get_text("rawdict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]:
         if block["type"] != 0:
             continue
         for line in block.get("lines", []):
             for span in line.get("spans", []):
+                chars_list = span.get("chars", [])
                 # Exclude chars with PDF text rendering mode 3 (Tr=3: no fill, no stroke —
                 # the text is invisible on screen but present in the byte stream). Lower 4 bits
                 # of char["flags"] encode the rendering mode in PyMuPDF rawdict output.
                 visible_chars = [
-                    ch["c"] for ch in span.get("chars", [])
+                    ch["c"] for ch in chars_list
                     if (ch.get("flags", 0) & 0xF) != 3
                 ]
                 text = _CID_RE.sub("", "".join(visible_chars)).strip()
@@ -542,6 +545,11 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                         "x": span["origin"][0],
                         "bbox": span["bbox"],
                     })
+                elif chars_list and not any((ch.get("flags", 0) & 0xF) == 3 for ch in chars_list):
+                    # Span has chars, none are invisible, but all decode to empty —
+                    # undecodable font encoding (math symbols, Greek letters in CM fonts).
+                    # Record the bbox for potential math OCR in Phase 6.
+                    math_bboxes.append(tuple(span["bbox"]))
 
     # Strip LaTeX \lineno margin line-numbers before further processing so they
     # don't pollute table cells or paragraph text.
@@ -646,6 +654,7 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
         ocr_pixmap=ocr_pixmap,
         embedded_image_bytes=embedded_image_bytes,
         content_images=content_images,
+        math_bboxes=math_bboxes,
     )
 
 
@@ -1275,6 +1284,220 @@ def _apply_marker_to_image_pages(
     return combined, vision_pages
 
 
+# ── Math OCR (Phase 6) ────────────────────────────────────────────────────────
+
+_MATH_AVAILABLE: bool | None = None
+_MATH_MODEL = None
+
+_MATH_EMPTY_SPAN_THRESHOLD = 5    # minimum undecodable spans on a page to attempt OCR
+_MATH_CLUSTER_LINE_GAP = 6.0      # bboxes within this many pts vertically → same line
+_MATH_CLUSTER_HORIZ_GAP = 30.0    # bboxes within this many pts horizontally → same cluster
+_MATH_MIN_CLUSTER_WIDTH = 8.0     # ignore clusters narrower than this (single dots, dashes)
+_MATH_RASTER_SCALE = 3.0          # render scale for equation crops (≈216 DPI at 72dpi base)
+_MATH_PADDING = 6.0               # padding added around each cluster before rasterising
+_MATH_MAX_EQUATIONS = 300         # hard cap per document to bound processing time
+
+
+def _math_available() -> bool:
+    global _MATH_AVAILABLE
+    if _MATH_AVAILABLE is None:
+        try:
+            import pix2tex.cli  # noqa: F401
+            _MATH_AVAILABLE = True
+        except ImportError:
+            _MATH_AVAILABLE = False
+    return _MATH_AVAILABLE
+
+
+def _get_math_model():
+    global _MATH_MODEL
+    if _MATH_MODEL is not None:
+        return _MATH_MODEL
+    if not _math_available():
+        return None
+    try:
+        from pix2tex.cli import LatexOCR
+        logger.debug("Loading pix2tex math OCR model (first-time load, may take a moment)...")
+        _MATH_MODEL = LatexOCR()
+        return _MATH_MODEL
+    except Exception as exc:
+        logger.warning("pix2tex model failed to load: %s", exc)
+        return None
+
+
+def _cluster_math_bboxes(
+    bboxes: list[tuple[float, float, float, float]],
+) -> list[tuple[float, float, float, float]]:
+    """Merge individual char bboxes into expression-level regions.
+
+    Strategy: sort by (y_center, x0), then greedily merge bboxes that are on
+    the same line (y_center within _MATH_CLUSTER_LINE_GAP) and close
+    horizontally (gap between consecutive bboxes < _MATH_CLUSTER_HORIZ_GAP).
+    Returns merged union bboxes, one per expression cluster.
+    """
+    if not bboxes:
+        return []
+
+    sorted_bboxes = sorted(bboxes, key=lambda b: ((b[1] + b[3]) / 2, b[0]))
+
+    clusters: list[list[tuple[float, float, float, float]]] = []
+    current: list[tuple[float, float, float, float]] = [sorted_bboxes[0]]
+
+    for bbox in sorted_bboxes[1:]:
+        prev = current[-1]
+        prev_y = (prev[1] + prev[3]) / 2
+        cur_y = (bbox[1] + bbox[3]) / 2
+        same_line = abs(cur_y - prev_y) <= _MATH_CLUSTER_LINE_GAP
+        close_horiz = bbox[0] - prev[2] <= _MATH_CLUSTER_HORIZ_GAP
+
+        if same_line and close_horiz:
+            current.append(bbox)
+        else:
+            clusters.append(current)
+            current = [bbox]
+    clusters.append(current)
+
+    merged = []
+    for cluster in clusters:
+        x0 = min(b[0] for b in cluster)
+        y0 = min(b[1] for b in cluster)
+        x1 = max(b[2] for b in cluster)
+        y1 = max(b[3] for b in cluster)
+        if (x1 - x0) >= _MATH_MIN_CLUSTER_WIDTH:
+            merged.append((x0, y0, x1, y1))
+    return merged
+
+
+def _apply_math_ocr_to_blocks(
+    path: Path,
+    raw_pages: list[RawPage],
+    all_blocks: list[Block],
+) -> tuple[list[Block], int]:
+    """Phase 6: rasterise undecodable font regions and recover math via pix2tex.
+
+    Only runs on pages with >= _MATH_EMPTY_SPAN_THRESHOLD undecodable spans.
+    Returns updated block list (with MATH blocks inserted) and equation count.
+    If pix2tex is unavailable or no math is found, returns (all_blocks, 0) unchanged.
+    """
+    model = _get_math_model()
+    if model is None:
+        return all_blocks, 0
+
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        logger.debug("numpy/Pillow not available; math OCR skipped")
+        return all_blocks, 0
+
+    math_pages = [
+        raw for raw in raw_pages
+        if len(raw.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+    ]
+    if not math_pages:
+        return all_blocks, 0
+
+    pdf = fitz.open(str(path))
+    new_math_blocks: list[Block] = []
+    total_equations = 0
+
+    try:
+        for raw in math_pages:
+            if total_equations >= _MATH_MAX_EQUATIONS:
+                break
+
+            clusters = _cluster_math_bboxes(raw.math_bboxes)
+            if not clusters:
+                continue
+
+            page = pdf[raw.page_num - 1]
+            page_rect = page.rect
+
+            for x0, y0, x1, y1 in clusters:
+                if total_equations >= _MATH_MAX_EQUATIONS:
+                    break
+                # Add padding and clamp to page boundaries
+                rx0 = max(0.0, x0 - _MATH_PADDING)
+                ry0 = max(0.0, y0 - _MATH_PADDING)
+                rx1 = min(page_rect.width, x1 + _MATH_PADDING)
+                ry1 = min(page_rect.height, y1 + _MATH_PADDING)
+
+                try:
+                    clip = fitz.Rect(rx0, ry0, rx1, ry1)
+                    mat = fitz.Matrix(_MATH_RASTER_SCALE, _MATH_RASTER_SCALE)
+                    pix = page.get_pixmap(matrix=mat, clip=clip, colorspace=fitz.csRGB)
+                    arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                        pix.height, pix.width, 3
+                    )
+                    img = Image.fromarray(arr)
+                except Exception:
+                    logger.debug(
+                        "Math rasterisation failed on p%d bbox %s",
+                        raw.page_num, (x0, y0, x1, y1), exc_info=True,
+                    )
+                    continue
+
+                try:
+                    latex = model(img)
+                except Exception:
+                    logger.debug(
+                        "pix2tex failed on p%d bbox %s",
+                        raw.page_num, (x0, y0, x1, y1), exc_info=True,
+                    )
+                    continue
+
+                if not latex or not latex.strip():
+                    continue
+
+                # Wrap in display-math delimiters; centre y of cluster determines position
+                content = f"$${latex.strip()}$$"
+                new_math_blocks.append(Block(
+                    type=BlockType.MATH,
+                    content=content,
+                    page=raw.page_num,
+                    confidence=ExtractionConfidence.AMBIGUOUS,
+                    metadata={"math_bbox": (x0, y0, x1, y1), "y_center": (y0 + y1) / 2},
+                ))
+                total_equations += 1
+    finally:
+        pdf.close()
+
+    if not new_math_blocks:
+        return all_blocks, 0
+
+    # Merge math blocks with existing blocks, preserving page + y-position order.
+    # Build a sort key: (page, y_center) — existing blocks use their page and
+    # the y coordinate stored in metadata (if available) or fall back to index.
+    def _sort_key(b: Block) -> tuple[int, float]:
+        page = b.page or 0
+        y = b.metadata.get("y_center", float(b.index))
+        return (page, y)
+
+    # Annotate existing blocks with a y_center estimate from their content position.
+    # We don't have stored y coords on existing blocks, so approximate by index order
+    # within each page (preserves relative order, only used for merge tie-breaking).
+    existing_on_page: dict[int, list[Block]] = {}
+    for b in all_blocks:
+        existing_on_page.setdefault(b.page or 0, []).append(b)
+
+    # For pages that have math blocks, attach a y estimate to each existing block
+    # on that page based on its position in the page's block list.
+    math_page_nums = {b.page for b in new_math_blocks}
+    for pg in math_page_nums:
+        page_blocks = existing_on_page.get(pg, [])
+        for rank, blk in enumerate(page_blocks):
+            if "y_center" not in blk.metadata:
+                blk.metadata["y_center"] = float(rank) * 100.0
+
+    combined = sorted(all_blocks + new_math_blocks, key=_sort_key)
+
+    # Re-index
+    for i, block in enumerate(combined):
+        combined[i] = block.model_copy(update={"index": i})
+
+    return combined, total_equations
+
+
 def _pdfplumber_fallback(path: Path, ctx: CompilationContext) -> CompilationContext:
     """Fallback when PyMuPDF reports 0 pages due to corrupted xref/metadata.
 
@@ -1442,6 +1665,11 @@ class PDFParser(ParserPlugin):
         if _marker_available():
             all_blocks, vision_pages = _apply_marker_to_image_pages(path, raw_pages, all_blocks)
 
+        # Phase 6: Math OCR — recover undecodable font spans (math symbols) via pix2tex
+        math_equations = 0
+        if _math_available():
+            all_blocks, math_equations = _apply_math_ocr_to_blocks(path, raw_pages, all_blocks)
+
         pdf_metadata["pdf_classification"] = pdf_classification
         pdf_metadata["pdf_stats"] = pdf_stats
         # When Marker processed image pages, Surya served as the OCR engine —
@@ -1449,6 +1677,8 @@ class PDFParser(ParserPlugin):
         pdf_metadata["pdf_ocr_available"] = _ocr_available() or vision_pages > 0
         pdf_metadata["pdf_vision_available"] = _marker_available()
         pdf_metadata["pdf_vision_pages"] = vision_pages
+        pdf_metadata["pdf_math_available"] = _math_available()
+        pdf_metadata["pdf_math_equations"] = math_equations
 
         doc = Document(
             source=str(path),
