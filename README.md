@@ -34,16 +34,33 @@ AksharaMD produces a quality signal alongside the content:
 - **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, and five more — tell you exactly what's wrong and how to fix it
 - **Score drops automatically** when extraction is unreliable — no manual checking required
 
-### The token problem
+### One tool. Every format. No stitching.
 
-Every format also wastes tokens differently: a PDF with headers, footers, watermarks, and scanned pages; a DOCX with revision history and embedded metadata; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it. What remains is the content — structured by heading, table, and code block — at a fraction of the original token cost.
+Most teams assemble document pipelines from multiple tools: one for PDFs, another for scanned pages, another for spreadsheets, another for audio. Each has its own output format, its own failure modes, its own maintenance cost. When a new document type arrives, the pipeline breaks.
+
+AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and 35+ more — with a single consistent output format and a single quality signal. Install once, handle whatever your users throw at you.
+
+### The token and speed problem
+
+Every format wastes tokens differently: a PDF with headers, footers, and watermarks; a DOCX with revision history; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it.
 
 - **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on equivalent documents — measured across 23 format types
 - **98.5% less noise** — 3.7 avg noise lines vs 250.1 for MarkItDown
-- **27× faster than [Docling](https://github.com/DS4SD/docling)** on PDF with comparable quality
+- **Same speed as MarkItDown** on the base install — 0.24s average across all formats, no ML overhead
+- **18× faster than [Docling](https://github.com/DS4SD/docling)** on PDF — Docling averages 35s per PDF; AksharaMD averages 2s
 - **Structured output** — real headings, tables, code blocks; not flat text
-- **No ML dependencies** — fast, memory-efficient, deterministic, and fully reproducible
 - **Fully local** — no cloud API, no document upload, no data retention concerns
+
+### Speed is a choice, not a constraint
+
+The base install (`pip install aksharamd`) has **zero ML dependencies** — it runs at MarkItDown speed and handles the majority of real-world documents. For harder document types, optional extras add ML capabilities surgically:
+
+- **Scanned PDFs** without extras: the tool flags them with `OCR_REQUIRED` and a POOR score — you know immediately, before bad data reaches your vector store.
+- **Scanned PDFs** with `[ocr]` or `[vision]`: full text or layout-aware table extraction. The ML work runs only on image-only pages — your clean PDF pages are unaffected.
+- **Math-heavy PDFs** with `[math]`: LaTeX equation extraction. Runs only on pages with undecodable font spans.
+- **Audio files** with `[audio]`: Whisper transcription. No impact on non-audio documents.
+
+The tradeoff is explicit and bounded: ML extras slow down only the document types that genuinely need ML. A pipeline processing 99% clean PDFs and 1% scanned forms still runs at base speed for 99% of its work.
 
 ---
 
@@ -113,19 +130,21 @@ The base install is intentionally lightweight. It handles the vast majority of d
 
 ### Optional extras
 
-AksharaMD uses a modular extras system. Each extra adds support for a specific document type or input source. Install only what your use case requires, or install everything and skip the decision.
+AksharaMD uses a modular extras system. Each extra unlocks a document type that the base install cannot handle — or handles with degraded quality. Install only what your use case requires, or install everything at once.
 
-**Match your document types to the right extra:**
+| Document type | Extra | What it unlocks | Speed impact | Added size |
+|---|---|---|---|---|
+| Scanned / image-only PDFs | `[ocr]` | Full text extraction via Tesseract | ~1–3s per image page | &lt;5 MB pip + [Tesseract binary](https://github.com/tesseract-ocr/tesseract) (~75 MB) |
+| Scanned PDFs with image tables | `[vision]` | Layout-aware table reconstruction via [Marker](https://github.com/VikParuchuri/marker) | ~10–60s per image page (ML inference) | ~3 GB model weights (PyTorch, downloaded once) |
+| Math equations and symbols | `[math]` | LaTeX equation extraction via [pix2tex](https://github.com/lukas-blecher/LaTeX-OCR) | ~2–10s on math-heavy pages (ML inference) | ~500 MB model weights (PyTorch, downloaded once) |
+| Audio and video files | `[audio]` | Speech-to-text via [Whisper](https://github.com/openai/whisper) | Real-time to 2× real-time depending on model | 75 MB–1.5 GB (PyTorch + [ffmpeg](https://ffmpeg.org) on PATH) |
+| S3 files (`s3://` URIs) | `[cloud]` | Direct S3 input, no manual download | No impact | ~20 MB |
 
-| If your documents include… | Install | What it adds | Approx. added size |
-|---|---|---|---|
-| Scanned / image-only PDFs | `[ocr]` | Page-level image OCR via Tesseract | &lt;5 MB pip + [Tesseract binary](https://github.com/tesseract-ocr/tesseract) (~75 MB OS install) |
-| Scanned PDFs with image-based tables | `[vision]` | Layout-aware table reconstruction via [Marker](https://github.com/VikParuchuri/marker) | ~3 GB model weights (downloaded on first run; requires PyTorch) |
-| Math-heavy PDFs (equations, symbols) | `[math]` | LaTeX equation extraction via [pix2tex](https://github.com/lukas-blecher/LaTeX-OCR) | ~500 MB model weight (downloaded on first run; requires PyTorch) |
-| Audio or video files | `[audio]` | Speech-to-text transcription via [Whisper](https://github.com/openai/whisper) | 75 MB–1.5 GB depending on model size (requires PyTorch + [ffmpeg](https://ffmpeg.org) on PATH) |
-| Files stored in S3 (`s3://` URIs) | `[cloud]` | Direct S3 input, no local download required | ~20 MB |
+**The speed impact only applies when the feature is actually used.** A pipeline processing mostly clean PDFs and Office files runs at base speed — ML inference only kicks in for the pages or files that require it. Documents with no image pages or math are completely unaffected by installing `[vision]` or `[math]`.
 
-> **Note on PyTorch:** `[vision]`, `[math]`, and `[audio]` all depend on PyTorch. If you install more than one, PyTorch (~2 GB) is downloaded only once — the model weights are the per-extra cost.
+> **Note on PyTorch:** `[vision]`, `[math]`, and `[audio]` share a single PyTorch install (~2 GB). Installing more than one pays that cost once.
+
+**Without the extras, you still get useful output.** Scanned pages emit an `OCR_REQUIRED` warning and a POOR readiness score rather than silently producing garbage — you know immediately which documents need attention.
 
 ```bash
 # Install a single extra
@@ -137,13 +156,15 @@ pip install "aksharamd[ocr,cloud]"
 
 ### Install everything
 
-If your documents are varied — or you simply don't want to make decisions about extras — install the full bundle:
+If your documents are varied — contracts, research PDFs, scanned forms, spreadsheets, audio recordings — or you simply don't want to make decisions about extras upfront:
 
 ```bash
 pip install "aksharamd[full]"
 ```
 
-`[full]` includes all extras and handles every document type AksharaMD supports. It is the largest install option: PyTorch plus all model weights requires approximately 5–6 GB on first run. If disk space or install time is a concern, use individual extras instead.
+`[full]` is the single-command answer to "handle whatever arrives." It installs all extras and supports every format AksharaMD covers — native PDFs, scanned PDFs with tables, math equations, audio, cloud storage, and all Office and web formats. One install, one pipeline.
+
+The tradeoff: PyTorch plus all model weights requires approximately 5–6 GB on first run. After that, the models are cached — subsequent runs on documents that need ML are fast. If install size matters, use individual extras instead.
 
 ### Install from source
 
