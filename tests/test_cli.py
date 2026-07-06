@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from click.testing import CliRunner
 
-from aksharamd.cli import _output_stem, _SourceArg
+from aksharamd.cli import _output_stem, _SourceArg, main
 
 # ── _output_stem ──────────────────────────────────────────────────────────────
 
@@ -71,3 +72,19 @@ def test_source_arg_rejects_plain_string(source_arg):
     import click
     with pytest.raises(click.exceptions.BadParameter):
         source_arg.convert("not_a_url_or_path", None, None)
+
+
+# ── doctor command ────────────────────────────────────────────────────────────
+
+def test_doctor_exits_cleanly():
+    runner = CliRunner()
+    result = runner.invoke(main, ["doctor"])
+    assert result.exit_code == 0
+
+
+def test_doctor_output_contains_feature_names():
+    runner = CliRunner()
+    result = runner.invoke(main, ["doctor"])
+    output = result.output
+    assert "Tesseract OCR" in output or "OCR" in output
+    assert "ffmpeg" in output or "audio" in output.lower()
