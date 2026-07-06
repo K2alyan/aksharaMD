@@ -46,15 +46,10 @@ _MARKER_MODELS: dict | None = None
 
 
 def _marker_available() -> bool:
-    """Return True if marker-pdf is installed (does not load models)."""
+    """Return True if marker-pdf is installed (does not import or load models)."""
     global _MARKER_AVAILABLE
     if _MARKER_AVAILABLE is None:
-        try:
-            import marker.converters.pdf  # noqa: F401
-            import marker.models  # noqa: F401
-            _MARKER_AVAILABLE = True
-        except ImportError:
-            _MARKER_AVAILABLE = False
+        _MARKER_AVAILABLE = importlib.util.find_spec("marker") is not None
     return _MARKER_AVAILABLE
 
 
@@ -1301,11 +1296,7 @@ _MATH_MAX_EQUATIONS = 300         # hard cap per document to bound processing ti
 def _math_available() -> bool:
     global _MATH_AVAILABLE
     if _MATH_AVAILABLE is None:
-        try:
-            import pix2tex.cli  # noqa: F401
-            _MATH_AVAILABLE = True
-        except ImportError:
-            _MATH_AVAILABLE = False
+        _MATH_AVAILABLE = importlib.util.find_spec("pix2tex") is not None
     return _MATH_AVAILABLE
 
 

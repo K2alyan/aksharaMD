@@ -83,11 +83,7 @@ def _check_optional_deps() -> list[dict]:
             pass
 
     # Vision (Marker)
-    try:
-        import marker.converters.pdf  # noqa: F401
-        marker_ok = True
-    except ImportError:
-        marker_ok = False
+    marker_ok = _has("marker")
 
     # Math OCR (pix2tex)
     math_ok = _has("pix2tex")
