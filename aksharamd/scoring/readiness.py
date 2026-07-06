@@ -153,9 +153,36 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
             "Install pytesseract for full extraction: pip install aksharamd[ocr]"
         )
 
+    # OCR was available and ran on this PDF, but produced near-empty output —
+    # Tesseract couldn't read the content (rotated text, low-resolution scans,
+    # non-Latin script, complex imagery, layout-heavy pages with sparse text).
+    # Apply a bounded penalty keyed to image density so that attempting OCR
+    # never scores worse than skipping it.  Classification is intentionally
+    # unrestricted: scanned/hybrid use image_ratio for a proportional deduction;
+    # layout_heavy/native_text default to image_pages=0 → minimum deduction of 10.
+    # NEAR_EMPTY_OUTPUT and LOW_TEXT_DENSITY are suppressed below to avoid
+    # stacking penalties on top of this deduction.
+    ocr_attempted_sparse = (
+        not ocr_required_fired
+        and file_type == "pdf"
+        and bool(warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0))
+        and doc.metadata.get("pdf_ocr_available", False)
+    )
+    if ocr_attempted_sparse:
+        image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
+        total_pages = max(doc.pages, 1)
+        image_ratio = image_pages / total_pages
+        deduction = min(40, int(40 * image_ratio) + 10)
+        score -= deduction
+        notes.append(
+            f"OCR was applied to {image_pages} image page(s) but extracted very little text — "
+            "the page(s) may contain rotated content, low-resolution scans, or non-Latin script. "
+            "For better results, try a higher DPI (AKSHARAMD_OCR_DPI=300) or a vision-based tool."
+        )
+
     # Near-empty output: catastrophic — essentially nothing was extracted.
-    # Skipped when OCR_REQUIRED already explains the missing content.
-    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0) and not ocr_required_fired:
+    # Skipped when OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already explains the gap.
+    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0) and not ocr_required_fired and not ocr_attempted_sparse:
         score -= 25
         notes.append(
             "Output is nearly empty relative to page count — "
@@ -163,8 +190,8 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         )
 
     # Low text density: serious quality signal.
-    # Skipped when OCR_REQUIRED already explains why text is sparse.
-    if warnings_by_code.get("LOW_TEXT_DENSITY", 0) and not ocr_required_fired:
+    # Skipped when OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already explains why text is sparse.
+    if warnings_by_code.get("LOW_TEXT_DENSITY", 0) and not ocr_required_fired and not ocr_attempted_sparse:
         score -= 20
         notes.append(
             "Low text density detected — extracted text is sparse relative to page count. "

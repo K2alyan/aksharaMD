@@ -53,10 +53,17 @@ Requires **Python 3.11 or later**.
 
 ```bash
 pip install aksharamd
-aksharamd compile report.pdf
-aksharamd validate report.pdf
-aksharamd formats
 ```
+
+AksharaMD uses subcommands. The pattern is always `aksharamd <command> <file>`. The primary command is `compile`:
+
+```bash
+aksharamd compile report.pdf     # convert a file to AI-optimized Markdown + JSON
+aksharamd validate report.pdf    # check extraction quality without writing output
+aksharamd formats                # list all supported file types
+```
+
+> **Note:** `aksharamd report.pdf` will not work — the subcommand (e.g. `compile`) is always required.
 
 Output is written to `output/report/`:
 
@@ -76,6 +83,13 @@ pip install "aksharamd[ocr]"
 # Install Tesseract 5+ separately: https://github.com/tesseract-ocr/tesseract
 # Make sure the tesseract binary is on your PATH, then:
 aksharamd compile scanned.pdf
+```
+
+**Image-based table reconstruction** (uses [Marker](https://github.com/VikParuchuri/marker) neural layout detection — requires PyTorch, downloads ~3 GB of models on first run):
+
+```bash
+pip install "aksharamd[vision]"
+aksharamd compile scanned-with-tables.pdf
 ```
 
 **Claude Desktop (MCP):**
@@ -102,6 +116,9 @@ pip install "aksharamd[audio]"
 # With S3 input support (s3://bucket/key URIs)
 pip install "aksharamd[cloud]"
 
+# With vision-based table reconstruction for scanned PDFs (requires PyTorch, ~3 GB models)
+pip install "aksharamd[vision]"
+
 # Everything
 pip install "aksharamd[full]"
 ```
@@ -119,6 +136,7 @@ pip install -e .
 | Feature | Requirement |
 |---------|-------------|
 | Image OCR | [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) binary on PATH, then `pip install "aksharamd[ocr]"` |
+| Vision table reconstruction | `pip install "aksharamd[vision]"` — PyTorch required; downloads ~3 GB of [Marker](https://github.com/VikParuchuri/marker) models on first run |
 | Audio transcription | [ffmpeg](https://ffmpeg.org) on PATH, then `pip install "aksharamd[audio]"` |
 | S3 input (`s3://` URIs) | `pip install "aksharamd[cloud]"` — no system binary required |
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
@@ -132,6 +150,14 @@ The core pipeline is stable and production-tested across 118 file extensions, bu
 
 **OCR for scanned PDFs requires a system binary.**
 `pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a POOR score and an `OCR_REQUIRED` warning.
+
+**Tesseract OCR extracts text from image pages but cannot reconstruct image-based tables.**
+When a scanned PDF contains tables rendered as images (e.g. spreadsheet-style grids saved as PNG), Tesseract reads the cell text as a flat stream of paragraphs — column structure is lost. For layout-aware table reconstruction from image pages, install the optional Marker integration: `pip install "aksharamd[vision]"`. Marker uses neural layout detection to recover table structure. It requires PyTorch and downloads approximately 3 GB of model weights on first run. For offline / air-gapped use, pre-cache the models on a connected machine and copy them:
+```bash
+python -c "from marker.models import create_model_dict; create_model_dict()"
+# Then copy ~/.cache/huggingface/hub/ to the target machine and set:
+# export HF_HUB_OFFLINE=1
+```
 
 **Complex PPTX layouts are supported but experimental.**
 Standard slide content, bullet points, and embedded tables extract reliably. Complex animations, heavily layered slide masters, and custom layout templates may produce incomplete output.
@@ -624,7 +650,7 @@ aksharamd/
 
 These are current boundaries of the system. They are not bugs.
 
-**Scanned / image-heavy PDFs.** AksharaMD applies Tesseract OCR to image pages, but complex multi-column layouts, rotated text, or low-resolution scans will produce lower-fidelity output than vision-LLM approaches ([olmOCR](https://github.com/allenai/olmocr), [Docling](https://github.com/DS4SD/docling) with VLM mode). If your corpus is primarily scanned documents, evaluate carefully.
+**Scanned / image-heavy PDFs.** AksharaMD applies Tesseract OCR to extract text from image pages. Tesseract reads text as a flat stream — it cannot reconstruct table structure from image-based grids. For layout-aware table recovery, install the optional Marker integration (`pip install "aksharamd[vision]"`), which uses neural layout detection to rebuild table Markdown from scanned pages. Complex rotated text or very low-resolution scans may still produce lower-fidelity output; vision-LLM approaches ([olmOCR](https://github.com/allenai/olmocr), [Docling](https://github.com/DS4SD/docling) with VLM mode) are worth evaluating for corpus-level scanned document work.
 
 **Legacy Office formats (`.doc`, `.ppt`).** Parsing requires LibreOffice on the system PATH for format conversion. If LibreOffice is absent, these files are rejected with a clear error. `.docx`, `.pptx`, and `.xlsx` have no such dependency.
 

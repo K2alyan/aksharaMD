@@ -183,3 +183,49 @@ def test_near_empty_without_ocr_required_still_deducts():
     ]
     result = compute_confidence(_ctx("pdf", issues=issues))
     assert result.score < 87
+
+
+def test_ocr_attempted_sparse_never_scores_worse_than_ocr_required():
+    """When OCR ran on a scanned PDF but produced near-empty output, the score
+    must be >= what OCR_REQUIRED alone would give — attempting OCR should never
+    make things worse than not having it installed."""
+    from aksharamd.models.document import Document
+
+    doc_meta = {
+        "pdf_classification": "scanned",
+        "pdf_ocr_available": True,
+        "pdf_stats": {"image_pages": 4, "page_count": 4},
+    }
+    blocks = [Block(type=BlockType.PARAGRAPH, content="minimal", index=0)]
+
+    # Simulate: OCR ran but result is near-empty + low-density
+    doc = Document(source="x.pdf", file_type="pdf", pages=4, blocks=blocks,
+                   metadata=doc_meta)
+    issues_ocr_sparse = [
+        ValidationIssue(severity=Severity.WARNING, code="NEAR_EMPTY_OUTPUT", message="sparse"),
+        ValidationIssue(severity=Severity.WARNING, code="LOW_TEXT_DENSITY", message="low"),
+    ]
+    ctx_sparse = CompilationContext(source="x.pdf", document=doc,
+                                    validation=ValidationReport(issues=issues_ocr_sparse),
+                                    original_tokens=100)
+
+    # Baseline: same PDF but OCR not installed (OCR_REQUIRED)
+    doc_no_ocr_meta = {**doc_meta, "pdf_ocr_available": False}
+    doc_no_ocr = Document(source="x.pdf", file_type="pdf", pages=4, blocks=blocks,
+                          metadata=doc_no_ocr_meta)
+    issues_no_ocr = [
+        ValidationIssue(severity=Severity.WARNING, code="OCR_REQUIRED", message="no ocr"),
+    ]
+    ctx_no_ocr = CompilationContext(source="x.pdf", document=doc_no_ocr,
+                                    validation=ValidationReport(issues=issues_no_ocr),
+                                    original_tokens=100)
+
+    score_sparse = compute_confidence(ctx_sparse).score
+    score_no_ocr = compute_confidence(ctx_no_ocr).score
+
+    assert score_sparse >= score_no_ocr, (
+        f"OCR-attempted-sparse ({score_sparse}) scored worse than OCR_REQUIRED ({score_no_ocr}); "
+        "attempting OCR should never penalise more than skipping it"
+    )
+    # Both should be in the same RISKY band, not POOR
+    assert score_sparse >= 40, f"OCR sparse score ({score_sparse}) is unexpectedly low"

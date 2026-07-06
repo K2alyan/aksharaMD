@@ -62,6 +62,134 @@ def _setup_logging(verbose: bool) -> None:
     )
 
 
+def _check_optional_deps() -> list[dict]:
+    """Return status of every optional aksharamd dependency."""
+    import importlib.util
+    import shutil
+
+    def _has(spec: str) -> bool:
+        return importlib.util.find_spec(spec) is not None
+
+    # OCR
+    has_pytesseract = _has("pytesseract")
+    tesseract_bin = shutil.which("tesseract")
+    ocr_ok = False
+    if has_pytesseract and tesseract_bin:
+        try:
+            import pytesseract
+            pytesseract.get_tesseract_version()
+            ocr_ok = True
+        except Exception:
+            pass
+
+    # Vision (Marker)
+    try:
+        import marker.converters.pdf  # noqa: F401
+        marker_ok = True
+    except ImportError:
+        marker_ok = False
+
+    # Audio (Whisper)
+    whisper_ok = _has("whisper")
+    ffmpeg_ok = shutil.which("ffmpeg") is not None
+
+    # Cloud (S3)
+    cloud_ok = _has("boto3")
+
+    # LibreOffice / Pandoc (system binaries only)
+    lo_ok = bool(shutil.which("libreoffice") or shutil.which("soffice"))
+    pandoc_ok = bool(shutil.which("pandoc"))
+
+    return [
+        {
+            "name": "OCR (Tesseract)",
+            "ok": ocr_ok,
+            "what": "Extract text from scanned PDFs and image files",
+            "install": 'pip install "aksharamd[ocr]"',
+            "note": f"Tesseract binary: {'found' if tesseract_bin else 'NOT FOUND - install from https://github.com/tesseract-ocr/tesseract'}",
+        },
+        {
+            "name": "Vision / tables (Marker)",
+            "ok": marker_ok,
+            "what": "Reconstruct table structure from image-based PDF pages",
+            "install": 'pip install "aksharamd[vision]"',
+            "note": "Requires PyTorch, downloads ~3 GB of models on first run",
+        },
+        {
+            "name": "Audio (Whisper)",
+            "ok": whisper_ok,
+            "what": "Transcribe MP3, WAV, M4A, MP4 audio / video",
+            "install": 'pip install "aksharamd[audio]"',
+            "note": f"ffmpeg binary: {'found' if ffmpeg_ok else 'NOT FOUND - install from https://ffmpeg.org'}",
+        },
+        {
+            "name": "Cloud / S3 (boto3)",
+            "ok": cloud_ok,
+            "what": "Read documents directly from s3://bucket/key URIs",
+            "install": 'pip install "aksharamd[cloud]"',
+            "note": None,
+        },
+        {
+            "name": "LibreOffice (system)",
+            "ok": lo_ok,
+            "what": "Parse legacy .doc and .ppt Office files",
+            "install": "https://www.libreoffice.org  (OS-level install, not pip)",
+            "note": None,
+        },
+        {
+            "name": "Pandoc (system)",
+            "ok": pandoc_ok,
+            "what": "Parse AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff",
+            "install": "https://pandoc.org/installing.html  (OS-level install, not pip)",
+            "note": None,
+        },
+    ]
+
+
+_AUDIO_TYPES = frozenset({"mp3", "wav", "m4a", "ogg", "flac", "mp4", "webm", "opus", "aac"})
+
+
+def _build_upgrade_hints(m) -> list[dict]:
+    """Return hints for optional deps that would improve the result of this specific compilation.
+
+    Each hint has: desc (plain-English why), cmd (exact install command), note (optional caveat).
+    Only returns hints where the feature is missing AND would directly help with this document.
+    """
+    import importlib.util
+
+    hints = []
+    image_pages = m.image_pages or 0
+
+    if m.file_type == "pdf" and image_pages > 0:
+        # Only suggest OCR when vision is also absent — if [vision] is installed,
+        # Surya handles image pages without needing a Tesseract binary.
+        if m.ocr_available is False and m.vision_available is not True:
+            hints.append({
+                "desc": f"{image_pages} image-only page(s) were skipped - OCR is not installed",
+                "cmd": 'pip install "aksharamd[ocr]"',
+                "note": "Also install Tesseract 5+ at the OS level: https://github.com/tesseract-ocr/tesseract",
+            })
+        if m.vision_available is False:
+            if m.ocr_available is True:
+                desc = "Image pages extracted as flat text - table column structure may be lost"
+            else:
+                desc = "No binary needed: installs Surya neural OCR + table reconstruction for image pages"
+            hints.append({
+                "desc": desc,
+                "cmd": 'pip install "aksharamd[vision]"',
+                "note": "Requires PyTorch, ~3 GB model download on first run, air-gapped caching supported",
+            })
+
+    if m.file_type in _AUDIO_TYPES and importlib.util.find_spec("whisper") is None:
+        hints.append({
+            "desc": "Audio transcription requires Whisper - file was not transcribed",
+            "cmd": 'pip install "aksharamd[audio]"',
+            "note": "Also install ffmpeg on PATH: https://ffmpeg.org",
+        })
+
+    return hints
+
+
 _MODEL_SHORT = {
     "gpt-4o": "GPT-4o",
     "gpt-4o-mini": "GPT-4o-mini",
@@ -79,7 +207,32 @@ def _dollar_row(tokens_saved: int) -> str:
     return "  /  ".join(parts)
 
 
-@click.group()
+class _AksharaMDGroup(click.Group):
+    """Click Group that gives a helpful error when a file path is passed without a subcommand."""
+
+    def resolve_command(self, ctx, args):
+        try:
+            return super().resolve_command(ctx, args)
+        except click.UsageError:
+            name = args[0] if args else ""
+            looks_like_source = (
+                name.startswith(("http://", "https://"))
+                or "." in name
+                or "/" in name
+                or "\\" in name
+            )
+            if looks_like_source:
+                raise click.UsageError(
+                    f"'{name}' is not a subcommand.\n\n"
+                    f"  To compile:   aksharamd compile {name}\n"
+                    f"  To validate:  aksharamd validate {name}\n\n"
+                    f"Run 'aksharamd --help' for all available commands.",
+                    ctx=ctx,
+                )
+            raise
+
+
+@click.group(cls=_AksharaMDGroup)
 @click.version_option()
 def main():
     """AksharaMD — LLM Document Ingestion Pipeline"""
@@ -204,6 +357,23 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
                 warn_lines,
                 title="[bold yellow]Warnings[/]",
                 border_style="yellow",
+            ))
+
+        # Show upgrade hints for optional deps that would improve this specific result
+        hints = _build_upgrade_hints(m)
+        if hints:
+            hint_lines = []
+            for h in hints:
+                hint_lines.append(f"  {escape(h['desc'])}")
+                hint_lines.append(f"  [bold cyan]  {h['cmd']}[/]")
+                if h.get("note"):
+                    hint_lines.append(f"  [dim]  {h['note']}[/]")
+                hint_lines.append("")
+            hint_lines.append("  [dim]Run [bold]aksharamd doctor[/bold] to see all optional features.[/dim]")
+            console.print(Panel(
+                "\n".join(hint_lines).rstrip(),
+                title="[bold blue]Optional extras that would improve this result[/]",
+                border_style="blue",
             ))
 
         if timings and m.stage_timings:
@@ -576,6 +746,41 @@ def mcp_config(write: bool):
         console.print(
             "[dim]Or run [bold]aksharamd mcp-config --write[/bold] "
             "to apply the config automatically.[/dim]\n"
+        )
+
+
+@main.command()
+def doctor():
+    """Check which optional features are installed and show install commands for missing ones."""
+    deps = _check_optional_deps()
+
+    t = Table(box=box.ROUNDED, show_header=True, header_style="bold cyan", padding=(0, 1))
+    t.add_column("Optional Feature", min_width=22)
+    t.add_column("Status", justify="center", min_width=13)
+    t.add_column("What it enables")
+    t.add_column("Install command / URL", min_width=36)
+
+    all_ok = True
+    for dep in deps:
+        if dep["ok"]:
+            status = "[bold green] installed [/]"
+            install_cell = "[dim]-[/]"
+        else:
+            status = "[bold red]  missing  [/]"
+            install_cell = dep["install"]
+            all_ok = False
+        note = f"\n  [dim]{dep['note']}[/]" if dep.get("note") and not dep["ok"] else ""
+        t.add_row(dep["name"], status, dep["what"], install_cell + note)
+
+    border = "green" if all_ok else "blue"
+    title = "[bold green]All optional features installed[/]" if all_ok else "[bold]AksharaMD - Optional Features[/]"
+    console.print(Panel(t, title=title, border_style=border))
+
+    if not all_ok:
+        missing = [d for d in deps if not d["ok"]]
+        console.print(
+            f"[dim]{len(missing)} optional feature(s) not installed. "
+            "Install only the ones you need - none are required for core usage.[/dim]"
         )
 
 

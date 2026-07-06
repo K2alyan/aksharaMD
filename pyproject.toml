@@ -64,8 +64,11 @@ cloud = [
 ocr = [
     "pytesseract>=0.3",
 ]
+vision = [
+    "marker-pdf>=1.6",
+]
 full = [
-    "aksharamd[audio,ocr,cloud]",
+    "aksharamd[audio,ocr,cloud,vision]",
 ]
 eval = [
     "anthropic>=0.40",

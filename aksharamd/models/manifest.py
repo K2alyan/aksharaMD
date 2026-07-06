@@ -41,6 +41,8 @@ class Manifest(BaseModel):
     pdf_classification: str = ""    # native_text | scanned | hybrid | table_heavy | layout_heavy | low_confidence
     ocr_available: bool | None = None
     image_pages: int = 0            # number of image-only pages (PDF only)
+    vision_available: bool | None = None   # whether marker-pdf is installed
+    vision_pages: int = 0                  # pages re-extracted with Marker vision
     confidence_notes: list[str] = Field(default_factory=list)
     elapsed_seconds: float = 0.0
     stage_timings: dict[str, float] = Field(default_factory=dict)

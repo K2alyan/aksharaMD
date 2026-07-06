@@ -563,6 +563,8 @@ class Compiler:
             pdf_classification = pdf_meta.get("pdf_classification", "")
             ocr_available = pdf_meta.get("pdf_ocr_available")
             image_pages = pdf_meta.get("pdf_stats", {}).get("image_pages", 0) if pdf_meta else 0
+            vision_available = pdf_meta.get("pdf_vision_available")
+            vision_pages = pdf_meta.get("pdf_vision_pages", 0)
 
             ctx.manifest = Manifest(
                 source=source,
@@ -585,6 +587,8 @@ class Compiler:
                 pdf_classification=pdf_classification,
                 ocr_available=ocr_available,
                 image_pages=image_pages,
+                vision_available=vision_available,
+                vision_pages=vision_pages,
                 warnings=[i.message for i in ctx.validation.warnings],
                 warning_codes=[i.code for i in ctx.validation.warnings],
                 errors=[i.message for i in ctx.validation.errors],
