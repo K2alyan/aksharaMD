@@ -71,7 +71,8 @@ def _show_first_run_onboarding() -> None:
     )
     body.append("For harder document types, install only what you need:\n\n")
 
-    lines = [body, t, Text()]
+    from rich.console import ConsoleRenderable
+    lines: list[ConsoleRenderable] = [body, t, Text()]
 
     footer = Text()
     footer.append("Install an extra:  ", style="bold")

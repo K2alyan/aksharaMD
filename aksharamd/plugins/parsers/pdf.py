@@ -1473,7 +1473,7 @@ def _apply_math_ocr_to_blocks(
 
     # For pages that have math blocks, attach a y estimate to each existing block
     # on that page based on its position in the page's block list.
-    math_page_nums = {b.page for b in new_math_blocks}
+    math_page_nums = {b.page for b in new_math_blocks if b.page is not None}
     for pg in math_page_nums:
         page_blocks = existing_on_page.get(pg, [])
         for rank, blk in enumerate(page_blocks):
