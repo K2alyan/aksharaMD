@@ -46,9 +46,13 @@ AksharaMD is the only tool to achieve the highest accuracy, lowest token count, 
 
 ## Reproducing these results
 
+**Corpus availability:** Raw document files are not in this repository (size and licensing). `benchmarks/eval_corpus_qa.yaml` contains a 100-document validation subset with local absolute paths — update those paths to point to your own copies before running. PDF (arXiv), HTML (Wikipedia), EPUB/TXT (Project Gutenberg) documents are re-downloadable from their public sources; see [`benchmarks/corpus_manifest.json`](../corpus_manifest.json) for per-format details. DOCX, PPTX, XLSX, EML, CSV, JSON, IPYNB, and XML files are synthetic and cannot be downloaded. Running against the 100-document subset will reproduce validation-subset scores, not the 996-document results reported above.
+
 ```bash
 # Install eval dependencies
 pip install -e ".[eval]"
+
+# Update local paths in the YAML first (see benchmarks/corpus_manifest.json)
 
 # Token counts only (no API keys needed)
 python -m benchmarks.llm_qa_eval \

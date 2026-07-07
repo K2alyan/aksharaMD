@@ -2,107 +2,138 @@
   "description": "AksharaMD downstream LLM accuracy benchmark corpus — v0.3.3",
   "conducted": "2026-07",
   "aksharamd_version": "0.3.3",
-  "total_documents": 996,
-  "formats": 12,
-  "documents_per_format": 83,
-  "qa_pairs_per_document": 4,
-  "total_qa_pairs": 3984,
-  "total_graded_answers": 19920,
-  "tokenizer": "cl100k_base (tiktoken)",
-  "context_window_chars": 6000,
-  "tools_compared": [
-    "aksharamd",
-    "markitdown",
-    "llamaparse",
-    "pymupdf4llm",
-    "docling"
-  ],
-  "judges": [
-    {
-      "model": "claude-haiku-4-5",
-      "role": "primary",
-      "documents": 996,
-      "note": "All 5 tools, all 12 formats"
-    },
-    {
-      "model": "gemini-2.5-flash",
-      "role": "validation",
-      "documents": 144,
-      "note": "AksharaMD vs MarkItDown, 12 documents per format"
-    },
-    {
-      "model": "gpt-4o-mini",
-      "role": "validation",
-      "documents": 100,
-      "note": "AksharaMD vs MarkItDown, ~8 documents per format"
-    }
-  ],
+
+  "reproducibility_notice": "Raw document files are NOT committed to this repository (size and third-party licensing). The Q&A pairs (eval_corpus_qa.yaml) and all result tables (benchmarks/results/README.md and benchmarks/LLM_QA_BENCHMARK.md) are committed. See the 'corpus' section below for per-format source and public availability.",
+
+  "full_benchmark": {
+    "note": "Numbers reported in benchmarks/results/README.md and benchmarks/LLM_QA_BENCHMARK.md",
+    "total_documents": 996,
+    "formats": 12,
+    "documents_per_format": 83,
+    "qa_pairs_per_document": 4,
+    "total_qa_pairs": 3984,
+    "total_graded_answers": 19920,
+    "corpus_location": "Local only — not committed. Assembled from the public sources listed below plus synthetic files generated for this benchmark.",
+    "tools_compared": [
+      "aksharamd",
+      "markitdown",
+      "llamaparse",
+      "pymupdf4llm",
+      "docling"
+    ],
+    "judges": [
+      {
+        "model": "claude-haiku-4-5",
+        "role": "primary",
+        "documents": 996,
+        "note": "All 5 tools, all 12 formats"
+      },
+      {
+        "model": "gemini-2.5-flash",
+        "role": "validation",
+        "documents": 144,
+        "note": "AksharaMD vs MarkItDown, 12 documents per format"
+      },
+      {
+        "model": "gpt-4o-mini",
+        "role": "validation",
+        "documents": 100,
+        "note": "AksharaMD vs MarkItDown, ~8 documents per format"
+      }
+    ]
+  },
+
+  "validation_subset": {
+    "note": "The 100-document subset committed to this repo as benchmarks/eval_corpus_qa.yaml",
+    "total_documents": 100,
+    "file": "benchmarks/eval_corpus_qa.yaml",
+    "path_format": "Absolute local paths (e.g. C:\\Users\\...\\benchmark_corpus_v5\\...). Update paths to match your local corpus location before running.",
+    "what_is_committed": "Q&A pairs only — questions and expected answers. Raw document files are not included.",
+    "what_you_can_run": "Token-count benchmark (--no-llm) requires only the Q&A YAML and the documents themselves. Full accuracy benchmark requires documents plus an ANTHROPIC_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY."
+  },
+
   "corpus": {
     "pdf": {
       "count": 83,
       "sources": ["arXiv preprints"],
       "size_range_kb": "575–3900",
-      "selection": "Spanning simple single-column, multi-column layout, table-heavy, and math-heavy papers"
+      "selection": "Spanning simple single-column, multi-column layout, table-heavy, and math-heavy papers",
+      "public_availability": "PUBLICLY RE-DOWNLOADABLE. Filenames follow the arXiv paper-ID pattern (e.g. 2606.28277v1.pdf). Download from https://arxiv.org/pdf/<paper-id>."
     },
     "docx": {
       "count": 83,
       "sources": ["Business reports", "market research documents", "software requirements specs"],
-      "selection": "Spanning short single-section through multi-chapter documents with embedded tables"
+      "selection": "Spanning short single-section through multi-chapter documents with embedded tables",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "pptx": {
       "count": 83,
       "sources": ["Investor decks", "partnership proposals", "technical slide decks"],
-      "selection": "Spanning minimal-text through data-heavy slide decks"
+      "selection": "Spanning minimal-text through data-heavy slide decks",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "xlsx": {
       "count": 83,
       "sources": ["Budget templates", "employee data exports", "inventory sheets"],
-      "selection": "Spanning single-sheet through multi-sheet workbooks with varying cell density"
+      "selection": "Spanning single-sheet through multi-sheet workbooks with varying cell density",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "html": {
       "count": 83,
       "sources": ["Wikipedia articles"],
       "size_range_kb": "533–1300",
-      "selection": "Long-form encyclopedia articles with heavy navigation markup to stress boilerplate removal"
+      "selection": "Long-form encyclopedia articles with heavy navigation markup to stress boilerplate removal",
+      "public_availability": "PUBLICLY RE-DOWNLOADABLE. Filenames follow the article slug pattern (e.g. black_hole.html). Download from https://en.wikipedia.org/wiki/<article-name>."
     },
     "epub": {
       "count": 83,
       "sources": ["Project Gutenberg"],
       "size_range_kb": "207–546",
-      "selection": "Public domain books spanning fiction, non-fiction, and technical works"
+      "selection": "Public domain books spanning fiction, non-fiction, and technical works",
+      "public_availability": "PUBLICLY RE-DOWNLOADABLE. Filenames follow the Gutenberg book-number pattern (e.g. gutenberg_11.epub). Download from https://www.gutenberg.org/ebooks/<book-id>."
     },
     "txt": {
       "count": 83,
       "sources": ["Project Gutenberg"],
       "size_range_kb": "232–1200",
-      "selection": "Plain-text versions of public domain books; same titles as EPUB set where available"
+      "selection": "Plain-text versions of public domain books; same titles as EPUB set where available",
+      "public_availability": "PUBLICLY RE-DOWNLOADABLE. Filenames follow the Gutenberg book-number pattern (e.g. gutenberg_11.txt). Download from https://www.gutenberg.org/ebooks/<book-id>."
     },
     "eml": {
       "count": 83,
       "sources": ["Synthetic email messages"],
-      "selection": "Spanning plain-text, HTML-body, and multi-part messages with attachments"
+      "selection": "Spanning plain-text, HTML-body, and multi-part messages with attachments",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "ipynb": {
       "count": 83,
       "sources": ["Public statistics and data-analysis notebooks"],
-      "selection": "Notebooks with varying ratios of code cells to markdown cells"
+      "selection": "Notebooks with varying ratios of code cells to markdown cells",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Modelled on public notebook patterns but the specific files used were generated for this benchmark."
     },
     "csv": {
       "count": 83,
       "sources": ["Event logs", "transaction records", "web server logs"],
-      "selection": "Files with row counts from dozens to thousands; varying column complexity"
+      "selection": "Files with row counts from dozens to thousands; varying column complexity",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "json": {
       "count": 83,
       "sources": ["Configuration files", "API response samples", "nested report objects"],
-      "selection": "Flat through deeply nested structures; varying key and value verbosity"
+      "selection": "Flat through deeply nested structures; varying key and value verbosity",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     },
     "xml": {
       "count": 83,
       "sources": ["Structured data exports", "feed documents"],
-      "selection": "Small, medium, and large files; varying attribute and element density"
+      "selection": "Small, medium, and large files; varying attribute and element density",
+      "public_availability": "SYNTHETIC — not publicly reproducible. Generated for this benchmark; cannot be downloaded from a public source."
     }
   },
+
+  "tokenizer": "cl100k_base (tiktoken)",
+  "context_window_chars": 6000,
+
   "qa_generation": {
     "method": "LLM-generated using Claude Haiku 4.5",
     "questions_per_document": 4,
@@ -110,18 +141,25 @@
     "answer_type": "Short phrase (typically under 10 words)",
     "prompts": "See benchmarks/scoring_prompt.md"
   },
+
   "evaluation_protocol": {
     "context": "First 6000 characters of each tool's output (~4000 tokens)",
     "answer_prompt": "See benchmarks/scoring_prompt.md — answer prompt",
     "judge_prompt": "See benchmarks/scoring_prompt.md — judge prompt",
     "scoring": "0–10 per answer; 10 = fully correct, 0 = wrong or irrelevant"
   },
-  "corpus_file": "benchmarks/eval_corpus_qa.yaml",
-  "results_file": "benchmarks/results/README.md",
-  "methodology": "benchmarks/LLM_QA_BENCHMARK.md",
+
   "reproduce": {
     "install": "pip install -e \".[eval]\"",
+    "update_paths": "Edit benchmarks/eval_corpus_qa.yaml — replace the 'path:' values with paths to your local copies of the documents",
     "token_only": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown llamaparse pymupdf4llm docling --no-llm",
-    "full": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown llamaparse pymupdf4llm docling --llms claude"
-  }
+    "full_claude": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown llamaparse pymupdf4llm docling --llms claude",
+    "full_gemini": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown --llms gemini",
+    "full_openai": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown --llms openai",
+    "note": "Running against the committed 100-document subset will reproduce the validation-subset scores, not the full 996-document benchmark scores reported in the results tables. To reproduce the full benchmark, assemble the complete corpus (see 'corpus' section above for sources) and regenerate eval_corpus_qa.yaml."
+  },
+
+  "results_file": "benchmarks/results/README.md",
+  "methodology": "benchmarks/LLM_QA_BENCHMARK.md",
+  "corpus_file": "benchmarks/eval_corpus_qa.yaml"
 }
