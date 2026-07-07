@@ -25,6 +25,10 @@ class CompilationContext:
     headers_removed: int = 0
     footers_removed: int = 0
 
+    # When True: no URL/S3 fetching, no subprocess calls (LibreOffice/Pandoc),
+    # no ML inference (Whisper/OCR/Marker/pix2tex), archive listing only.
+    safe_mode: bool = False
+
     # optional progress callback — set by Compiler when on_stage is provided;
     # parsers call ctx.progress("message") to surface fine-grained events
     progress: Callable[[str], None] | None = field(default=None, repr=False, compare=False)

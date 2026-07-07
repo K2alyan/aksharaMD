@@ -29,6 +29,33 @@ class _ArchiveTooLargeError(RuntimeError):
     pass
 
 
+def _sanitize_member_name(name: str) -> str:
+    """Return a display-safe version of an archive member name (TAR, 7z, ZIP).
+
+    Member names in untrusted archives can contain path traversal sequences
+    (../../etc/passwd), absolute paths (/etc/passwd), or Windows drive letters
+    (C:\\Windows\\...).  We never write these paths to disk, but they appear
+    verbatim in the listing table and content headings in the output Markdown.
+    Sanitize them so the rendered output cannot mislead downstream consumers.
+
+    Rules applied (in order):
+      1. Normalize backslashes to forward slashes.
+      2. Strip Windows drive-letter prefix (e.g. "C:/foo" → "foo").
+      3. Strip leading slashes (absolute paths).
+      4. Replace every ".." component with "__".
+      5. Collapse empty components from double slashes.
+    """
+    name = name.replace("\\", "/")
+    # Strip "C:/" style Windows prefix
+    if len(name) >= 3 and name[1] == ":" and name[2] == "/":
+        name = name[3:]
+    name = name.lstrip("/")
+    parts = name.split("/")
+    parts = ["__" if part == ".." else part for part in parts]
+    parts = [p for p in parts if p]
+    return "/".join(parts) if parts else "(unnamed)"
+
+
 def _is_text(name: str) -> bool:
     return Path(name).suffix.lower() in _TEXT_EXTENSIONS
 
@@ -64,8 +91,9 @@ def _read_tar(path: Path, mode: str) -> tuple[list[Block], dict]:
 
     listing_rows = [["Name", "Size", "Type"]]
     for m in members[:_MAX_LIST_ENTRIES]:
-        ext = Path(m.name).suffix or "(none)"
-        listing_rows.append([m.name, f"{m.size:,}", ext])
+        safe_name = _sanitize_member_name(m.name)
+        ext = Path(safe_name).suffix or "(none)"
+        listing_rows.append([safe_name, f"{m.size:,}", ext])
     md_table = "\n".join(
         "| " + " | ".join(row) + " |" +
         (" \n| --- | --- | --- |" if i == 0 else "")
@@ -104,7 +132,8 @@ def _read_tar(path: Path, mode: str) -> tuple[list[Block], dict]:
             continue
         if not text:
             continue
-        blocks.append(Block(type=BlockType.HEADING, content=member.name, level=3, index=idx))
+        blocks.append(Block(type=BlockType.HEADING,
+                            content=_sanitize_member_name(member.name), level=3, index=idx))
         idx += 1
         blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, language=_lang(member.name), index=idx))
         idx += 1
@@ -129,8 +158,9 @@ def _read_7z(path: Path) -> tuple[list[Block], dict]:
 
         listing_rows = [["Name", "Size", "Type"]]
         for fi in all_files[:_MAX_LIST_ENTRIES]:
-            ext = Path(fi.filename).suffix or "(none)"
-            listing_rows.append([fi.filename, f"{fi.uncompressed:,}", ext])
+            safe_name = _sanitize_member_name(fi.filename)
+            ext = Path(safe_name).suffix or "(none)"
+            listing_rows.append([safe_name, f"{fi.uncompressed:,}", ext])
         md_table = "\n".join(
             "| " + " | ".join(row) + " |" +
             (" \n| --- | --- | --- |" if i == 0 else "")
@@ -152,19 +182,26 @@ def _read_7z(path: Path) -> tuple[list[Block], dict]:
             import tempfile
             targets = text_names[:_MAX_FILES_SHOWN]
             with tempfile.TemporaryDirectory() as tmpdir:
+                tmpdir_resolved = Path(tmpdir).resolve()
                 sz.extract(path=tmpdir, targets=targets)
                 for name in targets:
-                    file_path = Path(tmpdir) / name
+                    file_path = (Path(tmpdir) / name).resolve()
+                    # Block path traversal: entry name must not escape the temp dir.
+                    if not file_path.is_relative_to(tmpdir_resolved):
+                        logger.warning("7z path traversal attempt blocked: %r", name)
+                        continue
                     if not file_path.exists():
                         continue
                     try:
                         raw = file_path.read_bytes()[:_MAX_FILE_BYTES]
                         text = raw.decode("utf-8", errors="replace").strip()
-                    except Exception:
+                    except OSError:
+                        logger.debug("Could not read %r from 7z archive", name, exc_info=True)
                         continue
                     if not text:
                         continue
-                    blocks.append(Block(type=BlockType.HEADING, content=name, level=3, index=idx))
+                    blocks.append(Block(type=BlockType.HEADING,
+                                        content=_sanitize_member_name(name), level=3, index=idx))
                     idx += 1
                     blocks.append(Block(type=BlockType.CODE_BLOCK, content=text, language=_lang(name), index=idx))
                     idx += 1

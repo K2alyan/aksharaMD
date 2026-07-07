@@ -380,10 +380,18 @@ class PandocParser(ParserPlugin):
     priority = 50
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
-        available, version = _detect_pandoc()
-
         source_path = Path(ctx.source)
         ext = source_path.suffix.lower().lstrip(".")
+
+        if ctx.safe_mode:
+            ctx.error(
+                "SAFE_MODE_BLOCKED",
+                f"Subprocess conversion of {source_path.name} is disabled in safe mode "
+                "(Pandoc). Disable --safe-mode to parse niche markup formats.",
+            )
+            return ctx
+
+        available, version = _detect_pandoc()
 
         if not available:
             ctx.error(

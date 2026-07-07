@@ -1,9 +1,8 @@
 # AksharaMD — Downstream LLM Accuracy Benchmark
 
 > Primary benchmark results were collected on **AksharaMD v0.3.3**. The current
-> package version is v0.3.4 (bug-fix and documentation release; no parser changes
-> that affect these results). Methodology and reproducibility limitations are
-> described in detail below.
+> package version is v0.3.5 (no parser changes that affect these results).
+> Methodology and reproducibility limitations are described in detail below.
 >
 > **Study 1** (token efficiency and speed) was measured on an internal production
 > corpus and is not fully reproducible from committed files alone — see the

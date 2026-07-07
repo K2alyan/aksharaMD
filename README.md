@@ -674,7 +674,7 @@ Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7
 
 ### Study 2 — Downstream LLM accuracy
 
-> Benchmark run on AksharaMD v0.3.3. Current package is v0.3.4 (no parser changes affecting these results). See [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for full methodology, reproducibility limitations, and what can be run from committed files.
+> Benchmark run on AksharaMD v0.3.3. Current package is v0.3.5 (no parser changes affecting these results). See [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for full methodology, reproducibility limitations, and what can be run from committed files.
 
 **Corpus:** ~1,000 documents across 12 formats (83 per format) — a separate, independent dataset from Study 1.
 

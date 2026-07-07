@@ -8,6 +8,7 @@ import pytest
 
 from aksharamd.compiler import Compiler
 from aksharamd.models.block import BlockType
+from aksharamd.plugins.parsers.archive_tar import _sanitize_member_name
 
 
 def _make_tar_gz(tmp_path: Path, files: dict[str, str]) -> Path:
@@ -142,3 +143,102 @@ def test_sevenz_metadata_present(tmp_path):
     ctx = _compile(archive_path, tmp_path)
     meta = [b for b in ctx.document.blocks if b.type == BlockType.METADATA]
     assert len(meta) >= 1
+
+
+# ── _sanitize_member_name unit tests ──────────────────────────────────────────
+
+def test_sanitize_normal_path_unchanged():
+    assert _sanitize_member_name("subdir/file.txt") == "subdir/file.txt"
+
+
+def test_sanitize_dotdot_replaced():
+    assert _sanitize_member_name("../../etc/passwd") == "__/__/etc/passwd"
+
+
+def test_sanitize_single_dotdot():
+    assert _sanitize_member_name("../secret.txt") == "__/secret.txt"
+
+
+def test_sanitize_absolute_unix_path_stripped():
+    assert _sanitize_member_name("/etc/passwd") == "etc/passwd"
+
+
+def test_sanitize_absolute_windows_path_stripped():
+    assert _sanitize_member_name("C:/Windows/System32/cmd.exe") == "Windows/System32/cmd.exe"
+
+
+def test_sanitize_windows_backslash_normalized():
+    assert _sanitize_member_name("C:\\Users\\attacker\\evil.txt") == "Users/attacker/evil.txt"
+
+
+def test_sanitize_mixed_traversal():
+    assert _sanitize_member_name("docs/../../../etc/shadow") == "docs/__/__/__/etc/shadow"
+
+
+def test_sanitize_nested_normal_path():
+    assert _sanitize_member_name("a/b/c/file.py") == "a/b/c/file.py"
+
+
+def test_sanitize_empty_string():
+    assert _sanitize_member_name("") == "(unnamed)"
+
+
+def test_sanitize_root_only():
+    assert _sanitize_member_name("/") == "(unnamed)"
+
+
+def test_sanitize_double_slash_collapsed():
+    result = _sanitize_member_name("a//b")
+    assert "//" not in result
+    assert "a" in result and "b" in result
+
+
+# ── TAR listing does not expose traversal names ────────────────────────────────
+
+def test_tar_listing_sanitizes_dotdot_names(tmp_path):
+    """Member names with ../ must appear sanitized in the listing table."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:") as tf:
+        # Add an entry with a path-traversal name
+        data = b"evil content"
+        info = tarfile.TarInfo(name="../../evil.txt")
+        info.size = len(data)
+        tf.addfile(info, io.BytesIO(data))
+        # Add a normal entry too
+        normal = b"normal content"
+        n_info = tarfile.TarInfo(name="normal.txt")
+        n_info.size = len(normal)
+        tf.addfile(n_info, io.BytesIO(normal))
+
+    archive = tmp_path / "traversal.tar"
+    archive.write_bytes(buf.getvalue())
+
+    ctx = _compile(archive, tmp_path)
+    assert ctx.document is not None
+
+    all_content = " ".join(b.content for b in ctx.document.blocks)
+    # The raw traversal name must NOT appear; the sanitized form must
+    assert "../../evil.txt" not in all_content
+    assert "__/__/evil.txt" in all_content
+    assert "normal.txt" in all_content
+
+
+def test_tar_listing_sanitizes_absolute_paths(tmp_path):
+    """/absolute/path entries must be stripped of leading slash in the listing."""
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:") as tf:
+        data = b"absolute content"
+        info = tarfile.TarInfo(name="/etc/shadow")
+        info.size = len(data)
+        tf.addfile(info, io.BytesIO(data))
+
+    archive = tmp_path / "absolute.tar"
+    archive.write_bytes(buf.getvalue())
+
+    ctx = _compile(archive, tmp_path)
+    assert ctx.document is not None
+
+    all_content = " ".join(b.content for b in ctx.document.blocks)
+    # Raw absolute path must not appear in output
+    assert "/etc/shadow" not in all_content
+    assert "etc/shadow" in all_content

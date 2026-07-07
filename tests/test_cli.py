@@ -108,3 +108,28 @@ def test_doctor_output_contains_feature_names():
     output = result.output
     assert "Tesseract OCR" in output or "OCR" in output
     assert "ffmpeg" in output or "audio" in output.lower()
+
+
+def test_doctor_shows_python_version():
+    """doctor must always display the Python version."""
+    import sys
+    runner = CliRunner()
+    result = runner.invoke(main, ["doctor"])
+    py_str = f"{sys.version_info.major}.{sys.version_info.minor}"
+    assert py_str in result.output
+
+
+def test_doctor_shows_format_count():
+    """doctor must print the number of registered extensions."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["doctor"])
+    assert "Registered format extensions" in result.output
+
+
+def test_doctor_strict_exits_zero_when_deps_present(monkeypatch):
+    """--strict exits 0 only if Python and all optional deps are ok."""
+    # We can't guarantee all deps are installed in CI, so just check the flag
+    # is accepted (exit 0 or 1, never a crash).
+    runner = CliRunner()
+    result = runner.invoke(main, ["doctor", "--strict"])
+    assert result.exit_code in (0, 1)

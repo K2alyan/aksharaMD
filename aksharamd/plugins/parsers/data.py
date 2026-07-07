@@ -178,6 +178,7 @@ _XML_SKIP_TAGS = {
 }
 _XML_MAX_BLOCKS = 250
 _XML_MAX_RAW_CHARS = 8_000
+_XML_MAX_DEPTH = 50   # prevents RecursionError on pathologically nested XML
 
 
 def _local(tag: str) -> str:
@@ -203,7 +204,7 @@ def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
 
     def _walk(el: ET.Element, depth: int) -> None:
         nonlocal idx, title
-        if idx >= _XML_MAX_BLOCKS:
+        if idx >= _XML_MAX_BLOCKS or depth > _XML_MAX_DEPTH:
             return
 
         local = _local(el.tag)
