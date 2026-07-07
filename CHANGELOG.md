@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-07-07
+
+AksharaMD v0.3.3 adds math OCR for PDF equations, a first-run onboarding panel, a `doctor` command, and an XML parser overhaul validated by three LLM judges.
+
+### Added
+
+- **Math OCR (`[math]` extra)**: LaTeX equations in image-based PDFs are now extracted via `pix2tex`. Install with `pip install "aksharamd[math]"`.
+- **`aksharamd doctor`**: diagnoses the local install — checks for optional extras (Tesseract, marker, pix2tex, Whisper, LibreOffice, Pandoc) and reports their status with install hints.
+- **First-run onboarding panel**: on the first `aksharamd compile` invocation, a table of optional extras is shown so users know what's available before hitting a `MISSING_EXTRA` warning.
+- **Live compile progress view**: multi-file compilations now show a real-time progress bar with per-file status.
+- **XML attribute extraction**: leaf elements with only attributes (e.g. `<metric value="25" unit="pct"/>`) are now emitted as paragraph blocks instead of being silently dropped.
+
+### Improved
+
+- **XML parser overhaul**: tag-name prefix on leaf values prevents the page-number cleaner from stripping short numeric strings (ports, counts, dates). Container elements emit heading blocks for reverse-lookup context. Short-value threshold lowered to capture all non-empty text.
+- **LLM QA benchmark**: validated with three judges — Claude Haiku 4.5 (9.3), Gemini 2.5 Flash (9.2), GPT-4o mini (9.3) — vs MarkItDown 8.7/8.6/8.7.
+
+### Fixed
+
+- XML structural containers (`<section>`, `<chapter>`) no longer emit spurious headings.
+- `math_page_nums` set comprehension now guards against `None` page numbers.
+
 ## [0.3.2] — 2026-07-05
 
 AksharaMD v0.3.2 is a parser-polish and input-support patch.
