@@ -26,6 +26,8 @@ AksharaMD v0.3.5 is a production-credibility and ingestion-control release: tigh
 - **README benchmark claims**: hedged with corpus scope ("On our internal benchmark corpus..."), version references, and links to benchmark docs for methodology and reproducibility limitations. Results noted as corpus-composition-dependent.
 - **`Compiler.stream()` docstring**: removed wording that implied streamed blocks are automatically safe for direct vector-store ingestion. Callers are now directed to apply readiness checks, chunking policy, and retrieval evaluation before embedding.
 - **CLI docs**: `compile` command reference table documents `--min-readiness-score` and `--json` with JSON field reference.
+- **Documentation restructure**: `BETA.md` replaced by `CONTRIBUTING.md` (installation check, format testing, bug report template, code contribution checklist). `DECISIONS.md` replaced by `ADR.md` (15 Architecture Decision Records covering all major design choices). Both linked from README.
+- **CI action updates**: bumped `actions/setup-python` 5.6.0→6.3.0, `actions/checkout` 4.3.1→7.0.0, `actions/download-artifact` 4.3.0→8.0.1, `softprops/action-gh-release` 2.6.2→3.0.1, `codecov/codecov-action` 4.6.0→7.0.0.
 
 ## [0.3.4] — 2026-07-06
 
