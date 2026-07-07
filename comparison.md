@@ -19,8 +19,8 @@ benchmarking.
 | **Extraction quality signal** | None | None | AI Readiness Score 0–100, named warnings |
 | **Layout fidelity** | Basic | High (tables, figures, reading order) | Semantic content; not a visual replica |
 | **Format breadth** | Broad | PDF and Office formats | 40+ document categories, 118 extensions |
-| **Base install speed** | Fast (no ML) | Slow (ML per page) | Fast (no ML in base install) |
-| **Optional ML extras** | No | Yes (always on) | Yes (surgical: OCR, vision, math, audio) |
+| **Typical lightweight path** | Fast for simple conversions | Heavier pipeline for layout-aware extraction | Fast base path; optional heavier extras |
+| **ML / advanced extraction** | Minimal by default | Core part of layout-aware workflows | Optional extras for OCR, vision, math, audio |
 | **Output format** | Markdown | DoclingDocument (Markdown, JSON, HTML) | Markdown + schema-versioned JSON + chunks |
 | **Ingestion gating** | No | No | Yes (`--min-readiness-score`) |
 | **Visual inspection** | No | Docling Studio | No |
@@ -65,7 +65,7 @@ Docling Studio provides a visual workbench for inspecting and validating extract
 - Active research and enterprise backing
 
 **Limitations**
-- ML runs on every page by default — throughput is significantly lower than lexical tools
+- Layout-aware extraction is generally heavier than lightweight lexical conversion, so throughput can be lower depending on configuration and document type.
 - Primarily focused on PDFs and Office formats; not designed for audio, archives, or code
 - No built-in ingestion quality gate: extraction quality must be evaluated externally
 
