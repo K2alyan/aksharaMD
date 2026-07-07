@@ -4,8 +4,8 @@ import logging
 import os
 import re
 import sys
-import time
 import threading
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -146,7 +146,7 @@ class _LiveProgress:
             if self._live:
                 self._live.update(self._render())
 
-    def __enter__(self) -> "_LiveProgress":
+    def __enter__(self) -> _LiveProgress:
         self._live = Live(self._render(), console=console, refresh_per_second=8, transient=False)
         self._live.__enter__()
         return self

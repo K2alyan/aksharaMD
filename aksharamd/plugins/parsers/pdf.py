@@ -1214,7 +1214,7 @@ def _parse_marker_markdown(markdown: str, page_num: int) -> list[Block]:
 
 def _apply_marker_to_image_pages(
     path: Path,
-    raw_pages: list["RawPage"],
+    raw_pages: list[RawPage],
     all_blocks: list[Block],
 ) -> tuple[list[Block], int]:
     """Re-extract image-only pages using Marker for layout-aware table reconstruction.
