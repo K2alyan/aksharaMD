@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "aksharamd"
 version = "0.3.4"
 description = "AksharaMD — LLM document ingestion pipeline. Compile any document into token-efficient, structured content for AI workflows."
+readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
@@ -40,6 +41,12 @@ dependencies = [
     # LibreOffice on PATH          (.doc/.ppt legacy Office files)
     # Pandoc on PATH               (niche markup: AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, OPML, man/roff)
 ]
+
+[project.urls]
+Homepage = "https://github.com/K2alyan/aksharaMD"
+Source = "https://github.com/K2alyan/aksharaMD"
+"Issue Tracker" = "https://github.com/K2alyan/aksharaMD/issues"
+Changelog = "https://github.com/K2alyan/aksharaMD/blob/main/CHANGELOG.md"
 
 [project.scripts]
 aksharamd = "aksharamd.cli:main"
