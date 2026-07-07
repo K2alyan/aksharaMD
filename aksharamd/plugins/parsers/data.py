@@ -170,8 +170,7 @@ class JsonlParser(ParserPlugin):
 
 _XML_HEADING_TAGS = {
     "title", "heading", "head", "header", "h1", "h2", "h3", "h4", "h5", "h6",
-    "section", "chapter", "part", "article-title", "source", "label",
-    "name", "subtitle",
+    "article-title", "source", "label", "name", "subtitle",
 }
 _XML_SKIP_TAGS = {
     "script", "style", "comment", "processing-instruction",
@@ -231,8 +230,21 @@ def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
             idx += 1
             return
 
-        # Container element with mostly-text children → collect as paragraph
-        if child_count > 0 and child_count <= 5:
+        # Leaf element with no text but data attributes (e.g. <metric value="25" unit="pct"/>)
+        if child_count == 0 and not direct_text and el.attrib:
+            _SKIP_ATTRS = {"id", "lang", "class", "type", "xmlns", "version", "encoding"}
+            data_attrs = {k.split("}")[-1]: v for k, v in el.attrib.items()
+                          if k.split("}")[-1].lower() not in _SKIP_ATTRS}
+            if data_attrs:
+                attr_text = " ".join(f"{k}: {v}" for k, v in data_attrs.items())
+                if len(attr_text) > 5:
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=attr_text, index=idx))
+                    idx += 1
+                    return
+
+        # Container element with mostly-text leaf children → collect as paragraph
+        # Skip if any child is itself a container (structural element, not text wrapper)
+        if child_count > 0 and child_count <= 5 and not any(len(list(c)) > 0 for c in el):
             full_text = _collect_text(el).strip()
             if len(full_text) > 20 and len(full_text) < 1000 and full_text.count(" ") > 3:
                 blocks.append(Block(type=BlockType.PARAGRAPH, content=full_text, index=idx))
