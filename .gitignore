@@ -30,6 +30,9 @@ benchmark_results_*.json
 benchmarks/__pycache__/
 audit_results/
 audit_scripts/
+benchmarks/.public_corpus/
+benchmarks/results/public_benchmark_*.jsonl
+benchmarks/results/public_benchmark_*.md
 
 # Output / cache
 output/
