@@ -49,7 +49,7 @@ def _get_remote_size(url: str) -> int | None:
         req = urllib.request.Request(
             url, method="HEAD", headers={"User-Agent": "aksharamd-benchmark/1.0"}
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
             length = resp.headers.get("Content-Length")
             return int(length) if length else None
     except Exception:
@@ -68,7 +68,7 @@ def _download(url: str, dest: Path, dry_run: bool = False) -> tuple[bool, int]:
     for attempt in range(1, _RETRY_ATTEMPTS + 1):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "aksharamd-benchmark/1.0"})
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310
                 data = resp.read()
             dest.write_bytes(data)
             print(f"  downloaded ({len(data):,} B): {dest.name}")
