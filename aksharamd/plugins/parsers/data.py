@@ -170,8 +170,7 @@ class JsonlParser(ParserPlugin):
 
 _XML_HEADING_TAGS = {
     "title", "heading", "head", "header", "h1", "h2", "h3", "h4", "h5", "h6",
-    "section", "chapter", "part", "article-title", "source", "label",
-    "name", "subtitle",
+    "article-title", "source", "label", "name", "subtitle",
 }
 _XML_SKIP_TAGS = {
     "script", "style", "comment", "processing-instruction",
@@ -226,20 +225,52 @@ def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
         child_count = len(list(el))
         direct_text = (el.text or "").strip()
 
-        if child_count == 0 and len(direct_text) > 10:
-            blocks.append(Block(type=BlockType.PARAGRAPH, content=direct_text[:2000], index=idx))
+        if child_count == 0 and len(direct_text) > 0:
+            tag_name = _local(el.tag)
+            # Prefix with tag name so short values (port numbers, dates, booleans) survive
+            # the page-number cleaner and remain interpretable by downstream LLMs
+            content = f"{tag_name}: {direct_text}" if tag_name not in _XML_HEADING_TAGS else direct_text
+            blocks.append(Block(type=BlockType.PARAGRAPH, content=content[:2000], index=idx))
             idx += 1
             return
 
-        # Container element with mostly-text children → collect as paragraph
-        if child_count > 0 and child_count <= 5:
+        # Leaf element with no text but data attributes (e.g. <metric value="25" unit="pct"/>)
+        if child_count == 0 and not direct_text and el.attrib:
+            _SKIP_ATTRS = {"id", "lang", "class", "type", "xmlns", "version", "encoding"}
+            data_attrs = {k.split("}")[-1]: v for k, v in el.attrib.items()
+                          if k.split("}")[-1].lower() not in _SKIP_ATTRS}
+            if data_attrs:
+                attr_text = " ".join(f"{k}: {v}" for k, v in data_attrs.items())
+                if len(attr_text) > 5:
+                    blocks.append(Block(type=BlockType.PARAGRAPH, content=attr_text, index=idx))
+                    idx += 1
+                    return
+
+        # Container element with mostly-text leaf children → collect as paragraph
+        # Skip if any child is itself a container (structural element, not text wrapper)
+        if child_count > 0 and child_count <= 5 and not any(len(list(c)) > 0 for c in el):
             full_text = _collect_text(el).strip()
             if len(full_text) > 20 and len(full_text) < 1000 and full_text.count(" ") > 3:
                 blocks.append(Block(type=BlockType.PARAGRAPH, content=full_text, index=idx))
                 idx += 1
                 return
 
-        # Container element → recurse into children
+        # Container element → emit name as heading if it carries identity, then recurse
+        # Emit a heading when: element has attributes (e.g. <section id="4">) OR all its
+        # children are leaves (e.g. <database><host/><port/></database>), so the parent
+        # name survives as context for reverse-lookup questions.
+        _SKIP_CONTAINER_ATTRS = {"xmlns", "version", "encoding", "lang", "class"}
+        key_attrs = {k.split("}")[-1]: v for k, v in el.attrib.items()
+                     if k.split("}")[-1].lower() not in _SKIP_CONTAINER_ATTRS}
+        has_only_leaf_children = child_count > 0 and not any(len(list(c)) > 0 for c in el)
+        if has_only_leaf_children or key_attrs:
+            heading_text = _local(el.tag)
+            if key_attrs:
+                heading_text += " " + " ".join(f"{k}: {v}" for k, v in key_attrs.items())
+            level = max(1, min(6, depth + 1))
+            # Don't set document title from container names — only from _XML_HEADING_TAGS
+            blocks.append(Block(type=BlockType.HEADING, content=heading_text, level=level, index=idx))
+            idx += 1
         for child in el:
             _walk(child, depth + 1)
 

@@ -19,6 +19,7 @@ class BlockType(StrEnum):
     CAPTION = "caption"
     METADATA = "metadata"
     PAGE_BREAK = "page_break"
+    MATH = "math"
     UNKNOWN = "unknown"
 
 

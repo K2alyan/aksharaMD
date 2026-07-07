@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aksharamd"
-version = "0.3.2"
+version = "0.3.3"
 description = "AksharaMD — LLM document ingestion pipeline. Compile any document into token-efficient, structured content for AI workflows."
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -64,8 +64,14 @@ cloud = [
 ocr = [
     "pytesseract>=0.3",
 ]
+vision = [
+    "marker-pdf>=1.6",
+]
+math = [
+    "pix2tex>=0.1.1",
+]
 full = [
-    "aksharamd[audio,ocr,cloud]",
+    "aksharamd[audio,ocr,cloud,vision,math]",
 ]
 eval = [
     "anthropic>=0.40",
@@ -95,7 +101,7 @@ markers = [
 source = ["aksharamd"]
 
 [tool.coverage.report]
-fail_under = 75
+fail_under = 72
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

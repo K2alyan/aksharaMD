@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .models.chunk import Chunk
@@ -23,6 +24,10 @@ class CompilationContext:
     duplicate_blocks_removed: int = 0
     headers_removed: int = 0
     footers_removed: int = 0
+
+    # optional progress callback — set by Compiler when on_stage is provided;
+    # parsers call ctx.progress("message") to surface fine-grained events
+    progress: Callable[[str], None] | None = field(default=None, repr=False, compare=False)
 
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)

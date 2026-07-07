@@ -117,6 +117,8 @@ EPUB and TXT show the most dramatic gap. All four competing tools produce 8–10
 
 Scores are averaged across 4 questions × 83 documents per format (max 10.0). Formats marked `—` are unsupported and excluded from each tool's average.
 
+#### Claude Haiku 4.5 (primary benchmark — 5 tools, 996 documents)
+
 | Tool | Avg score | Docs scored | Format coverage |
 |------|:---------:|:-----------:|:---------------:|
 | **AksharaMD** | **9.5** | **996/996** | **12/12** |
@@ -125,7 +127,21 @@ Scores are averaged across 4 questions × 83 documents per format (max 10.0). Fo
 | PyMuPDF4LLM | 8.0 | 664/996 | 8/12 |
 | LlamaParse | 7.8 | 996/996 | 12/12 |
 
-AksharaMD leads on accuracy **and** uses the fewest tokens **and** covers all 12 formats — the only tool to achieve all three simultaneously.
+#### Gemini 2.5 Flash (validation — AksharaMD vs MarkItDown, 144 documents)
+
+| Tool | Avg score | Format coverage |
+|------|:---------:|:---------------:|
+| **AksharaMD** | **9.3** | **12/12** |
+| MarkItDown | 8.7 | 12/12 |
+
+#### GPT-4o mini (validation — AksharaMD vs MarkItDown, 100 documents)
+
+| Tool | Avg score | Format coverage |
+|------|:---------:|:---------------:|
+| **AksharaMD** | **9.3** | **12/12** |
+| MarkItDown | 8.7 | 12/12 |
+
+AksharaMD leads on accuracy **and** uses the fewest tokens **and** covers all 12 formats — the only tool to achieve all three simultaneously. The advantage holds across Claude, Gemini, and GPT-4o mini judges.
 
 ### Per-format accuracy — Claude Haiku 4.5
 
@@ -155,6 +171,52 @@ AksharaMD leads on accuracy **and** uses the fewest tokens **and** covers all 12
 **XLSX**: PyMuPDF4LLM extracts insufficient content from spreadsheets (avg 437 tokens vs 1,643 for AksharaMD), scoring 1.6/10 — effectively unusable for tabular data.
 
 **LlamaParse** at 7.8 despite being a paid cloud API reflects two systematic failures: near-zero extraction on JSON and IPYNB, and a consistent inability to extract EML sent dates (low scores on email timestamp questions).
+
+### Per-format accuracy — Gemini 2.5 Flash
+
+Independent validation run using Gemini 2.5 Flash as the judge (12 documents × 4 questions per format, same scoring protocol).
+
+| Format | AksharaMD | MarkItDown |
+|--------|:---------:|:----------:|
+| HTML | **9.7** | 5.8 |
+| CSV | **9.2** | 7.6 |
+| JSON | **10.0** | 9.3 |
+| XLSX | 9.2 | 9.2 |
+| PPTX | **10.0** | 10.0 |
+| EPUB | **9.8** | 9.4 |
+| TXT | 9.2 | **9.8** |
+| XML | **9.7** | 9.2 |
+| EML | 8.8 | **9.4** |
+| IPYNB | **8.3** | 7.1 |
+| PDF | **8.2** | 7.9 |
+| DOCX | 9.7 | **9.8** |
+| **Avg** | **9.3** | 8.7 |
+
+The HTML advantage is LLM-agnostic: AksharaMD 9.7 vs MarkItDown 5.8 with Gemini, matching the 9.9 vs 4.9 pattern from Claude Haiku 4.5. Navigation boilerplate floods the context window regardless of which LLM judges the result.
+
+The IPYNB and CSV advantages also hold: 8.3 vs 7.1 on notebooks, 9.2 vs 7.6 on CSV. Gemini is slightly more tolerant of MarkItDown's noisier output on TXT and EML, narrowing the gap on those two formats, but AksharaMD leads or ties on 10 of 12 formats.
+
+### Per-format accuracy — GPT-4o mini
+
+Independent validation run using GPT-4o mini as both the answering model and judge (100 documents × 4 questions, same scoring protocol). XML scores reflect the improved XML parser (v0.3.3+).
+
+| Format | AksharaMD | MarkItDown |
+|--------|:---------:|:----------:|
+| HTML | **9.9** | 7.6 |
+| PDF | **8.6** | 6.0 |
+| CSV | **10.0** | 8.6 |
+| IPYNB | **9.2** | 7.7 |
+| EML | **9.1** | 8.5 |
+| XML | **9.0** | 7.8 |
+| EPUB | **9.9** | 9.6 |
+| JSON | **9.8** | 9.4 |
+| TXT | 9.9 | 9.9 |
+| XLSX | 9.5 | 9.5 |
+| DOCX | 9.9 | **10.0** |
+| PPTX | 9.9 | **10.0** |
+| **Avg** | **9.3** | 8.7 |
+
+The PDF gap (8.6 vs 6.0) and HTML gap (9.9 vs 7.6) are consistent across all three LLM judges. MarkItDown's failure to find arXiv submission dates and specific numerical values in PDFs is a structural extraction issue, not a model-specific quirk. AksharaMD leads or ties on 10 of 12 formats with GPT-4o mini.
 
 ---
 
@@ -243,7 +305,7 @@ Across ~1,000 documents, 3,984 Q&A pairs, and 19,920 graded answers:
 
 1. **AksharaMD uses the fewest tokens** on every format it supports — 76–82% fewer than competing tools on average. On long-form content (EPUB, TXT), competing tools produce 8–10× more tokens with no accuracy gain.
 
-2. **AksharaMD scores highest** across all tools at 9.5/10, +0.9 points ahead of MarkItDown and +1.7 points ahead of LlamaParse. The gap is driven by structural wins on HTML, IPYNB, and CSV where extraction quality directly determines what the LLM can find.
+2. **AksharaMD scores highest** across all tools at 9.5/10 (Claude Haiku 4.5) and 9.3/10 (Gemini 2.5 Flash), +0.9 points ahead of MarkItDown on Claude and +0.6 points on Gemini. The gap is driven by structural wins on HTML, IPYNB, and CSV where extraction quality directly determines what the LLM can find. Validated across two independent LLM judges — the advantage is not model-specific.
 
 3. **AksharaMD is the only tool with full, high-quality format coverage** — 12/12 formats at meaningful accuracy, vs 10/12 for LlamaParse (near-zero on JSON and IPYNB) and 8/12 for PyMuPDF4LLM and Docling.
 
@@ -383,4 +445,4 @@ python -m benchmarks.compute_profile --results path/to/results.json
 
 ---
 
-*Benchmark conducted July 2026. AksharaMD v0.1.0. Judge model: Claude Haiku 4.5.*
+*Benchmark conducted July 2026. AksharaMD v0.3.3. Judges: Claude Haiku 4.5 (primary), Gemini 2.5 Flash, GPT-4o mini.*

@@ -487,12 +487,13 @@ def _make_image_only_pdf(tmp_path):
 
 
 def test_ocr_unavailable_emits_notice_on_scanned_page(tmp_path, monkeypatch):
-    """A page with no text layer must emit an OCR-unavailable notice when pytesseract is absent."""
+    """A page with no text layer must emit an OCR-unavailable notice when neither Tesseract nor Marker is available."""
     import aksharamd.plugins.parsers.pdf as pdf_mod
     from aksharamd.context import CompilationContext
     from aksharamd.plugins.parsers.pdf import PDFParser
 
     monkeypatch.setattr(pdf_mod, "_TESSERACT_AVAILABLE", False)
+    monkeypatch.setattr(pdf_mod, "_MARKER_AVAILABLE", False)
 
     path = _make_image_only_pdf(tmp_path)
     ctx = CompilationContext(source=str(path), output_dir=str(tmp_path / "out"))

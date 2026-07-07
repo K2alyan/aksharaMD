@@ -399,6 +399,33 @@ signal for running text.
 one-pagers) routinely have the same text block on every page by design, not
 because it is a running header.
 
+### Amendment: zone-membership guard for global_threshold
+
+After raising the floor to 3, a second class of false positives emerged:
+4-page PDFs (pdflatex-4-pages, pdflatex-outline, mistitled_outlines_example)
+where body text flows continuously across all pages. Common words ("and",
+"the") and short phrases ("This text should") appear on 3+ of 4 pages,
+satisfying `count >= global_threshold = 3`, and were stripped — leaving pages
+2 and 3 with only their page-number character.
+
+The global_threshold path was tightened to require zone membership:
+
+```python
+for text, count in global_counter.items():
+    if count >= global_threshold:
+        if header_counter.get(text, 0) > 0 or footer_counter.get(text, 0) > 0:
+            to_remove.add(text)
+```
+
+Running headers appear both in `header_counter` (zone-based) AND in
+`global_counter`; they are still removed via either path.  Pure body text that
+repeats across pages is never in a zone and so is never removed globally.
+
+**Do NOT revert the zone-membership guard** — the zone_threshold path already
+catches all legitimate running-header boilerplate.  The global_threshold path
+without zone restriction has no case that the zone path does not already cover,
+and causes near-complete content loss on PDFs with repetitive body text.
+
 ---
 
 ## 12. Bold body-font heading detection (`_heading_level`)

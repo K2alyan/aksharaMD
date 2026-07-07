@@ -6,8 +6,10 @@ import logging
 import os
 import re
 import statistics
+import tempfile
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from functools import partial
 from pathlib import Path
 from typing import NamedTuple
 
@@ -36,6 +38,49 @@ def _ocr_available() -> bool:
     if _TESSERACT_AVAILABLE is None:
         _TESSERACT_AVAILABLE = _tesseract_available()
     return _TESSERACT_AVAILABLE
+
+
+# ── Marker (vision) availability ──────────────────────────────────────────────
+_MARKER_AVAILABLE: bool | None = None
+_MARKER_MODELS: dict | None = None
+
+
+def _marker_available() -> bool:
+    """Return True if marker-pdf is installed (does not import or load models)."""
+    global _MARKER_AVAILABLE
+    if _MARKER_AVAILABLE is None:
+        _MARKER_AVAILABLE = importlib.util.find_spec("marker") is not None
+    return _MARKER_AVAILABLE
+
+
+def _get_marker_models() -> dict | None:
+    """Load and cache Marker models.  Returns None if unavailable or load fails.
+
+    Models are downloaded from HuggingFace on first run (~3 GB).  For
+    air-gapped environments, pre-cache by running once on a connected machine:
+        python -c "from marker.models import create_model_dict; create_model_dict()"
+    then copy ~/.cache/huggingface/hub/ to the target machine and set
+    HF_HUB_OFFLINE=1 before running aksharamd.
+    """
+    global _MARKER_MODELS
+    if _MARKER_MODELS is not None:
+        return _MARKER_MODELS
+    if not _marker_available():
+        return None
+    try:
+        from marker.models import create_model_dict
+        logger.debug("Loading Marker vision models (first-time load, may take a moment)...")
+        _MARKER_MODELS = create_model_dict()
+        return _MARKER_MODELS
+    except Exception as exc:
+        logger.warning(
+            "Marker models failed to load: %s. "
+            "For air-gapped use, pre-cache with: "
+            "python -c \"from marker.models import create_model_dict; create_model_dict()\" "
+            "then set HF_HUB_OFFLINE=1.",
+            exc,
+        )
+        return None
 
 
 _OCR_UNAVAILABLE_MSG = (
@@ -412,6 +457,9 @@ _MAX_IMAGES_PER_PAGE = 3
 _MAX_TOTAL_IMAGES = 20
 # pdfplumber fallback: skip pages denser than this (unlikely to have a missed table)
 _PDFPLUMBER_CHAR_LIMIT = 3000
+# Parallel Phase-1 I/O: use concurrent readers above this page threshold.
+_PARALLEL_IO_THRESHOLD = 20
+_PARALLEL_IO_WORKERS = 4
 
 
 class RawPage(NamedTuple):
@@ -424,26 +472,62 @@ class RawPage(NamedTuple):
     ocr_pixmap: bytes | None = None       # PNG bytes when page has < _OCR_TEXT_THRESHOLD chars
     embedded_image_bytes: list[bytes] = []  # per-image bytes for image-heavy pages (OCR use)
     content_images: list[tuple[str, bytes]] = []  # (asset_id, bytes) for multimodal output
+    math_bboxes: list[tuple[float, float, float, float]] = []  # bboxes of undecodable font spans (math candidates)
+
+
+def _chunk_pages(page_count: int, workers: int = _PARALLEL_IO_WORKERS) -> list[list[int]]:
+    """Split 1-indexed page numbers into `workers` evenly-sized chunks."""
+    actual = min(workers, page_count)
+    size = max(1, (page_count + actual - 1) // actual)
+    return [
+        list(range(i + 1, min(i + size + 1, page_count + 1)))
+        for i in range(0, page_count, size)
+    ]
+
+
+def _extract_page_chunk(path_str: str, page_nums: list[int]) -> list[RawPage]:
+    """Open the PDF in the calling thread and extract the assigned page numbers.
+
+    Each thread gets its own fitz.Document and pdfplumber handle — PyMuPDF
+    supports concurrent access when each thread uses a distinct Document object.
+    """
+    pdf = fitz.open(path_str)
+    pdf_pl = None
+    try:
+        import pdfplumber
+        pdf_pl = pdfplumber.open(path_str)
+    except Exception:
+        pass
+    try:
+        return [_extract_raw_page(pdf, pn, pdf_pl) for pn in page_nums]
+    finally:
+        pdf.close()
+        if pdf_pl is not None:
+            pdf_pl.close()
 
 
 def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage:
-    """Sequential I/O pass — must run in the main thread (PyMuPDF not thread-safe).
+    """Extract one page from an already-open fitz.Document.
 
+    Callers must ensure each thread/process uses its own fitz.Document —
+    sharing a single Document across threads is not safe.
     pdf_pl: optional open pdfplumber.PDF for borderless-table fallback.
     """
     page = pdf[page_num - 1]
 
     spans = []
+    math_bboxes: list[tuple[float, float, float, float]] = []
     for block in page.get_text("rawdict", flags=fitz.TEXT_PRESERVE_WHITESPACE)["blocks"]:
         if block["type"] != 0:
             continue
         for line in block.get("lines", []):
             for span in line.get("spans", []):
+                chars_list = span.get("chars", [])
                 # Exclude chars with PDF text rendering mode 3 (Tr=3: no fill, no stroke —
                 # the text is invisible on screen but present in the byte stream). Lower 4 bits
                 # of char["flags"] encode the rendering mode in PyMuPDF rawdict output.
                 visible_chars = [
-                    ch["c"] for ch in span.get("chars", [])
+                    ch["c"] for ch in chars_list
                     if (ch.get("flags", 0) & 0xF) != 3
                 ]
                 text = _CID_RE.sub("", "".join(visible_chars)).strip()
@@ -456,6 +540,11 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                         "x": span["origin"][0],
                         "bbox": span["bbox"],
                     })
+                elif chars_list and not any((ch.get("flags", 0) & 0xF) == 3 for ch in chars_list):
+                    # Span has chars, none are invisible, but all decode to empty —
+                    # undecodable font encoding (math symbols, Greek letters in CM fonts).
+                    # Record the bbox for potential math OCR in Phase 6.
+                    math_bboxes.append(tuple(span["bbox"]))
 
     # Strip LaTeX \lineno margin line-numbers before further processing so they
     # don't pollute table cells or paragraph text.
@@ -560,6 +649,7 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
         ocr_pixmap=ocr_pixmap,
         embedded_image_bytes=embedded_image_bytes,
         content_images=content_images,
+        math_bboxes=math_bboxes,
     )
 
 
@@ -694,7 +784,12 @@ def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
             to_remove.add(text)
     for text, count in global_counter.items():
         if count >= global_threshold:
-            to_remove.add(text)
+            # Require the span to appear in a header or footer zone on at least one page.
+            # Mid-page body text can repeat across pages in short documents (filler text,
+            # repeated prose sections) without being boilerplate — stripping it causes
+            # near-complete content loss on those pages.
+            if header_counter.get(text, 0) > 0 or footer_counter.get(text, 0) > 0:
+                to_remove.add(text)
 
     return to_remove
 
@@ -1042,12 +1137,424 @@ def _process_raw_page(
     return raw.page_num, blocks, assets
 
 
+def _parse_marker_markdown(markdown: str, page_num: int) -> list[Block]:
+    """Convert a Marker markdown string (single page) into Block objects."""
+    blocks: list[Block] = []
+    idx = 0
+    table_lines: list[str] = []
+    in_table = False
+    para_lines: list[str] = []
+
+    def flush_para() -> None:
+        nonlocal idx
+        text = " ".join(para_lines).strip()
+        if text:
+            blocks.append(Block(
+                type=BlockType.PARAGRAPH,
+                content=text,
+                page=page_num,
+                index=idx,
+                confidence=ExtractionConfidence.EXTRACTED,
+            ))
+            idx += 1
+        para_lines.clear()
+
+    def flush_table() -> None:
+        nonlocal idx
+        if table_lines:
+            md = "\n".join(table_lines)
+            if _is_quality_table(md):
+                blocks.append(Block(
+                    type=BlockType.TABLE,
+                    content=md,
+                    page=page_num,
+                    index=idx,
+                    confidence=ExtractionConfidence.EXTRACTED,
+                ))
+                idx += 1
+            table_lines.clear()
+
+    for line in markdown.splitlines():
+        stripped = line.strip()
+
+        if stripped.startswith("|"):
+            if not in_table:
+                flush_para()
+                in_table = True
+            table_lines.append(line)
+            continue
+
+        if in_table:
+            flush_table()
+            in_table = False
+
+        m = re.match(r"^(#{1,6})\s+(.+)$", stripped)
+        if m:
+            flush_para()
+            blocks.append(Block(
+                type=BlockType.HEADING,
+                content=m.group(2).strip(),
+                level=len(m.group(1)),
+                page=page_num,
+                index=idx,
+                confidence=ExtractionConfidence.EXTRACTED,
+            ))
+            idx += 1
+            continue
+
+        if not stripped:
+            flush_para()
+        else:
+            para_lines.append(stripped)
+
+    flush_para()
+    flush_table()
+    return blocks
+
+
+def _apply_marker_to_image_pages(
+    path: Path,
+    raw_pages: list[RawPage],
+    all_blocks: list[Block],
+) -> tuple[list[Block], int]:
+    """Re-extract image-only pages using Marker for layout-aware table reconstruction.
+
+    Returns (updated_blocks, vision_page_count).  Each image page is processed
+    as a single-page sub-PDF so blocks can be assigned to the correct page number.
+    The Marker model dict is loaded once and reused across pages.
+    """
+    image_page_nums = [
+        raw.page_num for raw in raw_pages
+        if sum(len(s.get("text", "")) for s in raw.spans) < _OCR_TEXT_THRESHOLD
+    ]
+    if not image_page_nums:
+        return all_blocks, 0
+
+    models = _get_marker_models()
+    if models is None:
+        return all_blocks, 0
+
+    try:
+        from marker.converters.pdf import PdfConverter
+    except ImportError:
+        return all_blocks, 0
+
+    # Remove placeholder blocks (IMAGE / OCR-unavailable messages) for these pages
+    image_page_set = set(image_page_nums)
+    filtered: list[Block] = [b for b in all_blocks if b.page not in image_page_set]
+
+    marker_blocks: list[Block] = []
+    vision_pages = 0
+    original_pdf = fitz.open(str(path))
+
+    for orig_pnum in image_page_nums:
+        sub = fitz.open()
+        sub.insert_pdf(original_pdf, from_page=orig_pnum - 1, to_page=orig_pnum - 1)
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+        try:
+            os.close(tmp_fd)
+            sub.save(tmp_path)
+            sub.close()
+            converter = PdfConverter(artifact_dict=models)
+            rendered = converter(tmp_path)
+            page_blocks = _parse_marker_markdown(rendered.markdown, orig_pnum)
+            if page_blocks:
+                marker_blocks.extend(page_blocks)
+                vision_pages += 1
+        except Exception:
+            logger.debug("Marker failed on page %d of %s", orig_pnum, path.name, exc_info=True)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    original_pdf.close()
+
+    combined = filtered + marker_blocks
+    combined.sort(key=lambda b: (b.page or 0, b.index))
+    for i, block in enumerate(combined):
+        combined[i] = block.model_copy(update={"index": i})
+
+    return combined, vision_pages
+
+
+# ── Math OCR (Phase 6) ────────────────────────────────────────────────────────
+
+_MATH_AVAILABLE: bool | None = None
+_MATH_MODEL = None
+
+_MATH_EMPTY_SPAN_THRESHOLD = 5    # minimum undecodable spans on a page to attempt OCR
+_MATH_CLUSTER_LINE_GAP = 6.0      # bboxes within this many pts vertically → same line
+_MATH_CLUSTER_HORIZ_GAP = 30.0    # bboxes within this many pts horizontally → same cluster
+_MATH_MIN_CLUSTER_WIDTH = 8.0     # ignore clusters narrower than this (single dots, dashes)
+_MATH_RASTER_SCALE = 3.0          # render scale for equation crops (≈216 DPI at 72dpi base)
+_MATH_PADDING = 6.0               # padding added around each cluster before rasterising
+_MATH_MAX_EQUATIONS = 300         # hard cap per document to bound processing time
+
+
+def _math_available() -> bool:
+    global _MATH_AVAILABLE
+    if _MATH_AVAILABLE is None:
+        _MATH_AVAILABLE = importlib.util.find_spec("pix2tex") is not None
+    return _MATH_AVAILABLE
+
+
+def _get_math_model():
+    global _MATH_MODEL
+    if _MATH_MODEL is not None:
+        return _MATH_MODEL
+    if not _math_available():
+        return None
+    try:
+        from pix2tex.cli import LatexOCR
+        logger.debug("Loading pix2tex math OCR model (first-time load, may take a moment)...")
+        _MATH_MODEL = LatexOCR()
+        return _MATH_MODEL
+    except Exception as exc:
+        logger.warning("pix2tex model failed to load: %s", exc)
+        return None
+
+
+def _cluster_math_bboxes(
+    bboxes: list[tuple[float, float, float, float]],
+) -> list[tuple[float, float, float, float]]:
+    """Merge individual char bboxes into expression-level regions.
+
+    Strategy: sort by (y_center, x0), then greedily merge bboxes that are on
+    the same line (y_center within _MATH_CLUSTER_LINE_GAP) and close
+    horizontally (gap between consecutive bboxes < _MATH_CLUSTER_HORIZ_GAP).
+    Returns merged union bboxes, one per expression cluster.
+    """
+    if not bboxes:
+        return []
+
+    sorted_bboxes = sorted(bboxes, key=lambda b: ((b[1] + b[3]) / 2, b[0]))
+
+    clusters: list[list[tuple[float, float, float, float]]] = []
+    current: list[tuple[float, float, float, float]] = [sorted_bboxes[0]]
+
+    for bbox in sorted_bboxes[1:]:
+        prev = current[-1]
+        prev_y = (prev[1] + prev[3]) / 2
+        cur_y = (bbox[1] + bbox[3]) / 2
+        same_line = abs(cur_y - prev_y) <= _MATH_CLUSTER_LINE_GAP
+        close_horiz = bbox[0] - prev[2] <= _MATH_CLUSTER_HORIZ_GAP
+
+        if same_line and close_horiz:
+            current.append(bbox)
+        else:
+            clusters.append(current)
+            current = [bbox]
+    clusters.append(current)
+
+    merged = []
+    for cluster in clusters:
+        x0 = min(b[0] for b in cluster)
+        y0 = min(b[1] for b in cluster)
+        x1 = max(b[2] for b in cluster)
+        y1 = max(b[3] for b in cluster)
+        if (x1 - x0) >= _MATH_MIN_CLUSTER_WIDTH:
+            merged.append((x0, y0, x1, y1))
+    return merged
+
+
+def _apply_math_ocr_to_blocks(
+    path: Path,
+    raw_pages: list[RawPage],
+    all_blocks: list[Block],
+) -> tuple[list[Block], int]:
+    """Phase 6: rasterise undecodable font regions and recover math via pix2tex.
+
+    Only runs on pages with >= _MATH_EMPTY_SPAN_THRESHOLD undecodable spans.
+    Returns updated block list (with MATH blocks inserted) and equation count.
+    If pix2tex is unavailable or no math is found, returns (all_blocks, 0) unchanged.
+    """
+    model = _get_math_model()
+    if model is None:
+        return all_blocks, 0
+
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        logger.debug("numpy/Pillow not available; math OCR skipped")
+        return all_blocks, 0
+
+    math_pages = [
+        raw for raw in raw_pages
+        if len(raw.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+    ]
+    if not math_pages:
+        return all_blocks, 0
+
+    pdf = fitz.open(str(path))
+    new_math_blocks: list[Block] = []
+    total_equations = 0
+
+    try:
+        for raw in math_pages:
+            if total_equations >= _MATH_MAX_EQUATIONS:
+                break
+
+            clusters = _cluster_math_bboxes(raw.math_bboxes)
+            if not clusters:
+                continue
+
+            page = pdf[raw.page_num - 1]
+            page_rect = page.rect
+
+            for x0, y0, x1, y1 in clusters:
+                if total_equations >= _MATH_MAX_EQUATIONS:
+                    break
+                # Add padding and clamp to page boundaries
+                rx0 = max(0.0, x0 - _MATH_PADDING)
+                ry0 = max(0.0, y0 - _MATH_PADDING)
+                rx1 = min(page_rect.width, x1 + _MATH_PADDING)
+                ry1 = min(page_rect.height, y1 + _MATH_PADDING)
+
+                try:
+                    clip = fitz.Rect(rx0, ry0, rx1, ry1)
+                    mat = fitz.Matrix(_MATH_RASTER_SCALE, _MATH_RASTER_SCALE)
+                    pix = page.get_pixmap(matrix=mat, clip=clip, colorspace=fitz.csRGB)
+                    arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                        pix.height, pix.width, 3
+                    )
+                    img = Image.fromarray(arr)
+                except Exception:
+                    logger.debug(
+                        "Math rasterisation failed on p%d bbox %s",
+                        raw.page_num, (x0, y0, x1, y1), exc_info=True,
+                    )
+                    continue
+
+                try:
+                    latex = model(img)
+                except Exception:
+                    logger.debug(
+                        "pix2tex failed on p%d bbox %s",
+                        raw.page_num, (x0, y0, x1, y1), exc_info=True,
+                    )
+                    continue
+
+                if not latex or not latex.strip():
+                    continue
+
+                # Wrap in display-math delimiters; centre y of cluster determines position
+                content = f"$${latex.strip()}$$"
+                new_math_blocks.append(Block(
+                    type=BlockType.MATH,
+                    content=content,
+                    page=raw.page_num,
+                    confidence=ExtractionConfidence.AMBIGUOUS,
+                    metadata={"math_bbox": (x0, y0, x1, y1), "y_center": (y0 + y1) / 2},
+                ))
+                total_equations += 1
+    finally:
+        pdf.close()
+
+    if not new_math_blocks:
+        return all_blocks, 0
+
+    # Merge math blocks with existing blocks, preserving page + y-position order.
+    # Build a sort key: (page, y_center) — existing blocks use their page and
+    # the y coordinate stored in metadata (if available) or fall back to index.
+    def _sort_key(b: Block) -> tuple[int, float]:
+        page = b.page or 0
+        y = b.metadata.get("y_center", float(b.index))
+        return (page, y)
+
+    # Annotate existing blocks with a y_center estimate from their content position.
+    # We don't have stored y coords on existing blocks, so approximate by index order
+    # within each page (preserves relative order, only used for merge tie-breaking).
+    existing_on_page: dict[int, list[Block]] = {}
+    for b in all_blocks:
+        existing_on_page.setdefault(b.page or 0, []).append(b)
+
+    # For pages that have math blocks, attach a y estimate to each existing block
+    # on that page based on its position in the page's block list.
+    math_page_nums = {b.page for b in new_math_blocks if b.page is not None}
+    for pg in math_page_nums:
+        page_blocks = existing_on_page.get(pg, [])
+        for rank, blk in enumerate(page_blocks):
+            if "y_center" not in blk.metadata:
+                blk.metadata["y_center"] = float(rank) * 100.0
+
+    combined = sorted(all_blocks + new_math_blocks, key=_sort_key)
+
+    # Re-index
+    for i, block in enumerate(combined):
+        combined[i] = block.model_copy(update={"index": i})
+
+    return combined, total_equations
+
+
+def _pdfplumber_fallback(path: Path, ctx: CompilationContext) -> CompilationContext:
+    """Fallback when PyMuPDF reports 0 pages due to corrupted xref/metadata.
+
+    pdfminer (used by pdfplumber) is more tolerant of metadata corruption and can
+    often read the content layer even when PyMuPDF's xref parser gives up.
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        return ctx
+
+    try:
+        blocks: list[Block] = []
+        page_count = 0
+        logging.getLogger("pdfplumber").setLevel(logging.ERROR)
+        with pdfplumber.open(str(path)) as pl:
+            page_count = len(pl.pages)
+            for i, page in enumerate(pl.pages, 1):
+                text = page.extract_text() or ""
+                if text.strip():
+                    blocks.append(Block(
+                        type=BlockType.PARAGRAPH,
+                        content=text.strip(),
+                        page=i,
+                        index=len(blocks),
+                        confidence=ExtractionConfidence.AMBIGUOUS,
+                    ))
+    except Exception as exc:
+        ctx.error("PARSE_FAILED", f"pdfplumber fallback also failed: {exc}")
+        return ctx
+
+    if not blocks:
+        return ctx
+
+    ctx.warn(
+        "CORRUPTED_METADATA",
+        "PDF has corrupted or unreadable metadata — PyMuPDF could not parse the page "
+        "structure. Content was recovered via pdfplumber fallback. Confidence is AMBIGUOUS.",
+    )
+
+    doc = Document(
+        source=str(path),
+        file_type="pdf",
+        title=path.stem,
+        pages=page_count,
+        blocks=blocks,
+        metadata={"pdf_classification": "low_confidence", "pdf_ocr_available": False},
+    )
+    doc.compute_id()
+    ctx.document = doc
+    return ctx
+
+
 class PDFParser(ParserPlugin):
     name = "pdf_parser"
     supported_types = ["pdf"]
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         path = Path(ctx.source)
+        # Suppress noisy low-level warnings that bypass Python's logging system
+        try:
+            fitz.TOOLS.mupdf_display_errors(False)
+        except Exception:
+            pass
+        logging.getLogger("pdfplumber.pdf").setLevel(logging.ERROR)
+
         try:
             pdf = fitz.open(str(path))
         except Exception as exc:
@@ -1068,25 +1575,60 @@ class PDFParser(ParserPlugin):
 
         page_count = pdf.page_count
 
-        # Open pdfplumber alongside fitz for borderless-table fallback.
-        # Both must be used in Phase 1 (sequential) since neither is thread-safe.
-        pdf_pl = None
-        try:
-            import pdfplumber
-            pdf_pl = pdfplumber.open(str(path))
-        except Exception:
-            logger.debug("pdfplumber unavailable; borderless-table fallback disabled")
+        # PyMuPDF can report 0 pages when the xref/object table has corrupted metadata
+        # even though the content stream is intact. Try pdfplumber, which uses pdfminer
+        # and is more tolerant of structural metadata corruption.
+        if page_count == 0 and not pdf.is_encrypted:
+            pdf.close()
+            return _pdfplumber_fallback(path, ctx)
 
-        # Phase 1: Sequential I/O — extract raw data from PyMuPDF (not thread-safe)
-        try:
-            raw_pages = [_extract_raw_page(pdf, i + 1, pdf_pl) for i in range(page_count)]
-        finally:
-            if pdf_pl is not None:
-                pdf_pl.close()
-
+        # Collect document-level metadata before Phase 1 I/O (independent of page content).
         pdf_metadata = dict(pdf.metadata)
         toc = pdf.get_toc()  # [[level, title, page], ...]
-        pdf.close()
+
+        # Phase 1: I/O extraction
+        if page_count >= _PARALLEL_IO_THRESHOLD:
+            # Large document — each thread opens its own fitz + pdfplumber handle so
+            # chunks can be read concurrently.  Sharing a single fitz.Document across
+            # threads is not safe; separate Document objects on the same file are fine.
+            pdf.close()
+            chunks = _chunk_pages(page_count)
+            extractor = partial(_extract_page_chunk, str(path))
+            raw_pages: list[RawPage] = []
+            with ProcessPoolExecutor(max_workers=len(chunks)) as pool:
+                for chunk_result in pool.map(extractor, chunks):
+                    raw_pages.extend(chunk_result)
+            raw_pages.sort(key=lambda p: p.page_num)
+        else:
+            # Small document — reuse the already-open fitz handle; open pdfplumber
+            # alongside for the borderless-table fallback.
+            pdf_pl = None
+            try:
+                import pdfplumber
+                pdf_pl = pdfplumber.open(str(path))
+            except Exception:
+                logger.debug("pdfplumber unavailable; borderless-table fallback disabled")
+            try:
+                raw_pages = [_extract_raw_page(pdf, i + 1, pdf_pl) for i in range(page_count)]
+            finally:
+                if pdf_pl is not None:
+                    pdf_pl.close()
+            pdf.close()
+
+        # Phase 1 complete — emit a summary of what was found so the CLI can
+        # show the user what's in the document before Phase 2 starts.
+        if ctx.progress:
+            image_pages = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
+            math_pages = sum(
+                1 for r in raw_pages if len(r.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+            )
+            text_pages = page_count - image_pages
+            parts = [f"{text_pages} text page{'s' if text_pages != 1 else ''}"]
+            if image_pages:
+                parts.append(f"{image_pages} image-only")
+            if math_pages:
+                parts.append(f"{math_pages} with equations")
+            ctx.progress(f"Scanned {page_count} pages: {', '.join(parts)}")
 
         # Phase 2: Global analysis
         median = _median_font_size(raw_pages)
@@ -1124,9 +1666,40 @@ class PDFParser(ParserPlugin):
                 idx += 1
             all_assets.extend(assets)
 
+        # Phase 5: Vision enhancement — re-extract image-only pages with Marker
+        vision_pages = 0
+        if _marker_available():
+            image_page_count = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
+            if image_page_count and ctx.progress:
+                ctx.progress(
+                    f"Vision model: reconstructing {image_page_count} image page"
+                    f"{'s' if image_page_count != 1 else ''} (Marker)"
+                )
+            all_blocks, vision_pages = _apply_marker_to_image_pages(path, raw_pages, all_blocks)
+            if vision_pages and ctx.progress:
+                ctx.progress(f"Vision complete: {vision_pages} page{'s' if vision_pages != 1 else ''} reconstructed")
+
+        # Phase 6: Math OCR — recover undecodable font spans (math symbols) via pix2tex
+        math_equations = 0
+        if _math_available():
+            math_page_count = sum(
+                1 for r in raw_pages if len(r.math_bboxes) >= _MATH_EMPTY_SPAN_THRESHOLD
+            )
+            if math_page_count and ctx.progress:
+                ctx.progress(f"Math OCR: extracting equations from {math_page_count} page{'s' if math_page_count != 1 else ''} (pix2tex)")
+            all_blocks, math_equations = _apply_math_ocr_to_blocks(path, raw_pages, all_blocks)
+            if math_equations and ctx.progress:
+                ctx.progress(f"Math OCR complete: {math_equations} equation{'s' if math_equations != 1 else ''} extracted")
+
         pdf_metadata["pdf_classification"] = pdf_classification
         pdf_metadata["pdf_stats"] = pdf_stats
-        pdf_metadata["pdf_ocr_available"] = _ocr_available()
+        # When Marker processed image pages, Surya served as the OCR engine —
+        # mark OCR as available so validators don't emit OCR_REQUIRED.
+        pdf_metadata["pdf_ocr_available"] = _ocr_available() or vision_pages > 0
+        pdf_metadata["pdf_vision_available"] = _marker_available()
+        pdf_metadata["pdf_vision_pages"] = vision_pages
+        pdf_metadata["pdf_math_available"] = _math_available()
+        pdf_metadata["pdf_math_equations"] = math_equations
 
         doc = Document(
             source=str(path),

@@ -1,0 +1,89 @@
+documents:
+- description: XML — small document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_09.xml
+  qa:
+  - a: '21851'
+    q: What is the port number for the database service?
+  - a: logging
+    q: Which service has port 10754?
+  - a: 'true'
+    q: Is the cache service enabled?
+  - a: auth.internal.example.com
+    q: What is the hostname of the auth service?
+- description: XML — medium document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_14.xml
+  qa:
+  - a: Report 13
+    q: What is the title of the report in xml_14.xml?
+  - a: '2024-01-19'
+    q: What date was the report generated?
+  - a: Cross-functional collaboration accelerates delivery and reduces rework.
+    q: What is the content of Section 1?
+  - a: '97'
+    q: What is the value of KPI_3 in Section 2?
+- description: XML — larger document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_07.xml
+  qa:
+  - a: 7,304 bytes
+    q: What is the file size of xml_07.xml?
+  - a: Product 12
+    q: Which product has the highest first numeric value?
+  - a: '1'
+    q: What is the second numeric value for Product 6?
+  - a: '30'
+    q: How many products are listed in the document?
+- description: XML — document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_01.xml
+  qa:
+  - a: 7,331 bytes
+    q: What is the size of the xml_01.xml file?
+  - a: '981.9'
+    q: What is the price value for Product 3?
+  - a: Product 10
+    q: Which product has the lowest price value?
+  - a: Stakeholder alignment must be established before execution begins
+    q: What phrase appears in the description for Product 14?
+- description: XML — document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_02.xml
+  qa:
+  - a: Report 1
+    q: What is the report title?
+  - a: '2024-01-16'
+    q: What is the date shown in the generated field?
+  - a: Cross-functional collaboration accelerates delivery and reduces rework.
+    q: What is the content of Section 3?
+  - a: '99'
+    q: What is the KPI_0 value in Section 5?
+- description: XML — document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_03.xml
+  qa:
+  - a: '23876'
+    q: What is the port number for the cache service?
+  - a: auth
+    q: Which service has host auth.internal.example.com?
+  - a: 'false'
+    q: Is the database service enabled?
+  - a: logging.internal.example.com
+    q: What is the host for the logging service?
+- description: XML — document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_04.xml
+  qa:
+  - a: 7,315 bytes
+    q: What is the size of xml_04.xml?
+  - a: '947.2'
+    q: What value is associated with Product 2?
+  - a: Product 23
+    q: Which product has the lowest second numeric value?
+  - a: Clear ownership and accountability are prerequisites for sustainable progress
+    q: What principle is stated for Product 6?
+- description: XML — document
+  path: C:\Users\kalya\Downloads\benchmark_corpus_v5\xml\xml_05.xml
+  qa:
+  - a: '2024-01-04'
+    q: What is the date shown in the generated field of xml_05.xml?
+  - a: '25'
+    q: What is the value of KPI_2 in Section 1?
+  - a: Section 2
+    q: Which section contains the metric KPI_3 with a value of 87?
+  - a: Section 5
+    q: What is the heading of the section with id 4?

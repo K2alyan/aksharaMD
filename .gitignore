@@ -26,6 +26,7 @@ coverage.xml
 
 # Benchmark artefacts
 benchmark_results/
+benchmark_results_*.json
 benchmarks/__pycache__/
 audit_results/
 audit_scripts/

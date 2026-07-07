@@ -189,8 +189,9 @@ class StructureValidator(ValidatorPlugin):
                     "OCR_REQUIRED",
                     f"This PDF has {image_pages} page(s) that contain only images — the text "
                     "on those pages could not be extracted because OCR is not installed. "
-                    "To recover this content, install Tesseract OCR and the pytesseract package: "
-                    "pip install aksharamd[ocr]  (also requires Tesseract on your PATH)",
+                    "To recover this content you have two options: "
+                    "(A) pip install aksharamd[ocr]  — fast, lightweight, requires Tesseract binary on PATH: https://github.com/tesseract-ocr/tesseract  "
+                    "(B) pip install aksharamd[vision]  — no system binary required, uses Surya neural OCR and reconstructs table structure; requires PyTorch (~3 GB download)",
                 )
 
         return ctx
