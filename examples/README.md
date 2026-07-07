@@ -58,12 +58,15 @@ Shows how to iterate over compiled chunks and access per-chunk metadata
 python examples/05_readiness_gate_demo.py
 ```
 
-Demonstrates a readiness gate pattern for RAG ingestion pipelines:
+Demonstrates a policy-based readiness gate for RAG ingestion pipelines:
 
 - Compiles a set of documents (generated in-place — no external files needed).
-- Scores each document against a configurable threshold (`MIN_READINESS_SCORE`).
+- Runs two policies side by side so you can see how the same documents are
+  routed differently depending on the configured threshold.
 - Documents that meet the threshold proceed to a mock embed step.
-- Documents that fall below the threshold are blocked before embedding.
+- Documents that do not meet the threshold are routed to a mock review queue.
+  This does not mean the extraction is bad — it means the document does not
+  meet the configured pipeline policy.
 - Prints the full structured result for one document, mirroring the output
   of `aksharamd compile --json`.
 
@@ -73,17 +76,26 @@ Demonstrates a readiness gate pattern for RAG ingestion pipelines:
 # Get structured JSON output for one document
 aksharamd compile doc.pdf --json
 
-# Block ingestion if readiness score is below 70
-aksharamd compile doc.pdf --json --min-readiness-score 70
+# Route to CI failure if score is below 85 (strict production gate)
+aksharamd compile doc.pdf --json --min-readiness-score 85
 echo "exit code: $?"
 ```
+
+**Threshold reference:**
+
+| Threshold | Band  | Typical use                          |
+|-----------|-------|--------------------------------------|
+| ≥ 85      | HIGH  | Strict production ingestion          |
+| ≥ 70      | OK    | Internal search / lenient ingestion  |
+| < 70      | RISKY/POOR | Investigate before embedding    |
 
 **When to use this pattern:**
 
 Use a readiness gate when building automated ingestion pipelines where
-low-quality extractions (garbled OCR, near-empty output, encrypted PDFs)
-must not reach a vector store.  Set the threshold based on your corpus:
-HIGH (≥85) for production ingestion, OK (≥70) for internal search.
+documents that do not meet your team's quality policy must not reach a
+vector store automatically.  The threshold is a pipeline policy decision —
+not an absolute quality judgment.  A score of 93/HIGH is a good extraction;
+whether it passes depends on what your pipeline requires.
 
 See [ADR-10](../ADR.md#adr-10----min-readiness-score-ingestion-gate) for the
 design rationale behind the `--min-readiness-score` flag.

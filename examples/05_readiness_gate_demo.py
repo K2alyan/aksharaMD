@@ -1,15 +1,28 @@
 """
 Readiness-gate ingestion demo.
 
-Shows how to implement a readiness gate before sending documents to a vector
-store or RAG pipeline.  Each document is compiled, scored, and either passed
-to a mock embed step or blocked, depending on whether its readiness score
-meets the threshold.
+Shows how to implement a policy-based readiness gate before sending documents
+to a vector store or RAG pipeline.
 
-This mirrors what the CLI flags do:
+Key concept: the readiness score measures extraction quality.  Whether a
+document passes the gate depends on the pipeline's *policy threshold*, which
+is a separate, team-defined decision.  A document scoring 93/HIGH is a good
+extraction — it may still be held by a strict pipeline policy.
 
+Two policies are demonstrated side by side:
+
+  Policy A — standard production ingestion (threshold ≥ 85)
+    All HIGH documents pass.  This is the recommended threshold for most
+    production RAG pipelines.
+
+  Policy B — strict demo gate (threshold ≥ 94)
+    Only documents scoring ≥ 94 are embedded.  The stub document (93/HIGH)
+    meets the extraction quality bar but does not meet this stricter policy,
+    so it is routed to a review queue rather than embedded automatically.
+
+CLI equivalents:
     aksharamd compile doc.pdf --json
-    aksharamd compile doc.pdf --json --min-readiness-score 70
+    aksharamd compile doc.pdf --json --min-readiness-score 85
 
 Usage:
     python examples/05_readiness_gate_demo.py
@@ -28,19 +41,30 @@ if hasattr(sys.stdout, "reconfigure"):
 from aksharamd.compiler import Compiler
 
 
-# ── configuration ─────────────────────────────────────────────────────────────
+# ── policy thresholds ─────────────────────────────────────────────────────────
 
-# Threshold chosen so the stub fixture (one-word text, score ~93) is blocked
-# while the substantive markdown documents (score ~95) pass.  In production,
-# HIGH (>=85) is appropriate for strict ingestion; OK (>=70) for internal search.
-MIN_READINESS_SCORE = 94
+# Recommended for most production RAG pipelines.
+PRODUCTION_THRESHOLD = 85
+
+# Intentionally strict threshold used in the second demo pass to show routing
+# behavior.  Not a recommendation — common real-world values are 85 (strict)
+# and 70 (internal search / lenient ingestion).
+STRICT_DEMO_THRESHOLD = 94
 
 
-# ── mock embed step ───────────────────────────────────────────────────────────
+# ── mock pipeline steps ───────────────────────────────────────────────────────
 
 def mock_embed(doc_name: str, chunks: int, score: int) -> None:
     """Stand-in for your actual vector-store upsert call."""
-    print(f"    [embed] {doc_name}: {chunks} chunk(s) sent to vector store  (score {score})")
+    print(f"    [embed]  {doc_name}: {chunks} chunk(s) → vector store  (score {score})")
+
+
+def mock_review_queue(doc_name: str, score: int, threshold: int) -> None:
+    """Stand-in for routing a document to a human review queue."""
+    print(
+        f"    [review] {doc_name}: score {score} does not meet this pipeline's "
+        f"policy threshold of {threshold} — routed for manual review"
+    )
 
 
 # ── gate logic ────────────────────────────────────────────────────────────────
@@ -67,6 +91,25 @@ def run_gate(source: str, compiler: Compiler, threshold: int) -> dict:
         "errors": errors,
         "success": passed,
     }
+
+
+def _print_table(results: list[dict], threshold: int) -> tuple[list[dict], list[dict]]:
+    print(f"{'Document':<28} {'Score':>6}  {'Band':<6}  {'Chunks':>6}  {'Tokens':>7}  Result")
+    print("-" * 76)
+    passed, held = [], []
+    for r in results:
+        status = "PASS" if r["success"] else "HOLD"
+        band = r["quality_band"] or "?"
+        print(
+            f"{r['name']:<28} {r['readiness_score']:>6}  {band:<6}  "
+            f"{r['chunks']:>6}  {r['optimized_tokens']:>7}  {status}"
+        )
+        if r["warning_codes"]:
+            print(f"  warnings: {', '.join(r['warning_codes'])}")
+        if r["errors"]:
+            print(f"  errors:   {'; '.join(r['errors'])}")
+        (passed if r["success"] else held).append(r)
+    return passed, held
 
 
 # ── demo ──────────────────────────────────────────────────────────────────────
@@ -109,7 +152,10 @@ def main() -> None:
             ),
             (
                 "stub.txt",
-                # Intentionally minimal — likely to score below threshold.
+                # A one-word placeholder.  Extracts cleanly (score ~93, HIGH band)
+                # but is intentionally thin — useful for showing how a strict
+                # pipeline policy can route incomplete stubs to review even when
+                # the extraction itself produced no errors.
                 "TODO",
             ),
         ]
@@ -120,58 +166,67 @@ def main() -> None:
             p.write_text(content, encoding="utf-8")
             sources.append(str(p))
 
-        print(f"Readiness gate threshold: {MIN_READINESS_SCORE}/100\n")
-        print(f"{'Document':<28} {'Score':>6}  {'Band':<6}  {'Chunks':>6}  {'Tokens':>7}  Result")
-        print("-" * 76)
+        # Compile all documents once; reuse results for both policy passes.
+        compiled = [run_gate(src, compiler, threshold=0) for src in sources]
 
-        passed_docs: list[dict] = []
-        blocked_docs: list[dict] = []
+        # ── Policy A: standard production ingestion ───────────────────────────
 
-        for source in sources:
-            result = run_gate(source, compiler, MIN_READINESS_SCORE)
+        print("=" * 76)
+        print(f"Policy A — standard production ingestion  (threshold >= {PRODUCTION_THRESHOLD})")
+        print("  Recommended for most production RAG pipelines.")
+        print("=" * 76)
 
-            status = "PASS" if result["success"] else "BLOCK"
-            band = result["quality_band"] or "?"
-            print(
-                f"{result['name']:<28} {result['readiness_score']:>6}  {band:<6}  "
-                f"{result['chunks']:>6}  {result['optimized_tokens']:>7}  {status}"
-            )
-            if result["warning_codes"]:
-                print(f"  warnings: {', '.join(result['warning_codes'])}")
-            if result["errors"]:
-                print(f"  errors:   {'; '.join(result['errors'])}")
+        results_a = [
+            {**r, "success": not r["errors"] and r["readiness_score"] >= PRODUCTION_THRESHOLD}
+            for r in compiled
+        ]
+        passed_a, held_a = _print_table(results_a, PRODUCTION_THRESHOLD)
 
-            if result["success"]:
-                passed_docs.append(result)
-            else:
-                blocked_docs.append(result)
+        print(f"\nGate summary: {len(passed_a)} passed, {len(held_a)} held\n")
+        for r in passed_a:
+            mock_embed(r["name"], r["chunks"], r["readiness_score"])
+        for r in held_a:
+            mock_review_queue(r["name"], r["readiness_score"], PRODUCTION_THRESHOLD)
 
-        # ── embed step (only for documents that passed the gate) ──────────────
+        # ── Policy B: strict demo gate ────────────────────────────────────────
 
-        print(f"\n{'─' * 76}")
-        print(f"Gate summary: {len(passed_docs)} passed, {len(blocked_docs)} blocked\n")
+        print()
+        print("=" * 76)
+        print(f"Policy B — strict demo gate  (threshold >= {STRICT_DEMO_THRESHOLD})")
+        print(
+            "  Intentionally strict to show routing behavior.  stub.txt scores\n"
+            f"  ~93/HIGH — a clean extraction — but does not meet this pipeline's\n"
+            f"  policy of >= {STRICT_DEMO_THRESHOLD}.  The extraction is fine; the policy is strict."
+        )
+        print("=" * 76)
 
-        if passed_docs:
-            print("Embedding passed documents:")
-            for r in passed_docs:
-                mock_embed(r["name"], r["chunks"], r["readiness_score"])
+        results_b = [
+            {**r, "success": not r["errors"] and r["readiness_score"] >= STRICT_DEMO_THRESHOLD}
+            for r in compiled
+        ]
+        passed_b, held_b = _print_table(results_b, STRICT_DEMO_THRESHOLD)
 
-        if blocked_docs:
-            print("\nBlocked documents (not embedded):")
-            for r in blocked_docs:
-                reason = (
-                    f"score {r['readiness_score']} < threshold {MIN_READINESS_SCORE}"
-                    if not r["errors"]
-                    else f"errors: {'; '.join(r['errors'])}"
-                )
-                print(f"    [block] {r['name']}: {reason}")
+        print(f"\nGate summary: {len(passed_b)} passed, {len(held_b)} held for review\n")
+        for r in passed_b:
+            mock_embed(r["name"], r["chunks"], r["readiness_score"])
+        for r in held_b:
+            mock_review_queue(r["name"], r["readiness_score"], STRICT_DEMO_THRESHOLD)
 
         # ── JSON output example ───────────────────────────────────────────────
 
-        print("\n" + "─" * 76)
-        print("JSON result for first document (mirrors --json CLI output):\n")
-        first = run_gate(sources[0], compiler, MIN_READINESS_SCORE)
-        print(json.dumps(first, indent=2))
+        print()
+        print("=" * 76)
+        print("JSON result for first document (mirrors `aksharamd compile --json`):")
+        print("=" * 76)
+        print(json.dumps(compiled[0], indent=2))
+
+        # ── threshold reference ───────────────────────────────────────────────
+
+        print()
+        print("Threshold reference:")
+        print("  >= 85  HIGH band   — recommended for strict production ingestion")
+        print("  >= 70  OK band     — acceptable for internal search / lenient ingestion")
+        print("  <  70  RISKY/POOR  — investigate before embedding")
 
 
 if __name__ == "__main__":
