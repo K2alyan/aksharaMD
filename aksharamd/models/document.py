@@ -23,6 +23,7 @@ class Document(BaseModel):
     compiled_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
+    schema_version: str = "1.0"
 
     def compute_id(self) -> Document:
         raw = f"{self.source}:{self.file_type}:{self.pages}"

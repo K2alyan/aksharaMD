@@ -196,6 +196,47 @@ def test_zip_entry_count_limit(tmp_path, monkeypatch):
     assert any(e.code == "ARCHIVE_TOO_MANY_ENTRIES" for e in ctx.validation.errors)
 
 
+def test_zip_decompression_bomb_blocked(tmp_path, monkeypatch):
+    """ZIP archives whose declared uncompressed size exceeds the limit must be rejected."""
+    import zipfile
+
+    import aksharamd.plugins.parsers.archive as archive_mod
+    monkeypatch.setattr(archive_mod, "_MAX_ARCHIVE_DECOMPRESSED_BYTES", 100)
+
+    bomb_zip = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(str(bomb_zip), "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("big.txt", "A" * 500)
+
+    from aksharamd.plugins.parsers.archive import ZipParser
+    ctx = CompilationContext(source=str(bomb_zip), output_dir=str(tmp_path / "out"))
+    ZipParser().execute(ctx)
+    assert any(e.code == "ARCHIVE_TOO_LARGE" for e in ctx.validation.errors)
+
+
+def test_zip_nested_archive_not_recursed(tmp_path):
+    """A ZIP inside a ZIP must not be recursively extracted — inner archive is listed only."""
+    import zipfile
+
+    inner_zip = tmp_path / "inner.zip"
+    with zipfile.ZipFile(str(inner_zip), "w") as zf:
+        zf.writestr("secret.txt", "INNER SECRET")
+
+    outer_zip = tmp_path / "outer.zip"
+    with zipfile.ZipFile(str(outer_zip), "w") as zf:
+        zf.write(str(inner_zip), arcname="inner.zip")
+        zf.writestr("readme.txt", "outer content")
+
+    from aksharamd.plugins.parsers.archive import ZipParser
+    ctx = CompilationContext(source=str(outer_zip), output_dir=str(tmp_path / "out"))
+    ZipParser().execute(ctx)
+
+    assert ctx.document is not None
+    all_content = " ".join(b.content for b in ctx.document.blocks)
+    # inner.zip appears in the file listing but "INNER SECRET" must not be extracted
+    assert "INNER SECRET" not in all_content
+    assert "inner.zip" in all_content
+
+
 def test_block_heading_level_validator():
     """Block heading level must be 1-6; values outside this range should raise."""
     import pytest

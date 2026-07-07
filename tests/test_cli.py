@@ -32,6 +32,15 @@ def test_output_stem_url_sanitizes_special_chars():
     assert " " not in stem
 
 
+def test_output_stem_s3_url():
+    assert _output_stem("s3://my-bucket/docs/report.pdf") == "report"
+
+
+def test_output_stem_s3_url_no_key():
+    stem = _output_stem("s3://my-bucket/")
+    assert stem  # never empty
+
+
 def test_output_stem_url_fallback():
     # A URL that produces an empty stem after sanitization falls back to "url_output"
     stem = _output_stem("https://example.com/")
@@ -53,6 +62,17 @@ def test_source_arg_accepts_http_url(source_arg):
 def test_source_arg_accepts_https_url(source_arg):
     result = source_arg.convert("https://example.com/doc.pdf", None, None)
     assert result == "https://example.com/doc.pdf"
+
+
+def test_source_arg_accepts_s3_url(source_arg):
+    result = source_arg.convert("s3://my-bucket/docs/report.pdf", None, None)
+    assert result == "s3://my-bucket/docs/report.pdf"
+
+
+def test_source_arg_rejects_s3_url_without_bucket(source_arg):
+    import click
+    with pytest.raises(click.exceptions.BadParameter):
+        source_arg.convert("s3://", None, None)
 
 
 def test_source_arg_accepts_existing_file(source_arg, tmp_path):
