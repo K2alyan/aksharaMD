@@ -8,6 +8,17 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    ignore:
+      # pillow >=12.x: blocked by surya-ocr requiring pillow<11.0.0 across all
+      # released versions. Remove this ignore when surya-ocr publishes a release
+      # that supports pillow>=12.
+      - dependency-name: "pillow"
+        versions: [">=12.0.0"]
+      # transformers >=5.x: blocked by marker-pdf>=1.6 requiring transformers<5.0.0
+      # across all released versions (1.6.0–1.10.2). Remove this ignore when
+      # marker-pdf publishes a release that supports transformers>=5.
+      - dependency-name: "transformers"
+        versions: [">=5.0.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

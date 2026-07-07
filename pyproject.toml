@@ -27,6 +27,10 @@ dependencies = [
     "ebooklib>=0.18",
     "feedparser>=6.0",
     "extract-msg>=0.50",
+    # Security note: pillow is pinned to <11.0.0 in the universal lockfile because
+    # surya-ocr (via the [vision] extra) requires pillow<11 across all released
+    # versions. Upgrading to >=12.2.0 (which fixes CVE-2025-* alerts) requires a
+    # surya-ocr release that lifts this cap. Track: github.com/VikParuchuri/surya
     "Pillow>=10.0",
     "striprtf>=0.0.26",
     "pdfplumber>=0.11",
