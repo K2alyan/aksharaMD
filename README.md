@@ -764,6 +764,7 @@ These are current boundaries of the system. They are not bugs.
 | [Output Schema](docs/output-schema.md) | `manifest.json`, `document.json`, `validation.json`, `chunks/*.json` — schema 1.0, field reference, compatibility guarantee |
 | [RAG Integration](docs/rag-integration.md) | Readiness-gated ingestion, per-block confidence filtering, LangChain and LlamaIndex loaders, corpus ingestion |
 | [Benchmark Methodology](benchmarks/LLM_QA_BENCHMARK.md) | Full results: corpus, scoring prompts, per-format accuracy, token tables, cost projections, reproduction instructions |
+| [Comparison Guide](comparison.md) | AksharaMD vs MarkItDown vs Docling — design goals, tradeoffs, and when to choose each tool |
 | [Architecture Decisions](ADR.md) | Why the system is structured the way it is — pipeline design, scoring, licensing, PDF parser rules |
 
 ---
