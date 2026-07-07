@@ -21,7 +21,6 @@ from .models.manifest import Manifest
 from .plugins import parsers as _parsers_pkg  # noqa: F401
 from .plugins import registry
 from .plugins.base import (
-    ChunkerPlugin,
     CleanerPlugin,
     ExporterPlugin,
     OptimizerPlugin,
