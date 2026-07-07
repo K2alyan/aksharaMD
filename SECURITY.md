@@ -54,3 +54,41 @@ Current protections implemented in the codebase:
 - **File size gate** — files exceeding `AKSHARAMD_MAX_FILE_BYTES` (default 500 MB) are rejected before parsing
 - **XML safety** — `defusedxml` is used for all XML parsing to prevent entity expansion attacks
 - **Whisper model whitelist** — the `AKSHARAMD_WHISPER_MODEL` environment variable is validated against an allowlist to prevent command injection
+
+## Deferred Dependency Alerts
+
+The following Dependabot vulnerability alerts are present in the lockfile but **cannot currently be resolved** because upstream optional-extra dependencies impose version caps that conflict with the fixed package versions. No code change in this repository can fix them until the upstream packages release new versions.
+
+### pillow — 5 alerts (HIGH × 3, MEDIUM × 2)
+
+**Fixed version required:** ≥ 12.2.0  
+**Locked version:** 10.4.0  
+**Blocker:** `surya-ocr` (required by `marker-pdf`, which powers the `[vision]` extra) declares `pillow < 11.0.0` across every released version (0.1.0–0.20.0). Because uv builds a universal lockfile that resolves all extras simultaneously, this cap pins `pillow` to 10.4.0 even for base-install users.
+
+**Advisories:**
+- OOB write when loading PSD images (× 2)
+- FITS GZIP decompression bomb (DoS)
+- PDF parsing trailer infinite loop (DoS)
+- Integer overflow in font processing
+
+**Practical exposure:** AksharaMD uses `pillow` for general image handling during document parsing. It does not process PSD or FITS files in normal ingestion workflows. The PDF trailer DoS applies to pillow's own PDF parser, not to PyMuPDF which AksharaMD uses for PDF parsing. Risk is low in practice for the documented use case but the installed package remains vulnerable.
+
+**Removal condition:** When `surya-ocr` releases a version that supports `pillow >= 12.0`, remove the `pillow` ignore rule from `.github/dependabot.yml`, bump `Pillow >= 12.2.0` in `pyproject.toml`, regenerate `uv.lock`, and close the alerts.  
+**Track:** https://github.com/VikParuchuri/surya
+
+---
+
+### transformers — 2 alerts (HIGH × 1, MEDIUM × 1)
+
+**Fixed version required:** ≥ 5.3.0  
+**Locked version:** 4.57.6  
+**Blocker:** `marker-pdf >= 1.6` declares `transformers < 5.0.0` across all released versions (1.6.0–1.10.2). Affects the `[vision]` and `[math]` optional extras only. The base install does not depend on `transformers`.
+
+**Advisories:**
+- Remote code execution via the `Trainer` class
+- Arbitrary code execution via pickle deserialization
+
+**Practical exposure:** AksharaMD uses `transformers` (via `marker-pdf` / `surya-ocr`) exclusively for neural layout detection inference. The `Trainer` class is never instantiated. Pickle deserialization of untrusted model weights is not performed during normal document ingestion. Risk is low in practice but the installed package remains vulnerable when `[vision]` is installed.
+
+**Removal condition:** When `marker-pdf` releases a version that supports `transformers >= 5.0`, remove the `transformers` ignore rule from `.github/dependabot.yml`, upgrade accordingly, regenerate `uv.lock`, and close the alerts.  
+**Track:** https://github.com/VikParuchuri/marker
