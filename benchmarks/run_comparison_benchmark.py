@@ -212,7 +212,7 @@ def _write_summary(records: list[dict], tools: list[str], path: Path, elapsed_to
     if "aksharamd" in tools and len(tools) > 1:
         lines += ["## Token Efficiency vs AksharaMD", ""]
         lines += [
-            "| Format | " + " | ".join(t.capitalize() + " tokens" for t in tools) + " | Ratio (AksharaMD÷other) |",
+            "| Format | " + " | ".join(t.capitalize() + " tokens" for t in tools) + " | Ratio (other÷AksharaMD, >1 = AksharaMD wins) |",
             "| --- |" + " --- |" * len(tools) + " --- |",
         ]
         formats = sorted({r["format"] for r in records})
