@@ -1,0 +1,321 @@
+{
+  "version": "2.0",
+  "description": "Public reproducible corpus for AksharaMD parser coverage benchmarks. Measures parser success rate, extraction readiness, and block structure quality. Version 2.0 expands to all 34 available PDFs and 100 synthetic files (10 per format).",
+  "license_note": "PDF subset sourced from py-pdf/sample-files (https://github.com/py-pdf/sample-files), licensed CC-BY-SA-4.0. Programmatic files are synthetic with no license restrictions.",
+  "corpus_dir": ".public_corpus",
+  "upstream_pdf_source": "https://raw.githubusercontent.com/py-pdf/sample-files/main/",
+  "pdf_corpus": {
+    "source": "py-pdf/sample-files",
+    "license": "CC-BY-SA-4.0",
+    "total": 34,
+    "smoke_ids": [
+      "pdf-001", "pdf-002", "pdf-004", "pdf-006",
+      "pdf-010", "pdf-011", "pdf-016", "pdf-023",
+      "pdf-025", "pdf-031"
+    ],
+    "max_download_mb_default": 100,
+    "files": [
+      {
+        "id": "pdf-001", "label": "minimal-pdflatex", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/001-trivial/minimal-document.pdf",
+        "local_path": "pdf/001-trivial/minimal-document.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-002", "label": "libreoffice-writer", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf",
+        "local_path": "pdf/002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "LibreOffice 6.4", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-003", "label": "pdflatex-with-image", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/003-pdflatex-image/pdflatex-image.pdf",
+        "local_path": "pdf/003-pdflatex-image/pdflatex-image.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-004", "label": "pdflatex-4-pages", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/004-pdflatex-4-pages/pdflatex-4-pages.pdf",
+        "local_path": "pdf/004-pdflatex-4-pages/pdflatex-4-pages.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 4, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-005", "label": "libreoffice-encrypted", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/005-libreoffice-writer-password/libreoffice-writer-password.pdf",
+        "local_path": "pdf/005-libreoffice-writer-password/libreoffice-writer-password.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "error", "expected_error_hint": "PDF_ENCRYPTED",
+        "py_pdf_meta": {"producer": "Libre Office Writer", "pages": 1, "encrypted": true, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-006", "label": "pdflatex-outline-links", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/006-pdflatex-outline/pdflatex-outline.pdf",
+        "local_path": "pdf/006-pdflatex-outline/pdflatex-outline.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 4, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-007", "label": "imagemagick-ascii85", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/007-imagemagick-images/imagemagick-ASCII85Decode.pdf",
+        "local_path": "pdf/007-imagemagick-images/imagemagick-ASCII85Decode.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "https://imagemagick.org", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-008", "label": "imagemagick-multipage", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/007-imagemagick-images/imagemagick-images.pdf",
+        "local_path": "pdf/007-imagemagick-images/imagemagick-images.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "https://imagemagick.org", "pages": 6, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-009", "label": "imagemagick-ccitt", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf",
+        "local_path": "pdf/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "https://imagemagick.org", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-010", "label": "reportlab-inline-image", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/008-reportlab-inline-image/inline-image.pdf",
+        "local_path": "pdf/008-reportlab-inline-image/inline-image.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "ReportLab PDF Library", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-011", "label": "pdflatex-forms", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/010-pdflatex-forms/pdflatex-forms.pdf",
+        "local_path": "pdf/010-pdflatex-forms/pdflatex-forms.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 1, "encrypted": false, "images": 0, "forms": 1}
+      },
+      {
+        "id": "pdf-012", "label": "google-docs", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/011-google-doc-document/google-doc-document.pdf",
+        "local_path": "pdf/011-google-doc-document/google-doc-document.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "Skia/PDF m103 Google Docs Renderer", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-013", "label": "libreoffice-form", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/012-libreoffice-form/libreoffice-form.pdf",
+        "local_path": "pdf/012-libreoffice-form/libreoffice-form.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "LibreOffice 6.4", "pages": 1, "encrypted": false, "images": 0, "forms": 1}
+      },
+      {
+        "id": "pdf-014", "label": "reportlab-overlay", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/013-reportlab-overlay/reportlab-overlay.pdf",
+        "local_path": "pdf/013-reportlab-overlay/reportlab-overlay.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "PyPDF2", "pages": 1, "encrypted": false, "images": 0, "forms": 1}
+      },
+      {
+        "id": "pdf-015", "label": "mistitled-outlines", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/014-outlines/mistitled_outlines_example.pdf",
+        "local_path": "pdf/014-outlines/mistitled_outlines_example.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.23", "pages": 4, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-016", "label": "arabic-rtl", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/015-arabic/habibi.pdf",
+        "local_path": "pdf/015-arabic/habibi.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "WeasyPrint 54.1", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-017", "label": "arabic-rotated", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/015-arabic/habibi-rotated.pdf",
+        "local_path": "pdf/015-arabic/habibi-rotated.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pypdf", "pages": 4, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-018", "label": "libreoffice-link", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/016-libre-office-link/libre-office-link.pdf",
+        "local_path": "pdf/016-libre-office-link/libre-office-link.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "LibreOffice 6.4", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-019", "label": "unreadable-metadata", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/017-unreadable-meta-data/unreadablemetadata.pdf",
+        "local_path": "pdf/017-unreadable-meta-data/unreadablemetadata.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "?", "pages": 4, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-020", "label": "base64-image", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/018-base64-image/base64image.pdf",
+        "local_path": "pdf/018-base64-image/base64image.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "PDF Annotator 8.0.0.837", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-021", "label": "grayscale-image", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/019-grayscale-image/grayscale-image.pdf",
+        "local_path": "pdf/019-grayscale-image/grayscale-image.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": null, "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-022", "label": "xmp-metadata", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/020-xmp/output_with_metadata_pymupdf.pdf",
+        "local_path": "pdf/020-xmp/output_with_metadata_pymupdf.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": null, "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-023", "label": "pdfa-ghostscript", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/021-pdfa/crazyones-pdfa.pdf",
+        "local_path": "pdf/021-pdfa/crazyones-pdfa.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "GPL Ghostscript 10.00.0", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-024", "label": "annotations-fpdf2", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/024-annotations/annotated_pdf.pdf",
+        "local_path": "pdf/024-annotations/annotated_pdf.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "produced by FPDF2", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-025", "label": "latex-multicolumn", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/026-latex-multicolumn/multicolumn.pdf",
+        "local_path": "pdf/026-latex-multicolumn/multicolumn.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.21", "pages": 3, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-026", "label": "imagemagick-lzw", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/007-imagemagick-images/imagemagick-lzw.pdf",
+        "local_path": "pdf/007-imagemagick-images/imagemagick-lzw.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "https://imagemagick.org", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-027", "label": "geotopo-pdflatex", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/009-pdflatex-geotopo/GeoTopo.pdf",
+        "local_path": "pdf/009-pdflatex-geotopo/GeoTopo.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "note": "117-page academic PDF; may be skipped by --max-download-mb guard",
+        "py_pdf_meta": {"producer": "pdfTeX-1.40.16", "pages": 117, "encrypted": false, "images": null, "forms": 0}
+      },
+      {
+        "id": "pdf-028", "label": "geotopo-optimized", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+        "local_path": "pdf/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "note": "117-page compressed academic PDF; may be skipped by --max-download-mb guard",
+        "py_pdf_meta": {"producer": "3-Heights PDF Optimization Shell 6.3.1.5", "pages": 117, "encrypted": false, "images": null, "forms": 0}
+      },
+      {
+        "id": "pdf-029", "label": "arabic-oneline-cmap", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/015-arabic/habibi-oneline-cmap.pdf",
+        "local_path": "pdf/015-arabic/habibi-oneline-cmap.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "WeasyPrint 54.1", "pages": 1, "encrypted": false, "images": 0, "forms": 0}
+      },
+      {
+        "id": "pdf-030", "label": "pdfkit-qt", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/022-pdfkit/pdfkit.pdf",
+        "local_path": "pdf/022-pdfkit/pdfkit.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "Qt 5.12.8", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-031", "label": "cmyk-image", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/023-cmyk-image/cmyk-image.pdf",
+        "local_path": "pdf/023-cmyk-image/cmyk-image.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": null, "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-032", "label": "attachment", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/025-attachment/with-attachment.pdf",
+        "local_path": "pdf/025-attachment/with-attachment.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "pypdf", "pages": 1, "encrypted": false, "images": 1, "forms": 0}
+      },
+      {
+        "id": "pdf-033", "label": "cropped-rotated-scaled", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",
+        "local_path": "pdf/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "note": "Complex: 64 images, 96 form widgets, multiple annotation types",
+        "py_pdf_meta": {"producer": "pypdf", "pages": 4, "encrypted": false, "images": 64, "forms": 1}
+      },
+      {
+        "id": "pdf-034", "label": "image-refs-dedup", "source": "py-pdf/sample-files",
+        "url": "https://raw.githubusercontent.com/py-pdf/sample-files/main/028-image-references-deduplication/wrong-references.pdf",
+        "local_path": "pdf/028-image-references-deduplication/wrong-references.pdf", "license": "CC-BY-SA-4.0",
+        "expected_outcome": "success",
+        "py_pdf_meta": {"producer": "LibreOffice 25.8.6.2 (X86_64)", "pages": 3, "encrypted": false, "images": 2, "forms": 0}
+      }
+    ]
+  },
+  "synthetic_corpus": {
+    "formats": ["docx", "xlsx", "pptx", "html", "csv", "json", "xml", "txt", "md", "zip"],
+    "variants_per_format": 10,
+    "smoke_variants_per_format": 1,
+    "total": 100,
+    "smoke_total": 10,
+    "local_path_template": "synthetic/{format}/sample-{variant:02d}.{ext}",
+    "variant_labels": {
+      "docx": [
+        "headings-paragraphs", "tables", "unicode", "numbered-lists",
+        "empty-sections", "long-text", "metadata", "nested-headings",
+        "mixed-content", "minimal"
+      ],
+      "xlsx": [
+        "single-sheet", "multi-sheet", "empty-cells", "numeric-data",
+        "large-table", "string-data", "date-values", "unicode",
+        "wide-headers", "minimal"
+      ],
+      "pptx": [
+        "title-content", "multi-slide-5", "with-table", "with-bullets",
+        "unicode", "mixed-layouts", "long-text", "minimal",
+        "title-only", "content-heavy-8"
+      ],
+      "html": [
+        "headings-paragraphs", "tables", "ordered-unordered-lists", "unicode",
+        "nested-divs", "metadata-tags", "code-blocks", "links-images",
+        "empty-body", "minimal"
+      ],
+      "csv": [
+        "simple-tabular", "unicode", "empty-cells", "large-50rows",
+        "single-column", "quoted-fields", "numeric-only", "mixed-types",
+        "header-only", "minimal"
+      ],
+      "json": [
+        "flat-object", "nested-object", "array-of-objects", "deeply-nested",
+        "unicode", "null-values", "large-array", "mixed-types",
+        "empty-object", "minimal"
+      ],
+      "xml": [
+        "simple-elements", "nested-elements", "attributes", "unicode",
+        "mixed-content", "deep-nesting", "namespaced", "cdata",
+        "empty-elements", "minimal"
+      ],
+      "txt": [
+        "paragraphs", "headings-sections", "unicode", "long-text",
+        "lists", "minimal", "ascii-table", "code-like",
+        "mixed-sections", "whitespace-heavy"
+      ],
+      "md": [
+        "full-document", "tables", "code-blocks", "unicode",
+        "nested-lists", "headings-h1-h6", "links-images", "blockquotes",
+        "minimal", "long-text"
+      ],
+      "zip": [
+        "single-text", "mixed-formats", "nested-dirs", "many-small-10",
+        "unicode-filenames", "large-text", "source-code-tree", "config-files",
+        "empty-mixed", "minimal"
+      ]
+    }
+  }
+}
