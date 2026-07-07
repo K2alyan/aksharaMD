@@ -44,6 +44,20 @@ def ingest_document(path: str) -> None:
 
 AksharaMD produces pre-sized semantic chunks in `ctx.chunks`. Each chunk carries its heading, page range, and block IDs — pass these as metadata to your vector store so you can cite the source at retrieval time.
 
+**Configuring chunk size and overlap.** The default chunk size is 512 tokens with no overlap. Adjust these to match your embedding model's context window and your retrieval strategy. Both values are recorded in `manifest.json` so your output is reproducible.
+
+```bash
+# CLI
+aksharamd compile report.pdf --chunk-size 768 --chunk-overlap 100
+```
+
+```python
+# Python API
+compiler = Compiler(output_dir="output", chunk_size=768, chunk_overlap=100)
+```
+
+`chunk_overlap` must be less than `chunk_size`. Overlap is block-granular: tail blocks from the end of one chunk are carried into the start of the next when a token-limit break occurs. Heading-based section breaks always start clean with no carry-over.
+
 ```python
 from aksharamd.compiler import Compiler
 

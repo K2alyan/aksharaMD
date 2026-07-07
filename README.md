@@ -248,6 +248,8 @@ aksharamd compile <source> [options]
 | `--timings` | — | Show per-stage timing breakdown |
 | `--quiet` | — | Suppress all console output |
 | `-v`, `--verbose` | — | Enable debug logging |
+| `--chunk-size INTEGER` | `512` | Maximum tokens per chunk. Tune for your embedding model's context window. |
+| `--chunk-overlap INTEGER` | `0` | Tokens of overlap carried from the end of one chunk into the start of the next. Must be less than `--chunk-size`. |
 | `--min-readiness-score INTEGER` | — | Exit non-zero if readiness score is below this value. Output files are still written. Useful as a CI/CD ingestion gate. |
 | `--json` | — | Print a single JSON object to stdout (suppresses Rich panels). Compatible with `--min-readiness-score`. |
 
@@ -277,6 +279,12 @@ aksharamd compile report.pdf --json
 
 # JSON output with readiness gate
 aksharamd compile report.pdf --json --min-readiness-score 70
+
+# Tune chunk size for your embedding model (default 512)
+aksharamd compile report.pdf --chunk-size 768
+
+# Add overlap so consecutive chunks share tail context
+aksharamd compile report.pdf --chunk-size 768 --chunk-overlap 100
 ```
 
 **JSON output fields** (when `--json` is used):
@@ -291,6 +299,8 @@ aksharamd compile report.pdf --json --min-readiness-score 70
 | `warning_codes` | list[string] | Named warning codes (e.g. `OCR_REQUIRED`) |
 | `errors` | list[string] | Validation error messages |
 | `chunks` | int \| null | Number of semantic chunks produced |
+| `chunk_size` | int | Maximum tokens per chunk used for this compilation |
+| `chunk_overlap` | int | Overlap tokens carried between chunks |
 | `pages` | int \| null | Page or section count |
 | `optimized_tokens` | int \| null | Tokens after pipeline optimisation |
 | `elapsed_seconds` | float \| null | Wall-clock compilation time |
