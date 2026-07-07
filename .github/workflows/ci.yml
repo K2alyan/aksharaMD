@@ -2,12 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, development]
+    branches: [main]
   pull_request:
-    branches: [main, development]
-  schedule:
-    # Nightly integration run on development branch
-    - cron: '0 2 * * *'
+    branches: [main]
 
 jobs:
   fast-gate:
@@ -62,15 +59,10 @@ jobs:
   integration:
     name: Integration (Python 3.11)
     runs-on: ubuntu-latest
-    # Run on PRs to main AND on nightly schedule against development
-    if: >
-      (github.event_name == 'pull_request' && github.base_ref == 'main') ||
-      github.event_name == 'schedule'
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: ${{ github.event_name == 'schedule' && 'development' || github.ref }}
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
