@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Run the AksharaMD public reproducible benchmark.
 
-Compiles every file in the public corpus manifest and records parser
-success/failure, block counts, output size, and readiness score.
+Compiles every file in the public corpus and records parser success/failure,
+block counts, output size, and readiness score.
 
 Usage:
-    python benchmarks/run_public_benchmark.py [--output-dir RESULTS_DIR]
+    python benchmarks/run_public_benchmark.py [options]
 
-Output:
-    benchmarks/results/public_benchmark_<timestamp>.jsonl
-    benchmarks/results/public_benchmark_<timestamp>.md
+Modes:
+    (default / --full)   All 34 PDFs + 10 variants per format = 134 files
+    --smoke              10 smoke PDFs + 1 variant per format = 20 files
+    --max-pdfs N         Run at most N PDF files (after smoke filtering)
+
+Output (benchmarks/results/):
+    public_benchmark_<timestamp>.jsonl   — one JSON record per file
+    public_benchmark_<timestamp>.md      — human-readable summary table
 
 Run build_public_corpus.py first to populate .public_corpus/.
 """
@@ -32,6 +37,64 @@ sys.path.insert(0, str(REPO_ROOT))
 def _load_manifest() -> dict:
     with open(MANIFEST_PATH, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def _build_entries(
+    manifest: dict,
+    smoke: bool = False,
+    max_pdfs: int | None = None,
+) -> list[dict]:
+    """Construct the flat list of entries to benchmark from the v2 manifest."""
+    entries: list[dict] = []
+
+    # ── PDF entries ────────────────────────────────────────────────────────────
+    pdf_corpus = manifest["pdf_corpus"]
+    pdf_files: list[dict] = pdf_corpus["files"]
+
+    if smoke:
+        smoke_ids = set(pdf_corpus["smoke_ids"])
+        pdf_files = [f for f in pdf_files if f["id"] in smoke_ids]
+
+    if max_pdfs is not None:
+        pdf_files = pdf_files[:max_pdfs]
+
+    for entry in pdf_files:
+        entries.append({
+            "id": entry["id"],
+            "label": entry["label"],
+            "format": "pdf",
+            "source": entry.get("source", "py-pdf/sample-files"),
+            "local_path": entry["local_path"],
+            "license": entry.get("license", "CC-BY-SA-4.0"),
+            "expected_outcome": entry.get("expected_outcome", "success"),
+        })
+
+    # ── Synthetic entries ──────────────────────────────────────────────────────
+    syn = manifest["synthetic_corpus"]
+    formats: list[str] = syn["formats"]
+    path_template: str = syn["local_path_template"]
+    variant_labels: dict[str, list[str]] = syn.get("variant_labels", {})
+
+    variants_per_format = (
+        syn["smoke_variants_per_format"] if smoke else syn["variants_per_format"]
+    )
+
+    for fmt in formats:
+        labels = variant_labels.get(fmt, [])
+        for v in range(1, variants_per_format + 1):
+            local_path = path_template.format(format=fmt, variant=v, ext=fmt)
+            label = labels[v - 1] if v <= len(labels) else f"variant-{v:02d}"
+            entries.append({
+                "id": f"syn-{fmt}-{v:02d}",
+                "label": label,
+                "format": fmt,
+                "source": "synthetic",
+                "local_path": local_path,
+                "license": "none",
+                "expected_outcome": "success",
+            })
+
+    return entries
 
 
 def _estimate_tokens(text: str) -> int:
@@ -85,7 +148,10 @@ def _run_one(corpus_root: Path, entry: dict) -> dict:
                 result["readiness_score"] = doc.metadata.get("readiness_score")
 
         result["elapsed_seconds"] = round(elapsed, 3)
-        warnings = [i for i in ctx.validation.issues if hasattr(i, "severity") and str(i.severity) in ("WARNING", "Severity.WARNING")]
+        warnings = [
+            i for i in ctx.validation.issues
+            if hasattr(i, "severity") and str(i.severity) in ("WARNING", "Severity.WARNING")
+        ]
         result["warnings"] = [{"code": w.code, "message": w.message} for w in warnings]
         result["errors"] = [{"code": e.code, "message": e.message} for e in ctx.validation.errors]
 
@@ -150,6 +216,11 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
     pdf_results = [r for r in results if r.get("format") == "pdf"]
     syn_results = [r for r in results if r.get("source") == "synthetic"]
 
+    pdf_meta_index: dict[str, dict] = {
+        e["id"]: e.get("py_pdf_meta", {})
+        for e in manifest.get("pdf_corpus", {}).get("files", [])
+    }
+
     if pdf_results:
         lines += [
             "## PDF Results (py-pdf/sample-files — CC-BY-SA-4.0)",
@@ -158,10 +229,7 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
             "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for r in pdf_results:
-            meta: dict = next(
-                (e.get("py_pdf_meta", {}) for e in manifest["files"] if e["id"] == r["id"]),
-                {},
-            )
+            meta = pdf_meta_index.get(r["id"], {})
             pages = meta.get("pages", r.get("pages", "?"))
             outcome = r.get("outcome", "?")
             blocks = r.get("block_count", "-")
@@ -180,8 +248,8 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
         lines += [
             "## Synthetic Format Results",
             "",
-            "| ID | Format | Outcome | Blocks | Chars | Tokens | Elapsed |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| ID | Format | Label | Outcome | Blocks | Chars | Tokens | Elapsed |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for r in syn_results:
             outcome = r.get("outcome", "?")
@@ -190,12 +258,15 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
             tokens = r.get("estimated_tokens", "-")
             elapsed = r.get("elapsed_seconds", "-")
             lines.append(
-                f"| {r['id']} | {r['format']} | {outcome} "
-                f"| {blocks} | {chars} | {tokens} | {elapsed}s |"
+                f"| {r['id']} | {r['format']} | {r.get('label', '-')} "
+                f"| {outcome} | {blocks} | {chars} | {tokens} | {elapsed}s |"
             )
         lines.append("")
 
-    error_results = [r for r in results if r.get("outcome") in ("error", "exception") and r.get("expected_outcome") != "error"]
+    error_results = [
+        r for r in results
+        if r.get("outcome") in ("error", "exception") and r.get("expected_outcome") != "error"
+    ]
     if error_results:
         lines += ["## Unexpected Failures", ""]
         for r in error_results:
@@ -215,6 +286,12 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
         "python benchmarks/run_public_benchmark.py",
         "```",
         "",
+        "For a quick smoke run (20 files):",
+        "```",
+        "python benchmarks/build_public_corpus.py --smoke",
+        "python benchmarks/run_public_benchmark.py --smoke",
+        "```",
+        "",
         "PDF files sourced from https://github.com/py-pdf/sample-files (CC-BY-SA-4.0).",
         "Synthetic files generated by `build_public_corpus.py` with no external dependencies.",
     ]
@@ -223,7 +300,11 @@ def _write_markdown(results: list[dict], manifest: dict, path: Path, elapsed_tot
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def run(output_dir: Path | None = None) -> list[dict]:
+def run(
+    output_dir: Path | None = None,
+    smoke: bool = False,
+    max_pdfs: int | None = None,
+) -> list[dict]:
     manifest = _load_manifest()
     corpus_root = BENCHMARKS / manifest["corpus_dir"]
     results_dir = output_dir or (BENCHMARKS / "results")
@@ -232,14 +313,18 @@ def run(output_dir: Path | None = None) -> list[dict]:
     jsonl_path = results_dir / f"public_benchmark_{ts}.jsonl"
     md_path = results_dir / f"public_benchmark_{ts}.md"
 
+    entries = _build_entries(manifest, smoke=smoke, max_pdfs=max_pdfs)
+    mode_label = "smoke" if smoke else "full"
+
     print(f"Corpus:  {corpus_root}")
+    print(f"Mode:    {mode_label} ({len(entries)} files)")
     print(f"Results: {jsonl_path}")
     print()
 
     results: list[dict] = []
     t_start = time.monotonic()
 
-    for entry in manifest["files"]:
+    for entry in entries:
         print(f"[{entry['id']}] {entry['label']} ({entry['format']}) ...", end=" ", flush=True)
         r = _run_one(corpus_root, entry)
         results.append(r)
@@ -273,10 +358,26 @@ def run(output_dir: Path | None = None) -> list[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--output-dir", type=Path, default=None, help="Directory for result files (default: benchmarks/results/)")
+    parser.add_argument(
+        "--output-dir", type=Path, default=None,
+        help="Directory for result files (default: benchmarks/results/)"
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--smoke", action="store_true",
+        help="10 smoke PDFs + 1 variant per format (20 files)"
+    )
+    mode.add_argument(
+        "--full", action="store_true",
+        help="All 34 PDFs + 10 variants per format (134 files, default)"
+    )
+    parser.add_argument(
+        "--max-pdfs", type=int, default=None, metavar="N",
+        help="Limit PDF files to at most N (applied after smoke filtering)"
+    )
     args = parser.parse_args()
 
-    results = run(output_dir=args.output_dir)
+    results = run(output_dir=args.output_dir, smoke=args.smoke, max_pdfs=args.max_pdfs)
     unexpected_failures = [
         r for r in results
         if r.get("outcome") in ("error", "exception") and r.get("expected_outcome") != "error"
