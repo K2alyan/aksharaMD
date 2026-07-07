@@ -5,6 +5,33 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.4] — 2026-07-06
+
+AksharaMD v0.3.4 is a production-readiness patch: security hardening, CLI fixes, output schema versioning, expanded CI, and benchmark/documentation additions.
+
+### Added
+
+- **`SECURITY.md`**: supported versions, responsible disclosure process (72 h acknowledgement, 14-day patch SLA), and in-scope attack surfaces (archive bombs, path traversal, SSRF, XML injection, PDF parser attacks, dependency CVEs).
+- **`schema_version = "1.0"`** field added to all four exported JSON models (`Manifest`, `Document`, `ValidationReport`, `Chunk`) — enables downstream consumers to gate on schema compatibility.
+- **Dependabot**: weekly dependency and GitHub Actions version updates (PRs capped at 5).
+- **`pip-audit` in CI**: dependency vulnerability scan runs after bandit on every push.
+- **Windows smoke job in CI**: `pytest tests/test_cli.py tests/test_security.py` on `windows-latest` (Python 3.11) validates CLI and archive safety on every push.
+- **Wheel smoke test in publish workflow**: installs the built wheel in a clean environment and runs `aksharamd --help` before PyPI upload and GitHub release.
+- **Benchmark methodology docs**: `benchmarks/corpus_manifest.json` (corpus provenance and per-format public availability), `benchmarks/scoring_prompt.md` (verbatim answer and judge prompts), `benchmarks/results/README.md` (summary results tables with reproduction instructions).
+- **`docs/readiness-score.md`**: quality bands, per-format baselines, full penalty table, all warning codes with recommended actions, and known false positives.
+- **`docs/output-schema.md`**: schema 1.0 compatibility guarantee and complete field reference for all four output models.
+- **`docs/rag-integration.md`**: readiness-gated ingestion patterns, complete `AksharaMDLoader` (LangChain) and `AksharaMDReader` (LlamaIndex) implementations, RISKY document handling strategies, and environment variables table.
+
+### Fixed
+
+- **S3 CLI acceptance**: `aksharamd compile s3://bucket/key` no longer fails argument validation. `_SourceArg` and `_output_stem` now recognise `s3://` URIs alongside `http(s)://`.
+- **Archive safety tests expanded**: decompression-bomb limit and nested-archive non-recursion are now covered by unit tests.
+
+### Improved
+
+- **Benchmark reproducibility caveats**: `benchmarks/corpus_manifest.json` and `benchmarks/results/README.md` now state clearly that raw document files are not committed (size/licensing), which formats are re-downloadable from public sources (arXiv, Wikipedia, Project Gutenberg), which are synthetic, and that the committed `eval_corpus_qa.yaml` is a 100-document validation subset with local absolute paths.
+- **README**: documentation section links all new guides; format coverage count updated to "40+ document categories, 118 registered extensions".
+
 ## [0.3.3] — 2026-07-07
 
 AksharaMD v0.3.3 adds math OCR for PDF equations, a first-run onboarding panel, a `doctor` command, and an XML parser overhaul validated by three LLM judges.
