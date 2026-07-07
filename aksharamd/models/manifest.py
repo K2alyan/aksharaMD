@@ -28,6 +28,8 @@ class Manifest(BaseModel):
     file_type: str = ""
     pages: int = 0
     chunks: int = 0
+    chunk_size: int = 512
+    chunk_overlap: int = 0
     images: int = 0
     tables: int = 0
     original_tokens: int = 0

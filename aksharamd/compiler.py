@@ -21,7 +21,6 @@ from .models.manifest import Manifest
 from .plugins import parsers as _parsers_pkg  # noqa: F401
 from .plugins import registry
 from .plugins.base import (
-    ChunkerPlugin,
     CleanerPlugin,
     ExporterPlugin,
     OptimizerPlugin,
@@ -216,8 +215,23 @@ def _detect_file_type(path: str) -> str:
 
 
 class Compiler:
-    def __init__(self, output_dir: str = "output"):
+    def __init__(
+        self,
+        output_dir: str = "output",
+        chunk_size: int = 512,
+        chunk_overlap: int = 0,
+    ) -> None:
+        if chunk_size <= 0:
+            raise ValueError(f"chunk_size must be positive, got {chunk_size}")
+        if chunk_overlap < 0:
+            raise ValueError(f"chunk_overlap must be >= 0, got {chunk_overlap}")
+        if chunk_overlap >= chunk_size:
+            raise ValueError(
+                f"chunk_overlap ({chunk_overlap}) must be less than chunk_size ({chunk_size})"
+            )
         self.output_dir = output_dir
+        self._chunk_size = chunk_size
+        self._chunk_overlap = chunk_overlap
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -534,8 +548,17 @@ class Compiler:
             if on_stage:
                 on_stage("Chunking for context windows")
             with timed("chunk"):
-                for plugin in registry.get_plugins_of_type(ChunkerPlugin):  # type: ignore[type-abstract]
-                    ctx = plugin.execute(ctx)
+                # SemanticChunker is instantiated directly rather than via the plugin
+                # registry because the registry caches no-arg instances and cannot
+                # propagate per-compilation parameters (chunk_size, chunk_overlap).
+                # This is intentional minimal-scope behaviour for the first pass.
+                # Revisit when --chunk-strategy is added and a registry-level
+                # configuration mechanism is designed.
+                from .plugins.chunkers.semantic import SemanticChunker as _SemanticChunker
+                ctx = _SemanticChunker(
+                    max_tokens=self._chunk_size,
+                    overlap_tokens=self._chunk_overlap,
+                ).execute(ctx)
 
             # 7. Count tokens
             if on_stage:
@@ -574,6 +597,8 @@ class Compiler:
                 file_type=file_type,
                 pages=doc.pages if doc else 0,
                 chunks=len(ctx.chunks),
+                chunk_size=self._chunk_size,
+                chunk_overlap=self._chunk_overlap,
                 images=images,
                 tables=tables,
                 original_tokens=original_tokens,
