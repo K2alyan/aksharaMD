@@ -1,6 +1,17 @@
 # AksharaMD — Downstream LLM Accuracy Benchmark
 
-> Benchmark results for AksharaMD v0.3.0.
+> Primary benchmark results were collected on **AksharaMD v0.3.3**. The current
+> package version is v0.3.4 (bug-fix and documentation release; no parser changes
+> that affect these results). Methodology and reproducibility limitations are
+> described in detail below.
+>
+> **Study 1** (token efficiency and speed) was measured on an internal production
+> corpus and is not fully reproducible from committed files alone — see the
+> Reproducibility section.  **Study 2** (downstream LLM accuracy) used a separate
+> independent corpus; the committed `eval_corpus_qa.yaml` is a 100-document
+> validation subset.  The full corpus documents are not committed (size and
+> licensing); which formats are re-downloadable from public sources is documented
+> in `benchmarks/corpus_manifest.json`.
 
 ---
 
@@ -48,9 +59,11 @@ Documents were not chosen to favour AksharaMD — they represent everyday enterp
 3. The same question is sent to the LLM with each conversion's context: *"Answer using only the document text. Be concise."*
 4. Claude Haiku 4.5 scores every answer **0–10** against the expected answer
 
-**LLM tested:** Claude Haiku 4.5  
-**Judge:** Claude Haiku 4.5  
+**Answer model:** Claude Haiku 4.5 (same model answered questions for all tools, using each tool's extracted context)
+**Judge model:** Claude Haiku 4.5 (a separate Claude Haiku 4.5 call scored each answer against the expected answer — the judge saw the expected answer and the model response, not the document)
 **Total answers evaluated:** 19,920 graded answers (unsupported formats excluded from per-tool averages)
+
+> **Note on same-model answer/judge:** Using the same Claude Haiku 4.5 model family for both answering and judging is a known limitation. The Gemini 2.5 Flash and GPT-4o mini cross-validation sections below use independent models and reproduce the ranking, which provides evidence the result is not model-specific scoring bias.
 
 ---
 
@@ -136,6 +149,8 @@ Scores are averaged across 4 questions × 83 documents per format (max 10.0). Fo
 
 #### GPT-4o mini (validation — AksharaMD vs MarkItDown, 100 documents)
 
+Answer model: GPT-4o mini. Judge model: GPT-4o mini (separate call, same scoring protocol as the Claude primary run).
+
 | Tool | Avg score | Format coverage |
 |------|:---------:|:---------------:|
 | **AksharaMD** | **9.3** | **12/12** |
@@ -198,7 +213,7 @@ The IPYNB and CSV advantages also hold: 8.3 vs 7.1 on notebooks, 9.2 vs 7.6 on C
 
 ### Per-format accuracy — GPT-4o mini
 
-Independent validation run using GPT-4o mini as both the answering model and judge (100 documents × 4 questions, same scoring protocol). XML scores reflect the improved XML parser (v0.3.3+).
+Independent validation run using GPT-4o mini as the answer model and a separate GPT-4o mini call as judge (100 documents × 4 questions, same scoring protocol as the Claude primary run). XML scores reflect the improved XML parser (v0.3.3+).
 
 | Format | AksharaMD | MarkItDown |
 |--------|:---------:|:----------:|
@@ -317,6 +332,30 @@ Across ~1,000 documents, 3,984 Q&A pairs, and 19,920 graded answers:
 
 ## Reproducing This Benchmark
 
+### What can and cannot be reproduced from committed files
+
+**Reproducible (publicly available):**
+- The evaluation harness (`benchmarks/llm_qa_eval.py`) and scoring protocol (`benchmarks/scoring_prompt.md`) are committed.
+- `benchmarks/eval_corpus_qa.yaml` is a committed 100-document validation subset with Q&A pairs. You can run this subset without the full corpus.
+- Corpus provenance and which formats are re-downloadable (arXiv, Wikipedia, Project Gutenberg) are documented in `benchmarks/corpus_manifest.json`.
+
+**Not reproducible without the full corpus:**
+- The 996-document primary benchmark. Raw documents are not committed due to size (~4 GB) and licensing constraints. The corpus manifest describes each document's source.
+- Study 1 (token efficiency/speed) used a separate internal corpus that is not committed.
+
+**Locally reproducible subset:**
+```bash
+pip install -e ".[eval]"
+export ANTHROPIC_API_KEY=...
+
+# Run the 100-document committed validation subset
+python -m benchmarks.llm_qa_eval \
+    --qa benchmarks/eval_corpus_qa.yaml \
+    --tools aksharamd markitdown \
+    --llms claude
+```
+
+**Full benchmark (requires assembling the corpus from public sources):**
 ```bash
 # Install eval dependencies
 pip install -e ".[eval]"
@@ -341,7 +380,7 @@ python -m benchmarks.llm_qa_eval \
 
 Results saved to `benchmark_results/llm_qa_results.json`.  
 Q&A pairs in `benchmarks/eval_corpus_qa.yaml`.  
-Corpus in `benchmarks/eval_corpus.yaml`.
+Corpus provenance in `benchmarks/corpus_manifest.json`.
 
 ---
 
@@ -445,4 +484,4 @@ python -m benchmarks.compute_profile --results path/to/results.json
 
 ---
 
-*Benchmark conducted July 2026. AksharaMD v0.3.3. Judges: Claude Haiku 4.5 (primary), Gemini 2.5 Flash, GPT-4o mini.*
+*Benchmark conducted July 2026. AksharaMD v0.3.3 (current package: v0.3.4 — no parser changes affecting these results). Primary answer model and judge: Claude Haiku 4.5. Cross-validation: Gemini 2.5 Flash (answer + judge), GPT-4o mini (answer + judge). Full corpus not committed; see `benchmarks/corpus_manifest.json` for provenance and public availability.*

@@ -87,6 +87,112 @@ def test_compile_html_produces_manifest(runner, tmp_path):
     assert data["file_type"] == "html"
 
 
+# ── compile: --json flag ─────────────────────────────────────────────────────
+
+def test_compile_json_output_is_parseable(runner, tmp_path):
+    src = tmp_path / "doc.txt"
+    src.write_text(
+        "Hello world.\n\nThis is a test document with multiple paragraphs.\n\nThird paragraph here.",
+        encoding="utf-8",
+    )
+    out_dir = str(tmp_path / "out")
+
+    result = runner.invoke(main, ["compile", str(src), "-o", out_dir, "--json"])
+    assert result.exit_code == 0, result.output
+
+    data = json.loads(result.output)
+    assert data["success"] is True
+    assert data["source"].endswith("doc.txt") or "doc" in data["source"]
+    assert isinstance(data["readiness_score"], int)
+    assert data["quality_band"] in ("HIGH", "OK", "RISKY", "POOR")
+    assert isinstance(data["warning_codes"], list)
+    assert isinstance(data["errors"], list)
+    assert isinstance(data["chunks"], int)
+    assert isinstance(data["pages"], int)
+    assert isinstance(data["optimized_tokens"], int)
+    assert isinstance(data["elapsed_seconds"], float)
+
+
+def test_compile_json_output_has_no_rich_markup(runner, tmp_path):
+    src = tmp_path / "doc.md"
+    src.write_text("# Title\n\nSome content here.\n", encoding="utf-8")
+    out_dir = str(tmp_path / "out")
+
+    result = runner.invoke(main, ["compile", str(src), "-o", out_dir, "--json"])
+
+    # The raw output must be valid JSON with no Rich ANSI or markup
+    stripped = result.output.strip()
+    data = json.loads(stripped)  # would raise if not valid JSON
+    assert "bold" not in stripped
+    assert "\x1b[" not in stripped  # no ANSI escape codes
+    assert data is not None
+
+
+# ── compile: --min-readiness-score ────────────────────────────────────────────
+
+def test_compile_min_readiness_score_passes_when_above_threshold(runner, tmp_path):
+    src = tmp_path / "doc.txt"
+    src.write_text(
+        "Hello world.\n\nThis is a test document with multiple paragraphs.\n\nThird paragraph here.",
+        encoding="utf-8",
+    )
+    out_dir = str(tmp_path / "out")
+
+    # threshold 0 — any document should pass
+    result = runner.invoke(main, ["compile", str(src), "-o", out_dir, "--min-readiness-score", "0"])
+    assert result.exit_code == 0, result.output
+
+
+def test_compile_min_readiness_score_fails_when_below_threshold(runner, tmp_path):
+    src = tmp_path / "doc.txt"
+    src.write_text(
+        "Hello world.\n\nThis is a test document with multiple paragraphs.\n\nThird paragraph here.",
+        encoding="utf-8",
+    )
+    out_dir = str(tmp_path / "out")
+
+    # threshold 101 — no document can score above 100
+    result = runner.invoke(main, ["compile", str(src), "-o", out_dir, "--min-readiness-score", "101"])
+    assert result.exit_code != 0
+    # Output files are still written even when threshold is not met
+    manifest_path = Path(out_dir) / "doc" / "manifest.json"
+    assert manifest_path.exists(), "Output files should be written even when readiness gate fails"
+
+
+def test_compile_json_with_min_readiness_score_passes(runner, tmp_path):
+    src = tmp_path / "doc.txt"
+    src.write_text(
+        "Hello world.\n\nThis is a test document with multiple paragraphs.\n\nThird paragraph here.",
+        encoding="utf-8",
+    )
+    out_dir = str(tmp_path / "out")
+
+    result = runner.invoke(
+        main, ["compile", str(src), "-o", out_dir, "--json", "--min-readiness-score", "0"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["success"] is True
+
+
+def test_compile_json_with_min_readiness_score_fails(runner, tmp_path):
+    src = tmp_path / "doc.txt"
+    src.write_text(
+        "Hello world.\n\nThis is a test document with multiple paragraphs.\n\nThird paragraph here.",
+        encoding="utf-8",
+    )
+    out_dir = str(tmp_path / "out")
+
+    # threshold 101 — no document can score above 100
+    result = runner.invoke(
+        main, ["compile", str(src), "-o", out_dir, "--json", "--min-readiness-score", "101"]
+    )
+    assert result.exit_code != 0
+    data = json.loads(result.output)
+    assert data["success"] is False
+    assert isinstance(data["readiness_score"], int)
+
+
 # ── validate command ──────────────────────────────────────────────────────────
 
 def test_validate_valid_file_exits_zero(runner, tmp_path):

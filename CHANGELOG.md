@@ -5,6 +5,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.5] — 2026-07-07
+
+AksharaMD v0.3.5 is a production-credibility and ingestion-control release: tightened benchmark claims, clarified limitations, and two new CLI options for pipeline gating.
+
+### Added
+
+- **`--min-readiness-score INTEGER`** on `aksharamd compile`: exits non-zero when the readiness score is below the supplied threshold. Output files are still written. Designed as a CI/CD ingestion gate — e.g. `aksharamd compile doc.pdf --min-readiness-score 70` blocks low-quality extractions from entering a vector store automatically.
+- **`--json`** on `aksharamd compile`: suppresses Rich panels and prints a single valid JSON object to stdout, containing `success`, `source`, `output_dir`, `readiness_score`, `quality_band`, `warning_codes`, `errors`, `chunks`, `pages`, `optimized_tokens`, and `elapsed_seconds`. Compatible with `--min-readiness-score` (`success: false` when threshold not met). Useful for scripting and CI pipelines.
+- **"What AksharaMD does not guarantee"** section in README: explicitly separates extraction reliability from retrieval accuracy, answer correctness, citation correctness, and embedding quality. Advises running retrieval evals before production deployment.
+
+### Fixed
+
+- **Benchmark version consistency**: `benchmarks/LLM_QA_BENCHMARK.md` header now correctly states the benchmark was run on v0.3.3 (previously said v0.3.0); footer reconciles both version references. Current package (v0.3.5) noted with no parser changes affecting results.
+- **Benchmark judge/answer-model clarity**: methodology section now explicitly names the answer model and judge model separately for all three validation runs (Claude Haiku 4.5, Gemini 2.5 Flash, GPT-4o mini). The GPT-4o mini per-format section no longer implies a single model served both roles without clarification.
+- **Reproducibility section**: expanded with a clear split between what can be reproduced from committed files (100-document subset, harness, scoring prompts) and what requires assembling the full corpus from public sources.
+
+### Improved
+
+- **README benchmark claims**: hedged with corpus scope ("On our internal benchmark corpus..."), version references, and links to benchmark docs for methodology and reproducibility limitations. Results noted as corpus-composition-dependent.
+- **`Compiler.stream()` docstring**: removed wording that implied streamed blocks are automatically safe for direct vector-store ingestion. Callers are now directed to apply readiness checks, chunking policy, and retrieval evaluation before embedding.
+- **CLI docs**: `compile` command reference table documents `--min-readiness-score` and `--json` with JSON field reference.
+
 ## [0.3.4] — 2026-07-06
 
 AksharaMD v0.3.4 is a production-readiness patch: security hardening, CLI fixes, output schema versioning, expanded CI, and benchmark/documentation additions.

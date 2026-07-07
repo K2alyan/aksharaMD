@@ -403,23 +403,101 @@ def main():
 @click.option("--quiet", is_flag=True, help="Suppress progress output")
 @click.option("--timings", is_flag=True, help="Show per-stage timing breakdown")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging from all plugins")
-def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool):
+@click.option(
+    "--min-readiness-score", "min_readiness_score", type=int, default=None,
+    metavar="INTEGER",
+    help=(
+        "Exit non-zero if the readiness score is below this threshold. "
+        "Output files are still written. Useful as a CI/CD ingestion gate — "
+        "e.g. --min-readiness-score 70 blocks low-quality documents from entering "
+        "your vector store."
+    ),
+)
+@click.option(
+    "--json", "output_json", is_flag=True,
+    help=(
+        "Print a single JSON object to stdout instead of Rich panels. "
+        "Suppresses all progress output. Compatible with --min-readiness-score."
+    ),
+)
+def compile(
+    source: str,
+    output: str,
+    quiet: bool,
+    timings: bool,
+    verbose: bool,
+    min_readiness_score: int | None,
+    output_json: bool,
+):
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
+    import json as _json
+
     _setup_logging(verbose)
+
+    # --json implies quiet (suppress all Rich output)
+    _suppress_rich = quiet or output_json
 
     file_output = str(Path(output) / _output_stem(source))
     compiler = Compiler(output_dir=file_output)
 
-    if not quiet:
+    if not _suppress_rich:
         _show_first_run_onboarding()
 
-    if quiet:
+    if _suppress_rich:
         ctx = compiler.compile(source)
     else:
         with _LiveProgress(source) as lp:
             ctx = compiler.compile(source, on_stage=lp.update)
         console.print()
 
+    # Evaluate readiness threshold (only when manifest was produced)
+    _below_threshold = (
+        min_readiness_score is not None
+        and ctx.manifest is not None
+        and ctx.manifest.readiness_score < min_readiness_score
+    )
+
+    # ── JSON output mode ───────────────────────────────────────────────────────
+    if output_json:
+        m = ctx.manifest
+        if m:
+            warning_codes = [w.code for w in ctx.validation.warnings]
+            error_msgs = [f"[{e.code}] {e.message}" for e in ctx.validation.errors]
+            result: dict = {
+                "success": not bool(ctx.validation.errors) and not _below_threshold,
+                "source": m.source,
+                "output_dir": file_output,
+                "readiness_score": m.readiness_score,
+                "quality_band": m.quality_band,
+                "warning_codes": warning_codes,
+                "errors": error_msgs,
+                "chunks": m.chunks,
+                "pages": m.pages,
+                "optimized_tokens": m.optimized_tokens,
+                "elapsed_seconds": m.elapsed_seconds,
+            }
+        else:
+            warning_codes = [w.code for w in ctx.validation.warnings]
+            error_msgs = [f"[{e.code}] {e.message}" for e in ctx.validation.errors]
+            result = {
+                "success": False,
+                "source": source,
+                "output_dir": file_output,
+                "readiness_score": None,
+                "quality_band": None,
+                "warning_codes": warning_codes,
+                "errors": error_msgs,
+                "chunks": None,
+                "pages": None,
+                "optimized_tokens": None,
+                "elapsed_seconds": None,
+            }
+        click.echo(_json.dumps(result))
+        if ctx.validation.errors or _below_threshold:
+            sys.exit(1)
+        return
+
+    # ── Rich output mode ───────────────────────────────────────────────────────
     if not quiet and ctx.manifest:
         m = ctx.manifest
         tokens_saved = max(0, m.original_tokens - m.optimized_tokens)
@@ -566,7 +644,29 @@ def compile(source: str, output: str, quiet: bool, timings: bool, verbose: bool)
 
     if ctx.validation.errors:
         for err in ctx.validation.errors:
-            console.print(f"[red]ERROR[/] [{err.code}] {err.message}")
+            if not quiet:
+                console.print(f"[red]ERROR[/] [{err.code}] {err.message}")
+        sys.exit(1)
+
+    # Readiness threshold gate (after validation errors, before success)
+    if _below_threshold and ctx.manifest is not None:
+        _m = ctx.manifest
+        band = _m.quality_band or (
+            "HIGH" if _m.readiness_score >= 85
+            else "OK" if _m.readiness_score >= 70
+            else "RISKY" if _m.readiness_score >= 50
+            else "POOR"
+        )
+        warning_codes = [w.code for w in ctx.validation.warnings]
+        if not quiet:
+            console.print(
+                f"\n[red]READINESS GATE FAILED[/]  "
+                f"score [bold]{_m.readiness_score}/100[/] ({band}) "
+                f"is below threshold [bold]{min_readiness_score}[/]\n"
+                f"  Output directory:  {file_output}\n"
+                f"  Warnings:          {', '.join(warning_codes) or 'none'}\n"
+                f"  Raise the threshold or fix the extraction issues before ingesting."
+            )
         sys.exit(1)
 
 

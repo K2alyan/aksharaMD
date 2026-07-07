@@ -229,9 +229,11 @@ class Compiler:
         so there is no manifest or disk output.  Use compile() when you need
         those.
 
-        Blocks are already cleaned and optimized when yielded, so they are
-        safe to pass directly into a vector store, RAG pipeline, or streaming
-        MCP response.
+        Blocks are already cleaned and optimized when yielded.  Callers
+        should still apply readiness checks, chunking policy, source/citation
+        metadata, and retrieval evaluation before embedding into a vector store
+        or RAG pipeline.  For streaming MCP responses, blocks can be forwarded
+        as they arrive.
 
         Example::
 
