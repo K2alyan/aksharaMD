@@ -13,7 +13,7 @@ Security fixes are applied to the current release only. We do not backport patch
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report vulnerabilities privately by emailing **kalyan.kottapalli@poppy.com** with the subject line `[AksharaMD Security]`. Include:
+Report vulnerabilities privately by emailing **kkksrlabs@gmail.com** with the subject line `[AksharaMD Security]`. Include:
 
 - A description of the vulnerability and its potential impact
 - Steps to reproduce or a minimal proof-of-concept
