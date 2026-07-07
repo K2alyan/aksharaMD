@@ -12,6 +12,7 @@ from ...models.block import Block, BlockType
 from ...models.document import Document
 from ..base import ParserPlugin
 from ..registry import register_parser
+from .archive_tar import _sanitize_member_name
 
 _TEXT_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".cpp", ".h", ".hpp",
@@ -80,8 +81,9 @@ class ZipParser(ParserPlugin):
 
             listing_rows = [["Name", "Size", "Type"]]
             for info in members[:_MAX_LIST_ENTRIES]:
-                ext = Path(info.filename).suffix or "(none)"
-                listing_rows.append([info.filename, f"{info.file_size:,}", ext])
+                safe_name = _sanitize_member_name(info.filename)
+                ext = Path(safe_name).suffix or "(none)"
+                listing_rows.append([safe_name, f"{info.file_size:,}", ext])
             md_table = "\n".join(
                 "| " + " | ".join(row) + " |" +
                 (" \n| --- | --- | --- |" if i == 0 else "")
@@ -120,7 +122,7 @@ class ZipParser(ParserPlugin):
 
                 blocks.append(Block(
                     type=BlockType.HEADING,
-                    content=info.filename,
+                    content=_sanitize_member_name(info.filename),
                     level=3,
                     index=idx,
                 ))

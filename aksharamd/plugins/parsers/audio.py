@@ -97,6 +97,13 @@ class AudioParser(ParserPlugin):
     supported_types = ["mp3", "wav", "m4a", "mp4", "ogg", "flac", "webm", "opus", "aac"]
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
+        if ctx.safe_mode:
+            ctx.error(
+                "SAFE_MODE_BLOCKED",
+                "ML inference (Whisper transcription) is disabled in safe mode.",
+            )
+            return ctx
+
         try:
             import whisper
         except ImportError:  # pragma: no cover

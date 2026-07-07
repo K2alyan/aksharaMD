@@ -42,6 +42,14 @@ _MIN_WORD_RATIO = 0.3      # discard if fewer than 30% of tokens look like real 
 _MIN_OCR_CONFIDENCE = 40   # Tesseract per-word confidence 0–100; mean below this → discard
 _WORD_RE = re.compile(r"[A-Za-z]{2,}")
 
+# Pixel-dimension safety limits.  img.size is read from the file header before
+# img.load() decodes pixel data, so these checks cost nothing and block images
+# whose claimed dimensions would cause an OOM when fully decoded.
+# 89 MP sits just below Pillow's built-in DecompressionBombWarning threshold
+# (~89.5 MP) so our error fires first and the Pillow warning never surfaces.
+_MAX_IMAGE_PIXELS = 89_000_000    # 89 megapixels total
+_MAX_IMAGE_DIMENSION = 30_000     # 30,000 px on either axis
+
 
 def _find_tesseract() -> str | None:
     for path in _TESSERACT_CANDIDATES:
@@ -289,7 +297,23 @@ class ImageParser(ParserPlugin):
 
         path = Path(ctx.source)
         try:
-            img = Image.open(str(path))
+            import warnings as _warnings
+            # Suppress Pillow's built-in DecompressionBombWarning: we apply our own
+            # explicit check below, which gives a cleaner error message and returns
+            # before img.load() ever touches the pixel data.
+            with _warnings.catch_warnings():
+                _warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+                img = Image.open(str(path))
+            # img.size comes from the file header — available without decoding pixels.
+            w, h = img.size
+            if w * h > _MAX_IMAGE_PIXELS or w > _MAX_IMAGE_DIMENSION or h > _MAX_IMAGE_DIMENSION:
+                ctx.error(
+                    "IMAGE_TOO_LARGE",
+                    f"Image dimensions {w}x{h}px ({w * h:,} pixels) exceed the safety limit "
+                    f"({_MAX_IMAGE_DIMENSION}px per axis, {_MAX_IMAGE_PIXELS:,} pixels total). "
+                    "Resize the image before compiling.",
+                )
+                return ctx
             img.load()
         except Exception as e:
             ctx.error("IMAGE_PARSE_ERROR", str(e))
@@ -326,7 +350,10 @@ class ImageParser(ParserPlugin):
 
         # ── OCR ───────────────────────────────────────────────────────────────
         has_ocr = False
-        ocr_structured = _try_ocr_structured(img)
+        if ctx.safe_mode:
+            ocr_structured = []
+        else:
+            ocr_structured = _try_ocr_structured(img)
         if ocr_structured:
             has_ocr = True
             for block_type, content, level in ocr_structured:

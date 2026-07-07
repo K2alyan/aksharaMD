@@ -9,6 +9,8 @@ import pytest
 from aksharamd.compiler import Compiler
 from aksharamd.models.block import BlockType
 from aksharamd.plugins.parsers.image import (
+    _MAX_IMAGE_DIMENSION,
+    _MAX_IMAGE_PIXELS,
     _exif_value,
     _is_quality_ocr,
     _ocr_to_blocks,
@@ -292,3 +294,84 @@ def test_image_parser_corrupt_file_does_not_crash(tmp_path):
     f.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 10)
     ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
     assert ctx is not None
+
+
+# ── Pixel-dimension cap ───────────────────────────────────────────────────────
+
+def _make_png_with_dimensions(width: int, height: int) -> bytes:
+    """Create a minimal PNG whose IHDR claims the given (width, height).
+
+    The file has no IDAT (pixel data) chunk, so Pillow's lazy open() reads the
+    header and exposes img.size without needing to decompress anything.  The
+    IMAGE_TOO_LARGE check fires before img.load() is called, so no memory is
+    actually allocated for the claimed pixel array.
+    """
+    import struct
+    import zlib
+
+    sig = b'\x89PNG\r\n\x1a\n'
+
+    # IHDR: width(4) height(4) bit_depth(1) color_type(1) compress(1) filter(1) interlace(1)
+    ihdr_data = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
+    ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data) & 0xFFFFFFFF
+    ihdr = struct.pack('>I', 13) + b'IHDR' + ihdr_data + struct.pack('>I', ihdr_crc)
+
+    # IEND (empty)
+    iend_crc = zlib.crc32(b'IEND') & 0xFFFFFFFF
+    iend = struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc)
+
+    return sig + ihdr + iend
+
+
+def test_image_too_large_by_total_pixels(tmp_path):
+    """An image claiming >89 MP must be rejected with IMAGE_TOO_LARGE."""
+    # 10,000 x 9,001 = 90,010,000 pixels — above 89 MP limit
+    f = tmp_path / "huge.png"
+    f.write_bytes(_make_png_with_dimensions(10_000, 9_001))
+
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    error_codes = [e.code for e in ctx.validation.errors]
+    assert "IMAGE_TOO_LARGE" in error_codes, (
+        f"Expected IMAGE_TOO_LARGE, got errors: {error_codes}"
+    )
+
+
+def test_image_too_large_by_single_axis(tmp_path):
+    """An image claiming >30,000 px on one axis must be rejected even if total pixels are under cap."""
+    # 30,001 x 100 = 3,000,100 total pixels (well under 89 MP), but width exceeds limit
+    f = tmp_path / "tall.png"
+    f.write_bytes(_make_png_with_dimensions(30_001, 100))
+
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    error_codes = [e.code for e in ctx.validation.errors]
+    assert "IMAGE_TOO_LARGE" in error_codes, (
+        f"Expected IMAGE_TOO_LARGE, got errors: {error_codes}"
+    )
+
+
+def test_image_exactly_at_limit_is_accepted(tmp_path):
+    """An image right at the pixel limit must not be incorrectly rejected."""
+    # 9,000 x 9,000 = 81 MP — comfortably below the 89 MP limit on both axes
+    f = tmp_path / "edge.png"
+    f.write_bytes(_make_png_with_dimensions(9_000, 9_000))
+
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    error_codes = [e.code for e in ctx.validation.errors]
+    # IMAGE_TOO_LARGE must not fire; another error (e.g. truncated IDAT) is acceptable
+    assert "IMAGE_TOO_LARGE" not in error_codes
+
+
+def test_image_dimension_constants_are_sane():
+    """Verify the cap constants are in the expected magnitude range."""
+    assert _MAX_IMAGE_PIXELS == 89_000_000
+    assert _MAX_IMAGE_DIMENSION == 30_000
+
+
+def test_normal_image_not_rejected(tmp_path):
+    """A normal small PNG must still parse successfully after the cap was added."""
+    f = tmp_path / "normal.png"
+    f.write_bytes(_make_png_bytes())
+    ctx = Compiler(output_dir=str(tmp_path / "out")).compile(str(f))
+    assert ctx.document is not None
+    error_codes = [e.code for e in ctx.validation.errors]
+    assert "IMAGE_TOO_LARGE" not in error_codes

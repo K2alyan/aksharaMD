@@ -237,6 +237,27 @@ def test_zip_nested_archive_not_recursed(tmp_path):
     assert "inner.zip" in all_content
 
 
+def test_xml_deep_nesting_does_not_recurse(tmp_path):
+    """Pathologically nested XML (depth > _XML_MAX_DEPTH) must not raise RecursionError."""
+    from aksharamd.plugins.parsers.data import XmlParser
+
+    # Build XML nested 200 levels deep — well beyond the 50-level limit
+    depth = 200
+    inner = "<leaf>content</leaf>"
+    xml = inner
+    for i in range(depth):
+        xml = f"<level{i}>{xml}</level{i}>"
+    xml = f'<?xml version="1.0"?><root>{xml}</root>'
+
+    f = tmp_path / "deep.xml"
+    f.write_text(xml, encoding="utf-8")
+    ctx = CompilationContext(source=str(f), output_dir=str(tmp_path / "out"))
+    XmlParser().execute(ctx)  # must not raise RecursionError
+
+    # Parser should produce some output without crashing
+    assert ctx.document is not None or ctx.validation.errors
+
+
 def test_block_heading_level_validator():
     """Block heading level must be 1-6; values outside this range should raise."""
     import pytest

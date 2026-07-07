@@ -436,6 +436,14 @@ def main():
         "Must be less than --chunk-size. Default 0 preserves current behaviour."
     ),
 )
+@click.option(
+    "--safe-mode", "safe_mode", is_flag=True, default=False,
+    help=(
+        "Restrict parsing to safe, deterministic operations only. "
+        "Disables: URL/S3 fetching, LibreOffice/Pandoc subprocesses, "
+        "Whisper ML inference, and OCR. Use when processing untrusted input."
+    ),
+)
 def compile(
     source: str,
     output: str,
@@ -446,6 +454,7 @@ def compile(
     output_json: bool,
     chunk_size: int,
     chunk_overlap: int,
+    safe_mode: bool,
 ):
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     import json as _json
@@ -457,7 +466,8 @@ def compile(
 
     file_output = str(Path(output) / _output_stem(source))
     try:
-        compiler = Compiler(output_dir=file_output, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        compiler = Compiler(output_dir=file_output, chunk_size=chunk_size, chunk_overlap=chunk_overlap,
+                            safe_mode=safe_mode)
     except ValueError as exc:
         if output_json:
             import json as _json
@@ -1038,8 +1048,30 @@ def mcp_config(write: bool):
 
 
 @main.command()
-def doctor():
-    """Check which optional features are installed and show install commands for missing ones."""
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit with code 1 if any optional feature is missing.")
+def doctor(strict: bool):
+    """Check system readiness: Python version, optional features, and supported format count."""
+    import sys
+
+    from aksharamd import __version__
+
+    # ── Python version ────────────────────────────────────────────────────────
+    py = sys.version_info
+    py_str = f"{py.major}.{py.minor}.{py.micro}"
+    py_ok = py >= (3, 11)
+    py_status = "[bold green] ok [/]" if py_ok else "[bold red] too old [/]"
+    py_note = "" if py_ok else "  [dim]AksharaMD requires Python >=3.11[/]"
+
+    console.print(
+        Panel(
+            f"[bold]AksharaMD[/] v{__version__}   "
+            f"Python {py_str} {py_status}{py_note}",
+            border_style="green" if py_ok else "red",
+        )
+    )
+
+    # ── Optional features ─────────────────────────────────────────────────────
     deps = _check_optional_deps()
 
     t = Table(box=box.ROUNDED, show_header=True, header_style="bold cyan", padding=(0, 1))
@@ -1061,15 +1093,28 @@ def doctor():
         t.add_row(dep["name"], status, dep["what"], install_cell + note)
 
     border = "green" if all_ok else "blue"
-    title = "[bold green]All optional features installed[/]" if all_ok else "[bold]AksharaMD - Optional Features[/]"
+    title = "[bold green]All optional features installed[/]" if all_ok else "[bold]AksharaMD — Optional Features[/]"
     console.print(Panel(t, title=title, border_style=border))
 
     if not all_ok:
         missing = [d for d in deps if not d["ok"]]
         console.print(
             f"[dim]{len(missing)} optional feature(s) not installed. "
-            "Install only the ones you need - none are required for core usage.[/dim]"
+            "Install only the ones you need — none are required for core usage.[/dim]"
         )
+
+    # ── Format coverage summary ───────────────────────────────────────────────
+    import aksharamd.plugins.registry as _reg
+
+    from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
+    n_parsers = len(_reg._parsers)
+    console.print(
+        f"[dim]Registered format extensions: [bold]{n_parsers}[/bold]  "
+        "(run [bold]aksharamd formats[/bold] for the full list)[/dim]"
+    )
+
+    if strict and not (all_ok and py_ok):
+        raise SystemExit(1)
 
 
 @main.command()

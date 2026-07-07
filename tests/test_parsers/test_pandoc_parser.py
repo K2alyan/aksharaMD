@@ -335,3 +335,46 @@ def hello():
     # Should have at least one heading and one paragraph
     block_types = {b.type for b in ctx.document.blocks}
     assert BlockType.HEADING in block_types or BlockType.PARAGRAPH in block_types
+
+
+# ── Safe-mode: subprocess must never be invoked ───────────────────────────────
+
+def test_safe_mode_blocks_pandoc_before_subprocess(tmp_path):
+    """In safe mode, PandocParser must emit SAFE_MODE_BLOCKED and never call subprocess.run."""
+    from unittest.mock import patch
+
+    p = tmp_path / "doc.adoc"
+    p.write_text("= Title\n\nBody.", encoding="utf-8")
+    ctx = CompilationContext(source=str(p), output_dir=str(tmp_path / "out"), safe_mode=True)
+
+    with patch("subprocess.run") as mock_run:
+        PandocParser().execute(ctx)
+        mock_run.assert_not_called(), "subprocess.run must not be called in safe mode"
+
+    error_codes = [i.code for i in ctx.validation.issues]
+    assert "SAFE_MODE_BLOCKED" in error_codes
+    assert ctx.document is None
+
+
+def test_safe_mode_blocks_all_pandoc_extensions(tmp_path):
+    """SAFE_MODE_BLOCKED must fire for every Pandoc-registered extension."""
+    for ext in _FORMATS:
+        p = tmp_path / f"doc.{ext}"
+        p.write_text("placeholder", encoding="utf-8")
+        ctx = CompilationContext(source=str(p), output_dir=str(tmp_path / "out"), safe_mode=True)
+        PandocParser().execute(ctx)
+        codes = [i.code for i in ctx.validation.issues]
+        assert "SAFE_MODE_BLOCKED" in codes, f"Expected SAFE_MODE_BLOCKED for .{ext}, got {codes}"
+
+
+def test_safe_mode_does_not_call_detect_pandoc(tmp_path):
+    """_detect_pandoc (which itself runs 'pandoc --version') must not be called in safe mode."""
+    from unittest.mock import patch
+
+    p = tmp_path / "doc.org"
+    p.write_text("* Heading\nBody text.", encoding="utf-8")
+    ctx = CompilationContext(source=str(p), output_dir=str(tmp_path / "out"), safe_mode=True)
+
+    with patch("aksharamd.plugins.parsers.pandoc_parser._detect_pandoc") as mock_detect:
+        PandocParser().execute(ctx)
+        mock_detect.assert_not_called(), "_detect_pandoc must not be called in safe mode"

@@ -162,6 +162,14 @@ class LegacyOfficeParser(ParserPlugin):
         path = Path(ctx.source)
         file_type = path.suffix.lower().lstrip(".")
 
+        if ctx.safe_mode:
+            ctx.error(
+                "SAFE_MODE_BLOCKED",
+                f"Subprocess conversion of {path.name} is disabled in safe mode "
+                "(LibreOffice/olefile). Use a non-legacy format or disable --safe-mode.",
+            )
+            return ctx
+
         # Preferred path: LibreOffice → high-fidelity HTML conversion
         if _find_soffice() is not None:
             with tempfile.TemporaryDirectory() as tmp:

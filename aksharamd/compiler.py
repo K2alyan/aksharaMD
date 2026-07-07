@@ -220,6 +220,7 @@ class Compiler:
         output_dir: str = "output",
         chunk_size: int = 512,
         chunk_overlap: int = 0,
+        safe_mode: bool = False,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {chunk_size}")
@@ -232,6 +233,7 @@ class Compiler:
         self.output_dir = output_dir
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
+        self.safe_mode = safe_mode
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -459,6 +461,10 @@ class Compiler:
         _original_source = source
         _temp_path: str | None = None
         if source.startswith(("http://", "https://")):
+            if self.safe_mode:
+                ctx = CompilationContext(source=source, output_dir=self.output_dir, safe_mode=True)
+                ctx.error("SAFE_MODE_BLOCKED", "URL fetching is disabled in safe mode.")
+                return ctx, stage_timings, t0
             try:
                 source = _fetch_url_to_temp(source)
                 _temp_path = source
@@ -467,6 +473,10 @@ class Compiler:
                 ctx.error("URL_FETCH_ERROR", str(exc))
                 return ctx, stage_timings, t0
         elif source.startswith("s3://"):
+            if self.safe_mode:
+                ctx = CompilationContext(source=source, output_dir=self.output_dir, safe_mode=True)
+                ctx.error("SAFE_MODE_BLOCKED", "S3 fetching is disabled in safe mode.")
+                return ctx, stage_timings, t0
             try:
                 source = _fetch_s3_to_temp(source)
                 _temp_path = source
@@ -480,7 +490,7 @@ class Compiler:
             return ctx, stage_timings, t0
 
         try:
-            ctx = CompilationContext(source=source, output_dir=self.output_dir)
+            ctx = CompilationContext(source=source, output_dir=self.output_dir, safe_mode=self.safe_mode)
             ctx.progress = on_stage  # parsers can call ctx.progress() for fine-grained events
 
             def timed(name: str) -> _StageTimer:
