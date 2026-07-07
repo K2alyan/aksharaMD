@@ -44,10 +44,10 @@ AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTM
 
 Every format wastes tokens differently: a PDF with headers, footers, and watermarks; a DOCX with revision history; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it.
 
-- **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on equivalent documents — measured across 23 format types
-- **98.5% less noise** — 3.7 avg noise lines vs 250.1 for MarkItDown
+- **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on our internal benchmark corpus (101 documents, 23 format types) — see [benchmark methodology](benchmarks/LLM_QA_BENCHMARK.md) for corpus details and reproducibility limitations; results depend on corpus composition
+- **98.5% less noise** on the same corpus — 3.7 avg noise lines vs 250.1 for MarkItDown
 - **Same speed as MarkItDown** on the base install — 0.24s average across all formats, no ML overhead
-- **18× faster than [Docling](https://github.com/DS4SD/docling)** on PDF — Docling averages 35s per PDF; AksharaMD averages 2s
+- **27× faster than [Docling](https://github.com/DS4SD/docling)** on the PDF subset (20 arXiv/technical-report documents) — Docling averaged ~30s per PDF; AksharaMD averaged ~1s on this subset
 - **Structured output** — real headings, tables, code blocks; not flat text
 - **Fully local** — no cloud API, no document upload, no data retention concerns
 
@@ -61,6 +61,24 @@ The base install (`pip install aksharamd`) has **zero ML dependencies** — it r
 - **Audio files** with `[audio]`: Whisper transcription. No impact on non-audio documents.
 
 The tradeoff is explicit and bounded: ML extras slow down only the document types that genuinely need ML. A pipeline processing 99% clean PDFs and 1% scanned forms still runs at base speed for 99% of its work.
+
+---
+
+## What AksharaMD does not guarantee
+
+AksharaMD measures **extraction reliability** — how faithfully it converted a document into text. A high Readiness Score means the text was extracted cleanly. It does not mean your RAG pipeline will produce correct answers.
+
+Specifically, AksharaMD makes no guarantee about:
+
+- **Retrieval accuracy.** A clean extraction does not mean the right chunks will be retrieved for a given query. Retrieval quality depends on your chunking strategy, embedding model, and index configuration.
+- **Final answer correctness.** Even perfectly extracted text can produce wrong LLM answers if the question requires reasoning the model cannot perform, or if the answer is not in the retrieved chunks.
+- **Citation correctness.** AksharaMD does not generate citations. If your pipeline produces citations, their accuracy is a function of your retrieval and generation steps.
+- **Optimal chunking for your embedding model.** The default semantic chunks are a reasonable starting point. Different embedding models have different context-window sensitivities. You should evaluate chunk size and overlap for your specific model and query distribution.
+- **Embedding dilution.** A clean parse can still produce semantically broad chunks. A chapter that covers three unrelated topics will embed as a mixture — relevant to none of the three queries precisely. This is a retrieval problem, not an extraction problem.
+
+**Run retrieval evals before production deployment.** The Readiness Score tells you whether the document was extracted reliably. It does not substitute for end-to-end RAG evaluation against your actual queries and expected answers.
+
+AksharaMD is also not a pixel-perfect visual layout reproduction engine. The goal is to give your LLM the semantic content of a document at minimum token cost — not to reproduce how the document looks on screen.
 
 ---
 
@@ -230,6 +248,8 @@ aksharamd compile <source> [options]
 | `--timings` | — | Show per-stage timing breakdown |
 | `--quiet` | — | Suppress all console output |
 | `-v`, `--verbose` | — | Enable debug logging |
+| `--min-readiness-score INTEGER` | — | Exit non-zero if readiness score is below this value. Output files are still written. Useful as a CI/CD ingestion gate. |
+| `--json` | — | Print a single JSON object to stdout (suppresses Rich panels). Compatible with `--min-readiness-score`. |
 
 **Examples:**
 
@@ -248,7 +268,32 @@ aksharamd compile report.pdf --timings
 
 # Suppress output (for scripting)
 aksharamd compile report.pdf --quiet
+
+# CI/CD ingestion gate — fail the build if readiness score is below 70
+aksharamd compile report.pdf --min-readiness-score 70
+
+# Machine-readable JSON output (for scripting or CI)
+aksharamd compile report.pdf --json
+
+# JSON output with readiness gate
+aksharamd compile report.pdf --json --min-readiness-score 70
 ```
+
+**JSON output fields** (when `--json` is used):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | bool | `false` if validation errors or readiness threshold not met |
+| `source` | string | Source file path or URL |
+| `output_dir` | string | Directory where output files were written |
+| `readiness_score` | int \| null | Readiness score 0–100 (null if compilation failed before scoring) |
+| `quality_band` | string \| null | `HIGH` / `OK` / `RISKY` / `POOR` |
+| `warning_codes` | list[string] | Named warning codes (e.g. `OCR_REQUIRED`) |
+| `errors` | list[string] | Validation error messages |
+| `chunks` | int \| null | Number of semantic chunks produced |
+| `pages` | int \| null | Page or section count |
+| `optimized_tokens` | int \| null | Tokens after pipeline optimisation |
+| `elapsed_seconds` | float \| null | Wall-clock compilation time |
 
 ### `validate`
 
@@ -577,6 +622,8 @@ These are two independent studies. The first measures token efficiency and speed
 
 ### Study 1 — Token efficiency and speed
 
+> Internal benchmark corpus, not fully reproducible from committed files. Corpus composition details are in `benchmarks/corpus_manifest.json`.
+
 **Corpus:** 101 documents across 23 format types (internal production corpus, June 2026). The PDF sub-table uses a 20-document arXiv / technical-report subset where Docling was also evaluated.
 
 #### PDF (20 documents — arXiv papers, technical reports)
@@ -598,7 +645,7 @@ AksharaMD is **27× faster than Docling** on PDF with comparable quality and **4
 | Avg time | 1.40s | 0.48s |
 | Format types covered | **23** | 16 |
 
-AksharaMD produces **15× fewer tokens** and **98.5% less noise** across the full corpus. MarkItDown is faster on simple formats; AksharaMD is slower due to deeper extraction (structure detection, deduplication, chunking).
+On this internal benchmark corpus, AksharaMD produces **15× fewer tokens** and **98.5% less noise**. MarkItDown is faster on simple formats; AksharaMD is slower due to deeper extraction (structure detection, deduplication, chunking). Results vary by corpus composition — text-heavy formats show larger gaps than structured spreadsheets.
 
 #### Per-format quality scores
 
@@ -616,6 +663,8 @@ Formats with exclusive support (MarkItDown does not handle): `.zip`, `.tar`, `.7
 ---
 
 ### Study 2 — Downstream LLM accuracy
+
+> Benchmark run on AksharaMD v0.3.3. Current package is v0.3.4 (no parser changes affecting these results). See [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for full methodology, reproducibility limitations, and what can be run from committed files.
 
 **Corpus:** ~1,000 documents across 12 formats (83 per format) — a separate, independent dataset from Study 1.
 
@@ -639,7 +688,7 @@ Each document received 4 factual questions, independently answered by all 5 tool
 
 † Accuracy measured on supported formats only (EML, IPYNB, JSON, and XML are unsupported by Docling; EML, IPYNB, CSV, and JSON are unsupported by PyMuPDF4LLM).
 
-AksharaMD uses **76–82% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. At 100,000 documents/month, that translates to **$1,600–$2,335 in saved API spend** (Claude Haiku 4.5 pricing).
+On this benchmark corpus, AksharaMD uses **76–82% fewer tokens** than every competing tool while leading on accuracy — and is the only tool that handles all 12 format types. Results depend on corpus composition; see [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for methodology, reproducibility limitations, and per-format breakdowns. At 100,000 documents/month, the token difference translates to **$1,600–$2,335 in saved API spend** (Claude Haiku 4.5 pricing, July 2026 — confirm current rates).
 
 ### Self-hosted model throughput
 
