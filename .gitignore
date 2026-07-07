@@ -54,6 +54,7 @@ desktop.ini
 # Local MCP config — contains machine-specific paths and should not be committed
 mcp_config.json
 
-# Claude Code internals
+# Claude Code internals — local only, never committed
 .claude/
+CLAUDE.md
 tmp_*.txt
