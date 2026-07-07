@@ -15,6 +15,7 @@ class Chunk(BaseModel):
     page_start: int | None = None
     page_end: int | None = None
     metadata: dict = Field(default_factory=dict)
+    schema_version: str = "1.0"
 
     def compute_id(self) -> Chunk:
         digest = hashlib.sha256(self.content.encode()).hexdigest()[:16]

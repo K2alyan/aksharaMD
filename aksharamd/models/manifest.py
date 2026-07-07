@@ -57,3 +57,4 @@ class Manifest(BaseModel):
     blocks_inferred: int = 0
     blocks_ambiguous: int = 0
     aksharamd_version: str = Field(default_factory=_get_version)
+    schema_version: str = "1.0"

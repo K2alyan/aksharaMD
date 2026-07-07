@@ -15,7 +15,7 @@
 
 Every compilation returns a **0–100 AI Readiness Score** and per-block extraction confidence — so you know whether to trust the output before it reaches your vector store, not after your LLM gives a wrong answer.
 
-AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and 35+ more — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
+AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and more (40+ document categories, 118 registered extensions) — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
 
 Runs entirely on-device. No cloud calls, no data leaving your machine, no API keys required.
 
@@ -38,7 +38,7 @@ AksharaMD produces a quality signal alongside the content:
 
 Most teams assemble document pipelines from multiple tools: one for PDFs, another for scanned pages, another for spreadsheets, another for audio. Each has its own output format, its own failure modes, its own maintenance cost. When a new document type arrives, the pipeline breaks.
 
-AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and 35+ more — with a single consistent output format and a single quality signal. Install once, handle whatever your users throw at you.
+AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and more — with a single consistent output format and a single quality signal across 40+ document categories and 118 registered extensions. Install once, handle whatever your users throw at you.
 
 ### The token and speed problem
 
@@ -126,7 +126,7 @@ aksharamd mcp-config --write
 pip install aksharamd
 ```
 
-The base install is intentionally lightweight. It handles the vast majority of documents out of the box — PDFs with a real text layer, Word, PowerPoint, Excel, HTML, Markdown, plain text, EPUB, RSS, email, archives, and 100+ other formats — with no system binaries and no large model downloads.
+The base install is intentionally lightweight. It handles the vast majority of documents out of the box — PDFs with a real text layer, Word, PowerPoint, Excel, HTML, Markdown, plain text, EPUB, RSS, email, archives, and more — across 40+ document categories covering 118 registered extensions, with no system binaries and no large model downloads.
 
 ### Optional extras
 

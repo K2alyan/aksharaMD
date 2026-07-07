@@ -65,8 +65,8 @@ def _show_first_run_onboarding() -> None:
     body = Text()
     body.append(
         "AksharaMD is installed. The base install handles PDFs (text layer), "
-        "Word, Excel, PowerPoint, HTML, EPUB, email, archives, and 35+ other formats "
-        "with no additional setup.\n\n",
+        "Word, Excel, PowerPoint, HTML, EPUB, email, archives, and more — "
+        "40+ document categories, 118 registered extensions, with no additional setup.\n\n",
         style="dim",
     )
     body.append("For harder document types, install only what you need:\n\n")
@@ -169,11 +169,11 @@ class _LiveProgress:
 
 
 class _SourceArg(click.ParamType):
-    """Click argument type that accepts a local file path OR an http(s):// URL."""
+    """Click argument type that accepts a local file path, http(s)://, or s3:// URI."""
     name = "source"
 
     def convert(self, value, param, ctx):
-        if value.startswith(("http://", "https://")):
+        if value.startswith(("http://", "https://", "s3://")):
             parsed = urlparse(value)
             if not parsed.netloc:
                 self.fail(f"Invalid URL — missing hostname: {value!r}", param, ctx)
@@ -186,7 +186,7 @@ class _SourceArg(click.ParamType):
 
 def _output_stem(source: str) -> str:
     """Derive a filesystem-safe directory name from a file path or URL."""
-    if source.startswith(("http://", "https://")):
+    if source.startswith(("http://", "https://", "s3://")):
         parsed = urlparse(source)
         stem = Path(parsed.path).stem or parsed.netloc.split(":")[0]
         return re.sub(r"[^\w\-]", "_", stem) or "url_output"
@@ -375,7 +375,7 @@ class _AksharaMDGroup(click.Group):
         except click.UsageError:
             name = args[0] if args else ""
             looks_like_source = (
-                name.startswith(("http://", "https://"))
+                name.startswith(("http://", "https://", "s3://"))
                 or "." in name
                 or "/" in name
                 or "\\" in name
@@ -602,7 +602,7 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
     _setup_logging(verbose)
     rows = []
     for source in sources:
-        label = source if source.startswith(("http://", "https://")) else Path(source).name
+        label = source if source.startswith(("http://", "https://", "s3://")) else Path(source).name
         console.print(f"[dim]Compiling {label}...[/]")
         file_output = str(Path(output) / _output_stem(source))
         ctx = Compiler(output_dir=file_output).compile(source)

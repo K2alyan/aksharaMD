@@ -21,6 +21,7 @@ class ValidationIssue(BaseModel):
 class ValidationReport(BaseModel):
     passed: bool = True
     issues: list[ValidationIssue] = Field(default_factory=list)
+    schema_version: str = "1.0"
 
     @property
     def errors(self) -> list[ValidationIssue]:
