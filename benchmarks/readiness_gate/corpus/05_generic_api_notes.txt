@@ -1,0 +1,27 @@
+API REQUEST TIMEOUT
+
+API request timeout defines the maximum time a client waits before the server terminates the connection.
+The API request timeout value controls how long a request can remain pending.
+Timeout behavior and timeout error codes vary by API implementation and must be confirmed in documentation.
+
+
+API RATE LIMITS AND REQUESTS PER HOUR
+
+The default rate limit for API requests controls how many requests per hour each client key is allowed.
+Rate limit enforcement and requests per hour quotas differ by API plan and subscription tier.
+When the default rate limit is exceeded the API returns an HTTP 429 Too Many Requests response.
+
+
+API ACCESS TOKENS AND TOKEN EXPIRY
+
+API access tokens are credentials used to authenticate each request sent to the API.
+Access tokens expire after a validity period set by the authorization server.
+Expired access tokens are rejected by the API and must be refreshed before reuse.
+Token expiry intervals and API access token renewal procedures vary by implementation.
+
+
+API PAGE SIZE AND RECORDS PER PAGE
+
+API list endpoints return a maximum number of records per page in each response.
+The maximum records returned per API page is determined by the API version and query parameters.
+Clients retrieve additional records by following pagination cursors to subsequent pages.
