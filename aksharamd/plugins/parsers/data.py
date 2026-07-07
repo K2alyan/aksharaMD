@@ -255,7 +255,22 @@ def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
                 idx += 1
                 return
 
-        # Container element → recurse into children
+        # Container element → emit name as heading if it carries identity, then recurse
+        # Emit a heading when: element has attributes (e.g. <section id="4">) OR all its
+        # children are leaves (e.g. <database><host/><port/></database>), so the parent
+        # name survives as context for reverse-lookup questions.
+        _SKIP_CONTAINER_ATTRS = {"xmlns", "version", "encoding", "lang", "class"}
+        key_attrs = {k.split("}")[-1]: v for k, v in el.attrib.items()
+                     if k.split("}")[-1].lower() not in _SKIP_CONTAINER_ATTRS}
+        has_only_leaf_children = child_count > 0 and not any(len(list(c)) > 0 for c in el)
+        if has_only_leaf_children or key_attrs:
+            heading_text = _local(el.tag)
+            if key_attrs:
+                heading_text += " " + " ".join(f"{k}: {v}" for k, v in key_attrs.items())
+            level = max(1, min(6, depth + 1))
+            # Don't set document title from container names — only from _XML_HEADING_TAGS
+            blocks.append(Block(type=BlockType.HEADING, content=heading_text, level=level, index=idx))
+            idx += 1
         for child in el:
             _walk(child, depth + 1)
 

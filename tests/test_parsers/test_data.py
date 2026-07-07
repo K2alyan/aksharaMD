@@ -223,12 +223,12 @@ def test_xml_parser_invalid_falls_back_with_error(tmp_path):
     assert not ctx.validation.passed
 
 
-def test_xml_parser_sparse_gets_raw_fallback(tmp_path):
+def test_xml_parser_sparse_extracts_leaf_text(tmp_path):
     from aksharamd.context import CompilationContext
     from aksharamd.models.block import BlockType
     from aksharamd.plugins.parsers.data import XmlParser
 
-    # Single element with short text → few blocks → raw code block appended
+    # Single element with short text — now extracted as "item: hi" paragraph
     xml = "<root><item>hi</item></root>"
     f = tmp_path / "sparse.xml"
     f.write_text(xml, encoding="utf-8")
@@ -236,8 +236,8 @@ def test_xml_parser_sparse_gets_raw_fallback(tmp_path):
     ctx = CompilationContext(source=str(f), output_dir=str(tmp_path / "out"))
     ctx = XmlParser().execute(ctx)
 
-    code_blocks = [b for b in ctx.document.blocks if b.type == BlockType.CODE_BLOCK]
-    assert code_blocks
+    para_blocks = [b for b in ctx.document.blocks if b.type == BlockType.PARAGRAPH]
+    assert any("item" in b.content and "hi" in b.content for b in para_blocks)
 
 
 def test_xml_parser_many_elements(tmp_path):
