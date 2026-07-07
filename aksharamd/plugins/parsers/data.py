@@ -225,8 +225,12 @@ def _xml_to_blocks(root: ET.Element) -> tuple[list[Block], str | None]:
         child_count = len(list(el))
         direct_text = (el.text or "").strip()
 
-        if child_count == 0 and len(direct_text) > 10:
-            blocks.append(Block(type=BlockType.PARAGRAPH, content=direct_text[:2000], index=idx))
+        if child_count == 0 and len(direct_text) > 0:
+            tag_name = _local(el.tag)
+            # Prefix with tag name so short values (port numbers, dates, booleans) survive
+            # the page-number cleaner and remain interpretable by downstream LLMs
+            content = f"{tag_name}: {direct_text}" if tag_name not in _XML_HEADING_TAGS else direct_text
+            blocks.append(Block(type=BlockType.PARAGRAPH, content=content[:2000], index=idx))
             idx += 1
             return
 
