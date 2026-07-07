@@ -55,7 +55,7 @@ Every format wastes tokens differently: a PDF with headers, footers, and waterma
 
 The base install (`pip install aksharamd`) has **zero ML dependencies** — it runs at MarkItDown speed and handles the majority of real-world documents. For harder document types, optional extras add ML capabilities surgically:
 
-- **Scanned PDFs** without extras: the tool flags them with `OCR_REQUIRED` and a POOR score — you know immediately, before bad data reaches your vector store.
+- **Scanned PDFs** without extras: the tool flags them with `OCR_REQUIRED` and a RISKY or POOR score — you know immediately, before bad data reaches your vector store.
 - **Scanned PDFs** with `[ocr]` or `[vision]`: full text or layout-aware table extraction. The ML work runs only on image-only pages — your clean PDF pages are unaffected.
 - **Math-heavy PDFs** with `[math]`: LaTeX equation extraction. Runs only on pages with undecodable font spans.
 - **Audio files** with `[audio]`: Whisper transcription. No impact on non-audio documents.
@@ -144,7 +144,7 @@ AksharaMD uses a modular extras system. Each extra unlocks a document type that 
 
 > **Note on PyTorch:** `[vision]`, `[math]`, and `[audio]` share a single PyTorch install (~2 GB). Installing more than one pays that cost once.
 
-**Without the extras, you still get useful output.** Scanned pages emit an `OCR_REQUIRED` warning and a POOR readiness score rather than silently producing garbage — you know immediately which documents need attention.
+**Without the extras, you still get useful output.** Scanned pages emit an `OCR_REQUIRED` warning and a RISKY or POOR readiness score rather than silently producing garbage — you know immediately which documents need attention.
 
 ```bash
 # Install a single extra
@@ -190,7 +190,7 @@ These add support for niche formats and require no `pip install` — just the bi
 The core pipeline is stable and production-tested across 118 file extensions, but please note the following before using in production workflows.
 
 **OCR for scanned PDFs requires a system binary.**
-`pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a POOR score and an `OCR_REQUIRED` warning.
+`pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a RISKY or POOR score and an `OCR_REQUIRED` warning.
 
 **Tesseract OCR extracts text from image pages but cannot reconstruct image-based tables.**
 When a scanned PDF contains tables rendered as images (e.g. spreadsheet-style grids saved as PNG), Tesseract reads the cell text as a flat stream of paragraphs — column structure is lost. For layout-aware table reconstruction from image pages, install the optional Marker integration: `pip install "aksharamd[vision]"`. Marker uses neural layout detection to recover table structure. It requires PyTorch and downloads approximately 3 GB of model weights on first run. For offline / air-gapped use, pre-cache the models on a connected machine and copy them:
