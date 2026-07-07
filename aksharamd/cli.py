@@ -420,6 +420,22 @@ def main():
         "Suppresses all progress output. Compatible with --min-readiness-score."
     ),
 )
+@click.option(
+    "--chunk-size", "chunk_size", type=int, default=512, show_default=True,
+    metavar="INTEGER",
+    help=(
+        "Maximum tokens per chunk. Tune for your embedding model's context window. "
+        "Default 512 preserves current behaviour."
+    ),
+)
+@click.option(
+    "--chunk-overlap", "chunk_overlap", type=int, default=0, show_default=True,
+    metavar="INTEGER",
+    help=(
+        "Tokens of overlap carried from the end of one chunk into the start of the next. "
+        "Must be less than --chunk-size. Default 0 preserves current behaviour."
+    ),
+)
 def compile(
     source: str,
     output: str,
@@ -428,6 +444,8 @@ def compile(
     verbose: bool,
     min_readiness_score: int | None,
     output_json: bool,
+    chunk_size: int,
+    chunk_overlap: int,
 ):
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     import json as _json
@@ -438,7 +456,15 @@ def compile(
     _suppress_rich = quiet or output_json
 
     file_output = str(Path(output) / _output_stem(source))
-    compiler = Compiler(output_dir=file_output)
+    try:
+        compiler = Compiler(output_dir=file_output, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    except ValueError as exc:
+        if output_json:
+            import json as _json
+            click.echo(_json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise SystemExit(1) from exc
 
     if not _suppress_rich:
         _show_first_run_onboarding()
@@ -472,6 +498,8 @@ def compile(
                 "warning_codes": warning_codes,
                 "errors": error_msgs,
                 "chunks": m.chunks,
+                "chunk_size": m.chunk_size,
+                "chunk_overlap": m.chunk_overlap,
                 "pages": m.pages,
                 "optimized_tokens": m.optimized_tokens,
                 "elapsed_seconds": m.elapsed_seconds,
@@ -488,6 +516,8 @@ def compile(
                 "warning_codes": warning_codes,
                 "errors": error_msgs,
                 "chunks": None,
+                "chunk_size": chunk_size,
+                "chunk_overlap": chunk_overlap,
                 "pages": None,
                 "optimized_tokens": None,
                 "elapsed_seconds": None,

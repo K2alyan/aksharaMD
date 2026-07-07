@@ -42,6 +42,17 @@ class SemanticChunker(ChunkerPlugin):
     priority = 40
     max_tokens: int = _DEFAULT_MAX_TOKENS
     min_tokens: int = _DEFAULT_MIN_TOKENS
+    overlap_tokens: int = 0
+
+    def __init__(
+        self,
+        max_tokens: int = _DEFAULT_MAX_TOKENS,
+        min_tokens: int = _DEFAULT_MIN_TOKENS,
+        overlap_tokens: int = 0,
+    ) -> None:
+        self.max_tokens = max_tokens
+        self.min_tokens = min_tokens
+        self.overlap_tokens = overlap_tokens
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         if ctx.document is None:
@@ -55,10 +66,12 @@ class SemanticChunker(ChunkerPlugin):
         current_heading: str | None = None
         current_tokens = 0
 
-        def flush(blocks_to_flush: list[Block], heading: str | None) -> None:
+        def flush(
+            blocks_to_flush: list[Block], heading: str | None
+        ) -> tuple[list[Block], int]:
             nonlocal chunk_index
             if not blocks_to_flush:
-                return
+                return [], 0
             content = "\n\n".join(_block_to_markdown(b) for b in blocks_to_flush)
             token_count = count_tokens(content)
             pages = [b.page for b in blocks_to_flush if b.page is not None]
@@ -75,9 +88,25 @@ class SemanticChunker(ChunkerPlugin):
             chunks.append(chunk)
             chunk_index += 1
 
+            # Carry the tail of this chunk into the next as overlap context.
+            # Overlap is block-granular: walk backwards collecting whole blocks
+            # until overlap_tokens budget is reached.
+            if self.overlap_tokens > 0:
+                tail: list[Block] = []
+                tail_tokens = 0
+                for block in reversed(blocks_to_flush):
+                    bt = count_tokens(_block_to_markdown(block))
+                    if tail_tokens + bt > self.overlap_tokens:
+                        break
+                    tail.insert(0, block)
+                    tail_tokens += bt
+                return tail, tail_tokens
+            return [], 0
+
         for block in blocks:
             if block.type == BlockType.HEADING:
-                # Start a new chunk on heading
+                # Heading marks a section boundary — flush without overlap so the
+                # new section starts clean.
                 if current_blocks:
                     flush(current_blocks, current_heading)
                     current_blocks = []
@@ -88,9 +117,10 @@ class SemanticChunker(ChunkerPlugin):
             else:
                 block_tokens = count_tokens(_block_to_markdown(block))
                 if current_tokens + block_tokens > self.max_tokens and current_tokens >= self.min_tokens:
-                    flush(current_blocks, current_heading)
-                    current_blocks = [block]
-                    current_tokens = block_tokens
+                    # Token budget exceeded mid-section — carry overlap into next chunk.
+                    overlap_blocks, overlap_token_count = flush(current_blocks, current_heading)
+                    current_blocks = list(overlap_blocks) + [block]
+                    current_tokens = overlap_token_count + block_tokens
                 else:
                     current_blocks.append(block)
                     current_tokens += block_tokens
