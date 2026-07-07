@@ -15,7 +15,6 @@ To add a new format: add a fixture factory function and a test_<fmt>_golden() te
 """
 from __future__ import annotations
 
-import csv
 import json
 import textwrap
 from pathlib import Path
@@ -24,7 +23,6 @@ import pytest
 
 from aksharamd.compiler import Compiler
 from aksharamd.models.block import BlockType
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -347,7 +345,6 @@ def test_xlsx_golden(tmp_path):
 def test_pptx_golden(tmp_path):
     pytest.importorskip("pptx", reason="python-pptx not installed")
     from pptx import Presentation
-    from pptx.util import Pt
 
     f = tmp_path / "deck.pptx"
     prs = Presentation()

@@ -1105,6 +1105,7 @@ def doctor(strict: bool):
 
     # ── Format coverage summary ───────────────────────────────────────────────
     import aksharamd.plugins.registry as _reg
+
     from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
     n_parsers = len(_reg._parsers)
     console.print(
