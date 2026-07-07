@@ -1,0 +1,127 @@
+{
+  "description": "AksharaMD downstream LLM accuracy benchmark corpus — v0.3.3",
+  "conducted": "2026-07",
+  "aksharamd_version": "0.3.3",
+  "total_documents": 996,
+  "formats": 12,
+  "documents_per_format": 83,
+  "qa_pairs_per_document": 4,
+  "total_qa_pairs": 3984,
+  "total_graded_answers": 19920,
+  "tokenizer": "cl100k_base (tiktoken)",
+  "context_window_chars": 6000,
+  "tools_compared": [
+    "aksharamd",
+    "markitdown",
+    "llamaparse",
+    "pymupdf4llm",
+    "docling"
+  ],
+  "judges": [
+    {
+      "model": "claude-haiku-4-5",
+      "role": "primary",
+      "documents": 996,
+      "note": "All 5 tools, all 12 formats"
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "role": "validation",
+      "documents": 144,
+      "note": "AksharaMD vs MarkItDown, 12 documents per format"
+    },
+    {
+      "model": "gpt-4o-mini",
+      "role": "validation",
+      "documents": 100,
+      "note": "AksharaMD vs MarkItDown, ~8 documents per format"
+    }
+  ],
+  "corpus": {
+    "pdf": {
+      "count": 83,
+      "sources": ["arXiv preprints"],
+      "size_range_kb": "575–3900",
+      "selection": "Spanning simple single-column, multi-column layout, table-heavy, and math-heavy papers"
+    },
+    "docx": {
+      "count": 83,
+      "sources": ["Business reports", "market research documents", "software requirements specs"],
+      "selection": "Spanning short single-section through multi-chapter documents with embedded tables"
+    },
+    "pptx": {
+      "count": 83,
+      "sources": ["Investor decks", "partnership proposals", "technical slide decks"],
+      "selection": "Spanning minimal-text through data-heavy slide decks"
+    },
+    "xlsx": {
+      "count": 83,
+      "sources": ["Budget templates", "employee data exports", "inventory sheets"],
+      "selection": "Spanning single-sheet through multi-sheet workbooks with varying cell density"
+    },
+    "html": {
+      "count": 83,
+      "sources": ["Wikipedia articles"],
+      "size_range_kb": "533–1300",
+      "selection": "Long-form encyclopedia articles with heavy navigation markup to stress boilerplate removal"
+    },
+    "epub": {
+      "count": 83,
+      "sources": ["Project Gutenberg"],
+      "size_range_kb": "207–546",
+      "selection": "Public domain books spanning fiction, non-fiction, and technical works"
+    },
+    "txt": {
+      "count": 83,
+      "sources": ["Project Gutenberg"],
+      "size_range_kb": "232–1200",
+      "selection": "Plain-text versions of public domain books; same titles as EPUB set where available"
+    },
+    "eml": {
+      "count": 83,
+      "sources": ["Synthetic email messages"],
+      "selection": "Spanning plain-text, HTML-body, and multi-part messages with attachments"
+    },
+    "ipynb": {
+      "count": 83,
+      "sources": ["Public statistics and data-analysis notebooks"],
+      "selection": "Notebooks with varying ratios of code cells to markdown cells"
+    },
+    "csv": {
+      "count": 83,
+      "sources": ["Event logs", "transaction records", "web server logs"],
+      "selection": "Files with row counts from dozens to thousands; varying column complexity"
+    },
+    "json": {
+      "count": 83,
+      "sources": ["Configuration files", "API response samples", "nested report objects"],
+      "selection": "Flat through deeply nested structures; varying key and value verbosity"
+    },
+    "xml": {
+      "count": 83,
+      "sources": ["Structured data exports", "feed documents"],
+      "selection": "Small, medium, and large files; varying attribute and element density"
+    }
+  },
+  "qa_generation": {
+    "method": "LLM-generated using Claude Haiku 4.5",
+    "questions_per_document": 4,
+    "question_type": "Factual — specific, verifiable facts: names, numbers, dates, identifiers",
+    "answer_type": "Short phrase (typically under 10 words)",
+    "prompts": "See benchmarks/scoring_prompt.md"
+  },
+  "evaluation_protocol": {
+    "context": "First 6000 characters of each tool's output (~4000 tokens)",
+    "answer_prompt": "See benchmarks/scoring_prompt.md — answer prompt",
+    "judge_prompt": "See benchmarks/scoring_prompt.md — judge prompt",
+    "scoring": "0–10 per answer; 10 = fully correct, 0 = wrong or irrelevant"
+  },
+  "corpus_file": "benchmarks/eval_corpus_qa.yaml",
+  "results_file": "benchmarks/results/README.md",
+  "methodology": "benchmarks/LLM_QA_BENCHMARK.md",
+  "reproduce": {
+    "install": "pip install -e \".[eval]\"",
+    "token_only": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown llamaparse pymupdf4llm docling --no-llm",
+    "full": "python -m benchmarks.llm_qa_eval --qa benchmarks/eval_corpus_qa.yaml --tools aksharamd markitdown llamaparse pymupdf4llm docling --llms claude"
+  }
+}

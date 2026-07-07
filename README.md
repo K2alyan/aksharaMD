@@ -460,7 +460,7 @@ AksharaMD operates as a **document ingestion layer** — it handles format conve
 
 ### LangChain
 
-Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document`. Check the readiness score before embedding — skip or flag documents that score RISKY or POOR.
+Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document`. Check the readiness score before embedding — skip or flag documents that score RISKY or POOR. For a complete loader implementation with readiness gating and per-chunk metadata, see [docs/rag-integration.md](docs/rag-integration.md).
 
 ```python
 from aksharamd.compiler import Compiler
@@ -489,7 +489,7 @@ else:
 
 ### LlamaIndex
 
-Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats. Store the readiness score as metadata so retrieval results can be filtered by extraction quality.
+Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats. Store the readiness score as metadata so retrieval results can be filtered by extraction quality. For a complete `BaseReader` implementation, see [docs/rag-integration.md](docs/rag-integration.md).
 
 ```python
 from aksharamd.compiler import Compiler
@@ -652,7 +652,7 @@ Token savings compound on self-hosted models. KV-cache VRAM is the binding const
 
 MarkItDown's average context takes **~19× longer to prefill** than AksharaMD's on the same GPU — the difference between a 0.3-second and a ~6-second time-to-first-token.
 
-For the full methodology, per-format scores, cost tables, self-hosted throughput analysis, and reproduction instructions, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md).
+For the full methodology, per-format scores, cost tables, self-hosted throughput analysis, and reproduction instructions, see [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md). Corpus structure is documented in [`benchmarks/corpus_manifest.json`](benchmarks/corpus_manifest.json); exact scoring prompts are in [`benchmarks/scoring_prompt.md`](benchmarks/scoring_prompt.md).
 
 ---
 
@@ -704,6 +704,17 @@ These are current boundaries of the system. They are not bugs.
 **No structured logging.** Log output is plain text. Per-request trace IDs, JSON-formatted logs, and Prometheus metrics (request count, latency histograms, token savings counters) are on the roadmap for the HTTP MCP server deployment path.
 
 **Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [AI Readiness Score](docs/readiness-score.md) | Score bands, recommended ingestion policy, all warning codes, false positives |
+| [Output Schema](docs/output-schema.md) | `manifest.json`, `document.json`, `validation.json`, `chunks/*.json` — schema 1.0, field reference, compatibility guarantee |
+| [RAG Integration](docs/rag-integration.md) | Readiness-gated ingestion, per-block confidence filtering, LangChain and LlamaIndex loaders, corpus ingestion |
+| [Benchmark Methodology](benchmarks/LLM_QA_BENCHMARK.md) | Full results: corpus, scoring prompts, per-format accuracy, token tables, cost projections, reproduction instructions |
 
 ---
 
