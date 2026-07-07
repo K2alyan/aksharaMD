@@ -48,6 +48,8 @@ Requires `aksharamd` to be installed (`pip install aksharamd`).
 
 ## Typical results
 
+On this purpose-built six-document corpus at top-k=1:
+
 ```
 Policy                        Indexed    Held    Hits   Hit rate
 ----------------------------------------------------------------
@@ -58,9 +60,10 @@ B — gated (threshold=94)            3       3   10/10      100%
 Gating effect: +40% improvement in retrieval hit rate @ top-1
 ```
 
-Policy A misses four questions because a noisy chunk (high term density, no answer value)
-ranks above the correct answer chunk. Policy B removes the noisy documents from the index,
-so the correct chunk ranks first for every query.
+On this corpus, Policy A misses four questions because a noisy chunk (high term density,
+no answer value) ranks above the correct answer chunk. Policy B removes the noisy documents
+from the index, so the correct chunk ranks first for every query. These numbers are specific
+to this corpus and retrieval method; see Limitations.
 
 ## Methodology
 
