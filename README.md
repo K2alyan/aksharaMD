@@ -44,7 +44,7 @@ AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTM
 
 Every format wastes tokens differently: a PDF with headers, footers, and watermarks; a DOCX with revision history; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it.
 
-- **15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** on our internal benchmark corpus (101 documents, 23 format types) — see [benchmark methodology](benchmarks/LLM_QA_BENCHMARK.md) for corpus details and reproducibility limitations; results depend on corpus composition
+- **4–15× fewer tokens than [MarkItDown](https://github.com/microsoft/markitdown)** depending on format — text-heavy formats (DOCX, HTML, TXT) show the largest gaps; structured formats (CSV, JSON) show smaller differences — see [benchmark methodology](benchmarks/LLM_QA_BENCHMARK.md) for corpus details and reproducibility limitations
 - **98.5% less noise** on the same corpus — 3.7 avg noise lines vs 250.1 for MarkItDown
 - **Same speed as MarkItDown** on the base install — 0.24s average across all formats, no ML overhead
 - **27× faster than [Docling](https://github.com/DS4SD/docling)** on the PDF subset (20 arXiv/technical-report documents) — Docling averaged ~30s per PDF; AksharaMD averaged ~1s on this subset
@@ -655,7 +655,7 @@ AksharaMD is **27× faster than Docling** on PDF with comparable quality and **4
 | Avg time | 1.40s | 0.48s |
 | Format types covered | **23** | 16 |
 
-On this internal benchmark corpus, AksharaMD produces **15× fewer tokens** and **98.5% less noise**. MarkItDown is faster on simple formats; AksharaMD is slower due to deeper extraction (structure detection, deduplication, chunking). Results vary by corpus composition — text-heavy formats show larger gaps than structured spreadsheets.
+On this internal benchmark corpus, AksharaMD produces **4–15× fewer tokens** (depending on format composition) and **98.5% less noise**. MarkItDown is faster on simple formats; AksharaMD is slower due to deeper extraction (structure detection, deduplication, chunking). Text-heavy formats (DOCX, HTML, TXT) show the largest token gaps; structured formats (CSV, JSON) show smaller differences.
 
 #### Per-format quality scores
 
