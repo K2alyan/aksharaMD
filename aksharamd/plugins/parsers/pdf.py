@@ -136,6 +136,70 @@ def _is_bold(flags: int) -> bool:
     return bool(flags & 2**4)
 
 
+def _apply_inline_fmt(text: str, bold: bool, strikethrough: bool, underline: bool) -> str:
+    """Wrap text in markdown/HTML inline decoration markers."""
+    if strikethrough:
+        text = f"~~{text}~~"
+    if underline:
+        text = f"<u>{text}</u>"
+    if bold:
+        text = f"**{text}**"
+    return text
+
+
+def _tag_text_decorations(page: "fitz.Page", spans: list[dict]) -> None:
+    """Tag spans with underline/strikethrough detected from page drawing paths.
+
+    PDF underline and strikethrough are typically drawn as separate thin
+    horizontal paths rather than encoded as font flags. We detect them
+    geometrically: a thin horizontal stroke at the text midpoint is
+    strikethrough; one just below the text bbox bottom is underline.
+    This runs only when drawings exist and is wrapped in a broad except so
+    it can never break text extraction.
+    """
+    if not spans:
+        return
+    try:
+        drawings = page.get_drawings()
+    except Exception:
+        return
+
+    page_w = page.rect.width
+    thin_lines: list[tuple[float, float, float, float]] = []
+    for path in drawings:
+        r = path.get("rect")
+        if r is None:
+            continue
+        r_h = r[3] - r[1]
+        r_w = r[2] - r[0]
+        # Keep only thin horizontal strokes that are not full-page-width rules
+        if r_h > 3.0 or r_w < 4.0 or r_w > page_w * 0.75:
+            continue
+        thin_lines.append((r[0], r[1], r[2], r[3]))
+
+    if not thin_lines:
+        return
+
+    for span in spans:
+        b = span["bbox"]            # (x0, y0, x1, y1)
+        sp_h = b[3] - b[1]
+        if sp_h <= 0:
+            continue
+        sp_cy = (b[1] + b[3]) / 2
+        for lx0, _ly0, lx1, ly1 in thin_lines:
+            # Horizontal overlap: line must cover at least half the span width
+            overlap = min(lx1, b[2]) - max(lx0, b[0])
+            if overlap < (b[2] - b[0]) * 0.4:
+                continue
+            line_cy = (_ly0 + ly1) / 2
+            # Underline: line sits at or just below text bottom
+            if -sp_h * 0.3 <= (line_cy - b[3]) <= sp_h * 0.5:
+                span["underline"] = True
+            # Strikethrough: line crosses the vertical midpoint
+            elif abs(line_cy - sp_cy) <= sp_h * 0.35:
+                span["strikethrough"] = True
+
+
 def _has_ruled_table(page: fitz.Page) -> bool:
     """
     Geometry pre-screen using interior line intersection analysis.
@@ -550,6 +614,10 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     # Strip LaTeX \lineno margin line-numbers before further processing so they
     # don't pollute table cells or paragraph text.
     spans = _filter_latex_line_numbers(spans, page.rect.width)
+
+    # Tag spans with underline/strikethrough from drawing paths (additive, never
+    # raises — detection failure silently leaves flags absent, treated as False).
+    _tag_text_decorations(page, spans)
 
     tables = []
     if _has_ruled_table(page):
@@ -1014,10 +1082,40 @@ def _process_raw_page(
     boundaries = _detect_column_boundaries(spans, raw.width)
     spans = sorted(spans, key=lambda s: (_column_of(s["x"], raw.width, boundaries), s["y"]))
 
-    current_parts: list[str] = []
+    current_spans: list[dict] = []
 
     def flush() -> None:
-        text = " ".join(current_parts).strip()
+        if not current_spans:
+            return
+        # Merge consecutive spans that share the same inline formatting, then
+        # apply bold/strikethrough/underline markers to each run.
+        result_parts: list[str] = []
+        run_texts: list[str] = []
+        run_bold = current_spans[0].get("bold", False)
+        run_strike = current_spans[0].get("strikethrough", False)
+        run_under = current_spans[0].get("underline", False)
+
+        def _flush_run() -> None:
+            if run_texts:
+                result_parts.append(
+                    _apply_inline_fmt(
+                        " ".join(run_texts), run_bold, run_strike, run_under
+                    )
+                )
+
+        for sp in current_spans:
+            b = sp.get("bold", False)
+            s = sp.get("strikethrough", False)
+            u = sp.get("underline", False)
+            if (b, s, u) == (run_bold, run_strike, run_under):
+                run_texts.append(sp["text"])
+            else:
+                _flush_run()
+                run_texts[:] = [sp["text"]]
+                run_bold, run_strike, run_under = b, s, u
+        _flush_run()
+
+        text = " ".join(result_parts).strip()
         if text:
             blocks.append(Block(
                 type=BlockType.PARAGRAPH,
@@ -1025,9 +1123,9 @@ def _process_raw_page(
                 page=raw.page_num,
                 index=0,
             ))
-        current_parts.clear()
+        current_spans.clear()
 
-    prev_text_span: dict | None = None  # last span that was appended to current_parts
+    prev_text_span: dict | None = None  # last span appended to current_spans
 
     for span in spans:
         text = span["text"]
@@ -1038,7 +1136,7 @@ def _process_raw_page(
         # span's font size within the same column signals a new paragraph.  This
         # separates distinct paragraphs that share no heading or caption to act as
         # a natural separator — common in 2-column academic papers.
-        if prev_text_span is not None and current_parts:
+        if prev_text_span is not None and current_spans:
             curr_col = _column_of(span["x"], raw.width, boundaries)
             prev_col = _column_of(prev_text_span["x"], raw.width, boundaries)
             if curr_col == prev_col:
@@ -1089,7 +1187,7 @@ def _process_raw_page(
             ))
             prev_text_span = None
         else:
-            current_parts.append(text)
+            current_spans.append(span)
             prev_text_span = span
 
     flush()
