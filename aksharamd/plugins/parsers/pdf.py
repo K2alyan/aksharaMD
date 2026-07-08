@@ -136,14 +136,22 @@ def _is_bold(flags: int) -> bool:
     return bool(flags & 2**4)
 
 
-def _apply_inline_fmt(text: str, bold: bool, strikethrough: bool, underline: bool) -> str:
+def _is_italic(flags: int) -> bool:
+    return bool(flags & 2**1)
+
+
+def _apply_inline_fmt(text: str, bold: bool, italic: bool, strikethrough: bool, underline: bool) -> str:
     """Wrap text in markdown/HTML inline decoration markers."""
     if strikethrough:
         text = f"~~{text}~~"
     if underline:
         text = f"<u>{text}</u>"
-    if bold:
+    if bold and italic:
+        text = f"***{text}***"
+    elif bold:
         text = f"**{text}**"
+    elif italic:
+        text = f"*{text}*"
     return text
 
 
@@ -597,10 +605,12 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                 ]
                 text = _CID_RE.sub("", "".join(visible_chars)).strip()
                 if text:
+                    flags = span.get("flags", 0)
                     spans.append({
                         "text": text,
                         "size": span["size"],
-                        "bold": _is_bold(span.get("flags", 0)),
+                        "bold": _is_bold(flags),
+                        "italic": _is_italic(flags),
                         "y": span["origin"][1],
                         "x": span["origin"][0],
                         "bbox": span["bbox"],
@@ -1088,10 +1098,11 @@ def _process_raw_page(
         if not current_spans:
             return
         # Merge consecutive spans that share the same inline formatting, then
-        # apply bold/strikethrough/underline markers to each run.
+        # apply bold/italic/strikethrough/underline markers to each run.
         result_parts: list[str] = []
         run_texts: list[str] = []
         run_bold = current_spans[0].get("bold", False)
+        run_italic = current_spans[0].get("italic", False)
         run_strike = current_spans[0].get("strikethrough", False)
         run_under = current_spans[0].get("underline", False)
 
@@ -1099,20 +1110,21 @@ def _process_raw_page(
             if run_texts:
                 result_parts.append(
                     _apply_inline_fmt(
-                        " ".join(run_texts), run_bold, run_strike, run_under
+                        " ".join(run_texts), run_bold, run_italic, run_strike, run_under
                     )
                 )
 
         for sp in current_spans:
             b = sp.get("bold", False)
+            i = sp.get("italic", False)
             s = sp.get("strikethrough", False)
             u = sp.get("underline", False)
-            if (b, s, u) == (run_bold, run_strike, run_under):
+            if (b, i, s, u) == (run_bold, run_italic, run_strike, run_under):
                 run_texts.append(sp["text"])
             else:
                 _flush_run()
                 run_texts[:] = [sp["text"]]
-                run_bold, run_strike, run_under = b, s, u
+                run_bold, run_italic, run_strike, run_under = b, i, s, u
         _flush_run()
 
         text = " ".join(result_parts).strip()
