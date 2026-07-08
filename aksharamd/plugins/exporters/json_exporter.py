@@ -37,10 +37,18 @@ class JSONExporter(ExporterPlugin):
         )
 
         # chunks/
+        chunk_meta: dict = {}
+        if ctx.manifest:
+            chunk_meta["source_path"] = ctx.manifest.source
+            chunk_meta["compiled_at"] = ctx.manifest.compiled_at
+            if ctx.manifest.file_modified_at is not None:
+                chunk_meta["file_modified_at"] = ctx.manifest.file_modified_at
+
         for chunk in ctx.chunks:
+            if chunk_meta:
+                chunk = chunk.model_copy(update={"metadata": {**chunk_meta, **chunk.metadata}})
             chunk_path = chunks_dir / f"{chunk.id}.json"
-            chunk_path.write_text(chunk.model_dump_json(indent=2), encoding="utf-8"
-        )
+            chunk_path.write_text(chunk.model_dump_json(indent=2), encoding="utf-8")
 
         return ctx
 

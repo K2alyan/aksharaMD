@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -497,8 +498,11 @@ class Compiler:
                 return _StageTimer(stage_timings, name)
 
             # 0. File size gate — reject before any I/O-heavy parsing
+            _file_modified_at: str | None = None
             try:
-                file_size = Path(source).stat().st_size
+                _stat = Path(source).stat()
+                file_size = _stat.st_size
+                _file_modified_at = datetime.fromtimestamp(_stat.st_mtime, tz=UTC).isoformat()
                 if file_size > _MAX_FILE_BYTES:
                     ctx.error(
                         "FILE_TOO_LARGE",
@@ -627,6 +631,7 @@ class Compiler:
                 image_pages=image_pages,
                 vision_available=vision_available,
                 vision_pages=vision_pages,
+                file_modified_at=_file_modified_at,
                 warnings=[i.message for i in ctx.validation.warnings],
                 warning_codes=[i.code for i in ctx.validation.warnings],
                 errors=[i.message for i in ctx.validation.errors],

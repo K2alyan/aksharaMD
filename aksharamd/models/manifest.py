@@ -55,6 +55,7 @@ class Manifest(BaseModel):
     compiled_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
+    file_modified_at: str | None = None
     blocks_extracted: int = 0
     blocks_inferred: int = 0
     blocks_ambiguous: int = 0

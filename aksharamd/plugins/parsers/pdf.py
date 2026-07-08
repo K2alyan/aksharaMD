@@ -155,7 +155,7 @@ def _apply_inline_fmt(text: str, bold: bool, italic: bool, strikethrough: bool, 
     return text
 
 
-def _tag_text_decorations(page: "fitz.Page", spans: list[dict]) -> None:
+def _tag_text_decorations(page: fitz.Page, spans: list[dict]) -> None:
     """Tag spans with underline/strikethrough detected from page drawing paths.
 
     PDF underline and strikethrough are typically drawn as separate thin
