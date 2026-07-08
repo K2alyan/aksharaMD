@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import logging
 import os
 import re
@@ -1115,11 +1116,11 @@ def _process_raw_page(
             ))
 
     # Add IMAGE blocks for content images (after text, for multimodal output).
-    # The placeholder label is shown in MD output so images are never silently dropped.
+    # Content uses standard markdown image syntax so the reference survives in .md output.
     for asset_id, _img_bytes in raw.content_images:
         blocks.append(Block(
             type=BlockType.IMAGE,
-            content=f"Image on page {raw.page_num}",
+            content=f"![Image on page {raw.page_num}](asset://{asset_id})",
             page=raw.page_num, index=0,
             metadata={"asset_id": asset_id},
         ))
@@ -1137,9 +1138,22 @@ def _process_raw_page(
     return raw.page_num, blocks, assets
 
 
-def _parse_marker_markdown(markdown: str, page_num: int) -> list[Block]:
-    """Convert a Marker markdown string (single page) into Block objects."""
+_MARKER_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)")
+
+
+def _parse_marker_markdown(
+    markdown: str,
+    page_num: int,
+    images: dict | None = None,
+) -> tuple[list[Block], list[Asset]]:
+    """Convert a Marker markdown string (single page) into Block objects and Assets.
+
+    images: Marker's rendered.images dict mapping key -> PIL Image (optional).
+    Image blobs are stored as Assets; blocks carry an asset:// reference so the
+    position is preserved in the markdown output without any AI extraction.
+    """
     blocks: list[Block] = []
+    new_assets: list[Asset] = []
     idx = 0
     table_lines: list[str] = []
     in_table = False
@@ -1188,6 +1202,44 @@ def _parse_marker_markdown(markdown: str, page_num: int) -> list[Block]:
             flush_table()
             in_table = False
 
+        img_m = _MARKER_IMAGE_RE.match(stripped)
+        if img_m:
+            flush_para()
+            alt_text = img_m.group(1).strip() or f"Figure on page {page_num}"
+            img_key = img_m.group(2)
+            asset_id = hashlib.sha256(
+                f"marker:{page_num}:{img_key}".encode()
+            ).hexdigest()[:12]
+
+            img_bytes: bytes | None = None
+            if images:
+                pil_img = images.get(img_key)
+                if pil_img is not None:
+                    try:
+                        buf = io.BytesIO()
+                        pil_img.save(buf, format="PNG")
+                        img_bytes = buf.getvalue()
+                    except Exception:
+                        pass
+
+            new_assets.append(Asset(
+                id=asset_id,
+                type="image",
+                page=page_num,
+                alt_text=alt_text,
+                image_bytes=img_bytes,
+            ))
+            blocks.append(Block(
+                type=BlockType.IMAGE,
+                content=f"![{alt_text}](asset://{asset_id})",
+                page=page_num,
+                index=idx,
+                metadata={"asset_id": asset_id},
+                confidence=ExtractionConfidence.EXTRACTED,
+            ))
+            idx += 1
+            continue
+
         m = re.match(r"^(#{1,6})\s+(.+)$", stripped)
         if m:
             flush_para()
@@ -1209,41 +1261,43 @@ def _parse_marker_markdown(markdown: str, page_num: int) -> list[Block]:
 
     flush_para()
     flush_table()
-    return blocks
+    return blocks, new_assets
 
 
 def _apply_marker_to_image_pages(
     path: Path,
     raw_pages: list[RawPage],
     all_blocks: list[Block],
-) -> tuple[list[Block], int]:
-    """Re-extract image-only pages using Marker for layout-aware table reconstruction.
+) -> tuple[list[Block], list[Asset], int]:
+    """Re-extract image-only pages using Marker for layout-aware reconstruction.
 
-    Returns (updated_blocks, vision_page_count).  Each image page is processed
-    as a single-page sub-PDF so blocks can be assigned to the correct page number.
-    The Marker model dict is loaded once and reused across pages.
+    Returns (updated_blocks, new_assets, vision_page_count). Each image page is
+    processed as a single-page sub-PDF so blocks are assigned the correct page
+    number. Figure/chart images are stored as Assets and referenced inline in the
+    markdown as ![alt](asset://id) — no AI extraction, just blob + position.
     """
     image_page_nums = [
         raw.page_num for raw in raw_pages
         if sum(len(s.get("text", "")) for s in raw.spans) < _OCR_TEXT_THRESHOLD
     ]
     if not image_page_nums:
-        return all_blocks, 0
+        return all_blocks, [], 0
 
     models = _get_marker_models()
     if models is None:
-        return all_blocks, 0
+        return all_blocks, [], 0
 
     try:
         from marker.converters.pdf import PdfConverter
     except ImportError:
-        return all_blocks, 0
+        return all_blocks, [], 0
 
     # Remove placeholder blocks (IMAGE / OCR-unavailable messages) for these pages
     image_page_set = set(image_page_nums)
     filtered: list[Block] = [b for b in all_blocks if b.page not in image_page_set]
 
     marker_blocks: list[Block] = []
+    marker_assets: list[Asset] = []
     vision_pages = 0
     original_pdf = fitz.open(str(path))
 
@@ -1257,9 +1311,13 @@ def _apply_marker_to_image_pages(
             sub.close()
             converter = PdfConverter(artifact_dict=models)
             rendered = converter(tmp_path)
-            page_blocks = _parse_marker_markdown(rendered.markdown, orig_pnum)
+            marker_images = getattr(rendered, "images", None) or {}
+            page_blocks, page_assets = _parse_marker_markdown(
+                rendered.markdown, orig_pnum, marker_images
+            )
             if page_blocks:
                 marker_blocks.extend(page_blocks)
+                marker_assets.extend(page_assets)
                 vision_pages += 1
         except Exception:
             logger.debug("Marker failed on page %d of %s", orig_pnum, path.name, exc_info=True)
@@ -1276,7 +1334,7 @@ def _apply_marker_to_image_pages(
     for i, block in enumerate(combined):
         combined[i] = block.model_copy(update={"index": i})
 
-    return combined, vision_pages
+    return combined, marker_assets, vision_pages
 
 
 # ── Math OCR (Phase 6) ────────────────────────────────────────────────────────
@@ -1675,7 +1733,10 @@ class PDFParser(ParserPlugin):
                     f"Vision model: reconstructing {image_page_count} image page"
                     f"{'s' if image_page_count != 1 else ''} (Marker)"
                 )
-            all_blocks, vision_pages = _apply_marker_to_image_pages(path, raw_pages, all_blocks)
+            all_blocks, marker_assets, vision_pages = _apply_marker_to_image_pages(
+                path, raw_pages, all_blocks
+            )
+            all_assets.extend(marker_assets)
             if vision_pages and ctx.progress:
                 ctx.progress(f"Vision complete: {vision_pages} page{'s' if vision_pages != 1 else ''} reconstructed")
 
