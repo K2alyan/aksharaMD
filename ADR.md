@@ -180,6 +180,8 @@ Each entry explains why a significant decision was made, what was considered, an
 
 **Decision:** `_has_ruled_table` uses interior intersection geometry. A decorative border only has lines that meet at corners. A real table grid has column-divider lines that cross row-divider lines at interior points. A secondary fallback handles horizontal-only ruled tables (≥3 h-lines within 15% of median width). pdfplumber is used for borderless tables with `vertical_strategy="text"` and `min_words_vertical=5` (raised from 3 to prevent title-page and sidebar blocks from being detected as tables).
 
+Rectangle drawing items are captured as h-lines/v-lines when `height > 1pt` (not `> 5pt`). The original 5pt threshold silently dropped thin horizontal rule rectangles (1–4pt, common in professionally typeset PDFs), causing the h-line similarity fallback to miss genuine ruled tables. Lowering to 1pt does not affect the interior intersection path — a page border's v-lines remain at its own x-endpoints and still produce zero interior crossings. A single decorative rule rectangle still contributes only 2 h-lines (below the ≥3 threshold for the similarity fallback).
+
 pdfplumber bboxes are flipped to PyMuPDF coordinates before storing. Do not remove this flip.
 
 **Do not replace interior intersection geometry with raw line counts.** The old heuristic incorrectly triggered on pages with horizontal rules that were not table row-dividers.

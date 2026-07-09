@@ -237,7 +237,7 @@ def _has_ruled_table(page: fitz.Page) -> bool:
                     v_lines.append(((p1.x + p2.x) / 2, min(p1.y, p2.y), max(p1.y, p2.y)))
             elif item[0] == "re":
                 r = item[1]
-                if r.width > 30 and r.height > 5:
+                if r.width > 30 and r.height > 1:
                     h_lines.append((r.y0, r.x0, r.x1))
                     h_lines.append((r.y1, r.x0, r.x1))
                     v_lines.append((r.x0, r.y0, r.y1))
@@ -603,7 +603,8 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                     ch["c"] for ch in chars_list
                     if (ch.get("flags", 0) & 0xF) != 3
                 ]
-                text = _CID_RE.sub("", "".join(visible_chars)).strip()
+                _joined = "".join(visible_chars)
+                text = _CID_RE.sub("", _joined).replace("�", "").strip()
                 if text:
                     flags = span.get("flags", 0)
                     spans.append({
@@ -616,10 +617,15 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                         "bbox": span["bbox"],
                     })
                 elif chars_list and not any((ch.get("flags", 0) & 0xF) == 3 for ch in chars_list):
-                    # Span has chars, none are invisible, but all decode to empty —
-                    # undecodable font encoding (math symbols, Greek letters in CM fonts).
-                    # Record the bbox for potential math OCR in Phase 6.
-                    math_bboxes.append(tuple(span["bbox"]))
+                    # Span has visible chars but text is empty after stripping. Two cases:
+                    # (a) chars decoded to U+FFFD — unmapped custom-font glyph (e.g. WileyCode
+                    #     bullets). Discard silently; these are not math candidates.
+                    # (b) chars decoded to "" — truly undecodable encoding (CM math fonts).
+                    #     Record for potential math OCR in Phase 6.
+                    if _joined and not _joined.replace("�", ""):
+                        pass  # case (a): all U+FFFD — discard
+                    else:
+                        math_bboxes.append(tuple(span["bbox"]))  # case (b): math candidate
 
     # Strip LaTeX \lineno margin line-numbers before further processing so they
     # don't pollute table cells or paragraph text.
