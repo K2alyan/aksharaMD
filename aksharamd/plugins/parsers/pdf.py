@@ -194,10 +194,16 @@ def _tag_text_decorations(page: fitz.Page, spans: list[dict]) -> None:
         if sp_h <= 0:
             continue
         sp_cy = (b[1] + b[3]) / 2
+        sp_w = b[2] - b[0]
         for lx0, _ly0, lx1, ly1 in thin_lines:
             # Horizontal overlap: line must cover at least half the span width
             overlap = min(lx1, b[2]) - max(lx0, b[0])
             if overlap < (b[2] - b[0]) * 0.4:
+                continue
+            # Table rulings span multiple columns and extend well past a single span.
+            # Skip lines that reach more than one span-width beyond either edge —
+            # a real text underline stays close to its word; a table rule does not.
+            if sp_w > 0 and ((b[0] - lx0) > sp_w or (lx1 - b[2]) > sp_w):
                 continue
             line_cy = (_ly0 + ly1) / 2
             # Underline: line sits at or just below text bottom
@@ -1088,6 +1094,7 @@ def _process_raw_page(
             page=raw.page_num,
             index=0,
             confidence=tbl_confidence,
+            metadata={"table_bbox": t["bbox"]},
         ))
         table_bboxes.append(t["bbox"])
 
@@ -1716,6 +1723,130 @@ def _pdfplumber_fallback(path: Path, ctx: CompilationContext) -> CompilationCont
     return ctx
 
 
+def _tbl_header_line(md: str) -> str:
+    """Return the first non-separator pipe-delimited line from a markdown table."""
+    for ln in md.splitlines():
+        s = ln.strip()
+        if s.startswith("|") and "---" not in s:
+            return s
+    return ""
+
+
+def _tbl_col_count(header_line: str) -> int:
+    return len([c for c in header_line.split("|") if c.strip()])
+
+
+def _tbl_continuation_rows(b_md: str, a_header: str) -> list[str]:
+    """Extract rows from table b suitable for appending to table a.
+
+    Skips the separator line (always). Skips the header line when it is
+    identical to table a's header (repeated column labels across a page break).
+    When the header differs, it is treated as a data row and kept.
+    """
+    lines = [ln for ln in b_md.splitlines() if ln.strip()]
+    if not lines:
+        return []
+    start = 0
+    if lines[0].strip() == a_header:
+        start = 1  # repeated column header — drop it
+    else:
+        # First line is data treated as header by find_tables — keep it as data
+        pass
+    # Skip the separator line (| --- | --- | ...)
+    if start < len(lines) and "---" in lines[start] and lines[start].strip().startswith("|"):
+        start += 1
+    return [ln for ln in lines[start:] if ln.strip()]
+
+
+def _stitch_page_break_tables(
+    blocks: list[Block],
+    page_heights: dict[int, float],
+    edge_tolerance: float = 30.0,
+) -> list[Block]:
+    """Merge TABLE blocks that are continuations of a table split by a page break.
+
+    Two detection cases (both require table a on page N, table b on page N+1):
+
+    Case 1 — repeated header (no spatial check needed):
+      Publishers often reprint the column header row at the top of each
+      continuation page. When table b's first row is identical to table a's
+      first row, they are almost certainly the same table continued across
+      the break. No edge-proximity check is needed because the header match
+      is already a very strong signal.
+
+    Case 2 — no repeated header (spatial check required):
+      Table a ends within edge_tolerance pts of the bottom of page N AND
+      table b starts within edge_tolerance pts of the top of page N+1 AND
+      column counts match. Requires table_bbox metadata on both blocks.
+
+    Iterates until stable so tables spanning 3+ pages are also handled.
+    """
+    if len(blocks) < 2:
+        return blocks
+
+    changed = True
+    while changed:
+        changed = False
+        result: list[Block] = []
+        absorbed: set[int] = set()
+
+        for i, a in enumerate(blocks):
+            if i in absorbed:
+                continue
+            if a.type != BlockType.TABLE or a.page is None:
+                result.append(a)
+                continue
+
+            # Look for the continuation on the immediately following page
+            merged = False
+            for j in range(i + 1, len(blocks)):
+                if j in absorbed:
+                    continue
+                b = blocks[j]
+                if b.type != BlockType.TABLE:
+                    continue
+                if b.page != a.page + 1:
+                    break  # past the target page
+
+                a_hdr = _tbl_header_line(a.content)
+                b_hdr = _tbl_header_line(b.content)
+
+                # Case 1: identical column headers — strong page-break signal.
+                repeated = bool(a_hdr and b_hdr and a_hdr == b_hdr)
+
+                if not repeated:
+                    # Case 2: no repeated header — require spatial adjacency.
+                    a_bbox = a.metadata.get("table_bbox")
+                    b_bbox = b.metadata.get("table_bbox")
+                    if not a_bbox or not b_bbox:
+                        break
+                    a_height = page_heights.get(a.page, 0.0)
+                    if a_height <= 0 or (a_height - a_bbox[3]) > edge_tolerance:
+                        break
+                    if b_bbox[1] > edge_tolerance:
+                        break
+                    if _tbl_col_count(a_hdr) == 0 or _tbl_col_count(a_hdr) != _tbl_col_count(b_hdr):
+                        break
+
+                rows = _tbl_continuation_rows(b.content, a_hdr)
+                if rows:
+                    merged_block = a.model_copy(update={
+                        "content": a.content + "\n" + "\n".join(rows),
+                    })
+                    result.append(merged_block)
+                    absorbed.add(j)
+                    changed = True
+                    merged = True
+                break
+
+            if not merged:
+                result.append(a)
+
+        blocks = result
+
+    return blocks
+
+
 class PDFParser(ParserPlugin):
     name = "pdf_parser"
     supported_types = ["pdf"]
@@ -1839,6 +1970,13 @@ class PDFParser(ParserPlugin):
                 all_blocks.append(block.model_copy(update={"index": idx}))
                 idx += 1
             all_assets.extend(assets)
+
+        # Phase 4.5: Stitch tables split across page breaks into single tables
+        page_heights = {raw.page_num: raw.height for raw in raw_pages}
+        all_blocks = _stitch_page_break_tables(all_blocks, page_heights)
+        for i, blk in enumerate(all_blocks):
+            all_blocks[i] = blk.model_copy(update={"index": i})
+        idx = len(all_blocks)
 
         # Phase 5: Vision enhancement — re-extract image-only pages with Marker
         vision_pages = 0
