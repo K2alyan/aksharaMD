@@ -20,15 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def _tesseract_available() -> bool:
-    """Return True if pytesseract and its Tesseract binary are accessible."""
-    if importlib.util.find_spec("pytesseract") is None:
-        return False
-    try:
-        import pytesseract
-        pytesseract.get_tesseract_version()
-        return True
-    except Exception:
-        return False
+    """Return True if pytesseract and its Tesseract binary are accessible.
+
+    Delegates to image._configure_tesseract() so the Windows install path
+    (C:\\Program Files\\Tesseract-OCR\\tesseract.exe) is auto-detected even when
+    the binary is not on PATH.
+    """
+    from .image import _configure_tesseract
+    return _configure_tesseract()
 
 
 _TESSERACT_AVAILABLE: bool | None = None  # lazily cached
@@ -787,9 +786,9 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
 
 _OCR_TEXT_THRESHOLD = 50    # chars below which a full-page rasterisation is done
 _EMBEDDED_OCR_THRESHOLD = 300  # chars below which embedded images are individually OCR'd
-# 200 DPI meaningfully improves Tesseract accuracy over 150 on typical A4/Letter scans.
-# Override with AKSHARAMD_OCR_DPI env var (e.g. 300 for high-quality archival PDFs).
-_OCR_DPI = int(os.getenv("AKSHARAMD_OCR_DPI", "200"))
+# 300 DPI is the standard recommendation for Tesseract on body text.
+# Override with AKSHARAMD_OCR_DPI env var for speed/quality trade-off.
+_OCR_DPI = int(os.getenv("AKSHARAMD_OCR_DPI", "300"))
 _EMBED_MIN_PX = 100         # ignore embedded images smaller than 100×100 px (decorative)
 _MAX_CONTENT_IMAGE_BYTES = 2 * 1024 * 1024  # skip images > 2 MB (very high-res raw scans)
 _MAX_IMAGES_PER_PAGE = 3
@@ -1726,14 +1725,11 @@ def _apply_marker_to_image_pages(
     except ImportError:
         return all_blocks, [], 0, False
 
-    # Remove placeholder blocks (IMAGE / OCR-unavailable messages) for these pages
-    image_page_set = set(image_page_nums)
-    filtered: list[Block] = [b for b in all_blocks if b.page not in image_page_set]
-
     marker_blocks: list[Block] = []
     marker_assets: list[Asset] = []
     vision_pages = 0
     ocr_hallucination = False
+    pages_replaced: set[int] = set()  # only pages where Marker produced content
     original_pdf = fitz.open(str(path))
 
     for orig_pnum in image_page_nums:
@@ -1757,6 +1753,7 @@ def _apply_marker_to_image_pages(
                 marker_blocks.extend(page_blocks)
                 marker_assets.extend(page_assets)
                 vision_pages += 1
+                pages_replaced.add(orig_pnum)
         except Exception:
             logger.debug("Marker failed on page %d of %s", orig_pnum, path.name, exc_info=True)
         finally:
@@ -1767,6 +1764,10 @@ def _apply_marker_to_image_pages(
 
     original_pdf.close()
 
+    # Only remove existing blocks (Tesseract OCR / IMAGE placeholders) for pages where
+    # Marker actually produced content. Pages where Marker failed or returned nothing
+    # keep their prior blocks, preventing spurious MISSING_PAGE validator warnings.
+    filtered: list[Block] = [b for b in all_blocks if b.page not in pages_replaced]
     combined = filtered + marker_blocks
     combined.sort(key=lambda b: (b.page or 0, b.index))
     for i, block in enumerate(combined):

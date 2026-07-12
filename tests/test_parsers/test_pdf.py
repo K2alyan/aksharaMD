@@ -722,6 +722,88 @@ def test_ocr_unavailable_emits_notice_on_scanned_page(tmp_path, monkeypatch):
     assert "pytesseract" in all_text, "OCR-unavailable notice not emitted for scanned page"
 
 
+def test_marker_failure_preserves_existing_blocks(tmp_path, monkeypatch):
+    """When Marker is available but produces nothing for a page, existing OCR/IMAGE
+    blocks must be kept — not silently dropped — so MISSING_PAGE does not fire."""
+    import aksharamd.plugins.parsers.pdf as pdf_mod
+    from aksharamd.models.block import Block, BlockType
+    from aksharamd.plugins.parsers.pdf import _apply_marker_to_image_pages
+
+    # Simulate: Marker installed but returns empty markdown for the page
+    monkeypatch.setattr(pdf_mod, "_MARKER_AVAILABLE", True)
+    monkeypatch.setattr(pdf_mod, "_MARKER_LOAD_ATTEMPTED", False)
+    monkeypatch.setattr(pdf_mod, "_MARKER_MODELS", None)
+
+    class _FakeModels:
+        pass
+
+    monkeypatch.setattr(pdf_mod, "_get_marker_models", lambda: _FakeModels())
+
+    # PdfConverter returns empty markdown
+    class _FakeRendered:
+        markdown = ""
+        images = {}
+
+    class _FakeConverter:
+        def __init__(self, artifact_dict):
+            pass
+        def __call__(self, path):
+            return _FakeRendered()
+
+    import sys
+    fake_marker = type(sys)("marker")
+    fake_converters = type(sys)("marker.converters")
+    fake_converters_pdf = type(sys)("marker.converters.pdf")
+    fake_converters_pdf.PdfConverter = _FakeConverter
+    fake_marker.converters = fake_converters
+    fake_converters.pdf = fake_converters_pdf
+    monkeypatch.setitem(sys.modules, "marker", fake_marker)
+    monkeypatch.setitem(sys.modules, "marker.converters", fake_converters)
+    monkeypatch.setitem(sys.modules, "marker.converters.pdf", fake_converters_pdf)
+
+    # Pre-existing block for the image page (e.g. OCR-unavailable notice)
+    existing_block = Block(
+        type=BlockType.PARAGRAPH,
+        content="[Image not extracted]",
+        page=2,
+        index=0,
+    )
+    pre_blocks = [
+        Block(type=BlockType.PARAGRAPH, content="Normal text page.", page=1, index=0),
+        existing_block,
+    ]
+
+    # RawPage stub with page 2 as image-only (no spans → ocr_pixmap triggers)
+    class _FakeRaw:
+        def __init__(self, page_num, spans):
+            self.page_num = page_num
+            self.spans = spans
+
+    raw_pages = [
+        _FakeRaw(1, [{"text": "Normal text", "x": 0, "y": 0}]),
+        _FakeRaw(2, []),  # image page — no spans
+    ]
+
+    # Build a real 2-page PDF: page 1 has text, page 2 is image-only
+    import fitz as _fitz
+    doc = _fitz.open()
+    p1 = doc.new_page(width=595, height=842)
+    p1.insert_text((50, 100), "Normal text page.")
+    p2 = doc.new_page(width=595, height=842)
+    p2.draw_rect(_fitz.Rect(50, 50, 545, 792), fill=(0.8, 0.8, 0.8))
+    path = tmp_path / "two_page.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    result_blocks, _, vision_pages, _ = _apply_marker_to_image_pages(
+        path, raw_pages, pre_blocks
+    )
+
+    pages_in_result = {b.page for b in result_blocks}
+    assert 2 in pages_in_result, "Page 2 blocks were dropped when Marker returned nothing"
+    assert vision_pages == 0  # Marker produced nothing, so no vision pages counted
+
+
 def test_content_image_label_not_empty(tmp_path):
     """IMAGE blocks from content images must carry a descriptive label, not empty string."""
     from aksharamd.context import CompilationContext
