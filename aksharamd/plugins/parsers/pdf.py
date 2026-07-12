@@ -9,7 +9,7 @@ import re
 import statistics
 import tempfile
 from collections import Counter
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 from pathlib import Path
 from typing import NamedTuple
@@ -43,6 +43,7 @@ def _ocr_available() -> bool:
 
 # ── Marker (vision) availability ──────────────────────────────────────────────
 _MARKER_AVAILABLE: bool | None = None
+_MARKER_LOAD_ATTEMPTED: bool = False
 _MARKER_MODELS: dict | None = None
 
 
@@ -55,7 +56,8 @@ def _marker_available() -> bool:
 
 
 def _get_marker_models() -> dict | None:
-    """Load and cache Marker models.  Returns None if unavailable or load fails.
+    """Load and cache Marker models.  Returns None if unavailable or load fails.  On failure,
+    sets a flag so subsequent calls within the same process return immediately without retrying.
 
     Models are downloaded from HuggingFace on first run (~3 GB).  For
     air-gapped environments, pre-cache by running once on a connected machine:
@@ -63,11 +65,15 @@ def _get_marker_models() -> dict | None:
     then copy ~/.cache/huggingface/hub/ to the target machine and set
     HF_HUB_OFFLINE=1 before running aksharamd.
     """
-    global _MARKER_MODELS
+    global _MARKER_MODELS, _MARKER_LOAD_ATTEMPTED, _MARKER_AVAILABLE
+    if _MARKER_LOAD_ATTEMPTED:
+        return _MARKER_MODELS  # None on prior failure, dict on success
     if _MARKER_MODELS is not None:
         return _MARKER_MODELS
     if not _marker_available():
+        _MARKER_LOAD_ATTEMPTED = True
         return None
+    _MARKER_LOAD_ATTEMPTED = True
     try:
         from marker.models import create_model_dict
         logger.debug("Loading Marker vision models (first-time load, may take a moment)...")
@@ -81,6 +87,7 @@ def _get_marker_models() -> dict | None:
             "then set HF_HUB_OFFLINE=1.",
             exc,
         )
+        _MARKER_AVAILABLE = False
         return None
 
 
@@ -105,7 +112,9 @@ _PAGE_NUM_RE = re.compile(
     # Web-print "X/N" pagination ("1/13", "12/13") — zone-restricted like bare digits
     r"|^\d+/\d+$"
     # Print timestamps from PDF authoring tools: "5/31/07 10:22 AM Page i"
-    r"|^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$",
+    r"|^\d+/\d+/\d{2,4}\s+\d+:\d+\s*(AM|PM)\s+Page\s+\S+$"
+    # Roman numeral page numbers (i–xxxix) in header/footer zones
+    r"|^m{0,4}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$",
     re.IGNORECASE,
 )
 _CID_RE = re.compile(r"\(cid:\d+\)")
@@ -525,6 +534,175 @@ def _try_pdfplumber_tables(
         return []
 
 
+_TBL_CAPTION_RE = re.compile(
+    r'^\s*(Table|Figure|Fig\.\s*|Chart|Exhibit)\s+\S+', re.IGNORECASE
+)
+
+
+def _is_caption_row(cells: list[str]) -> bool:
+    """Return True if this row is a table/figure caption label rather than a data row."""
+    non_empty = [c.strip() for c in cells if c.strip()]
+    if not non_empty:
+        return False
+    return bool(_TBL_CAPTION_RE.match(non_empty[0]))
+
+
+def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
+    """Detect booktabs-style tables that use only horizontal rules (no vertical lines).
+
+    Collects h-rules from get_drawings(), groups them by x-extent into candidate
+    tables, then uses x-position gaps in the span distribution to determine column
+    boundaries.  Handles caption rows (e.g. "Table 1-1 | A Good Week…") by
+    excluding them from the markdown so the table's first row is the column header,
+    enabling cross-page stitching when the header repeats on the next page.
+
+    Returns dicts with {"markdown": str, "bbox": tuple} in the same format as
+    _try_pdfplumber_tables.
+    """
+    page_width = page.rect.width
+    min_rule_w = page_width * 0.20
+
+    h_rules: list[tuple[float, float, float]] = []  # (y_mid, x0, x1)
+    for path in page.get_drawings():
+        for item in path.get("items", []):
+            if item[0] == "l":
+                p1, p2 = item[1], item[2]
+                dx, dy = abs(p2.x - p1.x), abs(p2.y - p1.y)
+                if dx >= min_rule_w and dy < 3:
+                    h_rules.append(
+                        ((p1.y + p2.y) / 2, min(p1.x, p2.x), max(p1.x, p2.x))
+                    )
+            elif item[0] == "re":
+                r = item[1]
+                if r.width >= min_rule_w and r.height <= 3:
+                    h_rules.append((r.y0 + r.height / 2, r.x0, r.x1))
+
+    if len(h_rules) < 2:
+        return []
+
+    # Group rules with similar x-extent into candidate tables
+    x_tol = 20.0
+    groups: list[list[tuple[float, float, float]]] = []
+    for rule in sorted(h_rules, key=lambda r: r[0]):
+        placed = False
+        for grp in groups:
+            rep = grp[0]
+            if abs(rule[1] - rep[1]) <= x_tol and abs(rule[2] - rep[2]) <= x_tol:
+                grp.append(rule)
+                placed = True
+                break
+        if not placed:
+            groups.append([rule])
+
+    results = []
+    for grp in groups:
+        if len(grp) < 2:
+            continue
+        grp.sort(key=lambda r: r[0])
+        ys = [r[0] for r in grp]
+        tbl_x0 = min(r[1] for r in grp) - 5.0
+        tbl_x1 = max(r[2] for r in grp) + 5.0
+
+        # Small vertical margins: avoid capturing prose lines above the top rule
+        hdr_above = 5.0
+        last_below = 5.0
+        row_ys = [ys[0] - hdr_above] + ys + [ys[-1] + last_below]
+        n_rows = len(row_ys) - 1
+
+        # Collect spans within the table x/y extent
+        tbl_spans = [
+            s for s in spans
+            if tbl_x0 <= (s["bbox"][0] + s["bbox"][2]) / 2 <= tbl_x1
+            and row_ys[0] <= (s["bbox"][1] + s["bbox"][3]) / 2 <= row_ys[-1]
+        ]
+        if len(tbl_spans) < 4:
+            continue
+
+        # Column detection: use left-edges of spans below the first rule
+        body_for_cols = [
+            s for s in tbl_spans
+            if (s["bbox"][1] + s["bbox"][3]) / 2 > ys[0]
+        ] or tbl_spans
+
+        left_xs = sorted(s["bbox"][0] for s in body_for_cols)
+        min_col_gap = 20.0
+        col_boundaries: list[float] = []
+        for i in range(1, len(left_xs)):
+            gap = left_xs[i] - left_xs[i - 1]
+            if gap >= min_col_gap:
+                mid = (left_xs[i - 1] + left_xs[i]) / 2
+                if not col_boundaries or mid - col_boundaries[-1] >= 10.0:
+                    col_boundaries.append(mid)
+
+        n_cols = len(col_boundaries) + 1
+        if n_cols < 2 or n_cols > 8:
+            continue
+
+        def col_of(x: float) -> int:
+            c = 0
+            for b in col_boundaries:
+                if x > b:
+                    c += 1
+            return c
+
+        def row_of(cy: float) -> int:
+            for i in range(n_rows):
+                if cy <= row_ys[i + 1]:
+                    return i
+            return n_rows - 1
+
+        bucket: list[list[list[dict]]] = [
+            [[] for _ in range(n_cols)] for _ in range(n_rows)
+        ]
+        for s in tbl_spans:
+            cy = (s["bbox"][1] + s["bbox"][3]) / 2
+            ri = row_of(cy)
+            ci = col_of(s["bbox"][0])
+            if 0 <= ri < n_rows and 0 <= ci < n_cols:
+                bucket[ri][ci].append(s)
+
+        # Build cell grid; track each non-empty row's top y for bbox calculation
+        row_data: list[tuple[list[str], float]] = []
+        for i, row_bucket in enumerate(bucket):
+            grid_row = []
+            for cell_spans in row_bucket:
+                # Sort by y-bucket (5 pt rounding) then x so that adjacent glyphs
+                # on the same baseline (e.g. "2" "×" "3 = 6") stay in x-order even
+                # when their y-coordinates differ by a sub-pixel amount.
+                cell_spans.sort(key=lambda s: (round(s["y"] / 5), s["x"]))
+                grid_row.append(" ".join(s["text"] for s in cell_spans).strip())
+            if any(c for c in grid_row):
+                row_data.append((grid_row, row_ys[i]))
+
+        if not row_data:
+            continue
+
+        cell_grid = [r for r, _ in row_data]
+        row_tops = [t for _, t in row_data]
+
+        # Skip an opening caption row (e.g. "Table 1-1 | A Good Week for Your Team")
+        # and set bbox_y_top to that rule so the caption spans remain in the prose
+        # stream rather than being suppressed by _filter_table_spans.
+        start_row = 1 if len(cell_grid) > 1 and _is_caption_row(cell_grid[0]) else 0
+        md_cells = cell_grid[start_row:]
+        if not md_cells:
+            continue
+
+        bbox_y_top = row_tops[start_row] if start_row < len(row_tops) else ys[0]
+        bbox_y_bottom = ys[-1] + last_below
+
+        md = _cells_to_markdown(md_cells)
+        if not md or not _is_quality_table(md):
+            continue
+
+        results.append({
+            "markdown": md,
+            "bbox": (tbl_x0, bbox_y_top, tbl_x1, bbox_y_bottom),
+        })
+
+    return results
+
+
 _OCR_TEXT_THRESHOLD = 50    # chars below which a full-page rasterisation is done
 _EMBEDDED_OCR_THRESHOLD = 300  # chars below which embedded images are individually OCR'd
 # 200 DPI meaningfully improves Tesseract accuracy over 150 on typical A4/Letter scans.
@@ -664,6 +842,13 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     if not tables and pdf_pl is not None:
         for tbl in _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height):
             tables.append({**tbl, "source": "whitespace"})
+
+    # Horizontal-rule fallback: detect booktabs-style tables with only h-rules and
+    # no vertical lines (strategy='lines' finds nothing; pdfplumber text-strategy
+    # also fails because multi-level cell text confuses its column detector).
+    if not tables:
+        for tbl in _try_hrule_table(page, spans):
+            tables.append({**tbl, "source": "hrule"})
 
     ocr_pixmap: bytes | None = None
     if total_chars < _OCR_TEXT_THRESHOLD:
@@ -960,6 +1145,9 @@ def _column_of(x: float, page_width: float, boundaries: list[float]) -> int:
 
 
 def _heading_level(size: float, bold: bool, median: float, text: str, centered: bool, has_toc: bool = False) -> int | None:
+    # A single character is never a heading — drop capitals, decorative initials, page markers.
+    if len(text.strip()) == 1:
+        return None
     ratio = size / median if median else 1.0
     # isupper() returns True if ALL *cased* characters are uppercase, so
     # "A + 2"" and "B - 2.5"" (dimension annotations) also pass.  Require that
@@ -986,7 +1174,7 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     )
 
     if has_toc:
-        # Real TOC exists → only trust strongly dominant font sizes; suppress noisy small headings
+        # Real TOC exists → only trust strongly dominant font sizes; suppress noisy small headings.
         if ratio >= 2.0:
             return 1
         if ratio >= 1.6:
@@ -1081,21 +1269,25 @@ def _process_raw_page(
     """
     blocks: list[Block] = []
 
-    # Tables come first — ruled tables are EXTRACTED; whitespace-inferred are INFERRED
+    # Build TABLE blocks but defer insertion until the correct y-position in the
+    # prose flow.  A table at y=450 should appear after paragraphs at y=83–405,
+    # not before them — "tables come first" caused incorrect ordering when prose
+    # precedes the table on the same page.
     table_bboxes = []
+    pending_tables: list[tuple[float, Block]] = []  # (y_top, block)
     for t in raw.tables:
         tbl_confidence = (
             ExtractionConfidence.EXTRACTED if t.get("source") != "whitespace"
             else ExtractionConfidence.INFERRED
         )
-        blocks.append(Block(
+        pending_tables.append((t["bbox"][1], Block(
             type=BlockType.TABLE,
             content=t["markdown"],
             page=raw.page_num,
             index=0,
             confidence=tbl_confidence,
             metadata={"table_bbox": t["bbox"]},
-        ))
+        )))
         table_bboxes.append(t["bbox"])
 
     # Remove spans that overlap with already-extracted tables
@@ -1153,6 +1345,16 @@ def _process_raw_page(
     prev_text_span: dict | None = None  # last span appended to current_spans
 
     for span in spans:
+        # Insert tables whose top y falls before this span's y (preserves reading order
+        # on pages where prose precedes the table, e.g. a table at the bottom of a page).
+        if pending_tables:
+            ready = [(ty, tb) for ty, tb in pending_tables if ty <= span["y"]]
+            if ready:
+                pending_tables = [(ty, tb) for ty, tb in pending_tables if ty > span["y"]]
+                flush()
+                for _, tb in sorted(ready, key=lambda x: x[0]):
+                    blocks.append(tb)
+
         text = span["text"]
         if text in removable:
             continue
@@ -1216,6 +1418,10 @@ def _process_raw_page(
             prev_text_span = span
 
     flush()
+
+    # Append any tables whose y-top exceeds all prose on this page (table at bottom).
+    for _, tb in sorted(pending_tables, key=lambda x: x[0]):
+        blocks.append(tb)
 
     if raw.ocr_pixmap is not None:
         if _ocr_available():
@@ -1900,7 +2106,7 @@ class PDFParser(ParserPlugin):
             chunks = _chunk_pages(page_count)
             extractor = partial(_extract_page_chunk, str(path))
             raw_pages: list[RawPage] = []
-            with ProcessPoolExecutor(max_workers=len(chunks)) as pool:
+            with ThreadPoolExecutor(max_workers=len(chunks)) as pool:
                 for chunk_result in pool.map(extractor, chunks):
                     raw_pages.extend(chunk_result)
             raw_pages.sort(key=lambda p: p.page_num)
