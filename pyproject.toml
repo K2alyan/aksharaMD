@@ -27,10 +27,11 @@ dependencies = [
     "ebooklib>=0.18",
     "feedparser>=6.0",
     "extract-msg>=0.50",
-    # Security note: pillow is pinned to <11.0.0 in the universal lockfile because
-    # surya-ocr (via the [vision] extra) requires pillow<11 across all released
-    # versions. Upgrading to >=12.2.0 (which fixes CVE-2025-* alerts) requires a
-    # surya-ocr release that lifts this cap. Track: github.com/VikParuchuri/surya
+    # Pillow CVEs require >=12.2.0 and transformers CVEs require >=5.3.0, but
+    # marker-pdf (all released versions) pins pillow<11 and transformers<5.
+    # Both are blocked until marker-pdf lifts those caps. The affected Pillow
+    # features (PSD/FITS loading) and transformers Trainer class are not in
+    # aksharamd's runtime path. Track: github.com/VikParuchuri/marker/issues
     "Pillow>=10.0",
     "striprtf>=0.0.26",
     "pdfplumber>=0.11",
