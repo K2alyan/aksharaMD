@@ -2300,6 +2300,11 @@ class PDFParser(ParserPlugin):
         if _marker_available():
             image_page_count = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
             if image_page_count and ctx.progress:
+                if not _MARKER_LOAD_ATTEMPTED:
+                    ctx.progress(
+                        "Vision model: loading Marker"
+                        " (first use downloads ~3 GB — subsequent runs are fast)"
+                    )
                 ctx.progress(
                     f"Vision model: reconstructing {image_page_count} image page"
                     f"{'s' if image_page_count != 1 else ''} (Marker)"
