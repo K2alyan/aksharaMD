@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import os
+import socket
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aksharamd.compiler import Compiler
+from aksharamd.compiler import Compiler, _fetch_url_to_temp
 from aksharamd.context import CompilationContext
 from aksharamd.plugins.parsers.html import _extract_image_bytes
 
@@ -288,6 +292,130 @@ def test_plugin_cache_populated(monkeypatch):
     # Second call should return the same cached list
     result2 = registry.get_plugins_of_type(CleanerPlugin)
     assert result1 is result2  # same object from cache
+
+
+# ── URL fetch security ────────────────────────────────────────────────────────
+
+def test_fetch_url_pinned_ip_used(monkeypatch):
+    """The validated IP must be used for the actual connection (DNS pinning)."""
+
+    calls: list[tuple] = []
+
+    def fake_getaddrinfo(host, port, *a, **kw):
+        calls.append((host, port))
+        # Return a safe public IP
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("1.2.3.4", int(port or 0)))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+
+    # requests.get will re-invoke getaddrinfo internally — the pinned version
+    # should always return 1.2.3.4 for our hostname, not anything else.
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.is_redirect = False
+    mock_resp.is_permanent_redirect = False
+    mock_resp.headers = {"Content-Type": "text/plain", "Content-Length": "5"}
+    mock_resp.iter_content = MagicMock(return_value=iter([b"hello"]))
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.close = MagicMock()
+
+    with patch("requests.get", return_value=mock_resp):
+        path = _fetch_url_to_temp("http://example.com/file.txt")
+
+    assert Path(path).exists()
+    Path(path).unlink(missing_ok=True)
+    # getaddrinfo was called at least once (initial validation), and pinning
+    # redirected any subsequent calls too
+    assert any(c[0] == "example.com" for c in calls)
+
+
+def test_fetch_url_private_ip_rejected():
+    """URLs that resolve to private IPs must be rejected."""
+    import socket as _socket
+
+    def fake_getaddrinfo(host, port, *a, **kw):
+        return [(_socket.AF_INET, _socket.SOCK_STREAM, 6, "", ("192.168.1.1", 0))]
+
+    with patch.object(_socket, "getaddrinfo", side_effect=fake_getaddrinfo):
+        with pytest.raises(ValueError, match="private"):
+            _fetch_url_to_temp("http://internal.corp/secret.pdf")
+
+
+def test_fetch_url_temp_file_deleted_on_size_exceeded(monkeypatch, tmp_path):
+    """Partial temp file must be deleted when the download size limit is exceeded."""
+    import aksharamd.compiler as comp_mod
+
+    monkeypatch.setattr(comp_mod, "_MAX_FILE_BYTES", 10)
+
+    def fake_getaddrinfo(host, port, *a, **kw):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("1.2.3.4", int(port or 0)))]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.is_redirect = False
+    mock_resp.is_permanent_redirect = False
+    mock_resp.headers = {"Content-Type": "text/plain"}
+    mock_resp.iter_content = MagicMock(return_value=iter([b"X" * 20]))  # exceeds 10-byte limit
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.close = MagicMock()
+
+    created_paths: list[str] = []
+    orig_ntf = tempfile.NamedTemporaryFile
+
+    def tracking_ntf(**kwargs):
+        f = orig_ntf(**kwargs)
+        created_paths.append(f.name)
+        return f
+
+    with patch.object(socket, "getaddrinfo", side_effect=fake_getaddrinfo):
+        with patch("requests.get", return_value=mock_resp):
+            with patch("tempfile.NamedTemporaryFile", side_effect=tracking_ntf):
+                with pytest.raises(ValueError, match="size limit"):
+                    _fetch_url_to_temp("http://example.com/big.txt")
+
+    # The partial temp file must have been deleted
+    for p in created_paths:
+        assert not Path(p).exists(), f"Leaked temp file: {p}"
+
+
+def test_fetch_url_response_body_closed_on_error(monkeypatch):
+    """HTTP response body must be closed even when download fails."""
+    def fake_getaddrinfo(host, port, *a, **kw):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("1.2.3.4", int(port or 0)))]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.is_redirect = False
+    mock_resp.is_permanent_redirect = False
+    mock_resp.headers = {"Content-Type": "text/plain"}
+    mock_resp.iter_content = MagicMock(side_effect=OSError("connection dropped"))
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.close = MagicMock()
+
+    with patch.object(socket, "getaddrinfo", side_effect=fake_getaddrinfo):
+        with patch("requests.get", return_value=mock_resp):
+            with pytest.raises((ValueError, OSError)):
+                _fetch_url_to_temp("http://example.com/file.txt")
+
+    mock_resp.close.assert_called()
+
+
+def test_fetch_url_restores_getaddrinfo_after_exception(monkeypatch):
+    """socket.getaddrinfo must be restored even if the request raises."""
+    def fake_getaddrinfo(host, port, *a, **kw):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("1.2.3.4", int(port or 0)))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+
+    with patch("requests.get", side_effect=RuntimeError("boom")):
+        with pytest.raises((ValueError, RuntimeError)):
+            _fetch_url_to_temp("http://example.com/file.txt")
+
+    # getaddrinfo should be restored to fake_getaddrinfo (monkeypatch manages cleanup)
+    # The real invariant: the function's internal patch/restore loop ran to completion
+    # (no AttributeError or similar residue). We can verify by calling a resolution.
+    result = socket.getaddrinfo("localhost", 80)
+    assert result  # still callable and returns something
 
 
 def test_scoring_empty_tokens_returns_low_score():

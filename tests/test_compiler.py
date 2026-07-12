@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from aksharamd.compiler import Compiler, _fetch_s3_to_temp
+from aksharamd.compiler import Compiler, CorpusCompilationResult, _fetch_s3_to_temp
 from aksharamd.models.block import Block, BlockType
 
 
@@ -228,3 +228,57 @@ def test_fetch_s3_invalid_uri_raises(monkeypatch):
     _inject_fake_boto3(monkeypatch)
     with pytest.raises(ValueError, match="Invalid S3 URI"):
         _fetch_s3_to_temp("s3://bucket-only")
+
+
+# ── CorpusCompilationResult ───────────────────────────────────────────────────
+
+def test_compile_corpus_returns_result(tmp_path):
+    """compile_corpus must return a CorpusCompilationResult, not a plain list."""
+    doc = tmp_path / "a.md"
+    doc.write_text("# Hello\n\nWorld content.\n", encoding="utf-8")
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+    result = compiler.compile_corpus(str(tmp_path))
+    assert isinstance(result, CorpusCompilationResult)
+    assert result.processed >= 1
+    assert len(result.chunks) >= 1
+    assert result.indexed == result.processed
+
+
+def test_compile_corpus_tracks_unsupported(tmp_path):
+    """Files with no parser must be counted in unsupported, not silently dropped."""
+    (tmp_path / "a.md").write_text("# Hello\n\nContent.\n", encoding="utf-8")
+    (tmp_path / "b.xyz123").write_bytes(b"garbage bytes for unknown type")
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+    result = compiler.compile_corpus(str(tmp_path))
+    assert result.unsupported >= 1
+
+
+def test_compile_corpus_tracks_failures(tmp_path):
+    """Files that raise during compilation must appear in result.failed."""
+    good = tmp_path / "good.md"
+    good.write_text("# Hello\n\nContent.\n", encoding="utf-8")
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+
+    orig = compiler.compile_to_string
+
+    def failing_compile(src, **kw):
+        if "good" not in src:
+            raise RuntimeError("synthetic failure")
+        return orig(src, **kw)
+
+    compiler.compile_to_string = failing_compile  # type: ignore[method-assign]
+
+    bad = tmp_path / "bad.txt"
+    bad.write_text("content", encoding="utf-8")
+    result = compiler.compile_corpus(str(tmp_path))
+    assert any(f["source"].endswith("bad.txt") for f in result.failed)
+
+
+def test_compile_corpus_total_scanned(tmp_path):
+    (tmp_path / "a.md").write_text("# Doc A\n\nContent.\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text("# Doc B\n\nContent.\n", encoding="utf-8")
+    (tmp_path / "c.xyz123").write_bytes(b"unsupported")
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+    result = compiler.compile_corpus(str(tmp_path))
+    # 2 supported files + 1 unsupported
+    assert result.total_scanned == 3

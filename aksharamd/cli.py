@@ -801,10 +801,14 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
 @click.option("--budget", default=60_000, show_default=True, help="Max tokens per corpus chunk")
 @click.option("--dedup-threshold", default=0.5, show_default=True,
               help="Jaccard similarity threshold for near-duplicate skipping (0–1)")
+@click.option("--fail-on-error", is_flag=True,
+              help="Exit with non-zero status if any file fails to compile")
+@click.option("--failure-report", default=None, metavar="FILE",
+              help="Write a JSON list of failed files to FILE")
 @click.option("--quiet", is_flag=True, help="Suppress progress output")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
 def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: float,
-           quiet: bool, verbose: bool):
+           fail_on_error: bool, failure_report: str | None, quiet: bool, verbose: bool):
     """Compile every supported file under SOURCE_DIR into token-budget chunks.
 
     Files are grouped by directory and packed greedily up to --budget tokens.
@@ -819,7 +823,7 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
     compiler = Compiler(output_dir=str(Path(source_dir) / ".aksharamd_cache"))
 
     if quiet:
-        chunks = compiler.compile_corpus(
+        result = compiler.compile_corpus(
             source_dir,
             token_budget=budget,
             dedup_threshold=dedup_threshold,
@@ -839,14 +843,14 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
             def _on_file(name: str, idx: int, total: int) -> None:
                 progress.update(task, description=f"[bold blue]{name}[/]", total=total, completed=idx)
 
-            chunks = compiler.compile_corpus(
+            result = compiler.compile_corpus(
                 source_dir,
                 token_budget=budget,
                 dedup_threshold=dedup_threshold,
                 on_file=_on_file,
             )
 
-    total_docs = sum(len(c["documents"]) for c in chunks)
+    chunks = result.chunks
     total_tokens = sum(c["token_count"] for c in chunks)
 
     if not quiet:
@@ -867,15 +871,46 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
             )
         console.print(t)
         console.print(
-            f"[green]{total_docs} documents[/] packed into [bold]{len(chunks)} chunks[/], "
+            f"[green]{result.indexed} documents[/] packed into [bold]{len(chunks)} chunks[/], "
             f"[cyan]{total_tokens:,} total tokens[/]"
         )
+
+        # Corpus summary row
+        summary = Table(box=box.SIMPLE, show_header=True, header_style="dim")
+        summary.add_column("Processed", justify="right", style="green")
+        summary.add_column("Indexed",   justify="right", style="green")
+        summary.add_column("Low quality", justify="right", style="yellow")
+        summary.add_column("Duplicates",  justify="right", style="yellow")
+        summary.add_column("Failed",      justify="right", style="red")
+        summary.add_column("Unsupported", justify="right", style="dim")
+        summary.add_row(
+            str(result.processed),
+            str(result.indexed),
+            str(result.low_quality),
+            str(result.skipped_duplicates),
+            str(len(result.failed)),
+            str(result.unsupported),
+        )
+        console.print(summary)
+
+        if result.failed:
+            console.print(f"[red]{len(result.failed)} file(s) failed to compile.[/]  "
+                          "Use --failure-report to save details.")
 
     if output:
         out_path = Path(output)
         out_path.write_text(_json.dumps(chunks, indent=2, ensure_ascii=False), encoding="utf-8")
         if not quiet:
             console.print(f"[dim]Chunks written to {out_path}[/]")
+
+    if failure_report and result.failed:
+        fr_path = Path(failure_report)
+        fr_path.write_text(_json.dumps(result.failed, indent=2, ensure_ascii=False), encoding="utf-8")
+        if not quiet:
+            console.print(f"[dim]Failure report written to {fr_path}[/]")
+
+    if fail_on_error and result.failed:
+        raise SystemExit(1)
 
 
 @main.command()
@@ -1164,11 +1199,11 @@ def _get_index_config(index_dir: str | None):
 @click.argument("folder", type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
 @click.option("--model", "embedding_model", default="all-MiniLM-L6-v2", show_default=True,
               help="Embedding model name, or 'ollama:<model>' for a local Ollama server.")
-@click.option("--threshold", default=50, show_default=True, type=int,
-              help="Minimum readiness score (0-100) required to index a document.")
+@click.option("--threshold", default=None, show_default=True, type=int,
+              help="Minimum readiness score (0-100) required to index a document (default: 70).")
 @click.option("--index-dir", default=None, metavar="DIR",
               help="Index storage directory (default: ~/.aksharamd/index/).")
-def watch(folder: str, embedding_model: str, threshold: int, index_dir: str | None) -> None:
+def watch(folder: str, embedding_model: str, threshold: int | None, index_dir: str | None) -> None:
     """Watch FOLDER and auto-index documents as they arrive.
 
     Compiles each new or changed file through AksharaMD, embeds the content
@@ -1180,18 +1215,26 @@ def watch(folder: str, embedding_model: str, threshold: int, index_dir: str | No
     _require_index_extra()
     import threading
 
-    from aksharamd.index import InboxWatcher, IndexConfig, IndexQueue, VectorStore, get_embedder, process_file
+    from aksharamd.index import (
+        EmbeddingConfigMismatch,
+        InboxWatcher,
+        IndexConfig,
+        IndexQueue,
+        VectorStore,
+        get_embedder,
+        process_file,
+    )
 
     cfg = IndexConfig(
         index_dir=Path(index_dir) if index_dir else IndexConfig().index_dir,
         embedding_model=embedding_model,
-        min_readiness_score=threshold,
+        min_readiness_score=threshold if threshold is not None else IndexConfig().min_readiness_score,
     )
 
     console.print(Panel(
         f"[bold]Folder:[/bold]    {folder}\n"
         f"[bold]Index:[/bold]     {cfg.index_dir}\n"
-        f"[bold]Threshold:[/bold] {threshold}/100 readiness\n"
+        f"[bold]Threshold:[/bold] {cfg.min_readiness_score}/100 readiness\n"
         f"[bold]Embedder:[/bold]  {embedding_model}\n\n"
         "[dim]Press Ctrl+C to stop.[/dim]",
         title="[bold]AksharaMD Watch[/]",
@@ -1199,15 +1242,22 @@ def watch(folder: str, embedding_model: str, threshold: int, index_dir: str | No
     ))
 
     queue = IndexQueue(cfg.db_path)
-    store = VectorStore(cfg.chromadb_path)
 
+    # Load embedder first so we know the dimension before opening the store.
     console.print("[dim]Loading embedding model...[/dim] ", end="")
     try:
         embedder = get_embedder(embedding_model)
-        _ = embedder.dimension  # force model load now so the watcher starts fast
+        dim = embedder.dimension  # force model load now so the watcher starts fast
         console.print("[green]ready[/green]")
     except Exception as exc:
         console.print(f"\n[red]Failed to load embedder:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    try:
+        store = VectorStore(cfg.chromadb_path, embedding_model=embedding_model,
+                            vector_dimension=dim, distance_metric=cfg.distance_metric)
+    except EmbeddingConfigMismatch as exc:
+        console.print(f"[red]Embedding config mismatch:[/red] {exc}")
         raise SystemExit(1) from exc
 
     stop_event = threading.Event()
@@ -1268,7 +1318,7 @@ def index_status(index_dir: str | None) -> None:
 
     cfg = _get_index_config(index_dir)
     queue = IndexQueue(cfg.db_path)
-    store = VectorStore(cfg.chromadb_path)
+    store = VectorStore(cfg.chromadb_path)  # no embedding config — read-only stats
 
     q_stats = queue.stats()
     i_stats = store.stats()
@@ -1285,6 +1335,9 @@ def index_status(index_dir: str | None) -> None:
 
     t.add_row("[bold]Index — files[/bold]", str(i_stats["total_files"]))
     t.add_row("[bold]Index — chunks[/bold]", str(i_stats["total_chunks"]))
+    if i_stats.get("embedding_model", "unknown") != "unknown":
+        t.add_row("[dim]Embedding model[/dim]", str(i_stats["embedding_model"]))
+        t.add_row("[dim]Distance metric[/dim]", str(i_stats["distance_metric"]))
     t.add_row("[dim]Location[/dim]", str(cfg.index_dir))
 
     console.print(Panel(t, title="[bold]Index Status[/]", border_style="blue"))
@@ -1350,10 +1403,10 @@ def index_clear(yes: bool, index_dir: str | None) -> None:
 def index_search(query: str, results: int, index_dir: str | None) -> None:
     """Search the local document index with a natural-language query."""
     _require_index_extra()
-    from aksharamd.index import VectorStore, get_embedder
+    from aksharamd.index import EmbeddingConfigMismatch, VectorStore, get_embedder
 
     cfg = _get_index_config(index_dir)
-    store = VectorStore(cfg.chromadb_path)
+    store = VectorStore(cfg.chromadb_path)  # read-only check first
 
     if store.count() == 0:
         console.print(
@@ -1363,6 +1416,14 @@ def index_search(query: str, results: int, index_dir: str | None) -> None:
         return
 
     embedder = get_embedder(cfg.embedding_model)
+    try:
+        store = VectorStore(cfg.chromadb_path, embedding_model=cfg.embedding_model,
+                            vector_dimension=embedder.dimension,
+                            distance_metric=cfg.distance_metric)
+    except EmbeddingConfigMismatch as exc:
+        console.print(f"[red]Embedding config mismatch:[/red] {exc}")
+        raise SystemExit(1) from exc
+
     query_emb = embedder.embed([query])[0]
     hits = store.search(query_emb, n_results=results)
 

@@ -5,7 +5,7 @@ import pytest
 
 chromadb = pytest.importorskip("chromadb", reason="chromadb required (pip install 'aksharamd[index]')")
 
-from aksharamd.index.store import VectorStore  # noqa: E402
+from aksharamd.index.store import EmbeddingConfigMismatch, VectorStore  # noqa: E402
 
 _DIM = 384
 _FAKE_EMB = [0.1] * _DIM
@@ -84,3 +84,54 @@ def test_search_n_results_larger_than_index(tmp_path):
     # Asking for 10 results when only 1 exists — should not raise
     results = store.search(_FAKE_EMB, n_results=10)
     assert len(results) == 1
+
+
+# ── Embedding-space enforcement ───────────────────────────────────────────────
+
+def test_embedding_metadata_stored_on_creation(tmp_path):
+    store = VectorStore(tmp_path / "chroma", embedding_model="test-model", vector_dimension=384)
+    store.add_chunks("/tmp/a.pdf", ["text"], [_FAKE_EMB], [_meta("/tmp/a.pdf")])
+    s = store.stats()
+    assert s["embedding_model"] == "test-model"
+    assert s["vector_dimension"] == 384
+
+
+def test_embedding_model_mismatch_raises(tmp_path):
+    # Create index with model-A
+    VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=384)
+    # Re-open with model-B — must fail
+    with pytest.raises(EmbeddingConfigMismatch, match="model-A"):
+        VectorStore(tmp_path / "chroma", embedding_model="model-B", vector_dimension=384)
+
+
+def test_embedding_dimension_mismatch_raises(tmp_path):
+    VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=384)
+    with pytest.raises(EmbeddingConfigMismatch, match="384"):
+        VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=768)
+
+
+def test_no_config_skips_validation(tmp_path):
+    # Create with config
+    VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=384)
+    # Re-open without config (e.g., for status/clear) — must not raise
+    store = VectorStore(tmp_path / "chroma")
+    assert store.count() == 0
+
+
+def test_stats_includes_embedding_info(tmp_path):
+    store = VectorStore(tmp_path / "chroma", embedding_model="all-MiniLM-L6-v2",
+                        vector_dimension=384, distance_metric="cosine")
+    store.add_chunks("/tmp/a.pdf", ["text"], [_FAKE_EMB], [_meta("/tmp/a.pdf")])
+    s = store.stats()
+    assert s["embedding_model"] == "all-MiniLM-L6-v2"
+    assert s["distance_metric"] == "cosine"
+    assert s["vector_dimension"] == 384
+
+
+def test_clear_preserves_embedding_metadata(tmp_path):
+    store = VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=384)
+    store.add_chunks("/tmp/a.pdf", ["text"], [_FAKE_EMB], [_meta("/tmp/a.pdf")])
+    store.clear()
+    # Re-open with same model should succeed after clear
+    store2 = VectorStore(tmp_path / "chroma", embedding_model="model-A", vector_dimension=384)
+    assert store2.count() == 0

@@ -8,7 +8,8 @@ from pathlib import Path
 class IndexConfig:
     index_dir: Path = field(default_factory=lambda: Path.home() / ".aksharamd" / "index")
     embedding_model: str = "all-MiniLM-L6-v2"
-    min_readiness_score: int = 50
+    distance_metric: str = "cosine"
+    min_readiness_score: int = 70
     debounce_seconds: float = 2.0
     worker_timeout_seconds: int = 300
 

@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -37,6 +38,34 @@ from .scoring import compute_confidence
 from .utils import count_tokens
 
 
+@dataclass
+class CorpusCompilationResult:
+    """Summary of a compile_corpus() run.
+
+    chunks            — packed token-budget groups, same format as the old list[dict] return.
+    processed         — files successfully compiled with non-empty output.
+    failed            — files that raised an exception; each entry has keys 'source' and 'error'.
+    skipped_duplicates — near-duplicate files skipped by MinHash LSH.
+    low_quality       — files that compiled but produced empty text (no usable content).
+    unsupported       — files whose extension has no registered parser.
+    """
+    chunks: list[dict] = field(default_factory=list)
+    processed: int = 0
+    failed: list[dict] = field(default_factory=list)
+    skipped_duplicates: int = 0
+    low_quality: int = 0
+    unsupported: int = 0
+
+    @property
+    def total_scanned(self) -> int:
+        return self.processed + len(self.failed) + self.skipped_duplicates + self.low_quality + self.unsupported
+
+    @property
+    def indexed(self) -> int:
+        """Docs that made it into at least one corpus chunk."""
+        return sum(len(c["documents"]) for c in self.chunks)
+
+
 def _is_safe_ip(ip_str: str) -> bool:
     """Return True if *ip_str* resolves to a publicly routable address."""
     import ipaddress
@@ -59,6 +88,9 @@ def _fetch_url_to_temp(url: str) -> str:
     - All resolved IP addresses (A + AAAA) must be publicly routable.
     - HTTP redirects are disabled; a redirect response is treated as an error.
     - Total download size is capped at _MAX_FILE_BYTES.
+    - Validated IP is pinned for the actual connection (blocks DNS rebinding / TOCTOU).
+    - Partial temp files are deleted on any failure path.
+    - Response body is always closed after streaming.
     """
     import mimetypes
     import socket
@@ -81,6 +113,7 @@ def _fetch_url_to_temp(url: str) -> str:
     except Exception as exc:
         raise ValueError(f"Could not resolve host {hostname!r}: {exc}") from exc
 
+    pinned_ip: str | None = None
     for _family, _type, _proto, _canonname, sockaddr in addr_infos:
         ip_str = str(sockaddr[0])
         if not _is_safe_ip(ip_str):
@@ -88,75 +121,103 @@ def _fetch_url_to_temp(url: str) -> str:
                 f"Requests to private/internal addresses are not allowed "
                 f"(host {hostname!r} resolved to {ip_str})."
             )
+        if pinned_ip is None:
+            pinned_ip = ip_str
 
+    # Pin the validated IP: temporarily override socket.getaddrinfo so that
+    # requests/urllib3 always connects to the address we already validated,
+    # closing the DNS-rebinding window between validation and connection.
+    # TLS SNI and the Host header continue to use the original hostname because
+    # requests derives them from the URL, not from getaddrinfo.
+    _orig_getaddrinfo = socket.getaddrinfo
+
+    def _pinned_getaddrinfo(host: str, port: int | str | None, *args: object, **kwargs: object) -> list:
+        if host == hostname and pinned_ip is not None:
+            family = socket.AF_INET6 if ":" in pinned_ip else socket.AF_INET
+            return [(family, socket.SOCK_STREAM, 6, "", (pinned_ip, int(port or 0)))]
+        return _orig_getaddrinfo(host, port, *args, **kwargs)  # type: ignore[arg-type]
+
+    resp: requests.Response | None = None
+    socket.getaddrinfo = _pinned_getaddrinfo  # type: ignore[assignment]
     try:
-        # allow_redirects=False prevents a redirect to an internal address bypassing
-        # the IP check above (e.g., server responds 301 -> http://169.254.169.254/).
-        resp = requests.get(
-            url,
-            timeout=30,
-            stream=True,
-            allow_redirects=False,
-            headers={"User-Agent": "AksharaMD/0.1"},
-        )
-    except Exception as exc:
-        raise ValueError(f"Failed to fetch {url!r}: {exc}") from exc
-
-    if resp.is_redirect or resp.is_permanent_redirect or resp.status_code in (301, 302, 303, 307, 308):
-        raise ValueError(
-            f"URL {url!r} returned a redirect ({resp.status_code}). "
-            "Redirects are not followed for security."
-        )
-
-    resp.raise_for_status()
-
-    # Reject early if Content-Length exceeds limit
-    content_length_hdr = resp.headers.get("Content-Length")
-    if content_length_hdr:
         try:
-            if int(content_length_hdr) > _MAX_FILE_BYTES:
-                raise ValueError(
-                    f"Remote file too large ({int(content_length_hdr):,} bytes > "
-                    f"{_MAX_FILE_BYTES:,} byte limit)."
-                )
-        except (TypeError, ValueError) as exc:
-            if "Remote file too large" in str(exc):
-                raise
-            # malformed Content-Length — ignore and enforce via byte counting below
+            # allow_redirects=False prevents a redirect to an internal address bypassing
+            # the IP check above (e.g., server responds 301 -> http://169.254.169.254/).
+            resp = requests.get(
+                url,
+                timeout=30,
+                stream=True,
+                allow_redirects=False,
+                headers={"User-Agent": "AksharaMD/0.1"},
+            )
+        except Exception as exc:
+            raise ValueError(f"Failed to fetch {url!r}: {exc}") from exc
 
-    # Prefer the URL path extension; fall back to Content-Type
-    url_ext = Path(urlparse(url).path).suffix
-    if url_ext and 2 <= len(url_ext) <= 6:
-        ext = url_ext
-    else:
-        content_type = resp.headers.get("Content-Type", "text/html").split(";")[0].strip()
-        ext = mimetypes.guess_extension(content_type) or ".html"
-        # mimetypes gives odd results for common types on some platforms
-        _CT_EXT_MAP = {
-            "text/html": ".html",
-            "application/pdf": ".pdf",
-            "text/plain": ".txt",
-            "application/json": ".json",
-            "text/xml": ".xml",
-            "text/csv": ".csv",
-        }
-        ext = _CT_EXT_MAP.get(content_type, ext)
+        if resp.is_redirect or resp.is_permanent_redirect or resp.status_code in (301, 302, 303, 307, 308):
+            raise ValueError(
+                f"URL {url!r} returned a redirect ({resp.status_code}). "
+                "Redirects are not followed for security."
+            )
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-    try:
-        downloaded = 0
-        for chunk in resp.iter_content(chunk_size=8192):
-            if chunk:
-                downloaded += len(chunk)
-                if downloaded > _MAX_FILE_BYTES:
+        resp.raise_for_status()
+
+        # Reject early if Content-Length exceeds limit
+        content_length_hdr = resp.headers.get("Content-Length")
+        if content_length_hdr:
+            try:
+                if int(content_length_hdr) > _MAX_FILE_BYTES:
                     raise ValueError(
-                        f"Download exceeded size limit of {_MAX_FILE_BYTES:,} bytes. "
-                        "Increase AKSHARAMD_MAX_FILE_BYTES to allow larger files."
+                        f"Remote file too large ({int(content_length_hdr):,} bytes > "
+                        f"{_MAX_FILE_BYTES:,} byte limit)."
                     )
-                tmp.write(chunk)
+            except (TypeError, ValueError) as exc:
+                if "Remote file too large" in str(exc):
+                    raise
+                # malformed Content-Length — ignore and enforce via byte counting below
+
+        # Prefer the URL path extension; fall back to Content-Type
+        url_ext = Path(urlparse(url).path).suffix
+        if url_ext and 2 <= len(url_ext) <= 6:
+            ext = url_ext
+        else:
+            content_type = resp.headers.get("Content-Type", "text/html").split(";")[0].strip()
+            ext = mimetypes.guess_extension(content_type) or ".html"
+            # mimetypes gives odd results for common types on some platforms
+            _CT_EXT_MAP = {
+                "text/html": ".html",
+                "application/pdf": ".pdf",
+                "text/plain": ".txt",
+                "application/json": ".json",
+                "text/xml": ".xml",
+                "text/csv": ".csv",
+            }
+            ext = _CT_EXT_MAP.get(content_type, ext)
+
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+        tmp_name = tmp.name
+        download_ok = False
+        try:
+            downloaded = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:
+                    downloaded += len(chunk)
+                    if downloaded > _MAX_FILE_BYTES:
+                        raise ValueError(
+                            f"Download exceeded size limit of {_MAX_FILE_BYTES:,} bytes. "
+                            "Increase AKSHARAMD_MAX_FILE_BYTES to allow larger files."
+                        )
+                    tmp.write(chunk)
+            download_ok = True
+        finally:
+            tmp.close()
+            if not download_ok:
+                Path(tmp_name).unlink(missing_ok=True)
     finally:
-        tmp.close()
-    return tmp.name
+        socket.getaddrinfo = _orig_getaddrinfo  # type: ignore[assignment]
+        if resp is not None:
+            resp.close()
+
+    return tmp_name
 
 
 def _fetch_s3_to_temp(uri: str) -> str:
@@ -190,8 +251,10 @@ def _fetch_s3_to_temp(uri: str) -> str:
 
     suffix = Path(key).suffix or ""
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp_name = tmp.name
+    body = response["Body"]
+    download_ok = False
     try:
-        body = response["Body"]
         downloaded = 0
         for chunk in iter(lambda: body.read(8192), b""):
             downloaded += len(chunk)
@@ -201,9 +264,13 @@ def _fetch_s3_to_temp(uri: str) -> str:
                     "Increase AKSHARAMD_MAX_FILE_BYTES to allow larger files."
                 )
             tmp.write(chunk)
+        download_ok = True
     finally:
         tmp.close()
-    return tmp.name
+        body.close()
+        if not download_ok:
+            Path(tmp_name).unlink(missing_ok=True)
+    return tmp_name
 
 
 def _detect_file_type(path: str) -> str:
@@ -323,7 +390,7 @@ class Compiler:
         dedup_threshold: float = 0.5,
         max_bisect_depth: int = 3,
         on_file: Callable[[str, int, int], None] | None = None,
-    ) -> list[dict]:
+    ) -> CorpusCompilationResult:
         """Compile every supported file under *source_dir* and pack the results into
         token-budget-aware groups ready for downstream LLM processing (e.g. Graphify).
 
@@ -335,25 +402,9 @@ class Compiler:
         Near-duplicate documents (Jaccard ≥ *dedup_threshold* across the whole
         corpus) are skipped automatically via MinHash LSH.
 
-        Returns a list of corpus chunk dicts::
-
-            [
-              {
-                "chunk_index": 0,
-                "token_count": 4821,
-                "documents": [
-                  {
-                    "source": "reports/q1.pdf",
-                    "file_type": "pdf",
-                    "tokens": 2314,
-                    "confidence": {"extracted": 42, "inferred": 8, "ambiguous": 0},
-                    "text": "# Q1 Report\\n\\n...",
-                  },
-                  ...
-                ],
-              },
-              ...
-            ]
+        Returns a CorpusCompilationResult. The .chunks attribute contains the packed
+        chunk dicts (same schema as before). .failed lists every file that errored
+        so callers know exactly what was dropped.
         """
         from .dedup.minhash import CorpusDeduplicator
         from .plugins.registry import get_registered_extensions
@@ -362,31 +413,46 @@ class Compiler:
         supported_exts = {f".{e}" for e in get_registered_extensions()}
 
         dedup = CorpusDeduplicator(threshold=dedup_threshold)
-        results: list[dict] = []
+        result = CorpusCompilationResult()
+        chunks: list[dict] = []
 
-        # ── Compile all supported files, skip duplicates ───────────────────────
-        files = sorted(
-            (p for p in source_path.glob(glob) if p.is_file() and p.suffix.lower() in supported_exts),
+        # ── Scan all files, split supported vs unsupported ────────────────────
+        all_files = sorted(
+            (p for p in source_path.glob(glob) if p.is_file()),
             key=lambda p: (p.parent, p.name),
         )
+        files = [p for p in all_files if p.suffix.lower() in supported_exts]
+        result.unsupported = len(all_files) - len(files)
 
         total_files = len(files)
         compiled: list[dict] = []
         for idx, file_path in enumerate(files):
             if on_file:
                 on_file(file_path.name, idx, total_files)
+            rel = str(file_path.relative_to(source_path))
             try:
                 text, ctx = self.compile_to_string(str(file_path))
-            except Exception:
+            except Exception as exc:
                 logger.debug("Corpus: failed to compile %s", file_path, exc_info=True)
-                continue
-            if not text.strip():
+                result.failed.append({"source": rel, "error": str(exc)})
                 continue
 
-            rel = str(file_path.relative_to(source_path))
+            # Compilation errors stored in context (not raised as exceptions)
+            if ctx.validation.errors:
+                err_msg = "; ".join(e.message for e in ctx.validation.errors)
+                logger.debug("Corpus: compile errors in %s: %s", file_path, err_msg)
+                result.failed.append({"source": rel, "error": err_msg})
+                continue
+
+            if not text.strip():
+                logger.debug("Corpus: empty output for %s", file_path)
+                result.low_quality += 1
+                continue
+
             dupes = dedup.add(rel, text)
             if dupes:
                 logger.debug("Corpus: skipping near-duplicate %s (matches %s)", rel, dupes[0])
+                result.skipped_duplicates += 1
                 continue
 
             m = ctx.manifest
@@ -402,18 +468,19 @@ class Compiler:
                 "text": text,
             }
             compiled.append(doc_entry)
+            result.processed += 1
 
         # ── Pack into token-budget chunks by directory ─────────────────────────
         def _pack(docs: list[dict], depth: int) -> list[dict]:
             """Greedily pack docs into chunks ≤ token_budget; bisect if oversized."""
-            chunks: list[dict] = []
+            packed: list[dict] = []
             current: list[dict] = []
             current_tokens = 0
 
             def flush() -> None:
                 if current:
-                    chunks.append({
-                        "chunk_index": len(results) + len(chunks),
+                    packed.append({
+                        "chunk_index": len(chunks) + len(packed),
                         "token_count": sum(d["tokens"] for d in current),
                         "documents": list(current),
                     })
@@ -423,8 +490,8 @@ class Compiler:
                 if current and current_tokens + t > token_budget:
                     if depth < max_bisect_depth and current_tokens > token_budget:
                         mid = len(current) // 2
-                        chunks.extend(_pack(current[:mid], depth + 1))
-                        chunks.extend(_pack(current[mid:], depth + 1))
+                        packed.extend(_pack(current[:mid], depth + 1))
+                        packed.extend(_pack(current[mid:], depth + 1))
                         current.clear()
                         current_tokens = 0
                     else:
@@ -434,19 +501,20 @@ class Compiler:
                 current.append(doc)
                 current_tokens += t
             flush()
-            return chunks
+            return packed
 
         # Group by immediate parent directory
         from itertools import groupby
         compiled.sort(key=lambda d: str(Path(d["source"]).parent))
         for _dir, group in groupby(compiled, key=lambda d: str(Path(d["source"]).parent)):
-            results.extend(_pack(list(group), 0))
+            chunks.extend(_pack(list(group), 0))
 
         # Re-index chunks sequentially
-        for i, chunk in enumerate(results):
+        for i, chunk in enumerate(chunks):
             chunk["chunk_index"] = i
 
-        return results
+        result.chunks = chunks
+        return result
 
     # ── Internal pipeline ──────────────────────────────────────────────────────
 

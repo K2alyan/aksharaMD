@@ -12,7 +12,7 @@ from __future__ import annotations
 from .config import IndexConfig
 from .embedder import Embedder, OllamaEmbedder, SentenceTransformerEmbedder, get_embedder
 from .queue import IndexQueue, Job
-from .store import VectorStore
+from .store import EmbeddingConfigMismatch, VectorStore
 from .watcher import InboxWatcher
 from .worker import process_file
 
@@ -20,6 +20,7 @@ __all__ = [
     "IndexConfig",
     "IndexQueue",
     "Job",
+    "EmbeddingConfigMismatch",
     "VectorStore",
     "Embedder",
     "SentenceTransformerEmbedder",
