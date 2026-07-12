@@ -886,10 +886,10 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
         summary.add_row(
             str(result.processed),
             str(result.indexed),
-            str(result.low_quality),
+            str(len(result.low_quality)),
             str(result.skipped_duplicates),
             str(len(result.failed)),
-            str(result.unsupported),
+            str(len(result.unsupported)),
         )
         console.print(summary)
 
@@ -903,9 +903,10 @@ def corpus(source_dir: str, output: str | None, budget: int, dedup_threshold: fl
         if not quiet:
             console.print(f"[dim]Chunks written to {out_path}[/]")
 
-    if failure_report and result.failed:
+    all_drops = result.failed + result.low_quality + result.unsupported
+    if failure_report and all_drops:
         fr_path = Path(failure_report)
-        fr_path.write_text(_json.dumps(result.failed, indent=2, ensure_ascii=False), encoding="utf-8")
+        fr_path.write_text(_json.dumps(all_drops, indent=2, ensure_ascii=False), encoding="utf-8")
         if not quiet:
             console.print(f"[dim]Failure report written to {fr_path}[/]")
 

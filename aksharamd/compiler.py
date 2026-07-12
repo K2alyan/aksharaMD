@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 _MAX_FILE_BYTES = int(os.environ.get("AKSHARAMD_MAX_FILE_BYTES", str(500 * 1024 * 1024)))
 
 import filetype
+import requests
+from requests.adapters import BaseAdapter, HTTPAdapter
 
 from . import ledger as _ledger
 from .context import CompilationContext
@@ -43,22 +45,31 @@ class CorpusCompilationResult:
     """Summary of a compile_corpus() run.
 
     chunks            — packed token-budget groups, same format as the old list[dict] return.
-    processed         — files successfully compiled with non-empty output.
-    failed            — files that raised an exception; each entry has keys 'source' and 'error'.
-    skipped_duplicates — near-duplicate files skipped by MinHash LSH.
-    low_quality       — files that compiled but produced empty text (no usable content).
-    unsupported       — files whose extension has no registered parser.
+    processed         — count of files successfully compiled with non-empty output.
+    failed            — files that raised an exception or had compile errors;
+                        each entry has keys 'source', 'error', and 'category' = 'failed'.
+    skipped_duplicates — count of near-duplicate files skipped by MinHash LSH.
+    low_quality       — files that compiled but produced empty text (no usable content);
+                        each entry has keys 'source', 'reason', and 'category' = 'low_quality'.
+    unsupported       — files whose extension has no registered parser;
+                        each entry has keys 'source', 'extension', and 'category' = 'unsupported'.
     """
     chunks: list[dict] = field(default_factory=list)
     processed: int = 0
     failed: list[dict] = field(default_factory=list)
     skipped_duplicates: int = 0
-    low_quality: int = 0
-    unsupported: int = 0
+    low_quality: list[dict] = field(default_factory=list)
+    unsupported: list[dict] = field(default_factory=list)
 
     @property
     def total_scanned(self) -> int:
-        return self.processed + len(self.failed) + self.skipped_duplicates + self.low_quality + self.unsupported
+        return (
+            self.processed
+            + len(self.failed)
+            + self.skipped_duplicates
+            + len(self.low_quality)
+            + len(self.unsupported)
+        )
 
     @property
     def indexed(self) -> int:
@@ -80,6 +91,112 @@ def _is_safe_ip(ip_str: str) -> bool:
     )
 
 
+class _PinnedIPAdapter(BaseAdapter):
+    """Thread-safe requests transport adapter that connects to a pre-validated IP.
+
+    TCP connects to *pinned_ip*.  TLS SNI and certificate verification use the
+    original *hostname*.  The Host header is set to *hostname*, not the IP.
+
+    No global state is modified — safe for concurrent use across threads.
+    Each send() call creates its own connection pool; there is no shared state
+    between adapter instances or between concurrent calls on the same instance.
+    """
+
+    def __init__(self, hostname: str, pinned_ip: str) -> None:
+        super().__init__()
+        self._hostname = hostname
+        self._pinned_ip = pinned_ip
+
+    def send(  # type: ignore[override]
+        self,
+        request: requests.PreparedRequest,
+        stream: bool = False,
+        timeout: float | tuple[float, float] | None = None,
+        verify: bool | str = True,
+        cert: str | tuple[str, str] | None = None,
+        proxies: dict[str, str] | None = None,
+    ) -> requests.Response:
+        import ssl as _ssl
+        from urllib.parse import urlparse
+
+        import urllib3
+
+        parsed = urlparse(request.url)
+
+        if parsed.hostname != self._hostname:
+            return HTTPAdapter().send(request, stream=stream, timeout=timeout,
+                                      verify=verify, cert=cert, proxies=proxies)
+
+        scheme = parsed.scheme
+        port = parsed.port or (443 if scheme == "https" else 80)
+
+        path = parsed.path or "/"
+        if parsed.query:
+            path += f"?{parsed.query}"
+
+        # Ensure the Host header carries the original hostname, not the pinned IP.
+        # http.client would otherwise derive Host from the pool's host attribute.
+        headers: dict[str, str] = {k: str(v) for k, v in request.headers.items()}
+        if "Host" not in headers:
+            port_suffix = (
+                f":{parsed.port}"
+                if parsed.port and parsed.port not in (80, 443)
+                else ""
+            )
+            headers["Host"] = f"{self._hostname}{port_suffix}"
+
+        # Normalise timeout for urllib3
+        if isinstance(timeout, (int, float)):
+            u3_timeout: urllib3.Timeout | None = urllib3.Timeout(connect=timeout, read=timeout)
+        elif isinstance(timeout, tuple) and len(timeout) == 2:
+            u3_timeout = urllib3.Timeout(connect=timeout[0], read=timeout[1])
+        else:
+            u3_timeout = None
+
+        if scheme == "https":
+            # Build an SSL context that verifies the cert against the original
+            # hostname even though the TCP socket connects to the pinned IP.
+            # server_hostname (passed as conn_kw) controls TLS SNI + verification.
+            if isinstance(verify, str):
+                ssl_ctx = _ssl.create_default_context(cafile=verify)
+            elif verify:
+                ssl_ctx = _ssl.create_default_context()
+            else:
+                ssl_ctx = _ssl.create_default_context()
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = _ssl.CERT_NONE
+
+            pool: urllib3.HTTPConnectionPool = urllib3.HTTPSConnectionPool(
+                host=self._pinned_ip,
+                port=port,
+                timeout=u3_timeout,
+                ssl_context=ssl_ctx,
+                server_hostname=self._hostname,  # SNI + cert-verification hostname
+            )
+        else:
+            pool = urllib3.HTTPConnectionPool(
+                host=self._pinned_ip,
+                port=port,
+                timeout=u3_timeout,
+            )
+
+        body = request.body
+        urllib3_resp = pool.urlopen(
+            method=request.method or "GET",
+            url=path,
+            headers=headers,
+            body=body,  # type: ignore[arg-type]
+            preload_content=not stream,
+            decode_content=False,
+            redirect=False,
+        )
+
+        return HTTPAdapter().build_response(request, urllib3_resp)
+
+    def close(self) -> None:
+        pass  # per-request pools are not retained; nothing to release
+
+
 def _fetch_url_to_temp(url: str) -> str:
     """Download *url* to a NamedTemporaryFile; return the temp file path.
 
@@ -88,7 +205,8 @@ def _fetch_url_to_temp(url: str) -> str:
     - All resolved IP addresses (A + AAAA) must be publicly routable.
     - HTTP redirects are disabled; a redirect response is treated as an error.
     - Total download size is capped at _MAX_FILE_BYTES.
-    - Validated IP is pinned for the actual connection (blocks DNS rebinding / TOCTOU).
+    - Validated IP is pinned via _PinnedIPAdapter — no global state modified;
+      safe for concurrent use across threads.
     - Partial temp files are deleted on any failure path.
     - Response body is always closed after streaming.
     """
@@ -124,26 +242,20 @@ def _fetch_url_to_temp(url: str) -> str:
         if pinned_ip is None:
             pinned_ip = ip_str
 
-    # Pin the validated IP: temporarily override socket.getaddrinfo so that
-    # requests/urllib3 always connects to the address we already validated,
-    # closing the DNS-rebinding window between validation and connection.
-    # TLS SNI and the Host header continue to use the original hostname because
-    # requests derives them from the URL, not from getaddrinfo.
-    _orig_getaddrinfo = socket.getaddrinfo
-
-    def _pinned_getaddrinfo(host: str, port: int | str | None, *args: object, **kwargs: object) -> list:
-        if host == hostname and pinned_ip is not None:
-            family = socket.AF_INET6 if ":" in pinned_ip else socket.AF_INET
-            return [(family, socket.SOCK_STREAM, 6, "", (pinned_ip, int(port or 0)))]
-        return _orig_getaddrinfo(host, port, *args, **kwargs)  # type: ignore[arg-type]
+    # _PinnedIPAdapter connects to the validated IP directly via a per-request
+    # urllib3 pool — no global getaddrinfo override, safe for concurrent fetches.
+    assert pinned_ip is not None
+    session = requests.Session()
+    adapter = _PinnedIPAdapter(hostname=hostname, pinned_ip=pinned_ip)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
 
     resp: requests.Response | None = None
-    socket.getaddrinfo = _pinned_getaddrinfo  # type: ignore[assignment]
     try:
         try:
             # allow_redirects=False prevents a redirect to an internal address bypassing
             # the IP check above (e.g., server responds 301 -> http://169.254.169.254/).
-            resp = requests.get(
+            resp = session.get(
                 url,
                 timeout=30,
                 stream=True,
@@ -213,7 +325,7 @@ def _fetch_url_to_temp(url: str) -> str:
             if not download_ok:
                 Path(tmp_name).unlink(missing_ok=True)
     finally:
-        socket.getaddrinfo = _orig_getaddrinfo  # type: ignore[assignment]
+        session.close()
         if resp is not None:
             resp.close()
 
@@ -422,7 +534,14 @@ class Compiler:
             key=lambda p: (p.parent, p.name),
         )
         files = [p for p in all_files if p.suffix.lower() in supported_exts]
-        result.unsupported = len(all_files) - len(files)
+        for p in all_files:
+            if p.suffix.lower() not in supported_exts:
+                rel_unsup = str(p.relative_to(source_path))
+                result.unsupported.append({
+                    "source": rel_unsup,
+                    "extension": p.suffix.lower() or "(none)",
+                    "category": "unsupported",
+                })
 
         total_files = len(files)
         compiled: list[dict] = []
@@ -446,7 +565,11 @@ class Compiler:
 
             if not text.strip():
                 logger.debug("Corpus: empty output for %s", file_path)
-                result.low_quality += 1
+                result.low_quality.append({
+                    "source": rel,
+                    "reason": "empty output after compilation",
+                    "category": "low_quality",
+                })
                 continue
 
             dupes = dedup.add(rel, text)

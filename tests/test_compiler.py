@@ -250,7 +250,7 @@ def test_compile_corpus_tracks_unsupported(tmp_path):
     (tmp_path / "b.xyz123").write_bytes(b"garbage bytes for unknown type")
     compiler = Compiler(output_dir=str(tmp_path / "out"))
     result = compiler.compile_corpus(str(tmp_path))
-    assert result.unsupported >= 1
+    assert len(result.unsupported) >= 1
 
 
 def test_compile_corpus_tracks_failures(tmp_path):

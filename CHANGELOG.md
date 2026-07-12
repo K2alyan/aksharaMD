@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Breaking Changes
+
+- **`Compiler.compile_corpus()` return type changed**: the method now returns `CorpusCompilationResult` instead of `list[dict]`.
+  - **Migration**: replace `chunks = compiler.compile_corpus(dir)` with `result = compiler.compile_corpus(dir); chunks = result.chunks`.
+  - `CorpusCompilationResult` carries `processed`, `failed`, `low_quality`, `unsupported`, `skipped_duplicates`, and `total_scanned` in addition to `chunks`, enabling per-category auditing of every file in a corpus.
+
 ### Fixed
 
 - **PDF booktabs table detection (`_try_hrule_table`)**: tables that use only horizontal rules and no vertical lines (booktabs-style, common in Wiley/Dummies books) are now detected as a third fallback after PyMuPDF `find_tables()` and pdfplumber text-strategy. Uses `get_drawings()` horizontal rules as row separators and x-position gaps in the span distribution to determine column boundaries. Caption rows (matching "Table N-N", "Figure N") are excluded from the markdown so the column-header row becomes the table's first row, enabling cross-page stitching. Fixes Table 1-1 in *Fantasy Football For Dummies* (Wiley, 2007) — a 4-column table spanning pages 28-29 now renders as a single stitched markdown table instead of scattered prose fragments.
