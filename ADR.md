@@ -205,3 +205,32 @@ pdfplumber bboxes are flipped to PyMuPDF coordinates before storing. Do not remo
 **Decision:** After sorting spans into column-then-y order, flush a paragraph when the next span in the same column has a baseline-to-baseline y-gap larger than 1.8× the previous span's font size. This sits safely above same-paragraph line spacing (~1.2×) and below typical paragraph gaps (1.8–2.5×).
 
 Tighter values (1.5×) risk splitting long lines that have sub/superscripts. Rolling-average line spacing was considered and rejected as overly complex for the improvement it would provide.
+
+---
+
+## ADR-16 — PDF parser: booktabs (horizontal-rule-only) table detection
+
+**Context:** Many professionally typeset books (Wiley Dummies series, academic textbooks) use booktabs-style tables with only horizontal rules separating rows — no vertical column lines. PyMuPDF's `find_tables()` requires a full grid to detect a table. pdfplumber's text strategy fails because multi-level cell content (multiple y-positions within one logical row) confuses its column detector.
+
+**Decision:** Add `_try_hrule_table()` as a third fallback called only when both PyMuPDF and pdfplumber find nothing. It:
+1. Collects h-rules from `get_drawings()` (dx > 20% page width, dy < 3).
+2. Groups rules by x-extent into candidate tables (tolerance 20pt).
+3. Uses x-position gaps ≥ 20pt in the span distribution to detect column boundaries, using only spans below the first rule to avoid merged header cells inflating the column count.
+4. Assigns spans to (row, column) buckets; sorts within each cell by `(round(y/5), x)` so adjacent glyphs on the same baseline (e.g. "2", "×", "3 = 6") remain in left-to-right order even when their y-coordinates differ by sub-pixel amounts.
+5. Detects caption rows (first non-empty cell matches `_TBL_CAPTION_RE`) and excludes them from the table markdown so the column-header row becomes the table's first row. The table bbox is also adjusted to start at the rule after the caption, so those spans are not suppressed from the prose stream.
+
+Caption exclusion is critical for cross-page stitching: when the same column-header row appears at the top of the continuation page, `_stitch_page_break_tables` Case 1 (identical headers) merges the two table fragments automatically.
+
+**Do not** remove the caption exclusion or shrink the `min_col_gap` below 20pt — smaller values incorrectly split formula glyphs ("2", "×", "6 = 12") into separate columns.
+
+---
+
+## ADR-17 — PDF parser: deferred table block insertion
+
+**Context:** `_process_raw_page` always prepended TABLE blocks before all prose blocks. On pages where the table appears at the bottom (after paragraphs, headings, captions), the table rendered before the prose that precedes it in the document.
+
+**Decision:** TABLE blocks are no longer inserted immediately. They are collected in `pending_tables: list[(y_top, Block)]`. During span processing, before handling each prose span, any pending table whose `y_top ≤ span["y"]` is flushed (with a prose paragraph boundary) and inserted into the block list. After all spans are processed, any remaining pending tables (those whose y_top exceeds all prose on the page) are appended last.
+
+This preserves the existing behaviour for pages where the table leads the content (y_top < first prose span y), while fixing pages where prose precedes the table.
+
+**Do not revert to "tables come first."** The original approach was wrong for any page where the table is not the first content element.

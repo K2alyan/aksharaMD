@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed
+
+- **PDF booktabs table detection (`_try_hrule_table`)**: tables that use only horizontal rules and no vertical lines (booktabs-style, common in Wiley/Dummies books) are now detected as a third fallback after PyMuPDF `find_tables()` and pdfplumber text-strategy. Uses `get_drawings()` horizontal rules as row separators and x-position gaps in the span distribution to determine column boundaries. Caption rows (matching "Table N-N", "Figure N") are excluded from the markdown so the column-header row becomes the table's first row, enabling cross-page stitching. Fixes Table 1-1 in *Fantasy Football For Dummies* (Wiley, 2007) — a 4-column table spanning pages 28-29 now renders as a single stitched markdown table instead of scattered prose fragments.
+
+- **PDF block ordering (deferred table insertion)**: TABLE blocks were always prepended before prose blocks, placing tables that appear at the bottom of a page before the prose text that precedes them. TABLE blocks are now held in a `pending_tables` list and inserted at the correct y-position as prose spans are processed — tables whose top edge falls below a prose span are inserted just before that span.
+
+- **PDF parallel parse performance**: switched Phase-1 page-extraction from `ProcessPoolExecutor` to `ThreadPoolExecutor`. On Windows, process spawning overhead added ~40 s to every compilation. PyMuPDF is thread-safe when each thread opens its own `fitz.Document`; thread-based parallelism eliminates the spawn cost while preserving concurrency.
+
+- **PDF roman-numeral page numbers as headings**: running headers containing lowercase roman numerals (i, ii, xi, xiv …) were classified as H1 headings. Extended `_PAGE_NUM_RE` with a roman-numeral pattern; the existing header/footer zone guard in `_detect_removable_spans` now suppresses them correctly.
+
+- **PDF drop-capital single characters as headings**: single-character spans with large font sizes (decorative initials, WileyCode drop capitals such as "I" or "S") were classified as H1 headings. Added an unconditional single-character guard at the top of `_heading_level` — a span of length 1 is never a heading regardless of font size.
+
+- **Marker-pdf import failure loop**: if `marker-pdf` is installed but broken (e.g. missing `keras_nlp` backend), the import was retried on every page, adding ~5 s per compilation. Added a `_MARKER_LOAD_ATTEMPTED` sentinel that caches failure within the process.
+
 ## [0.3.5] — 2026-07-07
 
 AksharaMD v0.3.5 is a production-credibility and ingestion-control release: tightened benchmark claims, clarified limitations, and two new CLI options for pipeline gating.
