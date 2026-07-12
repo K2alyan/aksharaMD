@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import io
+import socket
 import zipfile
 from pathlib import Path
 
-from aksharamd.compiler import Compiler
+from aksharamd.compiler import Compiler, _PinnedIPAdapter
 
 
 def _compile(tmp_path: Path, filename: str, content: bytes) -> object:
@@ -80,10 +81,11 @@ def test_zip_bomb_rejected(tmp_path, monkeypatch):
 # ── URL fetch error handling ───────────────────────────────────────────────────
 
 def _patch_url_fetch(monkeypatch, exc):
-    """Patch socket resolution (returns a public IP) and requests.get to raise exc."""
-    import socket
-    monkeypatch.setattr(socket, "gethostbyname", lambda host: "93.184.216.34")  # example.com public IP
-    monkeypatch.setattr("requests.get", lambda *a, **kw: (_ for _ in ()).throw(exc))
+    """Patch DNS resolution to return a public IP, then make _PinnedIPAdapter.send raise exc."""
+    monkeypatch.setattr(socket, "getaddrinfo", lambda h, p, *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", int(p or 0)))
+    ])
+    monkeypatch.setattr(_PinnedIPAdapter, "send", lambda *a, **kw: (_ for _ in ()).throw(exc))
 
 
 def test_url_fetch_connection_error(monkeypatch, tmp_path):
@@ -104,8 +106,9 @@ def test_url_fetch_timeout(monkeypatch, tmp_path):
 
 def test_ssrf_private_ip_rejected(monkeypatch, tmp_path):
     """Requests to private/internal IPs must be rejected before any network call."""
-    import socket
-    monkeypatch.setattr(socket, "gethostbyname", lambda host: "192.168.1.1")
+    monkeypatch.setattr(socket, "getaddrinfo", lambda h, p, *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", int(p or 0)))
+    ])
     ctx = Compiler(output_dir=str(tmp_path / "out")).compile("https://internal.corp/secret.pdf")
     assert any(e.code == "URL_FETCH_ERROR" for e in ctx.validation.errors)
 
