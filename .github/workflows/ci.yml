@@ -124,7 +124,7 @@ jobs:
         run: |
           printf '# Hello\n\nThis is a smoke test for the installed wheel.\n' > /tmp/smoke.md
           aksharamd compile /tmp/smoke.md -o /tmp/smoke-out
-          test -f /tmp/smoke-out/document.md
+          test -f /tmp/smoke-out/smoke/document.md
 
       - name: Run targeted tests against installed wheel
         run: pytest tests/test_cli.py tests/test_compiler.py tests/test_security.py -q --tb=short
@@ -152,7 +152,7 @@ jobs:
         run: |
           printf '# Hello\n\nThis is a macOS smoke test.\n' > /tmp/smoke.md
           aksharamd compile /tmp/smoke.md -o /tmp/smoke-out
-          test -f /tmp/smoke-out/document.md
+          test -f /tmp/smoke-out/smoke/document.md
 
       - name: Smoke test - targeted tests
         run: pytest tests/test_cli.py tests/test_compiler.py tests/test_security.py -q --tb=short
@@ -217,7 +217,7 @@ jobs:
       - name: Check dependency resolution (no download)
         run: |
           WHEEL=$(ls dist/aksharamd-*.whl)
-          uv pip install --dry-run "${WHEEL}[${{ matrix.extra }}]"
+          uv pip install --dry-run --system "${WHEEL}[${{ matrix.extra }}]"
 
   # ── Windows smoke test ────────────────────────────────────────────────────────
   windows-smoke:
