@@ -10,7 +10,6 @@ import fitz
 
 from .mgam import MGAMResult, extract_reference_blocks, mgam_score
 
-
 # ── Reference extraction ───────────────────────────────────────────────────────
 
 def _pymupdf_raw_text(pdf_path: Path) -> str:

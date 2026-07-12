@@ -28,7 +28,6 @@ from pathlib import Path
 
 from .evaluator import CorpusResult, DocumentResult, evaluate_corpus
 
-
 # ── Formatting ────────────────────────────────────────────────────────────────
 
 _BAR_WIDTH = 30

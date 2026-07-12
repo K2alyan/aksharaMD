@@ -7,12 +7,10 @@ from pathlib import Path
 import pytest
 
 from benchmarks.mgam_eval.mgam import (
-    MGAMResult,
     extract_reference_blocks,
     mgam_score,
     normalize,
 )
-
 
 # ── normalize ─────────────────────────────────────────────────────────────────
 

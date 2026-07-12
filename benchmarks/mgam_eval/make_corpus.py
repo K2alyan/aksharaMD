@@ -121,7 +121,6 @@ def _make_table_document(path: Path) -> Path:
     y += 80
 
     col_x = [72, 230, 310, 390, 470]
-    col_w = [155, 75, 75, 75, 75]
 
     def _hrule(yy: float) -> None:
         page.draw_line(fitz.Point(72, yy), fitz.Point(545, yy), color=(0, 0, 0), width=0.5)
