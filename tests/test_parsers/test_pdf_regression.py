@@ -346,6 +346,50 @@ def _build_technical_sheet(path: Path) -> None:
     doc.close()
 
 
+def _build_narrow_booktabs_table(path: Path) -> None:
+    """Single-page PDF with a narrow booktabs-style table.
+
+    Column text left-edges are 15 pt apart — below the old hardcoded 20 pt
+    gap threshold (which would yield n_cols=1 and reject the table) but above
+    the adaptive threshold for a 308 pt-wide table: max(8, 308*0.04)=12.3 pt.
+    Three thin-rect horizontal rules simulate booktabs top/mid/bottom rules.
+    """
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=300)
+
+    page.insert_text((72, 35), "Quarterly Performance", fontsize=11, color=(0, 0, 0))
+
+    col_x = [75, 90, 105, 120]  # left-edge gaps: 15 pt
+    headers = ["Metric", "Q1", "Q2", "Q3"]
+    data_rows_content = [
+        ["Revenue", "100", "120", "140"],
+        ["Costs",   "80",  "90",  "100"],
+        ["Net",     "20",  "30",  "40"],
+    ]
+
+    def _hrule(y: float) -> None:
+        # Height=1 pt satisfies r.height <= 3 in _try_hrule_table "re" check.
+        # Width=308 pt (72→380) satisfies r.width >= page_width*0.20 = 122.4 pt.
+        page.draw_rect(fitz.Rect(72, y, 380, y + 1), color=(0, 0, 0), fill=(0, 0, 0))
+
+    y = 50
+    _hrule(y)          # top rule
+    y += 10
+    for i, hdr in enumerate(headers):
+        page.insert_text((col_x[i], y), hdr, fontsize=9, color=(0, 0, 0))
+    y += 14
+    _hrule(y)          # mid rule (after header)
+    y += 10
+    for row in data_rows_content:
+        for i, cell in enumerate(row):
+            page.insert_text((col_x[i], y), cell, fontsize=9, color=(0, 0, 0))
+        y += 14
+    _hrule(y)          # bottom rule
+
+    doc.save(str(path))
+    doc.close()
+
+
 def _insert_wrapped(page, text: str, x: float, y: float, width: float, fontsize: float) -> None:
     """Insert text with naive word-wrap into a fitz page."""
     words = text.split()
@@ -374,6 +418,7 @@ def pdf_dir(tmp_path_factory):
     _build_financial_tables(d / "financial_tables.pdf")
     _build_slide_export(d / "slide_export.pdf")
     _build_technical_sheet(d / "technical_sheet.pdf")
+    _build_narrow_booktabs_table(d / "narrow_booktabs.pdf")
     return d
 
 
@@ -553,3 +598,21 @@ def test_scanned_scores_worst_of_five(pdf_dir, tmp_path):
     assert worse_than_all, (
         f"Scanned PDF ({scanned}) should score lower than all text-bearing PDFs: {others}"
     )
+
+
+# ── 6. Narrow booktabs table (adaptive column gap) ───────────────────────────
+
+def test_narrow_booktabs_columns_detected(pdf_dir, tmp_path):
+    """Adaptive column gap allows tables with 15 pt column spacing to be detected.
+
+    With the old hardcoded 20 pt threshold all column boundaries were missed
+    (n_cols=1), causing the table to be rejected.  The adaptive threshold
+    (4% of table width, ≥8 pt) gives ~12.3 pt for this 308 pt-wide table,
+    which correctly finds all four column boundaries.
+    """
+    _, ctx = _compile(pdf_dir / "narrow_booktabs.pdf", tmp_path)
+    table_blocks = [b for b in ctx.document.blocks if b.type == BlockType.TABLE]
+    assert table_blocks, "Narrow booktabs table should be detected as a TABLE block"
+    table_text = " ".join(b.content for b in table_blocks)
+    assert "Q1" in table_text, f"Column header 'Q1' missing from table: {table_text!r}"
+    assert "Metric" in table_text, f"Column header 'Metric' missing from table: {table_text!r}"

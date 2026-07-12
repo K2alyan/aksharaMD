@@ -194,6 +194,17 @@ class StructureValidator(ValidatorPlugin):
                     "(B) pip install aksharamd[vision]  — no system binary required, uses Surya neural OCR and reconstructs table structure; requires PyTorch (~3 GB download)",
                 )
 
+            if doc.metadata.get("pdf_ocr_hallucination"):
+                ctx.warn(
+                    "OCR_HALLUCINATION",
+                    "The vision OCR model produced repetitive output on one or more pages, "
+                    "which was suppressed to prevent garbage text in the output. "
+                    "This typically occurs when the document contains scripts or handwriting "
+                    "that the model was not trained on (e.g. classical Chinese, historical "
+                    "scripts, ornate calligraphy). The affected pages may have reduced or "
+                    "missing text content.",
+                )
+
         return ctx
 
 

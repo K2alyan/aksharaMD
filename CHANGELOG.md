@@ -19,6 +19,42 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 - **Marker-pdf import failure loop**: if `marker-pdf` is installed but broken (e.g. missing `keras_nlp` backend), the import was retried on every page, adding ~5 s per compilation. Added a `_MARKER_LOAD_ATTEMPTED` sentinel that caches failure within the process.
 
+### Added
+
+- **MGAM standalone evaluator** (`benchmarks/mgam_eval/`): content-recall scoring based on the Multi-Granularity Adaptive Matching methodology from OmniDocBench (CVPR 2025).  Instead of exact-match substring rules (ParseBench), MGAM merges consecutive prediction blocks until similarity stops improving — correctly crediting content that is right but differently chunked.  Ships with a synthetic 5-document corpus (`make_corpus.py`) covering clean prose, headings, tables, two-column layout, and formatted text; each PDF has a companion `.ref.txt` ground-truth file for regression testing.  CLI: `python -m benchmarks.mgam_eval.run path/to/pdfs/`.  Baseline corpus scores: simple prose 100%, headings 97.4%, formatted 90.9%, tables 90%, two-column 66.1%, mean F1 88.3%.
+
+- **PDF OCR hallucination detection**: `_parse_marker_markdown` now suppresses blocks where Marker's vision OCR produced repetitive garbage text (e.g. "the state of the state of…" looping on classical Chinese or other unfamiliar scripts). Detection uses 4-gram repetition analysis — if more than 15% of a paragraph's 4-grams are duplicates the block is dropped. When any page triggers suppression the document receives a `pdf_ocr_hallucination` metadata flag and the `StructureValidator` emits an `OCR_HALLUCINATION` warning describing the affected pages. `_apply_marker_to_image_pages` returns the flag alongside the existing `(blocks, assets, vision_pages)` tuple.
+
+### Improved
+
+- **PDF superscript detection (`is_sup`)**: `_is_superscript()` checks PyMuPDF flag bit 0 (`TEXT_FONT_SUPERSCRIPT`) and font-name tokens (`super`, `sup`). Detected spans are wrapped as `<sup>text</sup>`. ParseBench had 318 `is_sup` rules at 0%; this is the first implementation. Superscript is applied as the outermost wrapper (after bold/italic/underline), so `<sup>**bold superscript**</sup>` renders correctly.
+
+- **PDF subscript detection (`is_sub`)**: `_is_subscript()` uses font-name detection (`subscript`, `sub`) since PyMuPDF has no dedicated subscript flag. Detected spans emit `<sub>text</sub>`. Geometric baseline-offset detection (for PDFs that use vertical shift without named fonts) is a planned follow-up.
+
+- **PDF code block detection (`is_code_block`)**: `_is_monospace()` checks PyMuPDF flag bit 3 (`TEXT_FONT_MONOSPACED`) and font-name tokens (`mono`, `courier`, `consolas`, `code`, `typewriter`, `inconsolata`, `menlo`, `monaco`, `lucidaconsole`, `fixedwidth`). When all spans in a paragraph are monospace, the block is emitted as `BlockType.CODE_BLOCK` instead of `PARAGRAPH`, which the chunker renders as a fenced triple-backtick block.
+
+- **PDF heading level precision — tightened thresholds**: three guards added based on false-positive analysis:
+  - H5 threshold raised from ratio ≥ 1.05 to ≥ 1.10 — bold body text that is only marginally larger than the median (e.g. sidebar callouts) was being promoted to H5.
+  - Bold body-font heading word limit tightened from ≤4 words to ≤3 words — 4-word bold phrases are ambiguous between headings and strong inline emphasis; 3 words is the safer upper bound.
+  - Maximum heading length guard: spans of more than 15 words are never headings regardless of size or bold — applies before all ratio checks to block long bold caption sentences.
+
+- **PDF table cell precision — cell text normalisation**: `_cells_to_markdown` `norm()` now strips three additional artifact classes: (a) trailing footnote superscript characters (Unicode ¹²³ range, e.g. "Value¹" → "Value"); (b) Unicode zero-width characters (U+00AD, U+200B, U+200C, U+200D, U+FEFF) that some PDF producers embed and that cause GRiTS cell matching to fail; (c) `pdfplumber` `intersection_tolerance=3` added to `_PDFPLUMBER_TEXT_SETTINGS` to reduce column-bleed across adjacent cells.
+
+- **PDF bold/italic detection — font-name fallback**: `_is_bold` and `_is_italic` now check the span's font name when the standard PyMuPDF font flags are absent. PDFs that embed bold/italic as named font variants (e.g. `Arial-BoldMT`, `Helvetica-Oblique`) without setting the flag field are now detected correctly. Based on ParseBench full-dataset analysis (is_bold 43%, is_italic 35% on 1,537 PDFs).
+
+- **PDF strikethrough y-tolerance relaxed**: the vertical distance check for strikethrough drawing paths changed from `± 35%` to `± 50%` of the span height, matching the existing underline tolerance. Strikethrough strokes that sit slightly off-centre (locale variation, mixed font sizes) are now detected.
+
+- **PDF underline width cap raised**: the `_tag_text_decorations` filter now accepts horizontal strokes up to 95% of page width (was 75%). In single-column documents, full-line underlined text (section titles, legal insertion markers) was being skipped because the underline stroke spanned the full text column.
+
+- **PDF table quality gates loosened**: three thresholds updated based on ParseBench failure analysis:
+  - Column cap raised from 8 to 12 — financial statements and comparison grids regularly use 9–12 columns.
+  - Empty-cell threshold raised from 50% to 65% — legitimate sparse tables (quarterly N/A data, optional fields) were being rejected. The word-split and dot-leader checks still block multi-column prose layouts.
+  - Average-words-per-cell threshold raised from 8 to 12 — allows product/spec tables with longer descriptive cells; the existing adjacent-split check continues to block prose columns mis-detected as tables.
+
+- **PDF pdfplumber text-strategy sensitivity**: `min_words_vertical` lowered from 5 to 4 and `min_words_horizontal` from 3 to 2 in `_PDFPLUMBER_TEXT_SETTINGS`. Narrow tables with fewer column entries were being silently skipped by pdfplumber's internal thresholds before reaching AksharaMD's column-detection logic.
+
+- **PDF booktabs column detection — adaptive gap threshold**: `_try_hrule_table` now uses an adaptive column-gap threshold (`max(8 pt, 4% of table width)`) instead of a hardcoded 20 pt. Narrow financial comparison grids (≈300 pt wide) generate a ≈12 pt threshold, correctly resolving columns that are 14–18 pt apart — gaps the old threshold treated as a single column, causing the table to be rejected.
+
 ## [0.3.5] — 2026-07-07
 
 AksharaMD v0.3.5 is a production-credibility and ingestion-control release: tightened benchmark claims, clarified limitations, and two new CLI options for pipeline gating.

@@ -141,15 +141,55 @@ _HEADER_ZONE = 0.12
 _FOOTER_ZONE = 0.88
 _FOOTNOTE_ZONE_START = 0.72
 _FOOTNOTE_SIZE_RATIO = 0.72
-def _is_bold(flags: int) -> bool:
-    return bool(flags & 2**4)
+def _is_bold(flags: int, font_name: str = "") -> bool:
+    if flags & 2**4:
+        return True
+    # Fallback: some PDFs embed bold as a named font variant without setting the flag.
+    fname = font_name.lower()
+    return any(tok in fname for tok in ("bold", "heavy", "black", "-bd", "+b", ",b"))
 
 
-def _is_italic(flags: int) -> bool:
-    return bool(flags & 2**1)
+def _is_italic(flags: int, font_name: str = "") -> bool:
+    if flags & 2**1:
+        return True
+    # Fallback: oblique/italic named variants that omit the standard flag.
+    fname = font_name.lower()
+    return any(tok in fname for tok in ("italic", "oblique", "slant", "-ital", "-it,"))
 
 
-def _apply_inline_fmt(text: str, bold: bool, italic: bool, strikethrough: bool, underline: bool) -> str:
+def _is_superscript(flags: int, font_name: str = "") -> bool:
+    if flags & 2**0:  # PyMuPDF TEXT_FONT_SUPERSCRIPT
+        return True
+    fname = font_name.lower()
+    return any(tok in fname for tok in ("super", "sup"))
+
+
+def _is_subscript(font_name: str = "") -> bool:
+    # No dedicated PyMuPDF flag for subscript; use font-name detection.
+    # Geometric baseline-offset detection is a future improvement.
+    fname = font_name.lower()
+    return any(tok in fname for tok in ("subscript", "sub"))
+
+
+def _is_monospace(flags: int, font_name: str = "") -> bool:
+    if flags & 2**3:  # PyMuPDF TEXT_FONT_MONOSPACED
+        return True
+    fname = font_name.lower()
+    return any(tok in fname for tok in (
+        "mono", "courier", "consolas", "code", "typewriter",
+        "inconsolata", "menlo", "monaco", "lucidaconsole", "fixedwidth",
+    ))
+
+
+def _apply_inline_fmt(
+    text: str,
+    bold: bool,
+    italic: bool,
+    strikethrough: bool,
+    underline: bool,
+    sup: bool = False,
+    sub: bool = False,
+) -> str:
     """Wrap text in markdown/HTML inline decoration markers."""
     if strikethrough:
         text = f"~~{text}~~"
@@ -161,6 +201,10 @@ def _apply_inline_fmt(text: str, bold: bool, italic: bool, strikethrough: bool, 
         text = f"**{text}**"
     elif italic:
         text = f"*{text}*"
+    if sup:
+        text = f"<sup>{text}</sup>"
+    elif sub:
+        text = f"<sub>{text}</sub>"
     return text
 
 
@@ -190,7 +234,7 @@ def _tag_text_decorations(page: fitz.Page, spans: list[dict]) -> None:
         r_h = r[3] - r[1]
         r_w = r[2] - r[0]
         # Keep only thin horizontal strokes that are not full-page-width rules
-        if r_h > 3.0 or r_w < 4.0 or r_w > page_w * 0.75:
+        if r_h > 3.0 or r_w < 4.0 or r_w > page_w * 0.95:
             continue
         thin_lines.append((r[0], r[1], r[2], r[3]))
 
@@ -219,7 +263,7 @@ def _tag_text_decorations(page: fitz.Page, spans: list[dict]) -> None:
             if -sp_h * 0.3 <= (line_cy - b[3]) <= sp_h * 0.5:
                 span["underline"] = True
             # Strikethrough: line crosses the vertical midpoint
-            elif abs(line_cy - sp_cy) <= sp_h * 0.35:
+            elif abs(line_cy - sp_cy) <= sp_h * 0.5:
                 span["strikethrough"] = True
 
 
@@ -316,8 +360,8 @@ def _is_quality_table(markdown: str) -> bool:
         return False
 
     # Very wide tables are almost always text blocks mis-detected as tables.
-    # Legitimate document tables rarely exceed 8 columns.
-    if len(cols) > 8:
+    # Financial statements and comparison grids can legitimately reach 12 columns.
+    if len(cols) > 12:
         return False
 
     data_rows = [ln for ln in lines[2:] if "|" in ln and not ln.startswith("|---")]
@@ -341,9 +385,11 @@ def _is_quality_table(markdown: str) -> bool:
         if short_alpha / len(all_cells) > 0.25:
             return False
 
-    # Reject tables where >50% of data cells are empty — paragraph text forced
+    # Reject tables where >65% of data cells are empty — paragraph text forced
     # into layout columns leaves most cells blank (e.g. a 3-column layout where
     # prose sits in the first column and the others are empty spacers).
+    # 65% rather than 50% to permit legitimate sparse tables (N/A quarterly data,
+    # optional fields) while still blocking multi-column prose layouts.
     total_data_cells = 0
     empty_data_cells = 0
     for row in data_rows:
@@ -351,16 +397,17 @@ def _is_quality_table(markdown: str) -> bool:
             inner = row.split("|")[1:-1]
             total_data_cells += len(inner)
             empty_data_cells += sum(1 for c in inner if not c.strip())
-    if total_data_cells > 0 and empty_data_cells / total_data_cells > 0.5:
+    if total_data_cells > 0 and empty_data_cells / total_data_cells > 0.65:
         return False
 
     # Reject tables where data cells contain prose-length text — these are 2-column
     # page layouts (narrative chapters, cover text) that pdfplumber's text-strategy
     # detected as multi-column tables.  Real data table cells are short labels or
-    # values; cells averaging > 8 words indicate sentence fragments across columns.
+    # values; cells averaging > 12 words indicate sentence fragments across columns.
+    # 12 rather than 8 allows product/spec tables with longer descriptive cells.
     if all_cells:
         word_counts = [len(c.split()) for c in all_cells]
-        if sum(word_counts) / len(word_counts) > 8:
+        if sum(word_counts) / len(word_counts) > 12:
             return False
 
     # Reject tables where rows are clearly word-split across columns.
@@ -410,6 +457,29 @@ def _is_quality_table(markdown: str) -> bool:
     return True
 
 
+def _is_repetitive_text(text: str, threshold: float = 0.15) -> bool:
+    """Return True when text is OCR hallucination detected via 4-gram repetition.
+
+    Marker produces endless "the state of the state of..." loops on unfamiliar
+    scripts.  We measure what fraction of the text's 4-grams are duplicates: if
+    more than `threshold` of all 4-grams are repeats of an earlier 4-gram, the
+    block is hallucination.  Threshold=0.15 catches loops while leaving normal
+    prose (which naturally repeats common function words) unaffected.
+    """
+    words = text.split()
+    if len(words) < 16:
+        return False
+    grams = [tuple(words[i:i + 4]) for i in range(len(words) - 3)]
+    seen: set[tuple] = set()
+    duplicates = 0
+    for g in grams:
+        if g in seen:
+            duplicates += 1
+        else:
+            seen.add(g)
+    return duplicates / len(grams) > threshold
+
+
 def _cells_to_markdown(cells: list[list]) -> str:
     """Convert a 2-D cell grid (from tab.extract()) to a Markdown table string.
 
@@ -420,7 +490,14 @@ def _cells_to_markdown(cells: list[list]) -> str:
         return ""
 
     def norm(v) -> str:
-        text = re.sub(r"\s+", " ", _CID_RE.sub("", (v or "")).replace("|", "\\|")).strip()
+        text = (v or "")
+        # Strip CID placeholders and replacement characters
+        text = _CID_RE.sub("", text).replace("�", "")
+        # Strip Unicode zero-width and formatting characters that corrupt cell matching
+        text = re.sub(r"[­​‌‍﻿]", "", text)
+        # Strip trailing footnote superscripts (e.g. "1,234¹" → "1,234", "Value²³" → "Value")
+        text = re.sub(r"[\xb2\xb3\xb9⁰-⁹]+$", "", text)
+        text = re.sub(r"\s+", " ", text.replace("|", "\\|")).strip()
         return "" if _CELL_FURNITURE_RE.match(text) else text
 
     rows = [[norm(c) for c in row] for row in cells]
@@ -454,8 +531,9 @@ _PDFPLUMBER_TEXT_SETTINGS = {
     "horizontal_strategy": "text",
     "snap_x_tolerance": 3,
     "snap_y_tolerance": 3,
-    "min_words_vertical": 5,    # at least 5 aligned words to declare a column (raised from 3)
-    "min_words_horizontal": 3,  # at least 3 words per row to form a table (was 1)
+    "intersection_tolerance": 3,  # tighter snapping reduces cell-text bleed across columns
+    "min_words_vertical": 4,    # at least 4 aligned words to declare a column (was 5)
+    "min_words_horizontal": 2,  # at least 2 words per row to form a table (was 3)
 }
 _TOC_DOT_RE = re.compile(r"\.{5,}")  # 5+ consecutive dots = dot-leader; excludes ellipsis (…)
 # Common legitimate short lowercase table values — excluded from word-fragment detection
@@ -625,7 +703,11 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
         ] or tbl_spans
 
         left_xs = sorted(s["bbox"][0] for s in body_for_cols)
-        min_col_gap = 20.0
+        # Adaptive threshold: 4% of table width, floored at 8 pt.
+        # Narrow financial grids (300 pt → 12 pt threshold) were silently
+        # under-segmented by the previous hardcoded 20 pt value.
+        tbl_width = tbl_x1 - tbl_x0
+        min_col_gap = max(8.0, tbl_width * 0.04)
         col_boundaries: list[float] = []
         for i in range(1, len(left_xs)):
             gap = left_xs[i] - left_xs[i - 1]
@@ -635,7 +717,7 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
                     col_boundaries.append(mid)
 
         n_cols = len(col_boundaries) + 1
-        if n_cols < 2 or n_cols > 8:
+        if n_cols < 2 or n_cols > 12:
             continue
 
         def col_of(x: float) -> int:
@@ -791,11 +873,15 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                 text = _CID_RE.sub("", _joined).replace("�", "").strip()
                 if text:
                     flags = span.get("flags", 0)
+                    font_name = span.get("font", "")
                     spans.append({
                         "text": text,
                         "size": span["size"],
-                        "bold": _is_bold(flags),
-                        "italic": _is_italic(flags),
+                        "bold": _is_bold(flags, font_name),
+                        "italic": _is_italic(flags, font_name),
+                        "sup": _is_superscript(flags, font_name),
+                        "sub": _is_subscript(font_name),
+                        "mono": _is_monospace(flags, font_name),
                         "y": span["origin"][1],
                         "x": span["origin"][0],
                         "bbox": span["bbox"],
@@ -1148,6 +1234,9 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     # A single character is never a heading — drop capitals, decorative initials, page markers.
     if len(text.strip()) == 1:
         return None
+    # Very long spans are body prose even when large/bold — no real heading exceeds 15 words.
+    if len(text.split()) > 15:
+        return None
     ratio = size / median if median else 1.0
     # isupper() returns True if ALL *cased* characters are uppercase, so
     # "A + 2"" and "B - 2.5"" (dimension annotations) also pass.  Require that
@@ -1201,7 +1290,7 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
         # institution names or acronyms in reference lists, not headings.
         if not (len(text.split()) == 1 and text.isupper()):
             return 4
-    if ratio >= 1.05 and bold and not _prose:
+    if ratio >= 1.10 and bold and not _prose:
         return 5
     if is_caps and centered and not _prose and ratio >= 0.95 and len(text) < 80:
         return 4
@@ -1226,7 +1315,7 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
         and not text.endswith('"')
         and len(text) >= 3
         and not _BOLD_HDR_CAPTION_RE.match(text)
-        and 1 <= len(_words) <= 4
+        and 1 <= len(_words) <= 3
         # Single all-caps tokens are abbreviations/units ("CFM", "SMACNA"),
         # not section headings.  Multi-word all-caps ("APPENDIX B") are fine.
         and not (len(_words) == 1 and text.isupper())
@@ -1306,36 +1395,43 @@ def _process_raw_page(
         # apply bold/italic/strikethrough/underline markers to each run.
         result_parts: list[str] = []
         run_texts: list[str] = []
-        run_bold = current_spans[0].get("bold", False)
+        run_bold   = current_spans[0].get("bold", False)
         run_italic = current_spans[0].get("italic", False)
         run_strike = current_spans[0].get("strikethrough", False)
-        run_under = current_spans[0].get("underline", False)
+        run_under  = current_spans[0].get("underline", False)
+        run_sup    = current_spans[0].get("sup", False)
+        run_sub    = current_spans[0].get("sub", False)
 
         def _flush_run() -> None:
             if run_texts:
                 result_parts.append(
                     _apply_inline_fmt(
-                        " ".join(run_texts), run_bold, run_italic, run_strike, run_under
+                        " ".join(run_texts),
+                        run_bold, run_italic, run_strike, run_under,
+                        run_sup, run_sub,
                     )
                 )
 
         for sp in current_spans:
-            b = sp.get("bold", False)
-            i = sp.get("italic", False)
-            s = sp.get("strikethrough", False)
-            u = sp.get("underline", False)
-            if (b, i, s, u) == (run_bold, run_italic, run_strike, run_under):
+            b   = sp.get("bold", False)
+            i   = sp.get("italic", False)
+            s   = sp.get("strikethrough", False)
+            u   = sp.get("underline", False)
+            sup = sp.get("sup", False)
+            sub = sp.get("sub", False)
+            if (b, i, s, u, sup, sub) == (run_bold, run_italic, run_strike, run_under, run_sup, run_sub):
                 run_texts.append(sp["text"])
             else:
                 _flush_run()
                 run_texts[:] = [sp["text"]]
-                run_bold, run_italic, run_strike, run_under = b, i, s, u
+                run_bold, run_italic, run_strike, run_under, run_sup, run_sub = b, i, s, u, sup, sub
         _flush_run()
 
         text = " ".join(result_parts).strip()
         if text:
+            all_mono = all(sp.get("mono", False) for sp in current_spans)
             blocks.append(Block(
-                type=BlockType.PARAGRAPH,
+                type=BlockType.CODE_BLOCK if all_mono else BlockType.PARAGRAPH,
                 content=text,
                 page=raw.page_num,
                 index=0,
@@ -1474,12 +1570,15 @@ def _parse_marker_markdown(
     markdown: str,
     page_num: int,
     images: dict | None = None,
-) -> tuple[list[Block], list[Asset]]:
+) -> tuple[list[Block], list[Asset], bool]:
     """Convert a Marker markdown string (single page) into Block objects and Assets.
 
     images: Marker's rendered.images dict mapping key -> PIL Image (optional).
     Image blobs are stored as Assets; blocks carry an asset:// reference so the
     position is preserved in the markdown output without any AI extraction.
+
+    Returns (blocks, assets, had_hallucination).  had_hallucination is True when
+    at least one paragraph block was suppressed due to n-gram repetition.
     """
     blocks: list[Block] = []
     new_assets: list[Asset] = []
@@ -1487,19 +1586,23 @@ def _parse_marker_markdown(
     table_lines: list[str] = []
     in_table = False
     para_lines: list[str] = []
+    had_hallucination = False
 
     def flush_para() -> None:
-        nonlocal idx
+        nonlocal idx, had_hallucination
         text = " ".join(para_lines).strip()
         if text:
-            blocks.append(Block(
-                type=BlockType.PARAGRAPH,
-                content=text,
-                page=page_num,
-                index=idx,
-                confidence=ExtractionConfidence.EXTRACTED,
-            ))
-            idx += 1
+            if _is_repetitive_text(text):
+                had_hallucination = True
+            else:
+                blocks.append(Block(
+                    type=BlockType.PARAGRAPH,
+                    content=text,
+                    page=page_num,
+                    index=idx,
+                    confidence=ExtractionConfidence.EXTRACTED,
+                ))
+                idx += 1
         para_lines.clear()
 
     def flush_table() -> None:
@@ -1590,36 +1693,38 @@ def _parse_marker_markdown(
 
     flush_para()
     flush_table()
-    return blocks, new_assets
+    return blocks, new_assets, had_hallucination
 
 
 def _apply_marker_to_image_pages(
     path: Path,
     raw_pages: list[RawPage],
     all_blocks: list[Block],
-) -> tuple[list[Block], list[Asset], int]:
+) -> tuple[list[Block], list[Asset], int, bool]:
     """Re-extract image-only pages using Marker for layout-aware reconstruction.
 
-    Returns (updated_blocks, new_assets, vision_page_count). Each image page is
-    processed as a single-page sub-PDF so blocks are assigned the correct page
-    number. Figure/chart images are stored as Assets and referenced inline in the
-    markdown as ![alt](asset://id) — no AI extraction, just blob + position.
+    Returns (updated_blocks, new_assets, vision_page_count, had_hallucination).
+    Each image page is processed as a single-page sub-PDF so blocks are assigned
+    the correct page number. Figure/chart images are stored as Assets and
+    referenced inline in the markdown as ![alt](asset://id) — no AI extraction,
+    just blob + position.  had_hallucination is True when any page's OCR output
+    was detected as repetitive garbage (e.g. Marker looping on an unknown script).
     """
     image_page_nums = [
         raw.page_num for raw in raw_pages
         if sum(len(s.get("text", "")) for s in raw.spans) < _OCR_TEXT_THRESHOLD
     ]
     if not image_page_nums:
-        return all_blocks, [], 0
+        return all_blocks, [], 0, False
 
     models = _get_marker_models()
     if models is None:
-        return all_blocks, [], 0
+        return all_blocks, [], 0, False
 
     try:
         from marker.converters.pdf import PdfConverter
     except ImportError:
-        return all_blocks, [], 0
+        return all_blocks, [], 0, False
 
     # Remove placeholder blocks (IMAGE / OCR-unavailable messages) for these pages
     image_page_set = set(image_page_nums)
@@ -1628,6 +1733,7 @@ def _apply_marker_to_image_pages(
     marker_blocks: list[Block] = []
     marker_assets: list[Asset] = []
     vision_pages = 0
+    ocr_hallucination = False
     original_pdf = fitz.open(str(path))
 
     for orig_pnum in image_page_nums:
@@ -1641,9 +1747,12 @@ def _apply_marker_to_image_pages(
             converter = PdfConverter(artifact_dict=models)
             rendered = converter(tmp_path)
             marker_images = getattr(rendered, "images", None) or {}
-            page_blocks, page_assets = _parse_marker_markdown(
+            page_blocks, page_assets, page_hallucination = _parse_marker_markdown(
                 rendered.markdown, orig_pnum, marker_images
             )
+            if page_hallucination:
+                ocr_hallucination = True
+                logger.debug("OCR hallucination detected on page %d of %s", orig_pnum, path.name)
             if page_blocks:
                 marker_blocks.extend(page_blocks)
                 marker_assets.extend(page_assets)
@@ -1663,7 +1772,7 @@ def _apply_marker_to_image_pages(
     for i, block in enumerate(combined):
         combined[i] = block.model_copy(update={"index": i})
 
-    return combined, marker_assets, vision_pages
+    return combined, marker_assets, vision_pages, ocr_hallucination
 
 
 # ── Math OCR (Phase 6) ────────────────────────────────────────────────────────
@@ -2186,6 +2295,7 @@ class PDFParser(ParserPlugin):
 
         # Phase 5: Vision enhancement — re-extract image-only pages with Marker
         vision_pages = 0
+        ocr_hallucination = False
         if _marker_available():
             image_page_count = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
             if image_page_count and ctx.progress:
@@ -2193,7 +2303,7 @@ class PDFParser(ParserPlugin):
                     f"Vision model: reconstructing {image_page_count} image page"
                     f"{'s' if image_page_count != 1 else ''} (Marker)"
                 )
-            all_blocks, marker_assets, vision_pages = _apply_marker_to_image_pages(
+            all_blocks, marker_assets, vision_pages, ocr_hallucination = _apply_marker_to_image_pages(
                 path, raw_pages, all_blocks
             )
             all_assets.extend(marker_assets)
@@ -2219,6 +2329,7 @@ class PDFParser(ParserPlugin):
         pdf_metadata["pdf_ocr_available"] = _ocr_available() or vision_pages > 0
         pdf_metadata["pdf_vision_available"] = _marker_available()
         pdf_metadata["pdf_vision_pages"] = vision_pages
+        pdf_metadata["pdf_ocr_hallucination"] = ocr_hallucination
         pdf_metadata["pdf_math_available"] = _math_available()
         pdf_metadata["pdf_math_equations"] = math_equations
 

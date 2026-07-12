@@ -6,12 +6,20 @@ import fitz
 
 from aksharamd.plugins.parsers.pdf import (
     _PDFPLUMBER_CHAR_LIMIT,
+    _apply_inline_fmt,
     _cells_to_markdown,
     _detect_column_boundaries,
     _extract_raw_page,
     _filter_latex_line_numbers,
     _has_interior_intersections,
+    _is_bold,
+    _is_italic,
+    _is_monospace,
     _is_quality_table,
+    _is_repetitive_text,
+    _is_subscript,
+    _is_superscript,
+    _parse_marker_markdown,
     _try_pdfplumber_tables,
 )
 
@@ -210,7 +218,8 @@ def test_quality_rejects_header_adj_split_borderplate():
 
 
 def test_quality_rejects_mostly_empty_cells():
-    """Tables with >50% empty data cells are rejected as layout column artifacts."""
+    """Tables with >65% empty data cells are rejected as layout column artifacts."""
+    # 2/3 empty per row = 66.7% — above the 65% threshold
     md = (
         "| Col A | Col B | Col C |\n| --- | --- | --- |\n"
         "| Long paragraph text here | | |\n"
@@ -219,14 +228,45 @@ def test_quality_rejects_mostly_empty_cells():
     assert not _is_quality_table(md)
 
 
+def test_quality_accepts_sparse_data_table():
+    """Sparse tables up to 65% empty should be accepted (legitimate optional fields)."""
+    # 6 data cells, 3 empty = 50% empty — below the 65% threshold
+    md = (
+        "| Quarter | Revenue | Notes |\n| --- | --- | --- |\n"
+        "| Q1 2024 | 1.2M | |\n"
+        "| Q2 2024 | | Restated |\n"
+        "| Q3 2024 | 1.8M | |\n"
+    )
+    assert _is_quality_table(md)
+
+
+def test_quality_accepts_wide_financial_table():
+    """9-column financial tables should be accepted (raised cap from 8 to 12)."""
+    cols = ["Year", "Q1", "Q2", "Q3", "Q4", "Total", "YoY", "Budget", "Var"]
+    md = "| " + " | ".join(cols) + " |\n"
+    md += "| " + " | ".join("---" for _ in cols) + " |\n"
+    md += "| 2024 | 100 | 200 | 300 | 400 | 1000 | 10% | 950 | 50 |"
+    assert _is_quality_table(md)
+
+
+def test_quality_rejects_thirteen_col():
+    """Tables with > 12 columns are rejected as almost certainly mis-detected."""
+    cols = [f"C{i}" for i in range(13)]
+    md = "| " + " | ".join(cols) + " |\n"
+    md += "| " + " | ".join("---" for _ in cols) + " |\n"
+    md += "| " + " | ".join(str(i) for i in range(13)) + " |"
+    assert not _is_quality_table(md)
+
+
 def test_quality_rejects_prose_cells_avg_word_count():
-    """Tables where avg cell has > 8 words are prose wrapped as columns, not real tables."""
-    # 2-column chapter page: each cell is a sentence fragment
+    """Tables where avg cell exceeds 12 words are prose wrapped as columns."""
+    # Each cell averages ~14 words — above the 12-word threshold
     md = (
         "| Col A | Col B |\n| --- | --- |\n"
-        "| the algorithm must process all incoming requests before | returning the aggregated result to the calling service |\n"
-        "| cache invalidation is triggered whenever the upstream | data source signals a change to the subscriber |\n"
-        "| retry logic applies an exponential backoff strategy | so that transient failures do not cascade downstream |\n"
+        "| the quick brown fox jumped over the lazy dog near the river bank | "
+        "a second long sentence fragment continuing the same narrative paragraph |\n"
+        "| yet another verbose cell with far too many words to be a real data value | "
+        "and one more overlong cell to push the overall average well above twelve words |\n"
     )
     assert not _is_quality_table(md)
 
@@ -274,6 +314,47 @@ def test_border_plus_one_interior_divider_not_enough():
 def test_empty_lines_returns_false():
     assert not _has_interior_intersections([], [])
     assert not _has_interior_intersections([(100.0, 0.0, 500.0)], [])
+
+
+# ── _PDFPLUMBER_TEXT_SETTINGS values ────────────────────────────────────────
+
+def test_pdfplumber_text_settings_thresholds():
+    """Verify the pdfplumber text-strategy settings match expected tuned values."""
+    from aksharamd.plugins.parsers.pdf import _PDFPLUMBER_TEXT_SETTINGS
+    assert _PDFPLUMBER_TEXT_SETTINGS["min_words_vertical"] == 4
+    assert _PDFPLUMBER_TEXT_SETTINGS["min_words_horizontal"] == 2
+    assert _PDFPLUMBER_TEXT_SETTINGS["intersection_tolerance"] == 3
+
+
+# ── _heading_level guards ────────────────────────────────────────────────────
+
+def test_heading_level_rejects_long_prose():
+    """Spans longer than 15 words must never be headings regardless of size or bold."""
+    from aksharamd.plugins.parsers.pdf import _heading_level
+    long_text = "This is a very long sentence that clearly constitutes body prose and not a heading at all"
+    assert len(long_text.split()) > 15
+    assert _heading_level(24.0, bold=True, median=10.0, text=long_text, centered=False) is None
+
+def test_heading_level_h5_requires_ratio_1_10():
+    """H5 now requires ratio >= 1.10 (was 1.05); just-below must not fire.
+
+    Use a 4-word text so the bold body-font path (≤3 words) doesn't fire,
+    isolating the ratio check for H5.
+    """
+    from aksharamd.plugins.parsers.pdf import _heading_level
+    # ratio = 1.08, 4 words — below 1.10 and beyond bold body-font limit → None
+    assert _heading_level(10.8, bold=True, median=10.0, text="This Bold Section Header", centered=False) is None
+    # ratio = 1.12, 4 words — above 1.10 → H5
+    level = _heading_level(11.2, bold=True, median=10.0, text="This Bold Section Header", centered=False)
+    assert level == 5
+
+def test_heading_level_bold_body_font_max_3_words():
+    """Bold body-font headings require ≤3 words (was ≤4); 4-word text must not fire."""
+    from aksharamd.plugins.parsers.pdf import _heading_level
+    # 4 words, ratio ≈ 1.0, bold — previously matched, now should not
+    assert _heading_level(10.0, bold=True, median=10.0, text="Four Word Bold Title", centered=False) is None
+    # 3 words, ratio ≈ 1.0, bold — should still match
+    assert _heading_level(10.0, bold=True, median=10.0, text="Three Word Title", centered=False) == 4
 
 
 # ── _try_pdfplumber_tables ───────────────────────────────────────────────────
@@ -341,6 +422,144 @@ def test_quality_accepts_wide_numbered_table():
     """A >3-column table with integer first column should NOT be rejected by the narrow-table guard."""
     md = "| 1 | Parameter | Value | Unit |\n| --- | --- | --- | --- |\n| 2 | Temperature | 28 | C |\n| 3 | Humidity | 45 | pct |"
     assert _is_quality_table(md)
+
+
+# ── _is_superscript / _is_subscript / _is_monospace ──────────────────────────
+
+def test_superscript_detected_by_flag():
+    assert _is_superscript(flags=1, font_name="")  # bit 0 = TEXT_FONT_SUPERSCRIPT
+
+def test_superscript_not_detected_on_plain_span():
+    assert not _is_superscript(flags=0, font_name="Arial")
+
+def test_superscript_detected_by_font_name():
+    assert _is_superscript(flags=0, font_name="CMSY10-SuperscriptMath")
+
+def test_subscript_detected_by_font_name():
+    assert _is_subscript(font_name="ChemSub10")
+
+def test_subscript_not_detected_on_plain_font():
+    assert not _is_subscript(font_name="Helvetica")
+
+def test_monospace_detected_by_flag():
+    assert _is_monospace(flags=8, font_name="")  # bit 3 = TEXT_FONT_MONOSPACED
+
+def test_monospace_detected_by_courier():
+    assert _is_monospace(flags=0, font_name="Courier-Bold")
+
+def test_monospace_detected_by_consolas():
+    assert _is_monospace(flags=0, font_name="Consolas")
+
+def test_monospace_not_detected_on_serif():
+    assert not _is_monospace(flags=0, font_name="TimesNewRoman")
+
+
+# ── _apply_inline_fmt — sup / sub ─────────────────────────────────────────────
+
+def test_apply_sup_wraps_text():
+    assert _apply_inline_fmt("ref", False, False, False, False, sup=True) == "<sup>ref</sup>"
+
+def test_apply_sub_wraps_text():
+    assert _apply_inline_fmt("2", False, False, False, False, sub=True) == "<sub>2</sub>"
+
+def test_apply_sup_outermost_over_bold():
+    result = _apply_inline_fmt("text", bold=True, italic=False, strikethrough=False, underline=False, sup=True)
+    assert result == "<sup>**text**</sup>"
+
+def test_apply_sup_and_sub_mutually_exclusive():
+    # sup takes priority
+    result = _apply_inline_fmt("x", False, False, False, False, sup=True, sub=True)
+    assert "<sup>" in result
+    assert "<sub>" not in result
+
+def test_apply_no_sup_no_sub_unchanged():
+    assert _apply_inline_fmt("plain", False, False, False, False) == "plain"
+
+
+# ── _cells_to_markdown — footnote superscript stripping ──────────────────────
+
+def test_cells_strips_trailing_superscript_number():
+    """Footnote markers appended to cell values should not affect cell text."""
+    cells = [["Product¹", "Value²"], ["---", "---"], ["Apples³", "100"]]
+    md = _cells_to_markdown(cells)
+    assert "¹" not in md
+    assert "²" not in md
+    assert "³" not in md
+    assert "Product" in md
+    assert "Apples" in md
+
+def test_cells_strips_zero_width_chars():
+    """Zero-width spaces embedded by some PDF producers should be removed."""
+    cells = [["Col​A", "Col​B"], ["---", "---"], ["val1", "val2"]]
+    md = _cells_to_markdown(cells)
+    assert "​" not in md
+
+
+# ── _is_repetitive_text ───────────────────────────────────────────────────────
+
+def test_repetitive_text_detects_marker_loop():
+    """Marker OCR hallucination: endless 4-gram repetition must be flagged."""
+    loop = "the state of the state of " * 50
+    assert _is_repetitive_text(loop)
+
+
+def test_repetitive_text_accepts_normal_prose():
+    """Normal prose with incidental repeated function-word 4-grams must pass."""
+    prose = (
+        "The quick brown fox jumps over the lazy dog. "
+        "A fast red car drives past the slow blue truck. "
+        "Revenue increased by twelve percent in the third quarter. "
+        "All indicators point toward continued growth in the sector."
+    )
+    assert not _is_repetitive_text(prose)
+
+
+def test_repetitive_text_short_text_always_passes():
+    """Texts shorter than 16 words are never flagged regardless of content."""
+    short = "the the the the the the the the the the"
+    assert not _is_repetitive_text(short)
+
+
+def test_repetitive_text_threshold_respected():
+    """A text just under the 15% threshold must not be flagged."""
+    # 100 unique 4-grams then 10 duplicates = 9.1% < 15%
+    unique_words = [f"word{i}" for i in range(104)]
+    text = " ".join(unique_words)
+    assert not _is_repetitive_text(text)
+
+
+# ── _parse_marker_markdown — hallucination detection ─────────────────────────
+
+def test_parse_marker_markdown_suppresses_repetitive_block():
+    """A paragraph block that is pure OCR repetition must be dropped and had_hallucination=True."""
+    loop_text = "the state of the state of " * 60
+    blocks, assets, had_hallucination = _parse_marker_markdown(loop_text, page_num=1)
+    assert had_hallucination
+    assert not blocks
+
+
+def test_parse_marker_markdown_normal_text_not_flagged():
+    """Normal OCR output must pass through with had_hallucination=False."""
+    text = (
+        "Revenue increased by twelve percent in the third quarter of fiscal year twenty twenty four. "
+        "All key performance indicators remain within expected bounds for the reporting period."
+    )
+    blocks, assets, had_hallucination = _parse_marker_markdown(text, page_num=1)
+    assert not had_hallucination
+    assert blocks
+
+
+def test_parse_marker_markdown_mixed_page():
+    """Page with one good paragraph and one repetitive paragraph: hallucination=True, good block kept."""
+    good = (
+        "Revenue increased by twelve percent in the third quarter of fiscal year twenty twenty four. "
+        "All key performance indicators remain within expected bounds for the reporting period."
+    )
+    bad = "the state of the state of " * 60
+    md = good + "\n\n" + bad
+    blocks, assets, had_hallucination = _parse_marker_markdown(md, page_num=1)
+    assert had_hallucination
+    assert any(good[:30] in b.content for b in blocks)
 
 
 # ── _filter_latex_line_numbers ───────────────────────────────────────────────
@@ -610,3 +829,44 @@ def test_span_with_only_invisible_chars_is_dropped():
     result = _extract_raw_page(fake_pdf, page_num=1)
 
     assert result.spans == [], "all-invisible span should produce zero output spans"
+
+
+# ── _is_bold / _is_italic — font-name fallback ──────────────────────────────
+
+def test_bold_flag_takes_priority():
+    assert _is_bold(2**4, "")
+    assert _is_bold(2**4, "ArialMT")
+
+
+def test_bold_font_name_fallback_common_variants():
+    assert _is_bold(0, "Arial-BoldMT")
+    assert _is_bold(0, "Helvetica-Bold")
+    assert _is_bold(0, "TimesNewRomanPS-BoldMT")
+    assert _is_bold(0, "BCDEEF+Calibri-Bold")
+    assert _is_bold(0, "NimbusSans-Heavy")
+    assert _is_bold(0, "GillSans-Black")
+
+
+def test_bold_no_false_positive_plain_fonts():
+    assert not _is_bold(0, "ArialMT")
+    assert not _is_bold(0, "Helvetica")
+    assert not _is_bold(0, "TimesNewRomanPSMT")
+    assert not _is_bold(0, "")
+
+
+def test_italic_flag_takes_priority():
+    assert _is_italic(2**1, "")
+    assert _is_italic(2**1, "ArialMT")
+
+
+def test_italic_font_name_fallback_common_variants():
+    assert _is_italic(0, "Arial-ItalicMT")
+    assert _is_italic(0, "TimesNewRomanPS-ItalicMT")
+    assert _is_italic(0, "Helvetica-Oblique")
+    assert _is_italic(0, "BCDEEF+Calibri-Italic")
+
+
+def test_italic_no_false_positive_plain_fonts():
+    assert not _is_italic(0, "ArialMT")
+    assert not _is_italic(0, "Helvetica")
+    assert not _is_italic(0, "")
