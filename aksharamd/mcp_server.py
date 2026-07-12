@@ -367,6 +367,63 @@ def get_stats() -> str:
         return f"Error reading stats: {e}"
 
 
+@mcp.tool()
+def search_index(query: str, n_results: int = 5) -> str:
+    """Search the local pre-indexed document knowledge base using semantic similarity.
+
+    Returns relevant text chunks from documents indexed by 'aksharamd watch'.
+    All data is stored and searched locally — nothing leaves the machine.
+
+    Requires the [index] extra: pip install "aksharamd[index]"
+
+    Args:
+        query: Natural language search query.
+        n_results: Number of results to return (default 5, max 20).
+
+    Returns:
+        Matching document chunks with source filename, page, and block type.
+    """
+    try:
+        from aksharamd.index import IndexConfig, VectorStore, get_embedder
+    except ImportError:
+        return 'The [index] extra is not installed. Run: pip install "aksharamd[index]"'
+
+    try:
+        cfg = IndexConfig()
+        store = VectorStore(cfg.chromadb_path)
+
+        if store.count() == 0:
+            return (
+                "The local index is empty. "
+                "Run 'aksharamd watch <folder>' to index documents first."
+            )
+
+        embedder = get_embedder(cfg.embedding_model)
+        query_embedding = embedder.embed([query])[0]
+        hits = store.search(query_embedding, n_results=min(n_results, 20))
+
+        if not hits:
+            return "No relevant documents found in the local index."
+
+        from pathlib import Path as _Path
+        lines = [f"## Search results for: {query!r}\n"]
+        for i, hit in enumerate(hits, 1):
+            meta = hit["metadata"]
+            source = _Path(meta.get("source", "unknown")).name
+            page = meta.get("page", "?")
+            btype = meta.get("block_type", "?")
+            score = meta.get("readiness_score", "?")
+            text = hit["text"]
+            lines.append(f"### [{i}] {source} — page {page} ({btype}, readiness {score}/100)")
+            lines.append(text)
+            lines.append("")
+
+        return "\n".join(lines)
+
+    except Exception as exc:
+        return f"Error searching index: {exc}"
+
+
 # ── entry point ────────────────────────────────────────────────────────────────
 
 def _build_parser() -> argparse.ArgumentParser:

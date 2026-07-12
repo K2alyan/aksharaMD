@@ -81,8 +81,13 @@ vision = [
 math = [
     "pix2tex>=0.1.1",
 ]
+index = [
+    "watchdog>=4.0",
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
+]
 full = [
-    "aksharamd[audio,ocr,cloud,vision,math]",
+    "aksharamd[audio,ocr,cloud,vision,math,index]",
 ]
 eval = [
     "anthropic>=0.40",

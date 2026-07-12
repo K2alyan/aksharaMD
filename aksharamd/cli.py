@@ -1133,3 +1133,253 @@ def formats():
         parser_name = cls.name if cls and hasattr(cls, "name") else "unknown"
         t.add_row(f".{ext}", parser_name)
     console.print(Panel(t, title="[bold]Supported Formats[/]", border_style="blue"))
+
+
+# ── Local index ────────────────────────────────────────────────────────────────
+
+def _require_index_extra() -> None:
+    """Exit with an install hint if the [index] extra packages are missing."""
+    import importlib.util
+
+    missing = [
+        pkg for pkg in ("watchdog", "chromadb", "sentence_transformers")
+        if importlib.util.find_spec(pkg) is None
+    ]
+    if missing:
+        console.print(
+            f"[red]Missing packages for the index feature: {', '.join(missing)}[/red]\n"
+            '[dim]Install with: [bold]pip install "aksharamd[index]"[/bold][/dim]'
+        )
+        raise SystemExit(1)
+
+
+def _get_index_config(index_dir: str | None):
+    from aksharamd.index import IndexConfig
+    if index_dir:
+        return IndexConfig(index_dir=Path(index_dir))
+    return IndexConfig()
+
+
+@main.command()
+@click.argument("folder", type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
+@click.option("--model", "embedding_model", default="all-MiniLM-L6-v2", show_default=True,
+              help="Embedding model name, or 'ollama:<model>' for a local Ollama server.")
+@click.option("--threshold", default=50, show_default=True, type=int,
+              help="Minimum readiness score (0-100) required to index a document.")
+@click.option("--index-dir", default=None, metavar="DIR",
+              help="Index storage directory (default: ~/.aksharamd/index/).")
+def watch(folder: str, embedding_model: str, threshold: int, index_dir: str | None) -> None:
+    """Watch FOLDER and auto-index documents as they arrive.
+
+    Compiles each new or changed file through AksharaMD, embeds the content
+    blocks, and stores them in a local ChromaDB. All data stays on-device.
+
+    Runs in the foreground — press Ctrl+C to stop. For background operation
+    use your OS tools (launchd / systemd / nohup).
+    """
+    _require_index_extra()
+    import threading
+
+    from aksharamd.index import InboxWatcher, IndexConfig, IndexQueue, VectorStore, get_embedder, process_file
+
+    cfg = IndexConfig(
+        index_dir=Path(index_dir) if index_dir else IndexConfig().index_dir,
+        embedding_model=embedding_model,
+        min_readiness_score=threshold,
+    )
+
+    console.print(Panel(
+        f"[bold]Folder:[/bold]    {folder}\n"
+        f"[bold]Index:[/bold]     {cfg.index_dir}\n"
+        f"[bold]Threshold:[/bold] {threshold}/100 readiness\n"
+        f"[bold]Embedder:[/bold]  {embedding_model}\n\n"
+        "[dim]Press Ctrl+C to stop.[/dim]",
+        title="[bold]AksharaMD Watch[/]",
+        border_style="blue",
+    ))
+
+    queue = IndexQueue(cfg.db_path)
+    store = VectorStore(cfg.chromadb_path)
+
+    console.print("[dim]Loading embedding model...[/dim] ", end="")
+    try:
+        embedder = get_embedder(embedding_model)
+        _ = embedder.dimension  # force model load now so the watcher starts fast
+        console.print("[green]ready[/green]")
+    except Exception as exc:
+        console.print(f"\n[red]Failed to load embedder:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    stop_event = threading.Event()
+
+    def _enqueue(path: str) -> bool:
+        try:
+            queued = queue.enqueue(path)
+        except FileNotFoundError:
+            return False
+        if queued:
+            console.print(f"  [cyan]+[/cyan] queued   {Path(path).name}")
+        else:
+            console.print(f"  [dim]~ skip    {Path(path).name} (unchanged)[/dim]")
+        return queued
+
+    def _worker_loop() -> None:
+        while not stop_event.is_set():
+            path = queue.dequeue()
+            if path is None:
+                stop_event.wait(timeout=1.0)
+                continue
+            name = Path(path).name
+            console.print(f"  [yellow]>[/yellow] indexing {name}...")
+            process_file(path, queue, store, embedder, cfg)
+            cur_stats = queue.stats()
+            jobs_done = cur_stats.get("done", 0)
+            jobs_total = sum(cur_stats.values())
+            finished = queue.list_all(status="done")
+            if finished and finished[0].path == path:
+                console.print(f"  [green]done[/green]     {name}  [{jobs_done}/{jobs_total}]")
+            else:
+                console.print(f"  [yellow]flagged[/yellow]  {name}  [{jobs_done}/{jobs_total}]")
+
+    with InboxWatcher(Path(folder), _enqueue):
+        worker_thread = threading.Thread(target=_worker_loop, daemon=True)
+        worker_thread.start()
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            console.print("\n[dim]Stopping...[/dim]")
+            stop_event.set()
+            worker_thread.join(timeout=5)
+            console.print("[dim]Stopped.[/dim]")
+
+
+@main.group()
+def index() -> None:
+    """Manage the local document index."""
+
+
+@index.command("status")
+@click.option("--index-dir", default=None, metavar="DIR")
+def index_status(index_dir: str | None) -> None:
+    """Show queue and index statistics."""
+    _require_index_extra()
+    from aksharamd.index import IndexQueue, VectorStore
+
+    cfg = _get_index_config(index_dir)
+    queue = IndexQueue(cfg.db_path)
+    store = VectorStore(cfg.chromadb_path)
+
+    q_stats = queue.stats()
+    i_stats = store.stats()
+
+    t = Table(box=box.ROUNDED, header_style="bold cyan", show_header=True)
+    t.add_column("Metric")
+    t.add_column("Value", justify="right")
+
+    status_colors = {"done": "green", "error": "red", "low_quality": "yellow",
+                     "pending": "cyan", "processing": "blue"}
+    for status, count in sorted(q_stats.items()):
+        color = status_colors.get(status, "white")
+        t.add_row(f"Queue — [{color}]{status}[/{color}]", str(count))
+
+    t.add_row("[bold]Index — files[/bold]", str(i_stats["total_files"]))
+    t.add_row("[bold]Index — chunks[/bold]", str(i_stats["total_chunks"]))
+    t.add_row("[dim]Location[/dim]", str(cfg.index_dir))
+
+    console.print(Panel(t, title="[bold]Index Status[/]", border_style="blue"))
+
+
+@index.command("list")
+@click.option("--status", default=None, metavar="STATUS",
+              help="Filter by status: done, pending, error, low_quality")
+@click.option("--index-dir", default=None, metavar="DIR")
+def index_list(status: str | None, index_dir: str | None) -> None:
+    """List files tracked by the index queue."""
+    _require_index_extra()
+    from aksharamd.index import IndexQueue
+
+    cfg = _get_index_config(index_dir)
+    queue = IndexQueue(cfg.db_path)
+    jobs = queue.list_all(status=status)
+
+    if not jobs:
+        console.print("[dim]No files found.[/dim]")
+        return
+
+    t = Table(box=box.SIMPLE, header_style="bold cyan", show_header=True)
+    t.add_column("File", min_width=30)
+    t.add_column("Status", min_width=12)
+    t.add_column("Score", justify="right")
+    t.add_column("Chunks", justify="right")
+
+    status_colors = {"done": "green", "error": "red", "low_quality": "yellow",
+                     "pending": "cyan", "processing": "blue"}
+    for job in jobs:
+        color = status_colors.get(job.status, "white")
+        t.add_row(
+            Path(job.path).name,
+            f"[{color}]{job.status}[/{color}]",
+            str(job.readiness_score) if job.readiness_score is not None else "-",
+            str(job.chunk_count) if job.chunk_count is not None else "-",
+        )
+    console.print(t)
+
+
+@index.command("clear")
+@click.option("--yes", is_flag=True, default=False, help="Skip confirmation prompt.")
+@click.option("--index-dir", default=None, metavar="DIR")
+def index_clear(yes: bool, index_dir: str | None) -> None:
+    """Remove all indexed documents and reset the queue."""
+    if not yes:
+        click.confirm("This will delete all indexed data. Continue?", abort=True)
+    _require_index_extra()
+    from aksharamd.index import IndexQueue, VectorStore
+
+    cfg = _get_index_config(index_dir)
+    IndexQueue(cfg.db_path).reset_all_jobs()
+    VectorStore(cfg.chromadb_path).clear()
+    console.print("[green]Index cleared.[/green]")
+
+
+@index.command("search")
+@click.argument("query")
+@click.option("-n", "--results", default=5, show_default=True, type=int,
+              help="Number of results to return.")
+@click.option("--index-dir", default=None, metavar="DIR")
+def index_search(query: str, results: int, index_dir: str | None) -> None:
+    """Search the local document index with a natural-language query."""
+    _require_index_extra()
+    from aksharamd.index import VectorStore, get_embedder
+
+    cfg = _get_index_config(index_dir)
+    store = VectorStore(cfg.chromadb_path)
+
+    if store.count() == 0:
+        console.print(
+            "[yellow]Index is empty.[/yellow]  "
+            "Run [bold]aksharamd watch <folder>[/bold] to index documents first."
+        )
+        return
+
+    embedder = get_embedder(cfg.embedding_model)
+    query_emb = embedder.embed([query])[0]
+    hits = store.search(query_emb, n_results=results)
+
+    if not hits:
+        console.print("[dim]No results found.[/dim]")
+        return
+
+    console.print(f"\n[bold]Results for:[/bold] {query}\n")
+    for i, hit in enumerate(hits, 1):
+        meta = hit["metadata"]
+        source = Path(meta.get("source", "unknown")).name
+        page = meta.get("page", "?")
+        btype = meta.get("block_type", "?")
+        score = meta.get("readiness_score", "?")
+        snippet = hit["text"][:300] + ("..." if len(hit["text"]) > 300 else "")
+        console.print(
+            f"[bold cyan][{i}][/bold cyan] [dim]{source}[/dim]"
+            f"  p.{page} · {btype} · readiness {score}/100"
+        )
+        console.print(f"    {snippet}\n")
