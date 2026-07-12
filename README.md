@@ -31,7 +31,7 @@ AksharaMD produces a quality signal alongside the content:
 
 - **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — on every compilation
 - **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
-- **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, and five more — tell you exactly what's wrong and how to fix it
+- **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `OCR_HALLUCINATION`, and others — tell you exactly what's wrong and how to fix it
 - **Score drops automatically** when extraction is unreliable — no manual checking required
 
 ### One tool. Every format. No stitching.
@@ -39,6 +39,16 @@ AksharaMD produces a quality signal alongside the content:
 Most teams assemble document pipelines from multiple tools: one for PDFs, another for scanned pages, another for spreadsheets, another for audio. Each has its own output format, its own failure modes, its own maintenance cost. When a new document type arrives, the pipeline breaks.
 
 AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and more — with a single consistent output format and a single quality signal across 40+ document categories and 118 registered extensions. Install once, handle whatever your users throw at you.
+
+### Rich structure, not flat text
+
+AksharaMD preserves document semantics in its output — not just plain text extraction:
+
+- **Headings** are emitted as Markdown headings (`#`, `##`, …) with level inferred from font size and weight
+- **Inline formatting** — bold (`**text**`), italic (`*text*`), underline (`<u>text</u>`), strikethrough (`~~text~~`), superscript (`<sup>text</sup>`), subscript (`<sub>text</sub>`) — is retained from the source document
+- **Code blocks** are detected from monospace fonts and emitted as triple-backtick fences
+- **Tables** are reconstructed as Markdown pipe tables with column alignment
+- **Semantic chunks** carry block-type metadata so downstream code can treat tables, headings, and paragraphs differently
 
 ### The token and speed problem
 
@@ -200,35 +210,6 @@ These add support for niche formats and require no `pip install` — just the bi
 |--------|-------------|
 | Legacy Office (`.doc`, `.ppt`) | [LibreOffice](https://www.libreoffice.org) on PATH |
 | AsciiDoc, Org-mode, Textile, MediaWiki, DocBook, man/roff, OPML | [Pandoc](https://pandoc.org/installing.html) on PATH |
-
----
-
-## Known Limitations
-
-The core pipeline is stable and production-tested across 118 file extensions, but please note the following before using in production workflows.
-
-**OCR for scanned PDFs requires a system binary.**
-`pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. You must also install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and make sure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce a RISKY or POOR score and an `OCR_REQUIRED` warning.
-
-**Tesseract OCR extracts text from image pages but cannot reconstruct image-based tables.**
-When a scanned PDF contains tables rendered as images (e.g. spreadsheet-style grids saved as PNG), Tesseract reads the cell text as a flat stream of paragraphs — column structure is lost. For layout-aware table reconstruction from image pages, install the optional Marker integration: `pip install "aksharamd[vision]"`. Marker uses neural layout detection to recover table structure. It requires PyTorch and downloads approximately 3 GB of model weights on first run. For offline / air-gapped use, pre-cache the models on a connected machine and copy them:
-```bash
-python -c "from marker.models import create_model_dict; create_model_dict()"
-# Then copy ~/.cache/huggingface/hub/ to the target machine and set:
-# export HF_HUB_OFFLINE=1
-```
-
-**Complex PPTX layouts are supported but experimental.**
-Standard slide content, bullet points, and embedded tables extract reliably. Complex animations, heavily layered slide masters, and custom layout templates may produce incomplete output.
-
-**Outlook `.msg` parsing is lower-confidence than EML/DOCX/PDF.**
-The `.msg` format is a proprietary binary container. Body text and attachments extract correctly in most cases, but embedded calendar objects, rich-text encoding edge cases, and S/MIME-signed messages may not parse completely.
-
-**Windows: prefer Windows Terminal or PowerShell 7.**
-Legacy `cmd.exe` uses the cp1252 code page, which cannot render some Unicode characters used in the CLI output (e.g. box-drawing lines from Rich). Run AksharaMD in [Windows Terminal](https://aka.ms/terminal), VS Code's integrated terminal, or PowerShell 7. Setting `PYTHONUTF8=1` also resolves most encoding issues.
-
-**`mcp-config --write` creates an automatic backup.**
-Before overwriting your Claude Desktop config, AksharaMD saves a timestamped copy (e.g. `claude_desktop_config.1720123456.bak.json`) in the same directory. No data is lost, but you may want to clean these up manually after confirming the new config works.
 
 ---
 
@@ -790,6 +771,54 @@ Full corpus documentation: [`benchmarks/PUBLIC_BENCHMARK.md`](benchmarks/PUBLIC_
 
 ---
 
+### Generation 4 — ParseBench structural evaluation (1,537 PDFs, July 2026)
+
+> ParseBench measures structural parsing fidelity, not LLM QA accuracy. It is complementary to the LLM accuracy study above — they test different properties of the same pipeline.
+
+**When:** AksharaMD v0.3.6. **Scope:** [ParseBench](https://github.com/example/parsebench) evaluates document parsers on 1,537 real enterprise PDFs across five dimensions using rule-based metrics. All files are text-layer PDFs — scanned documents are out of scope for this evaluation.
+
+| Dimension | Score | Notes |
+|-----------|-------|-------|
+| Semantic Formatting | **37.6%** | Heading detection, hierarchy, inline formatting (bold/italic/underline/strikethrough/superscript/subscript/code) |
+| Content Faithfulness | **61.4%** | Text recall on 506 evaluated documents (n=1 previously) |
+| Tables — GRiTS Con (all) | **26.9%** | Cell content correctness across all detected tables |
+| Tables — GRiTS Con (predicted only) | **49.9%** | Per-table precision on tables the parser chose to emit |
+| Charts | **1.9%** | Chart extraction is not a goal of this pipeline |
+
+The semantic formatting score reflects that inline markup rules (bold, italic, heading hierarchy) are correctly applied on roughly 38% of evaluation cases — a leading result given that most parsers emit flat text with no inline formatting at all. Content faithfulness at 61.4% is measured on a 16× larger sample than prior runs (506 vs 31 documents), making it a more reliable estimate.
+
+Tables show a precision-coverage tradeoff: loosened quality gates increased overall table detection (GRiTS Con 23.4% → 26.9%) at some cost to per-table precision (predicted-only 56.3% → 49.9%), because the parser now attempts more borderline tables.
+
+#### MGAM standalone evaluator
+
+`benchmarks/mgam_eval/` implements [Multi-Granularity Adaptive Matching](https://arxiv.org/abs/2412.07626) (OmniDocBench, CVPR 2025) as a standalone content-recall evaluator. Unlike ParseBench's rule-based metrics, MGAM merges consecutive prediction blocks until similarity stops improving — giving more forgiving, human-aligned recall scores that tolerate minor reordering and segmentation differences.
+
+Baseline scores on the bundled 5-document synthetic corpus:
+
+| Document type | Recall | F1 |
+|---|---|---|
+| Simple prose | 100% | 100% |
+| Headed document | 100% | 97.4% |
+| Table document | 100% | 90.0% |
+| Formatted (inline markup) | 100% | 90.9% |
+| Two-column layout | 65.1% | 66.1% |
+| **Mean** | **93.0%** | **88.3%** |
+
+The two-column result exposes a known gap: content is present but column interleaving is not yet reading-order-correct. All other document types score above 90% F1.
+
+```bash
+# Evaluate a directory of PDFs (uses colocated .ref.txt files or PyMuPDF oracle)
+python -m benchmarks.mgam_eval.run path/to/pdfs/
+
+# Run and score the bundled synthetic corpus
+python -m benchmarks.mgam_eval.run --corpus
+
+# Write results to JSON
+python -m benchmarks.mgam_eval.run path/to/pdfs/ --json results.json
+```
+
+---
+
 ## Architecture
 
 ```
@@ -838,6 +867,21 @@ These are current boundaries of the system. They are not bugs.
 **No structured logging.** Log output is plain text. Per-request trace IDs, JSON-formatted logs, and Prometheus metrics (request count, latency histograms, token savings counters) are on the roadmap for the HTTP MCP server deployment path.
 
 **Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
+
+**Outlook `.msg` parsing.** Body text and attachments extract correctly in most cases, but embedded calendar objects, rich-text encoding edge cases, and S/MIME-signed messages may not parse completely.
+
+**Complex PPTX layouts.** Standard slide content, bullet points, and embedded tables extract reliably. Complex animations, heavily layered slide masters, and custom layout templates may produce incomplete output.
+
+**Windows: prefer Windows Terminal or PowerShell 7.** Legacy `cmd.exe` uses the cp1252 code page and cannot render some Unicode characters in the CLI output. Run AksharaMD in [Windows Terminal](https://aka.ms/terminal), VS Code's integrated terminal, or PowerShell 7. `PYTHONUTF8=1` also resolves most encoding issues.
+
+**`mcp-config --write` creates an automatic backup.** Before overwriting your Claude Desktop config, AksharaMD saves a timestamped copy (e.g. `claude_desktop_config.1720123456.bak.json`) in the same directory. You may want to clean these up after confirming the new config works.
+
+**OCR for scanned PDFs requires a system binary.** `pip install "aksharamd[ocr]"` installs the Python wrapper (`pytesseract`) but not Tesseract itself. Install [Tesseract 5+](https://github.com/tesseract-ocr/tesseract) at the OS level and ensure the `tesseract` binary is on your `PATH`. Without it, scanned pages produce an `OCR_REQUIRED` warning and a RISKY or POOR score. For offline / air-gapped use with the `[vision]` extra, pre-cache Marker's models on a connected machine:
+```bash
+python -c "from marker.models import create_model_dict; create_model_dict()"
+# Copy ~/.cache/huggingface/hub/ to the target machine, then:
+# export HF_HUB_OFFLINE=1
+```
 
 ---
 
