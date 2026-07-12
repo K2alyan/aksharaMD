@@ -798,6 +798,10 @@ _PDFPLUMBER_CHAR_LIMIT = 3000
 # Parallel Phase-1 I/O: use concurrent readers above this page threshold.
 _PARALLEL_IO_THRESHOLD = 20
 _PARALLEL_IO_WORKERS = 4
+# Hard cap on pages processed per document.  Very large PDFs (textbooks, law
+# compilations) can consume unbounded memory during parallel extraction.
+# Override with AKSHARAMD_MAX_PDF_PAGES.
+_MAX_PDF_PAGES = int(os.environ.get("AKSHARAMD_MAX_PDF_PAGES", "2000"))
 
 
 class RawPage(NamedTuple):
@@ -2202,6 +2206,15 @@ class PDFParser(ParserPlugin):
         if page_count == 0 and not pdf.is_encrypted:
             pdf.close()
             return _pdfplumber_fallback(path, ctx)
+
+        if page_count > _MAX_PDF_PAGES:
+            pdf.close()
+            ctx.error(
+                "PDF_TOO_MANY_PAGES",
+                f"PDF has {page_count} pages; limit is {_MAX_PDF_PAGES}. "
+                f"Set AKSHARAMD_MAX_PDF_PAGES to increase the limit.",
+            )
+            return ctx
 
         # Collect document-level metadata before Phase 1 I/O (independent of page content).
         pdf_metadata = dict(pdf.metadata)

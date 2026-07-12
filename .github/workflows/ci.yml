@@ -90,6 +90,136 @@ jobs:
             --cov-report=xml \
             --cov-fail-under=72
 
+  # ── Installed-wheel smoke test ────────────────────────────────────────────────
+  # Builds a real wheel and installs it without -e to catch packaging issues
+  # (missing package_data, broken entry points, import-time side effects, etc.)
+  wheel-smoke:
+    name: Wheel Smoke (Ubuntu, Python 3.12)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Install wheel (no editable install)
+        run: |
+          WHEEL=$(ls dist/aksharamd-*.whl)
+          pip install "${WHEEL}[dev]"
+
+      - name: Verify entry points
+        run: |
+          aksharamd --help
+          aksharamd-mcp --help
+
+      - name: Smoke compile markdown
+        run: |
+          printf '# Hello\n\nThis is a smoke test for the installed wheel.\n' > /tmp/smoke.md
+          aksharamd compile /tmp/smoke.md -o /tmp/smoke-out
+          test -f /tmp/smoke-out/document.md
+
+      - name: Run targeted tests against installed wheel
+        run: pytest tests/test_cli.py tests/test_compiler.py tests/test_security.py -q --tb=short
+
+  # ── macOS smoke test ─────────────────────────────────────────────────────────
+  macos-smoke:
+    name: macOS Smoke (Python 3.12)
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Smoke test - help
+        run: aksharamd --help
+
+      - name: Smoke test - compile
+        run: |
+          printf '# Hello\n\nThis is a macOS smoke test.\n' > /tmp/smoke.md
+          aksharamd compile /tmp/smoke.md -o /tmp/smoke-out
+          test -f /tmp/smoke-out/document.md
+
+      - name: Smoke test - targeted tests
+        run: pytest tests/test_cli.py tests/test_compiler.py tests/test_security.py -q --tb=short
+
+  # ── Extras dependency-resolution checks ──────────────────────────────────────
+  # Verifies that optional extras install cleanly without breaking the base package.
+  # Light extras (cloud, ocr, index) are fully installed and import-tested.
+  # Heavy extras (audio, vision, math) are resolution-checked only (--dry-run)
+  # to avoid downloading multi-GB PyTorch wheels on CI.
+  extras-resolve:
+    name: Extras (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: ["cloud", "ocr", "index"]
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system dependencies (ocr only)
+        if: matrix.extra == 'ocr'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y tesseract-ocr
+
+      - name: Install extra
+        run: pip install -e ".[${{ matrix.extra }}]"
+
+      - name: Verify base import
+        run: python -c "import aksharamd; print(aksharamd.__version__)"
+
+  extras-resolve-heavy:
+    name: Extras dry-run (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: ["audio", "vision", "math"]
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Build wheel for resolution check
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Check dependency resolution (no download)
+        run: |
+          WHEEL=$(ls dist/aksharamd-*.whl)
+          uv pip install --dry-run "${WHEEL}[${{ matrix.extra }}]"
+
+  # ── Windows smoke test ────────────────────────────────────────────────────────
   windows-smoke:
     name: Windows Smoke (Python 3.11)
     runs-on: windows-latest

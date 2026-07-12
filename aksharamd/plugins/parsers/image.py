@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 from pathlib import Path
@@ -41,6 +42,9 @@ _MIN_OCR_CHARS = 10        # discard results shorter than this
 _MIN_WORD_RATIO = 0.3      # discard if fewer than 30% of tokens look like real words
 _MIN_OCR_CONFIDENCE = 40   # Tesseract per-word confidence 0–100; mean below this → discard
 _WORD_RE = re.compile(r"[A-Za-z]{2,}")
+# Per-image Tesseract timeout in seconds.  High-DPI images with complex layouts
+# can take several minutes; cap to avoid pipeline stalls on adversarial inputs.
+_OCR_TIMEOUT_SECONDS = int(os.environ.get("AKSHARAMD_OCR_TIMEOUT", "60"))
 
 # Pixel-dimension safety limits.  img.size is read from the file header before
 # img.load() decodes pixel data, so these checks cost nothing and block images
@@ -164,6 +168,7 @@ def _try_ocr(img) -> str | None:
             preprocessed,
             config="--psm 3",
             output_type=pytesseract.Output.DICT,
+            timeout=_OCR_TIMEOUT_SECONDS,
         )
 
         # Mean confidence over all scored segments (conf=-1 = non-text structure rows)
@@ -234,6 +239,7 @@ def _try_ocr_structured(img) -> list[tuple]:
             preprocessed,
             config="--psm 3",
             output_type=pytesseract.Output.DICT,
+            timeout=_OCR_TIMEOUT_SECONDS,
         )
 
         conf_vals = [int(c) for c in data["conf"] if int(c) >= 0]

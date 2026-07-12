@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -17,6 +18,8 @@ _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _LEVEL_SUFFIX_RE = re.compile(r'\s+(\d+)$')
 _W_BR = f"{{{_W_NS}}}br"
 _W_TYPE = f"{{{_W_NS}}}type"
+# Cap paragraph count to prevent memory exhaustion on adversarially large documents.
+_MAX_DOCX_PARAGRAPHS = int(os.environ.get("AKSHARAMD_MAX_DOCX_PARAGRAPHS", "10000"))
 
 
 def _has_page_break(para_el) -> bool:
@@ -204,6 +207,14 @@ class DocxParser(ParserPlugin):
         body = doc.element.body
         para_map = {p._element: p for p in doc.paragraphs}
         table_map = {t._element: t for t in doc.tables}
+
+        if len(para_map) > _MAX_DOCX_PARAGRAPHS:
+            ctx.error(
+                "DOCX_TOO_MANY_PARAGRAPHS",
+                f"Document has {len(para_map)} paragraphs; limit is {_MAX_DOCX_PARAGRAPHS}. "
+                f"Set AKSHARAMD_MAX_DOCX_PARAGRAPHS to increase the limit.",
+            )
+            return ctx
 
         # List accumulator — groups consecutive list paragraphs into one LIST block
         list_items: list[tuple[int, bool, str]] = []  # (ilvl, is_ordered, text)

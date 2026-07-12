@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import tarfile
 from pathlib import Path
 
@@ -22,7 +23,10 @@ _TEXT_EXTENSIONS = {
 _MAX_FILE_BYTES  = 32_768
 _MAX_FILES_SHOWN = 100
 _MAX_LIST_ENTRIES = 500
-_MAX_ARCHIVE_DECOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
+# Match the ZIP parser default (512 MB) — override both with AKSHARAMD_MAX_ARCHIVE_BYTES.
+_MAX_ARCHIVE_DECOMPRESSED_BYTES = int(
+    os.environ.get("AKSHARAMD_MAX_ARCHIVE_BYTES", str(512 * 1024 * 1024))
+)
 
 
 class _ArchiveTooLargeError(RuntimeError):

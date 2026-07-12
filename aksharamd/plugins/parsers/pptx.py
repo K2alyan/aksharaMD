@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from ..base import ParserPlugin
 from ..registry import register_parser
 
 _PT_TO_PX = 4 / 3  # 1 pt = 1.333 px (irrelevant here — we just compare pt values)
+_MAX_PPTX_SLIDES = int(os.environ.get("AKSHARAMD_MAX_PPTX_SLIDES", "500"))
 
 
 def _para_font_size_pt(para) -> float | None:
@@ -243,6 +245,15 @@ class PptxParser(ParserPlugin):
             prs = Presentation(str(path))
         except Exception as e:
             ctx.error("PPTX_PARSE_ERROR", str(e))
+            return ctx
+
+        slide_count = len(prs.slides)
+        if slide_count > _MAX_PPTX_SLIDES:
+            ctx.error(
+                "PPTX_TOO_MANY_SLIDES",
+                f"Presentation has {slide_count} slides; limit is {_MAX_PPTX_SLIDES}. "
+                f"Set AKSHARAMD_MAX_PPTX_SLIDES to increase the limit.",
+            )
             return ctx
 
         blocks: list[Block] = []
