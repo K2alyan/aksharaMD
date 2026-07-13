@@ -670,7 +670,7 @@ Formats with exclusive AksharaMD support (MarkItDown does not handle): `.zip`, `
 
 ### Generation 2 — LLM accuracy study (~1,000 documents, 19,920 scored evaluations)
 
-> Run on AksharaMD v0.3.3. Current package is v0.3.5 (no parser changes affecting these results). See [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for full methodology, reproducibility limitations, and what can be run from committed files.
+> Run on AksharaMD v0.3.3. Current package is v0.3.6 (no parser changes affecting these results). See [benchmark docs](benchmarks/LLM_QA_BENCHMARK.md) for full methodology, reproducibility limitations, and what can be run from committed files.
 
 **When:** AksharaMD v0.3.3. **Scope:** ~1,000 documents across 12 formats (83 per format) — an independent dataset from Generation 1, designed to test whether token savings actually produce better LLM answers. Each document received 4 factual questions, independently answered by 5 tools and scored 0–10 by Claude Haiku 4.5 as judge (19,920 graded answers total). No tool-specific prompt tuning was applied.
 
@@ -715,7 +715,7 @@ For the full methodology, per-format scores, cost tables, self-hosted throughput
 
 > **Fully reproducible.** Download the corpus and run the exact comparison yourself — see commands below.
 
-**When:** AksharaMD v0.3.5, July 2026. **Scope:** 134 files — 34 real PDFs from [py-pdf/sample-files](https://github.com/py-pdf/sample-files) (CC-BY-SA-4.0) plus 100 synthetic files (10 variants × 10 formats) generated deterministically with no external dependencies. The PDF set covers the full robustness spectrum: minimal pdflatex output, LibreOffice writer output, 117-page technical books, encrypted password-protected files, CMYK images, Arabic text with custom CMAPs, cropped and rotated pages, and embedded file attachments.
+**When:** AksharaMD v0.3.6, July 2026. **Scope:** 134 files — 34 real PDFs from [py-pdf/sample-files](https://github.com/py-pdf/sample-files) (CC-BY-SA-4.0) plus 100 synthetic files (10 variants × 10 formats) generated deterministically with no external dependencies. The PDF set covers the full robustness spectrum: minimal pdflatex output, LibreOffice writer output, 117-page technical books, encrypted password-protected files, CMYK images, Arabic text with custom CMAPs, cropped and rotated pages, and embedded file attachments.
 
 This is the first generation where external contributors can download the exact same files, run the exact same pipeline, and reproduce the exact same numbers.
 
