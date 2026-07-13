@@ -15,9 +15,9 @@
 
 Every compilation returns a **0–100 AI Readiness Score** and per-block extraction confidence — so you know whether to trust the output before it reaches your vector store, not after your LLM gives a wrong answer.
 
-AksharaMD takes any document — PDF, DOCX, XLSX, audio, image, archive, and more (40+ document categories, 118 registered extensions) — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
+AksharaMD processes PDF, DOCX, XLSX, audio, image, archive, and more — 40+ document categories across 118 registered extensions — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. Unsupported file types are reported with a named error rather than silently dropped. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
 
-Runs entirely on-device. No cloud calls, no data leaving your machine, no API keys required.
+Runs locally. The base install makes no network calls and requires no API keys. Optional ML extras (`[vision]`, `[math]`, `[audio]`) download model weights once from HuggingFace on first use; after that initial download, all processing is offline. Documents and their content are never uploaded to any external service.
 
 ---
 
@@ -506,8 +506,9 @@ compiler = Compiler()
 text, ctx = compiler.compile_to_string("report.pdf")
 
 # Skip unreliable extractions before they reach the vector store
-if ctx.manifest.readiness_score < 50:
-    print(f"POOR extraction ({ctx.manifest.readiness_score}/100) — skipping embedding")
+# Scores below 70 (the OK threshold) indicate extraction problems worth reviewing
+if ctx.manifest.readiness_score < 70:
+    print(f"Below-threshold extraction ({ctx.manifest.readiness_score}/100) — skipping embedding")
     for w in ctx.validation.warnings:
         print(f"  [{w.code}] {w.message}")
 else:

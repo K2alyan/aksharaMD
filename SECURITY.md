@@ -55,6 +55,56 @@ Current protections implemented in the codebase:
 - **XML safety** — `defusedxml` is used for all XML parsing to prevent entity expansion attacks
 - **Whisper model whitelist** — the `AKSHARAMD_WHISPER_MODEL` environment variable is validated against an allowlist to prevent command injection
 
+## Security Model by Deployment Mode
+
+AksharaMD has three distinct deployment surfaces with different trust boundaries.
+
+### Local CLI (`aksharamd compile …`)
+
+- Processes files from the local filesystem only. No network access during compilation unless the source is an explicit `http://`, `https://`, or `s3://` URL.
+- Output is written to the local filesystem. Nothing is uploaded or transmitted.
+- Runs in the same user process with the same file permissions as the caller. There is no sandbox between the parser and the calling process.
+- **Threat model:** the adversary controls the document content, not the process. Controls are applied at parse time (archive limits, size gate, XML safety, HTML asset isolation).
+
+### MCP server (`aksharamd-mcp`)
+
+Two transport modes with different trust levels:
+
+**stdio mode (default, used by Claude Desktop):**
+- The MCP server is launched as a child process by the host application.
+- No network listener is opened; communication is over stdin/stdout pipes.
+- No authentication is required — the host controls process launch.
+- File access is unrestricted unless `AKSHARAMD_ALLOWED_ROOT` is set. In personal use with Claude Desktop this is acceptable. In shared environments, set `AKSHARAMD_ALLOWED_ROOT` to the documents directory.
+
+**HTTP mode (`--transport streamable-http`):**
+- Opens a network listener. Any client that can reach the port can send requests.
+- Set `AKSHARAMD_MCP_API_KEY` to require an `X-API-Key` header on every request.
+- Set `AKSHARAMD_ALLOWED_ROOT` to restrict which directories the server will read. Without this, any authenticated client can request any file readable by the server process.
+- Set `AKSHARAMD_MAX_BODY_BYTES` (default 1 MB) to limit request body size.
+- **Do not run HTTP mode on a public interface without both `AKSHARAMD_MCP_API_KEY` and `AKSHARAMD_ALLOWED_ROOT` set.**
+
+### Indexing mode (`[index]` extra)
+
+The `[index]` extra adds a local vector index backed by ChromaDB.
+
+- **Local storage:** the index is stored on disk at `~/.aksharamd/index/` by default. It is not synced to any remote service. No document content leaves the machine.
+- **Embedding model downloads:** on first use, `sentence-transformers` downloads `all-MiniLM-L6-v2` (~90 MB) from HuggingFace. Subsequent runs use the cached copy. The download URL is `https://huggingface.co`. If outbound traffic to HuggingFace is blocked, set `SENTENCE_TRANSFORMERS_HOME` to a pre-populated model cache directory.
+- **Embedding space enforcement:** opening an existing index with a different embedding model or vector dimension raises `EmbeddingConfigMismatch`. This prevents silently mixing vectors from incompatible embedding spaces, which would corrupt retrieval results without a visible error.
+- **No LLM calls:** indexing and retrieval are pure embedding + vector search operations. No LLM API calls are made during indexing. If you connect the index to an LLM for query answering (Ollama, OpenAI, etc.), those calls are governed by your own pipeline code — AksharaMD does not make them.
+
+## Readiness Score and Acceptance Threshold
+
+The default acceptance threshold for indexing is **70/100** (the start of the OK band: HIGH ≥ 85, OK ≥ 70, RISKY ≥ 50, POOR < 50).
+
+What this means in practice:
+
+- **≥ 70 (OK/HIGH):** the document's text layer was extracted with sufficient structure and density for reliable embedding. The parser found recognizable headings, paragraphs, or table structure.
+- **< 70 (RISKY/POOR):** the parser detected significant problems — missing text layer, OCR failures, repetitive content, glyph artifacts, or very low token density. These documents may produce misleading embeddings because the text content is incomplete or unreliable.
+
+The threshold is a heuristic, not a guarantee. A score of 70 means the extraction *appeared* clean by structural and density signals; it does not certify that all semantic content was recovered. Calibration data linking score bands to empirical recall rates is planned for v0.5.0.
+
+Override the threshold with `--min-readiness-score` (CLI) or `min_readiness_score` in `IndexConfig` (Python API). Set to 0 to index everything regardless of quality; set to 85 to index only HIGH-band documents.
+
 ## Deferred Dependency Alerts
 
 The following Dependabot vulnerability alerts are present in the lockfile but **cannot currently be resolved** because upstream optional-extra dependencies impose version caps that conflict with the fixed package versions. No code change in this repository can fix them until the upstream packages release new versions.
