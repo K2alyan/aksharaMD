@@ -4,8 +4,12 @@
 
 <p align="center">
   <a href="https://github.com/K2alyan/aksharaMD/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/K2alyan/aksharaMD/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://pypi.org/project/aksharamd/"><img alt="PyPI" src="https://img.shields.io/pypi/v/aksharamd.svg?cacheSeconds=300"></a>
-  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-blue.svg">
+  <a href="https://github.com/K2alyan/aksharaMD/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/K2alyan/aksharaMD/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="https://pypi.org/project/aksharamd/"><img alt="PyPI" src="https://img.shields.io/pypi/v/aksharamd.svg"></a>
+  <img alt="Python 3.11 | 3.12" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg">
+  <a href="https://github.com/astral-sh/uv"><img alt="uv" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json"></a>
+  <a href="https://github.com/astral-sh/ruff"><img alt="Ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"></a>
+  <a href="https://docs.pydantic.dev/latest/"><img alt="Pydantic v2" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/img/badge/v2.json"></a>
   <a href="LICENSE"><img alt="License: PolyForm NC" src="https://img.shields.io/badge/License-PolyForm%20NC-orange.svg"></a>
 </p>
 
