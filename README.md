@@ -17,7 +17,7 @@ Every compilation returns a **0–100 AI Readiness Score** and per-block extract
 
 AksharaMD processes PDF, DOCX, XLSX, audio, image, archive, and more — 40+ document categories across 118 registered extensions — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. Unsupported file types are reported with a named error rather than silently dropped. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
 
-Runs locally. The base install makes no network calls and requires no API keys. Optional ML extras (`[vision]`, `[math]`, `[audio]`) download model weights once from HuggingFace on first use; after that initial download, all processing is offline. Documents and their content are never uploaded to any external service.
+Runs locally. Processing local files with the base install makes no network calls. Network access occurs only when explicitly using a remote source such as an HTTP/HTTPS URL or S3, or when an optional ML backend downloads model weights on first use. Once required weights are cached, those backends can run offline. Documents are never sent to an AksharaMD-operated service.
 
 ---
 
