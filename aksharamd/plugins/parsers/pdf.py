@@ -1354,7 +1354,7 @@ def _process_raw_page(
     removable: set[str],
     median: float,
     has_toc: bool = False,
-) -> tuple[int, list[Block], list[Asset]]:
+) -> tuple[int, list[Block], list[Asset], dict]:
     """
     Pure Python processing of one page's extracted data.
     No PyMuPDF calls — safe to run in a thread pool.
@@ -1433,11 +1433,13 @@ def _process_raw_page(
         text = " ".join(result_parts).strip()
         if text:
             all_mono = all(sp.get("mono", False) for sp in current_spans)
+            first = current_spans[0]
             blocks.append(Block(
                 type=BlockType.CODE_BLOCK if all_mono else BlockType.PARAGRAPH,
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": first["x"], "y0": first["y"]},
             ))
         current_spans.clear()
 
@@ -1484,6 +1486,7 @@ def _process_raw_page(
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
             continue
@@ -1496,6 +1499,7 @@ def _process_raw_page(
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
             continue
@@ -1510,6 +1514,7 @@ def _process_raw_page(
                 page=raw.page_num,
                 index=0,
                 confidence=ExtractionConfidence.INFERRED,  # inferred from font size/bold, not a markup heading
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
         else:
@@ -1563,7 +1568,13 @@ def _process_raw_page(
         for asset_id, img_bytes in raw.content_images
     ]
 
-    return raw.page_num, blocks, assets
+    col_info: dict = {
+        "boundaries": boundaries,
+        "num_columns": len(boundaries) + 1,
+        "page_width": raw.width,
+        "page_height": raw.height,
+    }
+    return raw.page_num, blocks, assets, col_info
 
 
 _MARKER_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)")
@@ -2272,6 +2283,7 @@ class PDFParser(ParserPlugin):
 
         # Phase 3: Parallel processing — pure Python, no shared state
         results: dict[int, tuple[list[Block], list[Asset]]] = {}
+        column_info_by_page: dict[int, dict] = {}
         workers = min(8, max(1, page_count))
 
         if workers > 1 and page_count > 4:
@@ -2281,12 +2293,14 @@ class PDFParser(ParserPlugin):
                     for raw in raw_pages
                 }
                 for future in as_completed(futures):
-                    page_num, blocks, assets = future.result()
+                    page_num, blocks, assets, col_info = future.result()
                     results[page_num] = (blocks, assets)
+                    column_info_by_page[page_num] = col_info
         else:
             for raw in raw_pages:
-                page_num, blocks, assets = _process_raw_page(raw, removable, median, has_toc)
+                page_num, blocks, assets, col_info = _process_raw_page(raw, removable, median, has_toc)
                 results[page_num] = (blocks, assets)
+                column_info_by_page[page_num] = col_info
 
         # Phase 4: Assemble in page order and assign final indices
         all_blocks: list[Block] = []
@@ -2340,6 +2354,14 @@ class PDFParser(ParserPlugin):
             all_blocks, math_equations = _apply_math_ocr_to_blocks(path, raw_pages, all_blocks)
             if math_equations and ctx.progress:
                 ctx.progress(f"Math OCR complete: {math_equations} equation{'s' if math_equations != 1 else ''} extracted")
+
+        multi_column_pages = sorted(
+            pg for pg, ci in column_info_by_page.items() if ci["num_columns"] > 1
+        )
+        # Store column info for ALL pages (not just multi-column) so the
+        # multicolumn validator can access page_width for independent cluster analysis.
+        pdf_metadata["pdf_column_info"] = dict(column_info_by_page)
+        pdf_metadata["pdf_multi_column_pages"] = multi_column_pages
 
         pdf_metadata["pdf_classification"] = pdf_classification
         pdf_metadata["pdf_stats"] = pdf_stats
