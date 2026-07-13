@@ -125,6 +125,12 @@ def _analyse_table(
 class HeaderFooterTableValidator(ValidatorPlugin):
     name = "header_footer_table_validator"
     priority = 36
+    # Maturity: EXPERIMENTAL — calibrated on 1 known positive (text_multicolumns__pwc).
+    # Thresholds (margin_frac=0.10, short_cell_chars=6, short_frac=0.45) were chosen to
+    # fire on that single document. Generalizability to other pdfplumber over-detection
+    # cases is untested. Does not affect readiness score.
+    # Phase 1 re-score (2026-07-13): precision 100% (1/1), recall 100% (1/1 known positive).
+    warning_maturity = "experimental"
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         if ctx.document is None:
@@ -157,6 +163,7 @@ class HeaderFooterTableValidator(ValidatorPlugin):
             "table_analyses": table_analyses,
             "problem_tables": problem_tables,
             "warned": bool(problem_tables),
+            "warning_maturity": self.warning_maturity,
         }
 
         if not problem_tables:

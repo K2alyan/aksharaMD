@@ -159,6 +159,11 @@ def _analyse_page(blocks: list, page_width: float) -> dict:
 class MultiColumnOrderValidator(ValidatorPlugin):
     name = "multicolumn_order_validator"
     priority = 35
+    # Maturity: CANDIDATE — 2 known positives (3colpres, 4c), 2 explicit controls clean,
+    # precision 100% on 21-doc corpus. Known FN class: span-level interleaving (ikea3,
+    # elpais, simple2) is undetectable at block level. Does not affect readiness score.
+    # Phase 1 re-score (2026-07-13): precision 100%, recall 40% (2/5 ordering targets).
+    warning_maturity = "candidate"
 
     def execute(self, ctx: CompilationContext) -> CompilationContext:
         if ctx.document is None:
@@ -197,6 +202,7 @@ class MultiColumnOrderValidator(ValidatorPlugin):
                 "problem_pages": [],
                 "page_analyses": page_analyses,
                 "warned": False,
+                "warning_maturity": self.warning_maturity,
             }
             return ctx
 
@@ -224,6 +230,7 @@ class MultiColumnOrderValidator(ValidatorPlugin):
             "problem_pages": problem_pages,
             "page_analyses": page_analyses,
             "warned": True,
+            "warning_maturity": self.warning_maturity,
         }
 
         return ctx
