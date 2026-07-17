@@ -479,6 +479,32 @@ class Compiler:
 
         return self._finalise(ctx, stage_timings, t0)
 
+    def compile_with_baselines(
+        self,
+        source: str,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
+    ) -> tuple[CompilationContext, list]:
+        """Like compile(), but captures the pre-optimization block list.
+
+        Returns (ctx, pre_opt_blocks) where pre_opt_blocks contains the
+        document blocks BEFORE the optimizer runs (with repeated headers,
+        footers, and other furniture still present).
+        """
+        pre_opt_capture: list = []
+        ctx, stage_timings, t0 = self._run_pipeline(
+            source, on_stage=on_stage, source_id=source_id,
+            _pre_optimize_capture=pre_opt_capture,
+        )
+        if on_stage:
+            on_stage("Writing output files")
+        with _StageTimer(stage_timings, "export"):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+                ctx = plugin.execute(ctx)
+
+        pre_opt_blocks = pre_opt_capture[0] if pre_opt_capture else []
+        return self._finalise(ctx, stage_timings, t0), pre_opt_blocks
+
     def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> tuple[list[dict], CompilationContext]:
         """Compile to an interleaved text+image content array for multimodal LLMs.
 
@@ -515,6 +541,111 @@ class Compiler:
             text = ""
 
         return text, self._finalise(ctx, stage_timings, t0)
+
+    def compile_package(
+        self,
+        source: str,
+        profile: "PackageProfile | None" = None,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
+    ) -> CompilationContext:
+        """Full compilation + package artifact generation.
+
+        Like compile(), but additionally writes:
+          tables/<block_id>.json  — structured table artifacts
+          images/<asset_id>.png   — embedded images with bytes
+          regions/<id>.png        — page-region or full-page fallbacks (when fitz available)
+          package_plan.json       — planner decisions per element
+          token_report.json       — token accounting
+
+        All existing outputs (document.json, document.md, manifest.json,
+        validation.json, chunks/) are produced identically to compile().
+        Packaging decisions do not affect document_id, block IDs, or chunk IDs.
+        """
+        from .packaging import PackageProfile as _PackageProfile
+        from .packaging import PackageWriter, plan_document
+        from .packaging import build_token_report
+
+        if profile is None:
+            profile = _PackageProfile()
+
+        # Run standard pipeline + standard exporters (identical to compile())
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
+
+        if on_stage:
+            on_stage("Writing output files")
+        with _StageTimer(stage_timings, "export"):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):
+                ctx = plugin.execute(ctx)
+
+        if ctx.document is None:
+            return self._finalise(ctx, stage_timings, t0)
+
+        # Package planning
+        if on_stage:
+            on_stage("Planning package elements")
+        pkg_plan = plan_document(ctx.document, profile, ctx.validation)
+
+        # Package writing
+        if on_stage:
+            on_stage("Writing package artifacts")
+        writer = PackageWriter()
+        asset_refs, fidelity = writer.write(
+            ctx.output_dir, pkg_plan, ctx.document, ctx.validation
+        )
+
+        # Token report
+        raw_tokens = ctx.manifest.original_tokens if ctx.manifest else 0
+        opt_tokens = ctx.manifest.optimized_tokens if ctx.manifest else 0
+        token_report = build_token_report(
+            pkg_plan.document_id, pkg_plan, raw_tokens, opt_tokens, asset_refs
+        )
+        from pathlib import Path as _Path
+        (_Path(ctx.output_dir) / "token_report.json").write_text(
+            token_report.model_dump_json(indent=2), encoding="utf-8"
+        )
+
+        # LLM payload
+        try:
+            from .packaging.payload_builder import build_llm_payload as _build_payload
+            payload = _build_payload(
+                pkg_plan, ctx.document, _Path(ctx.output_dir), asset_refs, profile
+            )
+            (_Path(ctx.output_dir) / "llm_payload.json").write_text(
+                payload.model_dump_json(indent=2), encoding="utf-8"
+            )
+            ctx.package_payload = payload
+        except Exception as _payload_exc:
+            logger.warning("LLM payload generation failed (non-fatal): %s", _payload_exc)
+
+        # Fidelity report goes into validation.json as an additive key
+        import json as _json
+        validation_path = _Path(ctx.output_dir) / "validation.json"
+        if validation_path.exists():
+            try:
+                val_data = _json.loads(validation_path.read_text(encoding="utf-8"))
+                val_data["package_fidelity"] = _json.loads(fidelity.model_dump_json())
+                validation_path.write_text(
+                    _json.dumps(val_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+            except Exception:
+                pass  # non-fatal
+
+        # Update manifest with package fields
+        if ctx.manifest:
+            ctx.manifest = ctx.manifest.model_copy(update={
+                "package_mode": str(profile.mode),
+                "planner_version": pkg_plan.planner_version,
+            })
+            from pathlib import Path as _Path2
+            (_Path2(ctx.output_dir) / "manifest.json").write_text(
+                ctx.manifest.model_dump_json(indent=2), encoding="utf-8"
+            )
+
+        ctx.package_plan = pkg_plan
+        ctx.package_assets = asset_refs
+
+        return self._finalise(ctx, stage_timings, t0)
 
     def compile_corpus(
         self,
@@ -668,6 +799,7 @@ class Compiler:
         source: str,
         on_stage: Callable[[str], None] | None = None,
         source_id: str | None = None,
+        _pre_optimize_capture: list | None = None,
     ) -> tuple[CompilationContext, dict[str, float], float]:
         """Stages 1-9: detect → parse → clean → optimise → validate → chunk →
         tokenise → manifest → readiness score.  Does NOT write to disk."""
@@ -760,6 +892,10 @@ class Compiler:
             with timed("clean"):
                 for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
+
+            # Capture pre-optimization blocks for Baseline A
+            if _pre_optimize_capture is not None and ctx.document is not None:
+                _pre_optimize_capture.append(list(ctx.document.blocks))
 
             # 3.5 Key-value group promotion (post-parse, pre-optimize)
             if on_stage:
