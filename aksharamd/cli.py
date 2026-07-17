@@ -505,6 +505,9 @@ def compile(
                 "output_dir": file_output,
                 "readiness_score": m.readiness_score,
                 "quality_band": m.quality_band,
+                "scoring_policy_version": m.scoring_policy_version,
+                "deductions": m.deductions,
+                "informational": m.informational,
                 "warning_codes": warning_codes,
                 "errors": error_msgs,
                 "chunks": m.chunks,
@@ -613,6 +616,34 @@ def compile(
             console.print(Panel(
                 note_lines,
                 title=f"[bold]Extraction Quality  {score}/100 - {band}[/]",
+                border_style=panel_color,
+            ))
+
+        # Show structured deductions (active, suppressed, and informational)
+        active_deds = [d for d in m.deductions if not d.get("suppressed")]
+        suppressed_deds = [d for d in m.deductions if d.get("suppressed")]
+        if active_deds or suppressed_deds or m.informational:
+            ded_lines = []
+            for d in active_deds:
+                penalty_str = f"-{d['penalty']}" if d["penalty"] else " 0"
+                ded_lines.append(
+                    f"  [red]{penalty_str:>4}[/]  [bold]{escape(d['rule_id'])}[/]  "
+                    f"[dim]{escape(d['description'])}[/]"
+                )
+            for d in suppressed_deds:
+                reason = d.get("suppression_reason", "")
+                ded_lines.append(
+                    f"  [dim]  ~~  {escape(d['rule_id'])}  "
+                    f"suppressed — {escape(reason)}[/]"
+                )
+            for d in m.informational:
+                ded_lines.append(
+                    f"  [cyan]info[/]  [bold]{escape(d['rule_id'])}[/]  "
+                    f"[dim]{escape(d['description'])}[/]"
+                )
+            console.print(Panel(
+                "\n".join(ded_lines),
+                title=f"[bold]Score Deductions  (policy v{escape(m.scoring_policy_version)})[/]",
                 border_style=panel_color,
             ))
 

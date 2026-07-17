@@ -864,6 +864,9 @@ class Compiler:
                 "readiness_score": confidence.score,
                 "quality_band": _quality_band(confidence.score),
                 "confidence_notes": confidence.notes,
+                "deductions": [d.to_dict() for d in confidence.deductions],
+                "informational": [d.to_dict() for d in confidence.informational],
+                "scoring_policy_version": confidence.scoring_policy_version,
             })
 
             # Propagate stable identity to document, manifest, and all chunks.

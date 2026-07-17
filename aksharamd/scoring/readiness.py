@@ -4,15 +4,22 @@ Measures how much of the source document's content we believe was successfully
 extracted -not how "AI-friendly" the output is. A clean text file should score
 90+. A partially-scanned PDF should score 50-65.
 
-Returns a ConfidenceResult with a 0-100 integer score and a list of plain-English
-notes the user can act on or display.
+Returns a ReadinessResult with a 0-100 integer score, structured deduction
+records (including suppressed ones), and human-readable notes.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 from ..context import CompilationContext
 from ..models.block import BlockType
+from .models import (
+    SCORING_POLICY_VERSION,
+    DeductionRecord,
+    ReadinessEvidence,
+    ReadinessResult,
+)
+
+# Backward-compat re-export
+ConfidenceResult = ReadinessResult
 
 # ── Format-quality baselines ───────────────────────────────────────────────────
 # Starting confidence before any signal-based adjustments. Reflects how lossy
@@ -54,24 +61,28 @@ _FORMAT_BASE: dict[str, int] = {
 _DEFAULT_BASE = 72
 
 
-@dataclass
-class ConfidenceResult:
-    score: int
-    notes: list[str] = field(default_factory=list)
-
-
-def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
-    """Compute extraction confidence score and human-readable notes."""
+def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
+    """Compute extraction confidence score and structured deduction records."""
     if ctx.document is None:
-        return ConfidenceResult(score=0, notes=["No content could be extracted from this file."])
+        return ReadinessResult(
+            score=0,
+            notes=["No content could be extracted from this file."],
+            scoring_policy_version=SCORING_POLICY_VERSION,
+        )
 
     if ctx.original_tokens == 0:
-        return ConfidenceResult(score=10, notes=["Document appears to be empty or could not be parsed into tokens."])
+        return ReadinessResult(
+            score=10,
+            notes=["Document appears to be empty or could not be parsed into tokens."],
+            scoring_policy_version=SCORING_POLICY_VERSION,
+        )
 
     doc = ctx.document
     blocks = doc.blocks
     file_type = doc.file_type or ""
     notes: list[str] = []
+    deductions: list[DeductionRecord] = []
+    informational: list[DeductionRecord] = []
 
     # ── Base score from format ─────────────────────────────────────────────────
     score = _FORMAT_BASE.get(file_type, _DEFAULT_BASE)
@@ -94,35 +105,67 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         deduction = min(30, len(errors) * 12)
         score -= deduction
         notes.append(f"{len(errors)} parse error(s) occurred -some content may be missing.")
+        deductions.append(DeductionRecord(
+            rule_id="PARSE_ERRORS",
+            description=f"{len(errors)} parse error(s)",
+            penalty=deduction,
+            evidence=ReadinessEvidence(
+                metric_name="error_count",
+                metric_value=float(len(errors)),
+                threshold=1.0,
+            ),
+        ))
 
     # Missing pages (PDF/DOCX)
     missing_pages = warnings_by_code.get("MISSING_PAGE", 0)
     if missing_pages > 0 and doc.pages > 0:
         pct = round(missing_pages / doc.pages * 100)
-        deduction = min(30, missing_pages * 4)
-        score -= deduction
+        base_ded = min(30, missing_pages * 4)
+        extra_ded = 8 if pct >= 50 else 0
+        total_ded = base_ded + extra_ded
+        score -= total_ded
         if pct >= 50:
             notes.append(
                 f"{missing_pages} of {doc.pages} pages have no extractable text "
                 f"({pct}%) -document may be scanned or image-based. "
                 "OCR was applied where possible; verify output accuracy."
             )
-            # Scanned doc: lower base further
-            score -= 8
         else:
             notes.append(
                 f"{missing_pages} of {doc.pages} pages appear image-only -"
                 "OCR was applied, content on those pages may be partial."
             )
+        deductions.append(DeductionRecord(
+            rule_id="MISSING_PAGE",
+            description=f"{missing_pages} of {doc.pages} pages missing ({pct}%)",
+            penalty=total_ded,
+            evidence=ReadinessEvidence(
+                metric_name="missing_page_count",
+                metric_value=float(missing_pages),
+                threshold=1.0,
+                extras={"total_pages": doc.pages, "missing_pct": pct},
+            ),
+        ))
 
     # Large blocks (likely a parse/merge failure)
     large_blocks = warnings_by_code.get("LARGE_BLOCK", 0)
     if large_blocks > 0:
-        score -= min(10, large_blocks * 4)
+        ded = min(10, large_blocks * 4)
+        score -= ded
         notes.append(
             f"{large_blocks} unusually large block(s) detected -"
             "text may have been merged incorrectly in complex layout sections."
         )
+        deductions.append(DeductionRecord(
+            rule_id="LARGE_BLOCK",
+            description=f"{large_blocks} large block(s) (>10 000 chars)",
+            penalty=ded,
+            evidence=ReadinessEvidence(
+                metric_name="large_block_count",
+                metric_value=float(large_blocks),
+                threshold=1.0,
+            ),
+        ))
 
     # Heading hierarchy issues
     heading_issues = (
@@ -130,38 +173,98 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         + warnings_by_code.get("HEADING_HIERARCHY", 0)
     )
     if heading_issues > 0:
-        score -= min(8, heading_issues * 2)
+        ded = min(8, heading_issues * 2)
+        score -= ded
+        deductions.append(DeductionRecord(
+            rule_id="HEADING_ISSUES",
+            description=f"{heading_issues} heading hierarchy issue(s)",
+            penalty=ded,
+            evidence=ReadinessEvidence(
+                metric_name="heading_issue_count",
+                metric_value=float(heading_issues),
+                threshold=1.0,
+            ),
+        ))
 
     # ── New quality-signal penalties ───────────────────────────────────────────
 
-    # OCR required but unavailable: most severe — content is simply missing.
-    # When this fires, NEAR_EMPTY_OUTPUT and LOW_TEXT_DENSITY are measuring
-    # the same gap from different angles — suppress their penalties to avoid
-    # triple-counting the same missing-content problem.
+    _IMAGE_PLACEHOLDER_SENTINEL = "[Image not extracted"
+    placeholder_paragraphs = [
+        b for b in blocks
+        if b.type == BlockType.PARAGRAPH and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or "")
+    ]
+    real_content_blocks = [
+        b for b in blocks
+        if b.type not in (BlockType.IMAGE,)
+        and not (b.type == BlockType.PARAGRAPH and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or ""))
+    ]
+    image_placeholder_only = (
+        bool(placeholder_paragraphs)
+        and not real_content_blocks
+        and not warnings_by_code.get("OCR_REQUIRED", 0)
+    )
+    if image_placeholder_only:
+        assets_with_bytes = [a for a in doc.assets if a.image_bytes]
+        if assets_with_bytes:
+            notes.append(
+                "Text extraction found no content — page is a raster image. "
+                "Full-page image data is captured and will be included for vision-capable "
+                "models via compile_to_multimodal(). "
+                "Text-only usage requires OCR: pip install aksharamd[ocr]. "
+                "[W_IMAGE_ONLY_REQUIRES_VISION]"
+            )
+            informational.append(DeductionRecord(
+                rule_id="IMAGE_PLACEHOLDER_WITH_ASSETS",
+                description="Image-only page; asset bytes available for multimodal use",
+                penalty=0,
+            ))
+        else:
+            effective_penalty = max(0, score - 55)  # compute before capping
+            score = min(score, 55)
+            notes.append(
+                "Output contains only image placeholders — no text was extracted and "
+                "no image assets are available. "
+                "OCR support is required: pip install aksharamd[ocr]. "
+                "[W_IMAGE_ONLY_NO_USABLE_FALLBACK]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="IMAGE_PLACEHOLDER_NO_FALLBACK",
+                description="Output is image placeholders only; score capped at 55",
+                penalty=effective_penalty,
+                evidence=ReadinessEvidence(
+                    metric_name="placeholder_count",
+                    metric_value=float(len(placeholder_paragraphs)),
+                    threshold=1.0,
+                ),
+            ))
+
+    # OCR required but unavailable
     ocr_required_fired = bool(warnings_by_code.get("OCR_REQUIRED", 0))
     if ocr_required_fired:
         classification = doc.metadata.get("pdf_classification", "")
         image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
         total_pages = max(doc.pages, 1)
         image_ratio = image_pages / total_pages
-        # Scale penalty: fully scanned = -40, hybrid = proportional
-        deduction = min(40, int(40 * image_ratio) + 10)
-        score -= deduction
+        ded = min(40, int(40 * image_ratio) + 10)
+        score -= ded
         notes.append(
             f"PDF is '{classification}' with {image_pages} image-only page(s) — "
             "OCR not installed; this content was not extracted. "
             "Install pytesseract for full extraction: pip install aksharamd[ocr]"
         )
+        deductions.append(DeductionRecord(
+            rule_id="OCR_REQUIRED",
+            description=f"OCR unavailable; {image_pages} image page(s) not extracted",
+            penalty=ded,
+            evidence=ReadinessEvidence(
+                metric_name="image_ratio",
+                metric_value=image_ratio,
+                threshold=0.0,
+                extras={"image_pages": image_pages, "total_pages": total_pages, "classification": classification},
+            ),
+        ))
 
-    # OCR was available and ran on this PDF, but produced near-empty output —
-    # Tesseract couldn't read the content (rotated text, low-resolution scans,
-    # non-Latin script, complex imagery, layout-heavy pages with sparse text).
-    # Apply a bounded penalty keyed to image density so that attempting OCR
-    # never scores worse than skipping it.  Classification is intentionally
-    # unrestricted: scanned/hybrid use image_ratio for a proportional deduction;
-    # layout_heavy/native_text default to image_pages=0 → minimum deduction of 10.
-    # NEAR_EMPTY_OUTPUT and LOW_TEXT_DENSITY are suppressed below to avoid
-    # stacking penalties on top of this deduction.
+    # OCR attempted but produced sparse output
     ocr_attempted_sparse = (
         not ocr_required_fired
         and file_type == "pdf"
@@ -172,71 +275,130 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
         total_pages = max(doc.pages, 1)
         image_ratio = image_pages / total_pages
-        deduction = min(40, int(40 * image_ratio) + 10)
-        score -= deduction
+        ded = min(40, int(40 * image_ratio) + 10)
+        score -= ded
         notes.append(
             f"OCR was applied to {image_pages} image page(s) but extracted very little text — "
             "the page(s) may contain rotated content, low-resolution scans, or non-Latin script. "
             "For better results, try a higher DPI (AKSHARAMD_OCR_DPI=300) or a vision-based tool."
         )
+        deductions.append(DeductionRecord(
+            rule_id="OCR_ATTEMPTED_SPARSE",
+            description=f"OCR ran but produced sparse output on {image_pages} image page(s)",
+            penalty=ded,
+            evidence=ReadinessEvidence(
+                metric_name="image_ratio",
+                metric_value=image_ratio,
+                threshold=0.0,
+                extras={"image_pages": image_pages, "total_pages": total_pages},
+            ),
+        ))
 
-    # Near-empty output: catastrophic — essentially nothing was extracted.
-    # Skipped when OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already explains the gap.
-    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0) and not ocr_required_fired and not ocr_attempted_sparse:
-        score -= 25
-        notes.append(
-            "Output is nearly empty relative to page count — "
-            "source document may be image-only, encrypted, or have encoding issues."
-        )
+    # Near-empty output
+    if warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0):
+        if ocr_required_fired or ocr_attempted_sparse:
+            deductions.append(DeductionRecord(
+                rule_id="NEAR_EMPTY_OUTPUT",
+                description="Very little text extracted",
+                penalty=25,
+                suppressed=True,
+                suppression_reason="OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already deducts for missing content",
+            ))
+        else:
+            score -= 25
+            notes.append(
+                "Output is nearly empty relative to page count — "
+                "source document may be image-only, encrypted, or have encoding issues."
+            )
+            deductions.append(DeductionRecord(
+                rule_id="NEAR_EMPTY_OUTPUT",
+                description="Very little text extracted relative to page count",
+                penalty=25,
+            ))
 
-    # Low text density: serious quality signal.
-    # Skipped when OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already explains why text is sparse.
-    if warnings_by_code.get("LOW_TEXT_DENSITY", 0) and not ocr_required_fired and not ocr_attempted_sparse:
-        score -= 20
-        notes.append(
-            "Low text density detected — extracted text is sparse relative to page count. "
-            "Enable OCR for image-heavy pages: pip install aksharamd[ocr]"
-        )
+    # Low text density
+    if warnings_by_code.get("LOW_TEXT_DENSITY", 0):
+        if ocr_required_fired or ocr_attempted_sparse:
+            deductions.append(DeductionRecord(
+                rule_id="LOW_TEXT_DENSITY",
+                description="Low text density (PDF)",
+                penalty=20,
+                suppressed=True,
+                suppression_reason="OCR_REQUIRED or OCR_ATTEMPTED_SPARSE already deducts for missing content",
+            ))
+        else:
+            score -= 20
+            notes.append(
+                "Low text density detected — extracted text is sparse relative to page count. "
+                "Enable OCR for image-heavy pages: pip install aksharamd[ocr]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="LOW_TEXT_DENSITY",
+                description="Low text density",
+                penalty=20,
+            ))
 
-    # CID glyph artifacts: extracted text is likely garbled by non-embedded fonts.
-    # -25 penalty pushes into RISKY band (<70) since CID-garbled text is unusable
-    # by LLMs even if it was technically "extracted".
+    # CID glyph artifacts
     if warnings_by_code.get("GLYPH_ARTIFACTS", 0):
         score -= 25
         notes.append(
             "CID font artifacts detected in extracted text — "
             "PDF uses non-embedded fonts; portions of the text may be unreadable."
         )
+        deductions.append(DeductionRecord(
+            rule_id="GLYPH_ARTIFACTS",
+            description="CID glyph artifacts — non-embedded fonts; text likely garbled",
+            penalty=25,
+        ))
 
-    # Repeated content: boilerplate not cleaned
+    # Repeated content
     if warnings_by_code.get("REPEATED_CONTENT", 0):
         score -= 8
         notes.append(
             "Repeated content lines detected — "
             "headers, footers, or boilerplate may not have been fully removed."
         )
+        deductions.append(DeductionRecord(
+            rule_id="REPEATED_CONTENT",
+            description="Repeated content lines — boilerplate not fully removed",
+            penalty=8,
+        ))
 
-    # Token bloat: likely duplication or failed cleanup
+    # Token bloat
     if warnings_by_code.get("TOKEN_BLOAT", 0):
         score -= 8
         notes.append(
             "Unusually high token count per page — "
             "content may have been extracted multiple times or boilerplate was not removed."
         )
+        deductions.append(DeductionRecord(
+            rule_id="TOKEN_BLOAT",
+            description="Unusually high token count per page",
+            penalty=8,
+        ))
 
     # ── Structural signals ─────────────────────────────────────────────────────
 
-    # No headings in a multi-page document → structure likely lost
     if not headings and doc.pages > 3:
         score -= 6
         notes.append(
             "No headings detected -document structure may be flat or "
             "heading formatting was not preserved."
         )
+        deductions.append(DeductionRecord(
+            rule_id="NO_HEADINGS_MULTIPAGE",
+            description=f"No headings in a {doc.pages}-page document",
+            penalty=6,
+            evidence=ReadinessEvidence(
+                metric_name="heading_count",
+                metric_value=0.0,
+                threshold=1.0,
+                extras={"pages": doc.pages},
+            ),
+        ))
 
     # ── Positive observations (notes only, no score change) ───────────────────
 
-    # Summary line -always first
     parts = []
     if paragraphs:
         parts.append(f"{len(paragraphs)} paragraph(s)")
@@ -261,11 +423,22 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
             if "Col1" in b.content or "Col2" in b.content
         )
         if col_generic:
-            score -= min(5, col_generic * 2)
+            ded = min(5, col_generic * 2)
+            score -= ded
             notes.append(
                 f"{col_generic} table(s) have auto-generated column headers -"
                 "these may be visual/scanned tables. Verify column names."
             )
+            deductions.append(DeductionRecord(
+                rule_id="COL_GENERIC_TABLES",
+                description=f"{col_generic} table(s) with auto-generated column headers",
+                penalty=ded,
+                evidence=ReadinessEvidence(
+                    metric_name="col_generic_count",
+                    metric_value=float(col_generic),
+                    threshold=1.0,
+                ),
+            ))
         else:
             notes.append(f"{len(tables)} table(s) extracted with named columns.")
 
@@ -322,8 +495,35 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
         if not paragraphs:
             score -= 10
             notes.append("No text detected in image -file may be a photo or diagram with no readable text.")
+            deductions.append(DeductionRecord(
+                rule_id="NO_TEXT_IN_IMAGE",
+                description="Image file has no extractable text",
+                penalty=10,
+                evidence=ReadinessEvidence(metric_name="paragraph_count", metric_value=0.0, threshold=1.0),
+            ))
         else:
             notes.append("Text extracted via OCR (Tesseract). Accuracy depends on image quality and font clarity.")
+
+    # Informational: W_MULTICOLUMN_ORDER (zero penalty)
+    # Maturity surfaced from validator diagnostics so consumers know the finding's confidence.
+    if warnings_by_code.get("W_MULTICOLUMN_ORDER", 0):
+        mc_maturity = doc.metadata.get("multicolumn_diagnostics", {}).get("warning_maturity", "")
+        informational.append(DeductionRecord(
+            rule_id="W_MULTICOLUMN_ORDER",
+            description="Multi-column reading order may be incorrect on one or more pages",
+            penalty=0,
+            maturity=mc_maturity,
+        ))
+
+    # Informational: W_HEADER_FOOTER_TABLE_GARBLED (zero penalty)
+    if warnings_by_code.get("W_HEADER_FOOTER_TABLE_GARBLED", 0):
+        hft_maturity = doc.metadata.get("header_footer_table_diagnostics", {}).get("warning_maturity", "")
+        informational.append(DeductionRecord(
+            rule_id="W_HEADER_FOOTER_TABLE_GARBLED",
+            description="A table near a page header or footer may represent garbled page furniture",
+            penalty=0,
+            maturity=hft_maturity,
+        ))
 
     # Token efficiency note
     if ctx.original_tokens > 0 and ctx.manifest:
@@ -332,7 +532,13 @@ def compute_confidence(ctx: CompilationContext) -> ConfidenceResult:
             pct = round(saved / ctx.original_tokens * 100)
             notes.append(f"Optimiser removed {saved:,} redundant tokens ({pct}%) - headers, footers, duplicates.")
 
-    return ConfidenceResult(score=max(0, min(100, score)), notes=notes)
+    return ReadinessResult(
+        score=max(0, min(100, score)),
+        notes=notes,
+        deductions=deductions,
+        informational=informational,
+        scoring_policy_version=SCORING_POLICY_VERSION,
+    )
 
 
 def compute_readiness_score(ctx: CompilationContext) -> int:
