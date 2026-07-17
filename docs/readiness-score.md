@@ -150,6 +150,35 @@ One or more pages produced no extractable content.
 
 **Action:** If the document is a hybrid PDF (some text pages, some scanned pages), install `[ocr]` or `[vision]` to handle the image pages. The warning message includes the count of affected pages.
 
+### `W_PARSE_FALLBACK`
+
+**Maturity:** candidate  |  **Current penalty:** 0 (informational; scoring effect deferred to a future release — see GitHub issue `#41-B`)
+
+Emitted when a format-specific parser attempted a strict parse, failed, and the compiler preserved the input as raw text so the recoverable content isn't lost.
+
+Currently fires for:
+
+- `.json` — when `json.loads()` raises `JSONDecodeError` on the whole file. The document is emitted as a single fenced `json` code block containing the raw text.
+- `.jsonl` / `.ndjson` — when **every** non-empty record fails strict parse. The document is emitted as one paragraph per non-empty line. Partial failures (some records parse, some do not) are covered by a future `W_PARSE_PARTIAL` signal and are intentionally NOT flagged here.
+
+Metadata (attached to the `ValidationIssue`):
+
+```json
+{
+  "parser":            "json_parser",       // or "jsonl_parser"
+  "source_format":     "json",              // or "jsonl" / "ndjson"
+  "exception_class":   "JSONDecodeError",
+  "error_location":    "line 1 col 12",     // for JSON; "file line N" for JSONL
+  "record_total":      3,                    // JSONL only
+  "failed_record_count": 3,                  // JSONL only
+  "warning_maturity":  "candidate"
+}
+```
+
+The metadata deliberately excludes raw file contents, the failing snippet, and exception message strings. A regression test in `tests/test_parsers/test_parse_fallback.py` locks that in.
+
+**Action:** If you rely on `--min-readiness-score` as an ingestion gate, treat `W_PARSE_FALLBACK` as an early signal that a document routed to a structured parser will only be indexed as raw text. In Phase 1 the readiness score is unchanged, so gates continue to behave as before; when the scoring effect ships in a future release the band for these documents will drop from HIGH to OK.
+
 ---
 
 ## Reading Quality Notes

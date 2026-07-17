@@ -91,7 +91,27 @@ class JsonParser(ParserPlugin):
                     language="json",
                     index=2,
                 ))
-        except _json.JSONDecodeError:
+        except _json.JSONDecodeError as exc:
+            # Strict JSON parse failed. Preserve the raw text as a CODE_BLOCK
+            # so downstream consumers keep the recoverable content, and emit
+            # W_PARSE_FALLBACK so the fallback is visible (Phase 1: detection
+            # only, penalty=0; see #41-A / #41 / docs/readiness-score.md).
+            #
+            # Metadata carries the exception class + safe error location only.
+            # It must never carry raw file contents or exception message
+            # strings that may echo source content.
+            ctx.warn(
+                code="W_PARSE_FALLBACK",
+                message="Strict JSON parse failed; content preserved as raw text.",
+                source=str(path),
+                metadata={
+                    "parser": self.name,
+                    "source_format": "json",
+                    "exception_class": type(exc).__name__,
+                    "error_location": f"line {exc.lineno} col {exc.colno}",
+                    "warning_maturity": "candidate",
+                },
+            )
             blocks.append(Block(type=BlockType.CODE_BLOCK, content=text[:_MAX_JSON_CHARS], language="json", index=1))
 
         ctx.document = Document(
@@ -116,20 +136,53 @@ class JsonlParser(ParserPlugin):
         parsed_lines = []
         plain_lines: list[str] = []
         json_errors = 0
-        for line in lines:
+        first_failure_line: int | None = None
+        first_failure_class: str | None = None
+        for line_no, line in enumerate(lines, start=1):
             line = line.strip()
             if not line:
                 continue
             try:
                 parsed_lines.append(_json.loads(line))
-            except _json.JSONDecodeError:
+            except _json.JSONDecodeError as exc:
                 json_errors += 1
                 plain_lines.append(line)
+                if first_failure_line is None:
+                    first_failure_line = line_no
+                    first_failure_class = type(exc).__name__
 
-        # If all/most lines failed JSON parsing, treat as plain-text-per-line
+        # If every non-empty record failed strict parse, treat the file as
+        # plain-text-per-line AND emit W_PARSE_FALLBACK so the fallback is
+        # visible (Phase 1: detection only, penalty=0; see #41-A).
+        # Partial failures (some records parse, some do not) are covered by a
+        # future W_PARSE_PARTIAL signal and are intentionally NOT flagged here.
         all_plain = len(parsed_lines) == 0 and plain_lines
         if all_plain:
             parsed_lines = plain_lines
+            # Never include the failing record text in metadata — only the
+            # exception class and counts. Location is the outer file line so
+            # the source snippet is not embedded.
+            ctx.warn(
+                code="W_PARSE_FALLBACK",
+                message=(
+                    "Strict JSONL parse failed on every non-empty record; "
+                    "content preserved as raw text-per-line."
+                ),
+                source=str(path),
+                metadata={
+                    "parser": self.name,
+                    "source_format": path.suffix.lstrip(".").lower() or "jsonl",
+                    "exception_class": first_failure_class or "JSONDecodeError",
+                    "error_location": (
+                        f"file line {first_failure_line}"
+                        if first_failure_line is not None
+                        else "unknown"
+                    ),
+                    "record_total": len(plain_lines),
+                    "failed_record_count": json_errors,
+                    "warning_maturity": "candidate",
+                },
+            )
 
         blocks: list[Block] = [
             Block(type=BlockType.METADATA,

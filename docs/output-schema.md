@@ -241,8 +241,11 @@ All validation issues found during compilation, including both errors and warnin
 | `page` | int \| null | Source page number (1-indexed) if applicable |
 | `block_id` | string \| null | Block ID if the issue is block-level |
 | `source` | string \| null | Additional source context |
+| `metadata` | object | Structured, code-specific data. Contents depend on the warning code. Never contains raw file contents or exception message strings — see `docs/readiness-score.md` for per-code metadata schemas. |
 
 See [readiness-score.md](readiness-score.md) for a complete list of warning codes and their recommended actions.
+
+**Metadata privacy invariant.** Warnings that describe extraction fallbacks (currently `W_PARSE_FALLBACK`) carry structured metadata about *what* happened — parser name, source format, exception class, safe line/column location — and deliberately exclude the raw text of the malformed input, the failing snippet, and the exception message string, because those can carry source content that a caller may consider sensitive. Regression tests in `tests/test_parsers/test_parse_fallback.py` lock the invariant in.
 
 ---
 
