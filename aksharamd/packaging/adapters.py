@@ -44,8 +44,11 @@ def to_multimodal_content(
       {"type": "warning", "text": "...", "warning_codes": [...]}
 
     Does not load image bytes. Does not make network calls.
+
+    `package_dir` is accepted for API symmetry with future asset-URL
+    resolvers; the current implementation only reads from `payload`.
     """
-    package_dir = Path(package_dir)
+    del package_dir  # accepted for API symmetry; unused in current impl
     result: list[dict] = []
 
     for item in payload.items:

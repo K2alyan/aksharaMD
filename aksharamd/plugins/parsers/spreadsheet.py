@@ -212,6 +212,10 @@ class XlsxParser(ParserPlugin):
                             if nf and nf != 'General':
                                 number_format = nf
                         except Exception:
+                            # Formula-workbook cell access can fail sporadically
+                            # (openpyxl raises on some malformed formulas / merged
+                            # cell shadows).  Fall back to the display-only value
+                            # rather than aborting the whole sheet parse.
                             pass
 
                     if raw_val is not None:

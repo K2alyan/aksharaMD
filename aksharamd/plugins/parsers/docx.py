@@ -295,7 +295,9 @@ def _extract_docx_properties(doc, idx: int) -> Block | None:
                         confidence="extracted",
                     ))
         except Exception:
-            pass
+            # A single malformed core-property (e.g. corrupt date) must not
+            # prevent the surviving properties from being extracted.
+            continue
 
     if len(entries) < 2:
         return None

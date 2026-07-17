@@ -221,7 +221,6 @@ def run_document(
     except Exception as exc:
         logger.warning("Baseline A generation failed: %s; using 0", exc)
         baseline_a_tokens = manifest.original_tokens or 0
-        baseline_a_checksum = ""
 
     baselines.append(RepresentationMetrics(
         capture_id=cap_id,
@@ -243,7 +242,6 @@ def run_document(
         (output_dir / "baseline_b_document.md").write_text(baseline_b_text, encoding="utf-8")
     else:
         baseline_b_tokens = manifest.optimized_tokens or 0
-        baseline_b_text = ""
 
     baselines.append(RepresentationMetrics(
         capture_id=cap_id,
