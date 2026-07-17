@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -396,6 +397,23 @@ def _detect_file_type(path: str) -> str:
     return kind.extension if kind else "txt"
 
 
+def _compute_source_id(source: str) -> str:
+    """Return a 16-char SHA-256 of the normalized source locator.
+
+    For local paths, uses the resolved POSIX absolute path so the ID is
+    stable regardless of how the caller spelled the path.  For remote
+    URIs (http/https/s3) uses the URI verbatim.
+    """
+    if source.startswith(("http://", "https://", "s3://")):
+        normalized = source
+    else:
+        try:
+            normalized = Path(source).resolve().as_posix()
+        except Exception:
+            normalized = source
+    return hashlib.sha256(normalized.encode()).hexdigest()[:16]
+
+
 class Compiler:
     def __init__(
         self,
@@ -447,9 +465,9 @@ class Compiler:
         if ctx.document:
             yield from ctx.document.blocks
 
-    def compile(self, source: str, on_stage: Callable[[str], None] | None = None) -> CompilationContext:
+    def compile(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> CompilationContext:
         """Full compilation: parse → optimise → export to disk. Returns context."""
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if on_stage:
             on_stage("Writing output files")
@@ -459,7 +477,7 @@ class Compiler:
 
         return self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[list[dict], CompilationContext]:
+    def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> tuple[list[dict], CompilationContext]:
         """Compile to an interleaved text+image content array for multimodal LLMs.
 
         Returns (content_array, ctx) where content_array is a list of Anthropic-compatible
@@ -469,7 +487,7 @@ class Compiler:
         """
         from .plugins.exporters.multimodal import build_multimodal_content
 
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
             content = build_multimodal_content(ctx.document)
@@ -478,7 +496,7 @@ class Compiler:
 
         return content, self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_string(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[str, CompilationContext]:
+    def compile_to_string(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> tuple[str, CompilationContext]:
         """Compile to a markdown string without writing any files to disk.
 
         Ideal for MCP server and programmatic usage where disk I/O is unwanted.
@@ -486,7 +504,7 @@ class Compiler:
         """
         from .plugins.exporters.markdown import _block_to_md
 
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
             lines = [_block_to_md(b) for b in ctx.document.blocks]
@@ -644,7 +662,10 @@ class Compiler:
     # ── Internal pipeline ──────────────────────────────────────────────────────
 
     def _run_pipeline(
-        self, source: str, on_stage: Callable[[str], None] | None = None
+        self,
+        source: str,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
     ) -> tuple[CompilationContext, dict[str, float], float]:
         """Stages 1-9: detect → parse → clean → optimise → validate → chunk →
         tokenise → manifest → readiness score.  Does NOT write to disk."""
@@ -703,6 +724,7 @@ class Compiler:
                         f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
                     )
                     return ctx, stage_timings, t0
+                ctx.capture_id = hashlib.sha256(Path(source).read_bytes()).hexdigest()
             except OSError:
                 pass  # missing file handled by parser with a clearer message
 
@@ -750,6 +772,11 @@ class Compiler:
             with timed("validate"):
                 for plugin in registry.get_plugins_of_type(ValidatorPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
+
+            # Compute document_id from final block state before chunking so chunk
+            # IDs can reference it.  Must happen after all cleaners/optimizers run.
+            if ctx.document:
+                ctx.document.compute_id()
 
             # 6. Chunk
             if on_stage:
@@ -839,7 +866,29 @@ class Compiler:
                 "confidence_notes": confidence.notes,
             })
 
-            # Restore original URL as the canonical source
+            # Propagate stable identity to document, manifest, and all chunks.
+            # Caller-provided source_id takes precedence; otherwise derive from _original_source
+            # so URL/S3 IDs are stable and local paths are resolved to absolute POSIX form.
+            _source_id = source_id if source_id is not None else _compute_source_id(_original_source)
+            ctx.source_id = _source_id
+            _doc_id = ctx.document.document_id if ctx.document else ""
+            if ctx.document:
+                ctx.document = ctx.document.model_copy(update={
+                    "source_id": _source_id,
+                    "capture_id": ctx.capture_id,
+                })
+            if ctx.manifest:
+                ctx.manifest = ctx.manifest.model_copy(update={
+                    "source_id": _source_id,
+                    "capture_id": ctx.capture_id,
+                    "document_id": _doc_id,
+                })
+            for chunk in ctx.chunks:
+                chunk.source_id = _source_id
+                chunk.capture_id = ctx.capture_id
+                chunk.document_id = _doc_id
+
+            # Restore original URL/S3 URI as the canonical source string
             if _temp_path is not None:
                 if ctx.document:
                     ctx.document = ctx.document.model_copy(update={"source": _original_source})

@@ -14,6 +14,9 @@ class CompilationContext:
     source: str
     output_dir: str = "output"
 
+    source_id: str = ""   # populated by compiler after source resolution
+    capture_id: str = ""  # SHA-256 of raw source bytes; populated by compiler
+
     document: Document | None = None
     chunks: list[Chunk] = field(default_factory=list)
     manifest: Manifest | None = None
