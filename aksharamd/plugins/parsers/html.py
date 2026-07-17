@@ -9,8 +9,9 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 from ...context import CompilationContext
 from ...models.asset import Asset
-from ...models.block import Block, BlockType
+from ...models.block import Block, BlockType, ExtractionConfidence
 from ...models.document import Document
+from ...models.table import ExtractionMethod, TableCell, TableData
 from ..base import ParserPlugin
 from ..registry import register_parser
 
@@ -68,10 +69,10 @@ _SKIP_CLASSES = re.compile(
 _HEADING_TAGS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}
 _CONTAINER_TAGS = {
     "div", "section", "article", "main", "body", "figure",
-    "details", "summary", "dl", "dt", "dd", "span", "label",
+    "details", "summary", "span", "label",
 }
 _STRUCTURAL_TAGS = (
-    set(_HEADING_TAGS) | {"p", "pre", "table", "ul", "ol", "blockquote", "img", "hr"}
+    set(_HEADING_TAGS) | {"p", "pre", "table", "ul", "ol", "blockquote", "img", "hr", "dl"}
 )
 
 
@@ -81,18 +82,115 @@ def _read_file(path: Path) -> str:
     return raw.decode(enc, errors="replace")
 
 
-def _table_to_markdown(table: Tag) -> str:
-    rows = []
-    for row in table.find_all("tr"):
-        if not isinstance(row, Tag):
-            continue
-        cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
-        rows.append("| " + " | ".join(cells) + " |")
-    if not rows:
-        return ""
-    sep_count = rows[0].count("|") - 1
-    sep = "| " + " | ".join(["---"] * sep_count) + " |"
-    return "\n".join([rows[0], sep] + rows[1:])
+def _html_table_to_tabledata(table: Tag, page: int | None = None) -> TableData | None:
+    """Parse an HTML <table> into TableData with rowspan/colspan normalization."""
+    # Collect rows in document order: thead rows, then tbody rows, then tfoot rows
+    all_trs: list[Tag] = []
+    thead_row_count = 0
+
+    thead = table.find('thead')
+    tbody = table.find('tbody')
+    tfoot = table.find('tfoot')
+
+    if thead and isinstance(thead, Tag):
+        thead_trs = [tr for tr in thead.find_all('tr') if isinstance(tr, Tag)]
+        thead_row_count = len(thead_trs)
+        all_trs.extend(thead_trs)
+    if tbody and isinstance(tbody, Tag):
+        all_trs.extend(tr for tr in tbody.find_all('tr') if isinstance(tr, Tag))
+    if tfoot and isinstance(tfoot, Tag):
+        all_trs.extend(tr for tr in tfoot.find_all('tr') if isinstance(tr, Tag))
+
+    # Fallback: direct tr children if no sections
+    if not all_trs:
+        all_trs = [tr for tr in table.find_all('tr') if isinstance(tr, Tag)]
+
+    if not all_trs:
+        return None
+
+    # Grid normalization: track occupied positions for rowspan/colspan
+    grid_occupied: dict[tuple[int, int], bool] = {}
+    table_cells: list[TableCell] = []
+    max_col = 0
+    row_count = len(all_trs)
+
+    for r_idx, tr in enumerate(all_trs):
+        c_idx = 0
+        for cell_tag in tr.find_all(['th', 'td'], recursive=False):
+            if not isinstance(cell_tag, Tag):
+                continue
+            # Advance past occupied positions
+            while grid_occupied.get((r_idx, c_idx)):
+                c_idx += 1
+
+            try:
+                colspan = max(1, int(cell_tag.get('colspan', 1)))
+            except (ValueError, TypeError):
+                colspan = 1
+            try:
+                rowspan = max(1, int(cell_tag.get('rowspan', 1)))
+            except (ValueError, TypeError):
+                rowspan = 1
+            # Cap spans to prevent runaway
+            colspan = min(colspan, 50)
+            rowspan = min(rowspan, 50)
+
+            cell_text = cell_tag.get_text(separator=' ', strip=True)
+            is_th = cell_tag.name == 'th'
+
+            # Mark covered positions
+            for r in range(r_idx, r_idx + rowspan):
+                for c in range(c_idx, c_idx + colspan):
+                    if (r, c) != (r_idx, c_idx):
+                        grid_occupied[(r, c)] = True
+
+            max_col = max(max_col, c_idx + colspan)
+            table_cells.append(TableCell(
+                text=cell_text,
+                row=r_idx,
+                column=c_idx,
+                row_span=rowspan,
+                column_span=colspan,
+                is_header=is_th,
+            ))
+            c_idx += colspan
+
+    if not table_cells:
+        return None
+
+    col_count = max_col
+
+    # Determine header_rows and header_detection
+    header_rows: list[int] = []
+    header_detection: str = "unknown"
+
+    if thead_row_count > 0:
+        header_rows = list(range(thead_row_count))
+        header_detection = "native"
+    else:
+        # Detect rows where ALL cells are <th>
+        row_cells: dict[int, list[TableCell]] = {}
+        for cell in table_cells:
+            row_cells.setdefault(cell.row, []).append(cell)
+        for r, rcells in sorted(row_cells.items()):
+            if rcells and all(c.is_header for c in rcells):
+                header_rows.append(r)
+        if header_rows:
+            header_detection = "native"
+
+    if not header_rows:
+        header_detection = "unknown"
+
+    return TableData(
+        row_count=row_count,
+        column_count=col_count,
+        cells=table_cells,
+        header_rows=header_rows,
+        header_detection=header_detection,  # type: ignore[arg-type]
+        span_detection="native",
+        extraction_method=ExtractionMethod.HTML_NATIVE,
+        page=page,
+    )
 
 
 def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
@@ -125,6 +223,41 @@ def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
 
 
 _MAX_DEPTH = 100  # guard against pathologically nested HTML causing RecursionError
+
+
+def _dl_to_key_value_group(dl_tag: Tag, page: "int | None") -> "object | None":
+    """Parse a <dl> element into a KeyValueGroup. Returns None if insufficient entries."""
+    from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
+
+    entries = []
+    current_key: str | None = None
+
+    for child in dl_tag.children:
+        if not isinstance(child, Tag):
+            continue
+        tag = (child.name or "").lower()
+        if tag == "dt":
+            current_key = child.get_text(separator=" ", strip=True)
+        elif tag == "dd" and current_key is not None:
+            value = child.get_text(separator=" ", strip=True)
+            if value and len(value) <= 200:
+                entries.append(KeyValueEntry(
+                    key=current_key,
+                    value=value,
+                    page=page,
+                    confidence="extracted",
+                ))
+            current_key = None
+
+    if len(entries) < 1:
+        return None
+
+    return KeyValueGroup(
+        entries=entries,
+        extraction_method="html.definition_list",
+        confidence="extracted",
+        page=page,
+    )
 
 # Tags that are purely inline — never emit as standalone paragraphs
 _INLINE_TAGS = {
@@ -224,13 +357,9 @@ def _walk(
 
         # ── Tables ─────────────────────────────────────────────────────────────
         elif tag == "table":
-            md = _table_to_markdown(child)
-            if md:
-                blocks.append(Block(
-                    type=BlockType.TABLE,
-                    content=md,
-                    index=idx[0],
-                ))
+            table_data = _html_table_to_tabledata(child)
+            if table_data is not None:
+                blocks.append(Block.from_table(table_data, index=idx[0]))
                 idx[0] += 1
 
         # ── Lists ──────────────────────────────────────────────────────────────
@@ -310,6 +439,22 @@ def _walk(
         elif tag == "hr":
             blocks.append(Block(type=BlockType.PAGE_BREAK, content="", index=idx[0]))
             idx[0] += 1
+
+        # ── Definition lists → KeyValueGroup ───────────────────────────────────
+        elif tag == "dl":
+            group = _dl_to_key_value_group(child, page=None)
+            if group is not None and len(group.entries) >= 1:
+                kv_block = Block.from_key_value_group(
+                    group,
+                    page=None,
+                    index=idx[0],
+                    confidence=ExtractionConfidence.EXTRACTED,
+                )
+                blocks.append(kv_block)
+                idx[0] += 1
+            else:
+                # Fall back to walking children for <dl> with insufficient entries
+                _walk(child, blocks, assets, idx, depth + 1, source_path)
 
         # ── Container — transparent, recurse ───────────────────────────────────
         elif tag in _CONTAINER_TAGS or tag not in _STRUCTURAL_TAGS:
