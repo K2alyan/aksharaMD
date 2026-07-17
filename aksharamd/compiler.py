@@ -761,6 +761,13 @@ class Compiler:
                 for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
+            # 3.5 Key-value group promotion (post-parse, pre-optimize)
+            if on_stage:
+                on_stage("Promoting key-value structures")
+            with timed("transform_kv"):
+                from .plugins.transformers.key_value_promoter import detect_and_promote_key_value_groups
+                ctx = detect_and_promote_key_value_groups(ctx)
+
             # 4. Optimise
             if on_stage:
                 on_stage("Optimizing tokens")

@@ -36,6 +36,13 @@ class CompilationContext:
     # parsers call ctx.progress("message") to surface fine-grained events
     progress: Callable[[str], None] | None = field(default=None, repr=False, compare=False)
 
+    # KV detection profile — controls which heuristic paths are active for
+    # the post-parse KeyValueGroup promoter. Default (None) resolves to
+    # KeyValueDetectionProfile() with heuristics disabled. Set to
+    # KeyValueDetectionProfile.experimental() to enable inline+adjacent
+    # heuristics (calibration/evaluation only).
+    kv_profile: object | None = field(default=None)
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:
