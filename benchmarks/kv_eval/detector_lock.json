@@ -1,0 +1,16 @@
+{
+  "detector_version": "kv_promoter/v1",
+  "code_commit": "9e66af8",
+  "pipeline_stage": "post_clean_pre_optimize",
+  "inline_max_chars": 600,
+  "inline_min_entries": 2,
+  "adjacent_min_blocks": 4,
+  "adjacent_page_tolerance": 1,
+  "max_label_words": 5,
+  "max_value_chars": 80,
+  "xlsx_max_rows": 20,
+  "xlsx_required_columns": 2,
+  "rhetorical_label_set_checksum": "6a4a13f3c8da5465",
+  "value_type_rules_version": "v1",
+  "run_timestamp": "2026-07-15T02:20:23.391514+00:00"
+}
