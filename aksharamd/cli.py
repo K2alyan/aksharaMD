@@ -444,6 +444,19 @@ def main():
         "Whisper ML inference, and OCR. Use when processing untrusted input."
     ),
 )
+@click.option(
+    "--package", "run_package", is_flag=True, default=False,
+    help=(
+        "Generate a document package alongside standard output. "
+        "Writes tables/, images/, regions/, package_plan.json, and token_report.json."
+    ),
+)
+@click.option(
+    "--package-mode", "package_mode",
+    type=click.Choice(["text_first", "fidelity_first", "adaptive"], case_sensitive=False),
+    default="adaptive", show_default=True,
+    help="Package representation strategy. Requires --package.",
+)
 def compile(
     source: str,
     output: str,
@@ -455,6 +468,8 @@ def compile(
     chunk_size: int,
     chunk_overlap: int,
     safe_mode: bool,
+    run_package: bool,
+    package_mode: str,
 ):
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     import json as _json
@@ -479,12 +494,22 @@ def compile(
     if not _suppress_rich:
         _show_first_run_onboarding()
 
-    if _suppress_rich:
-        ctx = compiler.compile(source)
+    if run_package:
+        from .packaging import PackageMode, PackageProfile
+        profile = PackageProfile(mode=PackageMode(package_mode.lower()))
+        if _suppress_rich:
+            ctx = compiler.compile_package(source, profile=profile)
+        else:
+            with _LiveProgress(source) as lp:
+                ctx = compiler.compile_package(source, profile=profile, on_stage=lp.update)
+            console.print()
     else:
-        with _LiveProgress(source) as lp:
-            ctx = compiler.compile(source, on_stage=lp.update)
-        console.print()
+        if _suppress_rich:
+            ctx = compiler.compile(source)
+        else:
+            with _LiveProgress(source) as lp:
+                ctx = compiler.compile(source, on_stage=lp.update)
+            console.print()
 
     # Evaluate readiness threshold (only when manifest was produced)
     _below_threshold = (
@@ -505,6 +530,9 @@ def compile(
                 "output_dir": file_output,
                 "readiness_score": m.readiness_score,
                 "quality_band": m.quality_band,
+                "scoring_policy_version": m.scoring_policy_version,
+                "deductions": m.deductions,
+                "informational": m.informational,
                 "warning_codes": warning_codes,
                 "errors": error_msgs,
                 "chunks": m.chunks,
@@ -616,6 +644,34 @@ def compile(
                 border_style=panel_color,
             ))
 
+        # Show structured deductions (active, suppressed, and informational)
+        active_deds = [d for d in m.deductions if not d.get("suppressed")]
+        suppressed_deds = [d for d in m.deductions if d.get("suppressed")]
+        if active_deds or suppressed_deds or m.informational:
+            ded_lines = []
+            for d in active_deds:
+                penalty_str = f"-{d['penalty']}" if d["penalty"] else " 0"
+                ded_lines.append(
+                    f"  [red]{penalty_str:>4}[/]  [bold]{escape(d['rule_id'])}[/]  "
+                    f"[dim]{escape(d['description'])}[/]"
+                )
+            for d in suppressed_deds:
+                reason = d.get("suppression_reason", "")
+                ded_lines.append(
+                    f"  [dim]  ~~  {escape(d['rule_id'])}  "
+                    f"suppressed — {escape(reason)}[/]"
+                )
+            for d in m.informational:
+                ded_lines.append(
+                    f"  [cyan]info[/]  [bold]{escape(d['rule_id'])}[/]  "
+                    f"[dim]{escape(d['description'])}[/]"
+                )
+            console.print(Panel(
+                "\n".join(ded_lines),
+                title=f"[bold]Score Deductions  (policy v{escape(m.scoring_policy_version)})[/]",
+                border_style=panel_color,
+            ))
+
         # Show validation warnings if score is below HIGH — these contain
         # actionable guidance that scoring notes may not cover
         actionable_codes = {"ENCRYPTED_PDF", "OCR_REQUIRED", "GLYPH_ARTIFACTS",
@@ -675,6 +731,53 @@ def compile(
             for name, desc in output_files
         )
         console.print(Panel(file_lines, title="[bold]Output Files[/]", border_style="dim"))
+
+        # Package summary (only when --package was used)
+        if run_package and ctx.package_plan is not None:
+            from .packaging.models import RepresentationType as _RT
+            pkg = ctx.package_plan
+            total_elems = len(pkg.elements)
+            preserved = sum(1 for e in pkg.elements if e.representation != _RT.OMIT)
+            in_default = sum(1 for e in pkg.elements if e.include_by_default)
+            tables = sum(1 for e in pkg.elements if e.representation == _RT.STRUCTURED_TABLE)
+            visual = sum(
+                1 for e in pkg.elements
+                if e.representation == _RT.IMAGE
+                and e.source_kind.value in ("page_region", "page")
+            )
+            ref_only = sum(1 for e in pkg.elements if e.representation == _RT.REFERENCE_ONLY)
+            sel_tokens = pkg.estimated_tokens
+            unresolved = sum(
+                1 for e in pkg.elements
+                if e.source_kind.value in ("page_region", "page")
+                and e.element_type == "table"
+            )
+
+            pt = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+            pt.add_column(style="bold")
+            pt.add_column()
+            pt.add_row("Package mode",          pkg.mode)
+            pt.add_row("Planner version",        pkg.planner_version)
+            pt.add_row("Elements preserved",     f"{preserved} / {total_elems}")
+            pt.add_row("Default payload",        str(in_default))
+            pt.add_row("Structured tables",      str(tables))
+            pt.add_row("Visual fallbacks",       str(visual))
+            pt.add_row("Reference-only assets",  str(ref_only))
+            pt.add_row("Selected text tokens",   f"{sel_tokens:,}")
+            if unresolved:
+                pt.add_row("Unresolved warnings", f"[yellow]{unresolved}[/]  (no source PDF for crop)")
+            console.print(Panel(pt, title="[bold]Document Package[/]", border_style="cyan"))
+
+            if hasattr(ctx, 'package_payload') and ctx.package_payload is not None:
+                payload = ctx.package_payload
+                pt2 = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+                pt2.add_column(style="bold")
+                pt2.add_column()
+                pt2.add_row("Payload items", str(len(payload.items)))
+                pt2.add_row("Actual text tokens", f"{payload.actual_text_token_count:,}")
+                if payload.unresolved_element_ids:
+                    pt2.add_row("Unresolved", f"[yellow]{len(payload.unresolved_element_ids)}[/]")
+                console.print(Panel(pt2, title="[bold]LLM Payload[/]", border_style="cyan"))
 
     # When the pipeline fails before building a manifest (e.g. encrypted PDF),
     # still surface any actionable warnings so the user knows what to do.
@@ -1445,3 +1548,159 @@ def index_search(query: str, results: int, index_dir: str | None) -> None:
             f"  p.{page} · {btype} · readiness {score}/100"
         )
         console.print(f"    {snippet}\n")
+
+
+@main.command("build-payload")
+@click.argument("package_dir", type=click.Path(exists=True))
+@click.option(
+    "--mode", "package_mode",
+    type=click.Choice(["text_first", "fidelity_first", "adaptive"], case_sensitive=False),
+    default="adaptive", show_default=True,
+    help="Package mode (used for profile defaults).",
+)
+def build_payload(package_dir: str, package_mode: str) -> None:
+    """Build an LLM payload from an existing document package."""
+
+    from .packaging import PackageMode, PackageProfile
+    from .packaging.models import DocumentPackagePlan
+    from .packaging.payload_builder import build_llm_payload
+
+    pkg_dir = Path(package_dir)
+    plan_path = pkg_dir / "package_plan.json"
+    doc_path = pkg_dir / "document.json"
+
+    if not plan_path.exists():
+        console.print(f"[red]No package_plan.json found in {package_dir}[/]")
+        raise SystemExit(1)
+
+    try:
+        plan = DocumentPackagePlan.model_validate_json(plan_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to load package_plan.json: {exc}[/]")
+        raise SystemExit(1) from exc
+
+    if not doc_path.exists():
+        console.print(f"[red]No document.json found in {package_dir}[/]")
+        raise SystemExit(1)
+
+    try:
+        from .models.document import Document
+        doc = Document.model_validate_json(doc_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to load document.json: {exc}[/]")
+        raise SystemExit(1) from exc
+
+    # Load existing asset refs if available
+    from .packaging.models import PackageAssetReference
+    asset_refs: list[PackageAssetReference] = []
+
+    profile = PackageProfile(mode=PackageMode(package_mode.lower()))
+
+    try:
+        payload = build_llm_payload(plan, doc, pkg_dir, asset_refs, profile)
+    except Exception as exc:
+        console.print(f"[red]Failed to build payload: {exc}[/]")
+        raise SystemExit(1) from exc
+
+    out_path = pkg_dir / "llm_payload.json"
+    out_path.write_text(payload.model_dump_json(indent=2), encoding="utf-8")
+    console.print(f"[green]Payload written to[/] {out_path}")
+    console.print(f"  Items: {len(payload.items)}")
+    console.print(f"  Actual text tokens: {payload.actual_text_token_count:,}")
+    if payload.unresolved_element_ids:
+        console.print(f"  [yellow]Unresolved: {len(payload.unresolved_element_ids)}[/]")
+
+
+@main.command("benchmark-representations")
+@click.argument("corpus_manifest", type=click.Path(exists=True))
+@click.option("--split", required=True, type=click.Choice(["dev", "held_out"]),
+              help="Required: which corpus split to run. Mixed-split runs are not allowed.")
+@click.option("--output-dir", default="benchmarks/document_package/results",
+              show_default=True, type=click.Path())
+@click.option("--max-documents", default=None, type=int,
+              help="Limit number of documents (for testing the harness)")
+def benchmark_representations(
+    corpus_manifest: str,
+    split: str,
+    output_dir: str,
+    max_documents: int | None,
+) -> None:
+    """Run representation-efficiency benchmark on a corpus split.
+
+    Generates baseline and candidate representations for each document
+    and writes metric files to --output-dir/<split>_<timestamp>/.
+    """
+    import hashlib
+    import json
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    from benchmarks.document_package.harness import run_corpus, write_benchmark_results
+    from benchmarks.document_package.schema import CorpusEntry
+
+    manifest_path = Path(corpus_manifest)
+    manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    corpus_entries = {
+        e.document_id: e
+        for e in (CorpusEntry.model_validate(x) for x in manifest_data)
+        if e.split.value == split
+    }
+
+    with console.status(f"Running {split} corpus from {corpus_manifest}..."):
+        captures, run_dir = run_corpus(
+            corpus_manifest_path=corpus_manifest,
+            output_dir=output_dir,
+            split=split,
+            max_documents=max_documents,
+        )
+
+        manifest_checksum = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        failed_ids = [
+            e.document_id for e in corpus_entries.values()
+            if not any(c.document_id == e.document_id for c in captures)
+        ]
+
+        write_benchmark_results(captures, run_dir, corpus_entries, failed_ids, manifest_checksum)
+
+    console.print(f"[green]Results written to {run_dir}[/]")
+    console.print(f"Processed: {len(captures)} / {len(corpus_entries)} documents")
+    if failed_ids:
+        console.print(f"[yellow]Failed: {', '.join(failed_ids)}[/]")
+
+
+@main.command("inspect-payload")
+@click.argument("payload_path", type=click.Path(exists=True))
+def inspect_payload(payload_path: str) -> None:
+    """Print a summary of an LLM payload file."""
+    from .packaging.payload import LLMPayload
+
+    try:
+        payload = LLMPayload.model_validate_json(Path(payload_path).read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to load payload: {exc}[/]")
+        raise SystemExit(1) from exc
+
+
+    # Count by type
+    type_counts: dict[str, int] = {}
+    for item in payload.items:
+        key = item.content_type.value
+        type_counts[key] = type_counts.get(key, 0) + 1
+
+    pt = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+    pt.add_column(style="bold")
+    pt.add_column()
+    pt.add_row("Document ID", payload.document_id)
+    pt.add_row("Package mode", payload.package_mode)
+    pt.add_row("Planner version", payload.planner_version)
+    pt.add_row("Schema version", payload.payload_schema_version)
+    pt.add_row("Total items", str(len(payload.items)))
+    pt.add_row("Planned tokens", f"{payload.planned_text_tokens:,}")
+    pt.add_row("Actual text tokens", f"{payload.actual_text_token_count:,}")
+    pt.add_row("Token delta", str(payload.token_delta))
+    for ct, count in sorted(type_counts.items()):
+        pt.add_row(f"  {ct}", str(count))
+    if payload.unresolved_element_ids:
+        pt.add_row("[yellow]Unresolved[/]", str(len(payload.unresolved_element_ids)))
+    console.print(Panel(pt, title="[bold]LLM Payload Summary[/]", border_style="cyan"))

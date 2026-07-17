@@ -112,3 +112,111 @@ def test_blocks_reindexed():
     ctx = _run(blocks)
     indices = [b.index for b in ctx.document.blocks]
     assert indices == list(range(len(ctx.document.blocks)))
+
+
+# ---------------------------------------------------------------------------
+# Numbered heading preservation — regression tests (ec-ho-001 / AXA URD fix)
+# ---------------------------------------------------------------------------
+
+def test_merged_heading_gets_unique_id():
+    """Merged headings must receive id=checksum, not id='', to avoid payload collisions."""
+    blocks = [
+        Block(type=BlockType.HEADING, content="1.5", level=2, page=1, index=0),
+        Block(type=BlockType.HEADING, content="Ratings", level=2, page=1, index=1),
+    ]
+    ctx = _run(blocks)
+    headings = [b for b in ctx.document.blocks if b.type == BlockType.HEADING]
+    assert len(headings) == 1
+    assert headings[0].id != "", "merged heading must not have empty id"
+    assert headings[0].id == headings[0].checksum, "merged heading id must equal its checksum"
+
+
+def test_multiple_merged_headings_have_distinct_ids():
+    """Multiple merged heading groups on different pages must all get distinct, non-empty ids."""
+    blocks = [
+        Block(type=BlockType.HEADING, content="1.5", level=2, page=1, index=0),
+        Block(type=BlockType.HEADING, content="Ratings", level=2, page=1, index=1),
+        _para("Some body text.", page=1),
+        Block(type=BlockType.HEADING, content="1.5.1", level=3, page=1, index=3),
+        Block(type=BlockType.HEADING, content="Insurer financial strength", level=3, page=1, index=4),
+    ]
+    ctx = _run(blocks)
+    headings = [b for b in ctx.document.blocks if b.type == BlockType.HEADING]
+    assert len(headings) == 2
+    ids = [h.id for h in headings]
+    assert "" not in ids, "no merged heading may have empty id"
+    assert len(set(ids)) == 2, "merged headings must have distinct ids"
+
+
+def test_numbered_subsection_heading_not_deduplicated():
+    """A subsection heading (e.g. 1.5.1) that shares a page with other headings must survive."""
+    blocks = [
+        Block(type=BlockType.HEADING, content="1.5 Ratings", level=2, page=1, index=0),
+        _para("Intro paragraph.", page=1),
+        Block(type=BlockType.HEADING, content="1.5.1 Insurer financial strength and counterparty credit ratings", level=3, page=1, index=2),
+        _para("Body content.", page=1),
+    ]
+    ctx = _run(blocks)
+    headings = [b for b in ctx.document.blocks if b.type == BlockType.HEADING]
+    assert len(headings) == 2
+    contents = [h.content for h in headings]
+    assert any("1.5.1" in c for c in contents), "1.5.1 subsection heading must survive optimization"
+
+
+def test_numbered_heading_not_removed_as_furniture():
+    """Numbered section headings repeated across pages must never be removed as page furniture."""
+    # Simulate a heading repeated at the top of 10 pages (would normally be detected as a header)
+    blocks = []
+    for page in range(1, 11):
+        blocks.append(Block(
+            type=BlockType.HEADING, content="1.5 Ratings", level=2,
+            page=page, index=len(blocks),
+        ))
+        blocks.append(_para(f"Page {page} body.", page=page))
+    ctx = _run(blocks, pages=10)
+    numbered_headings = [
+        b for b in ctx.document.blocks
+        if b.type == BlockType.HEADING and b.content == "1.5 Ratings"
+    ]
+    assert len(numbered_headings) > 0, "repeated numbered section headings must not be removed as furniture"
+
+
+def test_plain_repeated_header_still_removed():
+    """Non-numbered repeated page headers should still be removed (existing behavior)."""
+    blocks = []
+    for page in range(1, 11):
+        blocks.append(Block(
+            type=BlockType.PARAGRAPH, content="Company Confidential",
+            page=page, index=len(blocks),
+        ))
+        blocks.append(_para(f"Page {page} body.", page=page))
+    ctx = _run(blocks, pages=10)
+    remaining = [b for b in ctx.document.blocks if b.content == "Company Confidential"]
+    assert len(remaining) == 0, "plain repeated page headers must still be removed"
+
+
+def test_multiple_numbering_schemes_preserved():
+    """Headings with various numbering schemes (decimal, roman, letter+digit) survive optimization."""
+    blocks = [
+        Block(type=BlockType.HEADING, content="1.5.1 Decimal sub-section", level=3, page=1, index=0),
+        Block(type=BlockType.HEADING, content="Section 1.5.1 Named sub-section", level=3, page=2, index=1),
+        Block(type=BlockType.HEADING, content="A.2 Appendix section", level=2, page=3, index=2),
+        Block(type=BlockType.HEADING, content="IV. Roman numeral section", level=2, page=4, index=3),
+    ]
+    # Give each page one heading — four pages, four headings, none repeated enough for removal
+    ctx = _run(blocks, pages=4)
+    headings = [b for b in ctx.document.blocks if b.type == BlockType.HEADING]
+    assert len(headings) == 4, "all numbering scheme variants must survive"
+
+
+def test_heading_with_following_content_preserved():
+    """A numbered heading immediately before a paragraph must both survive."""
+    blocks = [
+        Block(type=BlockType.HEADING, content="1.5.1 Ratings subsection", level=3, page=1, index=0),
+        _para("The following table shows ratings for AXA.", page=1),
+    ]
+    ctx = _run(blocks)
+    assert len(ctx.document.blocks) == 2
+    headings = [b for b in ctx.document.blocks if b.type == BlockType.HEADING]
+    assert len(headings) == 1
+    assert "1.5.1" in headings[0].content

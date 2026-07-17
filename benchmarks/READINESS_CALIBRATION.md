@@ -96,14 +96,16 @@ sentence_recall = |sentences found in output| / |sentences in ground truth|
 
 **What it measures:** Whether AksharaMD outputs blocks in the reading order a human would follow.
 
-**Metrics:** `reading_order_adjacent_accuracy` and `reading_order_pairwise_accuracy` from ParseBench attribution/core.py.
+**Implementation note — rule-based vs. spatial attribution:**
+ParseBench's `attribution/core.py` computes reading-order metrics from bounding-box layout — it requires per-block spatial coordinates that are not available in text-only pipeline output. For this calibration, reading order is measured via the rule-based `order` rules already wired in `ParseEvaluator` (the `enable_rule_based=True` path). These rules check whether adjacent block sequences in the AksharaMD output match the expected ground-truth order, using string-level matching rather than spatial IoA.
 
-- Adjacent accuracy: fraction of consecutive ground-truth block pairs where the predicted order is preserved.
-- Pairwise accuracy: fraction of all ground-truth block pairs where predicted order is preserved.
+Spatial reading-order metrics (adjacent accuracy, pairwise accuracy from `attribution/core.py`) are deferred to a layout-aware evaluation pass and are **not** collected in this calibration run.
 
-IoA threshold: 0.3 (default). Ground-truth blocks of type formula, caption, or explicit-only are excluded.
+**Metric:** Rule-based order accuracy — fraction of `order` rules that pass. An `order` rule passes if the specified text sequence appears in the AksharaMD output in the correct relative order.
 
-**Status:** Existing in ParseBench. Currently not collected for the AksharaMD pipeline. Must be enabled in the adapter; see Section 7.
+**Reported as:** `rule_order_pass_rate` (computed by the existing `RuleBasedMetric` over `order`-type rules).
+
+**Status:** Existing in ParseBench rule-based evaluator. Enabled via `enable_rule_based=True` in `make_calibration_evaluator()`. No additional adapter work required.
 
 ### 3.3 Heading structure
 
@@ -137,31 +139,47 @@ Tree Edit Distance Similarity (full content). Used as a cross-check on GriTS.
 
 **Status:** Not in scope for this calibration run. ParseBench corpus is entirely text-layer PDFs with no meaningful figure ground truth in the text_content split. This dimension is deferred to a scanned-document calibration corpus. Marked as `visual_coverage = NaN` for all documents in this run.
 
-### 3.6 Hallucination rate
+### 3.6 Unsupported output (provisional hallucination proxy)
 
-**What it measures:** Fraction of AksharaMD output tokens that have no counterpart in the source document.
+**What it measures:** Fraction of meaningful tokens in AksharaMD output that are not supported by the ground-truth vocabulary.
 
-**Metric:** Local Attribution Precision (LAP) from ParseBench attribution/core.py. For each predicted block, LAP checks whether its text tokens appear in spatially overlapping ground-truth elements. Low LAP = high hallucination.
+**IMPORTANT — this is a lexical proxy, not a hallucination detector.** It cannot distinguish between (a) correct novel phrasing, (b) legitimate paraphrase, and (c) genuine hallucination. A high ratio indicates that the output contains many words absent from the ground-truth document, which warrants manual review but is not conclusive evidence of hallucination.
 
+**Metric:**
 ```
-LAP = |tokens attributed to GT| / |total tokens in predicted output|
+unsupported_output_ratio = genuinely_unsupported_tokens / meaningful_tokens
+
+where:
+  meaningful_tokens = total_tokens − formatting_only_tokens
+  formatting_only   = punctuation, markdown, pure-numeric tokens
+  supported         = token appears in GT vocabulary OR in a GT bigram pair
+  genuinely_unsupported = meaningful − supported
 ```
 
-For text-only evaluation (no bounding boxes), attribution falls back to string containment: a token is "attributed" if the predicted block's text is a substring of the ground-truth document.
+Output range: [0, 1]. 0 = all meaningful tokens supported; 1 = no meaningful tokens supported. When `meaningful_tokens = 0` (output is pure formatting), returns 0.0.
 
-**Status:** LAP exists in ParseBench for layout-aware evaluation. String-containment fallback needs to be built for the text-only case; see Section 7.
+**Reported as:** `unsupported_output_ratio`. Metadata always includes `note: "proxy_metric_requires_manual_validation"`.
+
+**Status:** Built (`unsupported_output_metric.py`). Enabled in `make_calibration_evaluator()`. Results must be cross-checked manually before being used to classify a document as hallucinated.
 
 ### 3.7 Duplication and noise
 
 **What it measures:** Fraction of output that is repeated or is junk (glyph artifacts, OCR noise).
 
-**Metric:** Duplication ratio — fraction of 4-grams in the output that appear more than once:
+**Metric:** Duplication ratio — fraction of 4-gram instances that are extra repetitions, excluding repetitions already present in the ground truth:
 ```
-dup_ratio = |repeated 4-grams| / |total 4-grams|
-```
-Junk detection is out of scope for this calibration (no ground-truth junk labels in ParseBench). Duplication ratio is computed directly from AksharaMD output with no ground-truth comparison.
+dup_ratio = extra_repeated_instances / total_ngrams
 
-**Status:** Needs to be built; see Section 7.
+where:
+  extra_repeated_instances = sum over repeated 4-grams
+                             of (count − 1), for 4-grams NOT in the GT 4-gram set
+  total_ngrams             = |output tokens| − 3
+```
+The GT exclusion prevents penalising legitimate repetition that mirrors the source document (e.g. repeated headers). When `total_ngrams < 4`, returns 0.0 with `note: "too_few_tokens"`.
+
+Junk/glyph detection is out of scope (no ground-truth noise labels in ParseBench).
+
+**Status:** Built (`duplication_metric.py`). Enabled in `make_calibration_evaluator()`.
 
 ### 3.8 Downstream QA accuracy
 
@@ -193,6 +211,19 @@ Hypothesis: documents in the HIGH band were processed with high fidelity.
 | `qa_answer_match` (docs with QA rules) | ≥ 0.80 | ≥ 85% of HIGH docs with QA rules |
 
 **Target calibration claim (from roadmap):** "Documents scoring 85+ recovered at least 95% of labeled text in 92% of the evaluation corpus." Operationalised here as `text_char_recall ≥ 0.90` in ≥ 92% of HIGH-band documents.
+
+**Composite false-safe criterion for HIGH band (material failure):**
+A HIGH-band document is classified as a material false-safe if ANY of the following conditions holds:
+
+| Condition | Threshold |
+|-----------|-----------|
+| `text_char_recall` below threshold | < 0.90 |
+| `text_sentence_recall` below threshold (where applicable) | < 0.85 |
+| `table_grits_con` below threshold (docs with ≥ 2 expected tables) | < 0.40 |
+| `rule_order_pass_rate` below threshold (docs with order rules) | < 0.70 |
+| `unsupported_output_ratio` above threshold (proxy; requires manual review) | > 0.30 |
+
+A document that fails any single condition is counted as a material false-safe for the HIGH-band hypothesis test, regardless of performance on the other dimensions. This is stricter than the primary false-safe definition in Section 5, which uses only `text_char_recall`. The composite criterion is reported as a secondary finding alongside the primary false-safe rate.
 
 ### 4.2 OK band (70–84)
 
@@ -286,21 +317,21 @@ Produce a calibration report (see Section 8) from the combined 75-document corpu
 
 ## 7. Metric implementation status
 
-| Dimension | Metric | Status | Action required |
-|-----------|--------|--------|----------------|
-| Text fidelity | `text_char_recall` (Levenshtein) | Existing in ParseBench | Enable in adapter |
-| Text fidelity | `text_sentence_recall` | **Missing** | Build sentence-level recall function |
-| Reading order | `reading_order_adjacent_accuracy` | Existing in ParseBench | Enable in adapter |
-| Reading order | `reading_order_pairwise_accuracy` | Existing in ParseBench | Enable in adapter |
-| Heading structure | `heading_accuracy` | Existing in ParseBench | Enable in adapter |
-| Table fidelity | `table_grits_con` | Existing; already collected | No action |
-| Table fidelity | `teds` | Existing in ParseBench | Enable as cross-check |
-| Visual coverage | — | Deferred | Out of scope |
-| Hallucination | LAP (string fallback) | Existing (layout); fallback **missing** | Build string-containment fallback |
-| Duplication | `dup_ratio` (4-gram) | **Missing** | Build 4-gram duplication counter |
-| QA accuracy | `qa_answer_match` | Existing in ParseBench | Wire to text pipeline in adapter |
+| Dimension | Metric | Status |
+|-----------|--------|--------|
+| Text fidelity | `text_char_recall` (Levenshtein) | Built; enabled via `enable_text_similarity=True` |
+| Text fidelity | `text_sentence_recall` | **Built** (`sentence_recall_metric.py`); enabled via `enable_sentence_recall=True` |
+| Reading order | `rule_order_pass_rate` (rule-based `order` rules) | Built; enabled via `enable_rule_based=True` |
+| Reading order | Spatial adjacent/pairwise accuracy | Deferred — requires bounding boxes; not applicable to text-only eval |
+| Heading structure | `heading_accuracy` | Built; enabled via `enable_header_accuracy=True` |
+| Table fidelity | `table_grits_con` | Built; enabled via `enable_grits=True` |
+| Table fidelity | `teds` | Built; enabled via `enable_teds=True` |
+| Visual coverage | — | Deferred — out of scope for text-content corpus |
+| Unsupported output | `unsupported_output_ratio` (provisional proxy) | **Built** (`unsupported_output_metric.py`); enabled via `enable_unsupported_output=True` |
+| Duplication | `duplication_ratio` (4-gram, GT-excluding) | **Built** (`duplication_metric.py`); enabled via `enable_duplication=True` |
+| QA accuracy | `qa_answer_match` | Existing; not wired — deferred to post-calibration |
 
-Metrics marked **Missing** must be built before the evaluation run begins. Metrics marked "Enable in adapter" require adapter configuration changes only, not new code.
+All metrics required for the dev-split run are now built and enabled in `make_calibration_evaluator()`. QA accuracy is excluded from this calibration run.
 
 ---
 
@@ -360,3 +391,170 @@ RunStat(name="readiness_band", value=band_to_int(ctx.readiness_band), unit="band
 where `band_to_int` maps `{"HIGH": 3, "OK": 2, "RISKY": 1, "POOR": 0}`.
 
 Without this, T5 selection (Section 2.2) and the per-band hypothesis tests (Section 4) cannot be computed. This is a blocker for the score-only pass.
+
+---
+
+## 11. Per-metric reference
+
+Each metric's full contract: inputs, normalization, applicability gate, denominator, output range, and failure behavior.
+
+### 11.1 `text_char_recall`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | Ground-truth markdown string |
+| Input — actual | AksharaMD output markdown string |
+| Normalization | Levenshtein edit distance (autoevals), normalized to [0, 1] |
+| Applicability | Always applicable |
+| Denominator | Length of expected string |
+| Output range | [0, 1] |
+| Failure behavior | Empty expected → 0.0; empty actual → 0.0 |
+
+### 11.2 `text_sentence_recall`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | Ground-truth markdown string |
+| Input — actual | AksharaMD output markdown string |
+| Normalization | Strip markdown (`[#*_\|~\`<>\[\]()\n]`), split on `.?!` boundaries, NFC-normalize, lowercase, collapse whitespace |
+| Applicability | `metadata["applicable"] = False` when expected is empty or contains no extractable prose sentences (e.g. pure table HTML). Filter: table rows (`\|` in original line), segments < 10 chars. |
+| Denominator | Number of prose sentences extracted from expected |
+| Output range | [0, 1] |
+| Failure behavior | Empty expected → value=0.0, applicable=False; no extractable sentences → value=1.0, applicable=False |
+| Implementation | `sentence_recall_metric.py` |
+
+### 11.3 `rule_order_pass_rate`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | ParseBench `order`-type rules (text sequences that must appear in order) |
+| Input — actual | AksharaMD output markdown string |
+| Normalization | Rule-based string matching (existing ParseBench logic) |
+| Applicability | Only for documents with `order`-type rules in test case |
+| Denominator | Number of order rules defined for the document |
+| Output range | [0, 1] |
+| Failure behavior | No order rules → metric absent from results |
+| Note | This is the text-pipeline substitute for spatial reading-order metrics, which require bounding boxes not available in text-only output |
+
+### 11.4 `heading_accuracy`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | ParseBench heading rules (text + level) |
+| Input — actual | AksharaMD output markdown headings |
+| Normalization | Heading text similarity + level correctness + order |
+| Applicability | Only for documents with heading rules |
+| Denominator | Number of expected headings |
+| Output range | [0, 1] |
+| Failure behavior | No heading rules → metric absent |
+
+### 11.5 `table_grits_con`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | HTML tables in ground-truth markdown |
+| Input — actual | HTML tables in AksharaMD output |
+| Normalization | Cell text via LCS similarity; Hungarian algorithm row/column matching |
+| Applicability | Only for documents with ≥ 1 expected table |
+| Denominator | F-score over matched cells |
+| Output range | [0, 1] |
+| Failure behavior | No tables in expected → metric absent (`tables_expected = 0`) |
+
+### 11.6 `duplication_ratio`
+
+| Property | Value |
+|----------|-------|
+| Input — expected | Ground-truth markdown string (defines expected n-gram set) |
+| Input — actual | AksharaMD output markdown string |
+| Normalization | Strip markdown, lowercase, tokenize on whitespace; build 4-gram counts |
+| Applicability | Always; but `metadata["note"] = "too_few_tokens"` when output has < 4 tokens |
+| Denominator | Total 4-grams in output (`len(tokens) - 3`) |
+| Output range | [0, 1] |
+| Failure behavior | `total_ngrams < 4` → 0.0 with too_few_tokens note; empty actual → 0.0 |
+| GT exclusion | 4-grams present in expected are excluded from the "repeated" count — prevents penalising legitimate source repetition |
+| Implementation | `duplication_metric.py` |
+
+### 11.7 `unsupported_output_ratio` — PROVISIONAL LEXICAL PROXY
+
+| Property | Value |
+|----------|-------|
+| Input — expected | Ground-truth markdown string (defines supported vocabulary + bigrams) |
+| Input — actual | AksharaMD output markdown string |
+| Normalization | Strip markdown (`[#*_\|~\`<>]`), lowercase, split on whitespace |
+| Applicability | Always; but `metadata["note"]` always includes `"proxy_metric_requires_manual_validation"` |
+| Denominator | Meaningful tokens (total − formatting_only) |
+| Output range | [0, 1] |
+| Failure behavior | `meaningful_tokens = 0` → 0.0 with `"no_meaningful_tokens"` note |
+| Formatting-only tokens | Punctuation, markdown symbols, pure-numeric tokens (`[\d.,%-]+`) |
+| Supported tokens | Token in GT unigram vocabulary OR appears in a GT bigram pair |
+| **CRITICAL LIMITATION** | Cannot distinguish correct novel phrasing from hallucination. A high ratio is a signal for manual review, not a classification. Do not report this metric as a hallucination rate in any output or summary. |
+| Implementation | `unsupported_output_metric.py` |
+
+---
+
+## 12. How to run the calibration
+
+### 12.1 Prerequisites
+
+1. AksharaMD is installed in the parsebench virtual environment: `pip install -e /path/to/omnimark`
+2. ParseBench test data is present at `C:\Users\kalya\parsebench\data\test\`
+3. The `aksharamd_calibration` pipeline is registered (already done in `pipelines/parse.py`)
+4. `make_calibration_evaluator()` is imported and wired in the runner (already done)
+
+### 12.2 Five-document instrumentation pilot
+
+Purpose: verify that the adapter emits metadata correctly, all three new metrics compute without errors, and the calibration evaluator wiring is end-to-end correct. Run this before any corpus-level evaluation.
+
+```bash
+cd C:\Users\kalya\parsebench
+python -m pytest tests/test_calibration_instrumentation.py -v --tb=short
+```
+
+Expected: all tests pass. If any test fails, fix the underlying issue before proceeding. Do not proceed to the dev split with failing pilot tests.
+
+The five pilot documents are:
+| Test ID | File | Type |
+|---------|------|------|
+| `simple_prose` | `text/text_simple__edited.pdf` | Clean prose |
+| `multi_rule_text` | `text/text_simple__results.pdf` | Multi-rule text |
+| `table_heavy` | `table/222876fb_page22.pdf` | Table-heavy |
+| `table_insurance` | `table/SERFF_Interstate_random_pages 1_page276.pdf` | Insurance table |
+| `ocr_boundary` | `text/text_ocr__p4013.pdf` | OCR-scanned |
+
+### 12.3 Twenty-five document development baseline
+
+Purpose: first calibration pass on the dev split. Results are inspectable and may prompt methodological corrections before the locked run.
+
+```bash
+cd C:\Users\kalya\parsebench
+python -m parse_bench run \
+    --pipeline aksharamd_calibration \
+    --split dev \
+    --corpus benchmarks/calibration_corpus.jsonl \
+    --evaluator calibration \
+    --output benchmarks/results/calibration_dev_run.jsonl
+```
+
+After the run, inspect:
+- NaN or Inf rates per metric (should be 0 for all built metrics)
+- `applicable=False` frequency for `text_sentence_recall` (expected high for table-heavy docs)
+- Per-band document counts (must have ≥ 3 documents per band for meaningful statistics)
+- Any pilot-level anomalies: `duplication_ratio > 0.5`, `unsupported_output_ratio > 0.4`
+
+The dev run is not final. If you find a metric is systematically misconfigured, fix it and re-run the dev split before opening the locked set.
+
+### 12.4 Locked validation run
+
+Run only after dev split results have been reviewed and approved. Do not open the locked results until the run completes.
+
+```bash
+cd C:\Users\kalya\parsebench
+python -m parse_bench run \
+    --pipeline aksharamd_calibration \
+    --split locked \
+    --corpus benchmarks/calibration_corpus.jsonl \
+    --evaluator calibration \
+    --output benchmarks/results/calibration_locked_run.jsonl
+```
+
+After the locked run, generate the calibration report per Section 8. The locked run results are final — do not re-run with adjusted parameters.

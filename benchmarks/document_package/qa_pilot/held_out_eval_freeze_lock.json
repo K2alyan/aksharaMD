@@ -1,0 +1,14 @@
+{
+  "lock_type": "held_out_eval_freeze",
+  "frozen_at": "2026-07-14T21:45:16.855119+00:00",
+  "code_commit": "9e66af8",
+  "parser_version": "0.3.6",
+  "planner_version": "1.0",
+  "table_serializer": "token_aware_v1",
+  "max_inline_table_tokens": 1200,
+  "payload_schema_version": "1.0",
+  "prompt_version": "v1.0",
+  "grading_version": "v1.1",
+  "question_schema_version": "1.0",
+  "note": "Frozen before running held-out evaluation. Do not modify pipeline policy based on held-out failures."
+}

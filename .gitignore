@@ -33,6 +33,13 @@ audit_scripts/
 benchmarks/.public_corpus/
 benchmarks/results/public_benchmark_*.jsonl
 benchmarks/results/public_benchmark_*.md
+benchmarks/results/*.log
+benchmarks/document_package/results/
+benchmarks/document_package/qa_pilot/runs/
+benchmarks/kv_eval/results/
+
+# graphify indexer output — local artefact, do not commit
+graphify-out/
 
 # Output / cache
 output/

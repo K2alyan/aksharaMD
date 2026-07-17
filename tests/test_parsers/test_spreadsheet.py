@@ -72,8 +72,13 @@ def test_xlsx_merged_cells(tmp_path):
     ctx = _parse_xlsx(path, tmp_path)
     tables = [b for b in ctx.document.blocks if b.type == BlockType.TABLE]
     assert len(tables) == 1
-    # Both rows should show "North" (slave cell expanded)
-    assert tables[0].content.count("North") == 2
+    # With structured table model, merged cell appears once (master) and slave position is absent
+    assert tables[0].content.count("North") == 1
+    assert tables[0].table_data is not None
+    # Master cell at row=1, col=0 with row_span=2
+    master = next(c for c in tables[0].table_data.cells if c.text == "North")
+    assert master.row_span == 2
+    assert master.column_span == 1
 
 
 def test_xlsx_row_cap(tmp_path):

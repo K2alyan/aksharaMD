@@ -2,17 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from .models.chunk import Chunk
 from .models.document import Document
 from .models.manifest import Manifest
 from .models.validation import Severity, ValidationIssue, ValidationReport
 
+if TYPE_CHECKING:
+    from .packaging.models import DocumentPackagePlan, PackageAssetReference
+    from .packaging.payload import LLMPayload
+
 
 @dataclass
 class CompilationContext:
     source: str
     output_dir: str = "output"
+
+    source_id: str = ""   # populated by compiler after source resolution
+    capture_id: str = ""  # SHA-256 of raw source bytes; populated by compiler
 
     document: Document | None = None
     chunks: list[Chunk] = field(default_factory=list)
@@ -32,6 +40,18 @@ class CompilationContext:
     # optional progress callback — set by Compiler when on_stage is provided;
     # parsers call ctx.progress("message") to surface fine-grained events
     progress: Callable[[str], None] | None = field(default=None, repr=False, compare=False)
+
+    # package artifacts — populated only when compile_package() is used
+    package_plan: DocumentPackagePlan | None = field(default=None)
+    package_assets: list[PackageAssetReference] = field(default_factory=list)
+    package_payload: LLMPayload | None = field(default=None)
+
+    # KV detection profile — controls which heuristic paths are active for
+    # the post-parse KeyValueGroup promoter. Default (None) resolves to
+    # KeyValueDetectionProfile() with heuristics disabled. Set to
+    # KeyValueDetectionProfile.experimental() to enable inline+adjacent
+    # heuristics (calibration/evaluation only).
+    kv_profile: object | None = field(default=None)
 
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)

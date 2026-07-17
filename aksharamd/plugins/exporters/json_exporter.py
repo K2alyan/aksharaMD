@@ -43,6 +43,12 @@ class JSONExporter(ExporterPlugin):
             chunk_meta["compiled_at"] = ctx.manifest.compiled_at
             if ctx.manifest.file_modified_at is not None:
                 chunk_meta["file_modified_at"] = ctx.manifest.file_modified_at
+            if ctx.manifest.source_id:
+                chunk_meta["source_id"] = ctx.manifest.source_id
+            if ctx.manifest.capture_id:
+                chunk_meta["capture_id"] = ctx.manifest.capture_id
+            if ctx.manifest.document_id:
+                chunk_meta["document_id"] = ctx.manifest.document_id
 
         for chunk in ctx.chunks:
             if chunk_meta:

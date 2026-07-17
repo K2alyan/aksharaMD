@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -7,6 +8,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .packaging.models import PackageProfile
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +40,11 @@ from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
+from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
+from .plugins.validators import multicolumn as _multicolumn_validator_pkg  # noqa: F401
 from .plugins.validators import structure as _validator_pkg  # noqa: F401
+from .plugins.validators import table_expectation as _te_validator_pkg  # noqa: F401
+from .plugins.validators import table_quality as _tq_validator_pkg  # noqa: F401
 from .scoring import compute_confidence
 from .utils import count_tokens
 
@@ -394,6 +403,23 @@ def _detect_file_type(path: str) -> str:
     return kind.extension if kind else "txt"
 
 
+def _compute_source_id(source: str) -> str:
+    """Return a 16-char SHA-256 of the normalized source locator.
+
+    For local paths, uses the resolved POSIX absolute path so the ID is
+    stable regardless of how the caller spelled the path.  For remote
+    URIs (http/https/s3) uses the URI verbatim.
+    """
+    if source.startswith(("http://", "https://", "s3://")):
+        normalized = source
+    else:
+        try:
+            normalized = Path(source).resolve().as_posix()
+        except Exception:
+            normalized = source
+    return hashlib.sha256(normalized.encode()).hexdigest()[:16]
+
+
 class Compiler:
     def __init__(
         self,
@@ -445,9 +471,9 @@ class Compiler:
         if ctx.document:
             yield from ctx.document.blocks
 
-    def compile(self, source: str, on_stage: Callable[[str], None] | None = None) -> CompilationContext:
+    def compile(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> CompilationContext:
         """Full compilation: parse → optimise → export to disk. Returns context."""
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if on_stage:
             on_stage("Writing output files")
@@ -457,7 +483,33 @@ class Compiler:
 
         return self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[list[dict], CompilationContext]:
+    def compile_with_baselines(
+        self,
+        source: str,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
+    ) -> tuple[CompilationContext, list]:
+        """Like compile(), but captures the pre-optimization block list.
+
+        Returns (ctx, pre_opt_blocks) where pre_opt_blocks contains the
+        document blocks BEFORE the optimizer runs (with repeated headers,
+        footers, and other furniture still present).
+        """
+        pre_opt_capture: list = []
+        ctx, stage_timings, t0 = self._run_pipeline(
+            source, on_stage=on_stage, source_id=source_id,
+            _pre_optimize_capture=pre_opt_capture,
+        )
+        if on_stage:
+            on_stage("Writing output files")
+        with _StageTimer(stage_timings, "export"):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+                ctx = plugin.execute(ctx)
+
+        pre_opt_blocks = pre_opt_capture[0] if pre_opt_capture else []
+        return self._finalise(ctx, stage_timings, t0), pre_opt_blocks
+
+    def compile_to_multimodal(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> tuple[list[dict], CompilationContext]:
         """Compile to an interleaved text+image content array for multimodal LLMs.
 
         Returns (content_array, ctx) where content_array is a list of Anthropic-compatible
@@ -467,7 +519,7 @@ class Compiler:
         """
         from .plugins.exporters.multimodal import build_multimodal_content
 
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
             content = build_multimodal_content(ctx.document)
@@ -476,7 +528,7 @@ class Compiler:
 
         return content, self._finalise(ctx, stage_timings, t0)
 
-    def compile_to_string(self, source: str, on_stage: Callable[[str], None] | None = None) -> tuple[str, CompilationContext]:
+    def compile_to_string(self, source: str, on_stage: Callable[[str], None] | None = None, source_id: str | None = None) -> tuple[str, CompilationContext]:
         """Compile to a markdown string without writing any files to disk.
 
         Ideal for MCP server and programmatic usage where disk I/O is unwanted.
@@ -484,7 +536,7 @@ class Compiler:
         """
         from .plugins.exporters.markdown import _block_to_md
 
-        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage)
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
             lines = [_block_to_md(b) for b in ctx.document.blocks]
@@ -493,6 +545,110 @@ class Compiler:
             text = ""
 
         return text, self._finalise(ctx, stage_timings, t0)
+
+    def compile_package(
+        self,
+        source: str,
+        profile: PackageProfile | None = None,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
+    ) -> CompilationContext:
+        """Full compilation + package artifact generation.
+
+        Like compile(), but additionally writes:
+          tables/<block_id>.json  — structured table artifacts
+          images/<asset_id>.png   — embedded images with bytes
+          regions/<id>.png        — page-region or full-page fallbacks (when fitz available)
+          package_plan.json       — planner decisions per element
+          token_report.json       — token accounting
+
+        All existing outputs (document.json, document.md, manifest.json,
+        validation.json, chunks/) are produced identically to compile().
+        Packaging decisions do not affect document_id, block IDs, or chunk IDs.
+        """
+        from .packaging import PackageProfile as _PackageProfile
+        from .packaging import PackageWriter, build_token_report, plan_document
+
+        if profile is None:
+            profile = _PackageProfile()
+
+        # Run standard pipeline + standard exporters (identical to compile())
+        ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
+
+        if on_stage:
+            on_stage("Writing output files")
+        with _StageTimer(stage_timings, "export"):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+                ctx = plugin.execute(ctx)
+
+        if ctx.document is None:
+            return self._finalise(ctx, stage_timings, t0)
+
+        # Package planning
+        if on_stage:
+            on_stage("Planning package elements")
+        pkg_plan = plan_document(ctx.document, profile, ctx.validation)
+
+        # Package writing
+        if on_stage:
+            on_stage("Writing package artifacts")
+        writer = PackageWriter()
+        asset_refs, fidelity = writer.write(
+            ctx.output_dir, pkg_plan, ctx.document, ctx.validation
+        )
+
+        # Token report
+        raw_tokens = ctx.manifest.original_tokens if ctx.manifest else 0
+        opt_tokens = ctx.manifest.optimized_tokens if ctx.manifest else 0
+        token_report = build_token_report(
+            pkg_plan.document_id, pkg_plan, raw_tokens, opt_tokens, asset_refs
+        )
+        from pathlib import Path as _Path
+        (_Path(ctx.output_dir) / "token_report.json").write_text(
+            token_report.model_dump_json(indent=2), encoding="utf-8"
+        )
+
+        # LLM payload
+        try:
+            from .packaging.payload_builder import build_llm_payload as _build_payload
+            payload = _build_payload(
+                pkg_plan, ctx.document, _Path(ctx.output_dir), asset_refs, profile
+            )
+            (_Path(ctx.output_dir) / "llm_payload.json").write_text(
+                payload.model_dump_json(indent=2), encoding="utf-8"
+            )
+            ctx.package_payload = payload
+        except Exception as _payload_exc:
+            logger.warning("LLM payload generation failed (non-fatal): %s", _payload_exc)
+
+        # Fidelity report goes into validation.json as an additive key
+        import json as _json
+        validation_path = _Path(ctx.output_dir) / "validation.json"
+        if validation_path.exists():
+            try:
+                val_data = _json.loads(validation_path.read_text(encoding="utf-8"))
+                val_data["package_fidelity"] = _json.loads(fidelity.model_dump_json())
+                validation_path.write_text(
+                    _json.dumps(val_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+            except Exception:
+                pass  # non-fatal
+
+        # Update manifest with package fields
+        if ctx.manifest:
+            ctx.manifest = ctx.manifest.model_copy(update={
+                "package_mode": str(profile.mode),
+                "planner_version": pkg_plan.planner_version,
+            })
+            from pathlib import Path as _Path2
+            (_Path2(ctx.output_dir) / "manifest.json").write_text(
+                ctx.manifest.model_dump_json(indent=2), encoding="utf-8"
+            )
+
+        ctx.package_plan = pkg_plan
+        ctx.package_assets = asset_refs
+
+        return self._finalise(ctx, stage_timings, t0)
 
     def compile_corpus(
         self,
@@ -642,7 +798,11 @@ class Compiler:
     # ── Internal pipeline ──────────────────────────────────────────────────────
 
     def _run_pipeline(
-        self, source: str, on_stage: Callable[[str], None] | None = None
+        self,
+        source: str,
+        on_stage: Callable[[str], None] | None = None,
+        source_id: str | None = None,
+        _pre_optimize_capture: list | None = None,
     ) -> tuple[CompilationContext, dict[str, float], float]:
         """Stages 1-9: detect → parse → clean → optimise → validate → chunk →
         tokenise → manifest → readiness score.  Does NOT write to disk."""
@@ -701,6 +861,7 @@ class Compiler:
                         f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
                     )
                     return ctx, stage_timings, t0
+                ctx.capture_id = hashlib.sha256(Path(source).read_bytes()).hexdigest()
             except OSError:
                 pass  # missing file handled by parser with a clearer message
 
@@ -735,6 +896,17 @@ class Compiler:
                 for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
 
+            # Capture pre-optimization blocks for Baseline A
+            if _pre_optimize_capture is not None and ctx.document is not None:
+                _pre_optimize_capture.append(list(ctx.document.blocks))
+
+            # 3.5 Key-value group promotion (post-parse, pre-optimize)
+            if on_stage:
+                on_stage("Promoting key-value structures")
+            with timed("transform_kv"):
+                from .plugins.transformers.key_value_promoter import detect_and_promote_key_value_groups
+                ctx = detect_and_promote_key_value_groups(ctx)
+
             # 4. Optimise
             if on_stage:
                 on_stage("Optimizing tokens")
@@ -748,6 +920,11 @@ class Compiler:
             with timed("validate"):
                 for plugin in registry.get_plugins_of_type(ValidatorPlugin):  # type: ignore[type-abstract]
                     ctx = plugin.execute(ctx)
+
+            # Compute document_id from final block state before chunking so chunk
+            # IDs can reference it.  Must happen after all cleaners/optimizers run.
+            if ctx.document:
+                ctx.document.compute_id()
 
             # 6. Chunk
             if on_stage:
@@ -835,9 +1012,34 @@ class Compiler:
                 "readiness_score": confidence.score,
                 "quality_band": _quality_band(confidence.score),
                 "confidence_notes": confidence.notes,
+                "deductions": [d.to_dict() for d in confidence.deductions],
+                "informational": [d.to_dict() for d in confidence.informational],
+                "scoring_policy_version": confidence.scoring_policy_version,
             })
 
-            # Restore original URL as the canonical source
+            # Propagate stable identity to document, manifest, and all chunks.
+            # Caller-provided source_id takes precedence; otherwise derive from _original_source
+            # so URL/S3 IDs are stable and local paths are resolved to absolute POSIX form.
+            _source_id = source_id if source_id is not None else _compute_source_id(_original_source)
+            ctx.source_id = _source_id
+            _doc_id = ctx.document.document_id if ctx.document else ""
+            if ctx.document:
+                ctx.document = ctx.document.model_copy(update={
+                    "source_id": _source_id,
+                    "capture_id": ctx.capture_id,
+                })
+            if ctx.manifest:
+                ctx.manifest = ctx.manifest.model_copy(update={
+                    "source_id": _source_id,
+                    "capture_id": ctx.capture_id,
+                    "document_id": _doc_id,
+                })
+            for chunk in ctx.chunks:
+                chunk.source_id = _source_id
+                chunk.capture_id = ctx.capture_id
+                chunk.document_id = _doc_id
+
+            # Restore original URL/S3 URI as the canonical source string
             if _temp_path is not None:
                 if ctx.document:
                     ctx.document = ctx.document.model_copy(update={"source": _original_source})

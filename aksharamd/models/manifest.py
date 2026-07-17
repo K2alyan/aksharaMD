@@ -24,6 +24,9 @@ def _quality_band(score: int) -> str:
 
 
 class Manifest(BaseModel):
+    source_id: str = ""     # stable logical source identity
+    capture_id: str = ""    # SHA-256 of raw source bytes
+    document_id: str = ""   # content-derived document identity
     source: str
     file_type: str = ""
     pages: int = 0
@@ -46,6 +49,9 @@ class Manifest(BaseModel):
     vision_available: bool | None = None   # whether marker-pdf is installed
     vision_pages: int = 0                  # pages re-extracted with Marker vision
     confidence_notes: list[str] = Field(default_factory=list)
+    deductions: list[dict] = Field(default_factory=list)       # structured DeductionRecord dicts
+    informational: list[dict] = Field(default_factory=list)    # zero-penalty findings
+    scoring_policy_version: str = ""                           # e.g. "1.0"
     elapsed_seconds: float = 0.0
     stage_timings: dict[str, float] = Field(default_factory=dict)
     ai_plugins_used: list[str] = Field(default_factory=list)
@@ -60,4 +66,6 @@ class Manifest(BaseModel):
     blocks_inferred: int = 0
     blocks_ambiguous: int = 0
     aksharamd_version: str = Field(default_factory=_get_version)
-    schema_version: str = "1.0"
+    package_mode: str | None = None      # PackageMode value; null when not run in package mode
+    planner_version: str | None = None   # null when not run in package mode
+    schema_version: str = "1.3"

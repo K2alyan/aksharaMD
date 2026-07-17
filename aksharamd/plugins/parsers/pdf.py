@@ -100,8 +100,11 @@ from ...context import CompilationContext
 from ...models.asset import Asset
 from ...models.block import Block, BlockType, ExtractionConfidence
 from ...models.document import Document
+from ...renderers.table_markdown import render_table_markdown as _render_table_markdown
 from ..base import ParserPlugin
 from ..registry import register_parser
+from .pdf_tables.normalization import cell_bbox_from_spans, cells_to_tabledata
+from .pdf_tables.stitching import stitch_page_break_tables as _stitch_page_break_tables
 
 _PAGE_NUM_RE = re.compile(
     r"^\d+$"
@@ -349,28 +352,37 @@ def _has_interior_intersections(
     return False
 
 
-def _is_quality_table(markdown: str) -> bool:
-    """Reject tables that are clearly noise: need ≥2 columns and ≥1 real data row."""
+def _is_quality_table(markdown: str, _rejection_log: list[str] | None = None) -> bool:
+    """Reject tables that are clearly noise: need ≥2 columns and ≥1 real data row.
+
+    Optional _rejection_log: if provided, a reason code string is appended before
+    each ``return False`` so callers can record why a candidate was rejected.
+    """
+    def _reject(reason: str) -> bool:
+        if _rejection_log is not None:
+            _rejection_log.append(reason)
+        return False
+
     lines = [ln for ln in markdown.strip().splitlines() if ln.strip()]
     if len(lines) < 3:
-        return False
+        return _reject("too_short")
     cols = [c for c in lines[0].split("|") if c.strip()]
     if len(cols) < 2:
-        return False
+        return _reject("too_few_cols")
 
     # Very wide tables are almost always text blocks mis-detected as tables.
     # Financial statements and comparison grids can legitimately reach 12 columns.
     if len(cols) > 12:
-        return False
+        return _reject("too_many_cols")
 
     data_rows = [ln for ln in lines[2:] if "|" in ln and not ln.startswith("|---")]
     if not data_rows:
-        return False
+        return _reject("too_short")
 
     # Reject TOC dot-leader rows: most rows contain "....." sequences
     dot_rows = sum(1 for r in data_rows if _TOC_DOT_RE.search(r))
     if dot_rows > len(data_rows) * 0.4:
-        return False
+        return _reject("dot_leader")
 
     # Reject word-fragmentation from layout over-segmentation: cells that are
     # purely lowercase alphabetic and ≤4 chars are almost certainly word tails
@@ -382,7 +394,7 @@ def _is_quality_table(markdown: str) -> bool:
             if len(c) <= 4 and c.isalpha() and c.islower() and c not in _FRAG_WHITELIST
         )
         if short_alpha / len(all_cells) > 0.25:
-            return False
+            return _reject("word_fragment")
 
     # Reject tables where >65% of data cells are empty — paragraph text forced
     # into layout columns leaves most cells blank (e.g. a 3-column layout where
@@ -397,7 +409,7 @@ def _is_quality_table(markdown: str) -> bool:
             total_data_cells += len(inner)
             empty_data_cells += sum(1 for c in inner if not c.strip())
     if total_data_cells > 0 and empty_data_cells / total_data_cells > 0.65:
-        return False
+        return _reject("too_sparse")
 
     # Reject tables where data cells contain prose-length text — these are 2-column
     # page layouts (narrative chapters, cover text) that pdfplumber's text-strategy
@@ -407,7 +419,7 @@ def _is_quality_table(markdown: str) -> bool:
     if all_cells:
         word_counts = [len(c.split()) for c in all_cells]
         if sum(word_counts) / len(word_counts) > 12:
-            return False
+            return _reject("prose_cells")
 
     # Reject tables where rows are clearly word-split across columns.
     # Pattern A: first non-empty cell in a row is a single letter AND the next
@@ -438,9 +450,9 @@ def _is_quality_table(markdown: str) -> bool:
             if left and left[-1].isalpha() and right and right[0].islower():
                 adj_split += 1
         if single_letter_split / len(data_rows) > 0.2:
-            return False
+            return _reject("single_letter_split")
         if adj_total and adj_split / adj_total > 0.3:
-            return False
+            return _reject("word_split")
 
     # Reject LaTeX \lineno line-number tables.  Two patterns:
     # A) Header first cell is "N LETTER" — line-number bled into first char of text
@@ -449,9 +461,9 @@ def _is_quality_table(markdown: str) -> bool:
     #    pdfplumber whitespace-strategy detects line numbers as a left column.
     hdr_first = cols[0].strip()
     if _LINE_NUM_BLEED_RE.match(hdr_first):
-        return False
+        return _reject("line_number_bleed")
     if len(cols) <= 3 and hdr_first.isdigit() and 1 <= int(hdr_first) <= 20:
-        return False
+        return _reject("line_number_col")
 
     return True
 
@@ -579,6 +591,7 @@ def _try_pdfplumber_tables(
     page_num: int,
     total_chars: int,
     page_height: float,
+    rejected_out: list[dict] | None = None,
 ) -> list[dict]:
     """Use pdfplumber to detect borderless (whitespace-aligned) tables.
 
@@ -589,6 +602,8 @@ def _try_pdfplumber_tables(
 
     Bboxes are converted from pdfplumber's top-left origin to PyMuPDF's
     bottom-left origin so _filter_table_spans removes the right text spans.
+
+    rejected_out: optional list to accumulate rejected-candidate dicts.
     """
     if total_chars > _PDFPLUMBER_CHAR_LIMIT or total_chars < _OCR_TEXT_THRESHOLD:
         return []
@@ -598,13 +613,50 @@ def _try_pdfplumber_tables(
         for tbl in pl_page.find_tables(table_settings=_PDFPLUMBER_TEXT_SETTINGS):
             # Filter entirely-empty rows that pdfplumber inserts for inter-row gaps
             cells = [row for row in tbl.extract() if any(c for c in row)]
-            md = _cells_to_markdown(cells)
-            if not md or not _is_quality_table(md):
+            if not cells:
                 continue
             x0, top, x1, bottom = tbl.bbox
             # pdfplumber: y measured from top-left; PyMuPDF: y measured from bottom-left
             pymupdf_bbox = (x0, page_height - bottom, x1, page_height - top)
-            results.append({"markdown": md, "bbox": pymupdf_bbox})
+            td = cells_to_tabledata(
+                cells,
+                bbox=pymupdf_bbox,
+                source="whitespace",
+                page=page_num,
+            )
+            if td.row_count == 0:
+                continue
+            md = _render_table_markdown(td)
+            rejection_log: list[str] = []
+            if not md or not _is_quality_table(md, rejection_log):
+                if rejected_out is not None:
+                    # Compute quality metrics for the rejected candidate
+                    dot_rows = 0
+                    total_cells = 0
+                    empty_cells = 0
+                    if md:
+                        md_lines = [ln for ln in md.strip().splitlines() if ln.strip()]
+                        md_data = [ln for ln in md_lines[2:] if "|" in ln and not ln.startswith("|---")]
+                        dot_rows = sum(1 for r in md_data if _TOC_DOT_RE.search(r))
+                        for row in md_data:
+                            inner = row.split("|")[1:-1]
+                            total_cells += len(inner)
+                            empty_cells += sum(1 for c in inner if not c.strip())
+                    rejected_out.append({
+                        "strategy": "whitespace",
+                        "page": page_num,
+                        "bbox": list(pymupdf_bbox),
+                        "row_count": td.row_count,
+                        "col_count": td.column_count,
+                        "rejection_reasons": rejection_log,
+                        "quality_metrics": {
+                            "dot_leader_fraction": dot_rows / max(len([ln for ln in (md or "").strip().splitlines() if "|" in ln and not ln.startswith("|---")]), 1),
+                            "empty_cell_fraction": empty_cells / max(total_cells, 1),
+                            "col_count": td.column_count,
+                        },
+                    })
+                continue
+            results.append({"table_data": td, "bbox": pymupdf_bbox})
         return results
     except Exception:
         logger.debug("pdfplumber table extraction failed on page %d", page_num, exc_info=True)
@@ -624,7 +676,12 @@ def _is_caption_row(cells: list[str]) -> bool:
     return bool(_TBL_CAPTION_RE.match(non_empty[0]))
 
 
-def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
+def _try_hrule_table(
+    page: fitz.Page,
+    spans: list[dict],
+    page_num: int = 0,
+    rejected_out: list[dict] | None = None,
+) -> list[dict]:
     """Detect booktabs-style tables that use only horizontal rules (no vertical lines).
 
     Collects h-rules from get_drawings(), groups them by x-extent into candidate
@@ -635,6 +692,8 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
 
     Returns dicts with {"markdown": str, "bbox": tuple} in the same format as
     _try_pdfplumber_tables.
+
+    rejected_out: optional list to accumulate rejected-candidate dicts.
     """
     page_width = page.rect.width
     min_rule_w = page_width * 0.20
@@ -744,16 +803,20 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
 
         # Build cell grid; track each non-empty row's top y for bbox calculation
         row_data: list[tuple[list[str], float]] = []
+        hrule_cell_bboxes: list[list] = []  # parallel to row_data
         for i, row_bucket in enumerate(bucket):
             grid_row = []
+            row_bboxes_for_row = []
             for cell_spans in row_bucket:
                 # Sort by y-bucket (5 pt rounding) then x so that adjacent glyphs
                 # on the same baseline (e.g. "2" "×" "3 = 6") stay in x-order even
                 # when their y-coordinates differ by a sub-pixel amount.
                 cell_spans.sort(key=lambda s: (round(s["y"] / 5), s["x"]))
                 grid_row.append(" ".join(s["text"] for s in cell_spans).strip())
+                row_bboxes_for_row.append(cell_bbox_from_spans(cell_spans))
             if any(c for c in grid_row):
                 row_data.append((grid_row, row_ys[i]))
+                hrule_cell_bboxes.append(row_bboxes_for_row)
 
         if not row_data:
             continue
@@ -771,15 +834,51 @@ def _try_hrule_table(page: fitz.Page, spans: list[dict]) -> list[dict]:
 
         bbox_y_top = row_tops[start_row] if start_row < len(row_tops) else ys[0]
         bbox_y_bottom = ys[-1] + last_below
+        tbl_bbox = (tbl_x0, bbox_y_top, tbl_x1, bbox_y_bottom)
 
-        md = _cells_to_markdown(md_cells)
-        if not md or not _is_quality_table(md):
+        # Cell bboxes computed in parallel with row_data above; slice off caption row
+        md_cell_bboxes = hrule_cell_bboxes[start_row:]
+
+        td = cells_to_tabledata(
+            md_cells,
+            bbox=tbl_bbox,
+            source="hrule",
+            page=page_num,
+            cell_bboxes=md_cell_bboxes,
+        )
+        if td.row_count == 0:
+            continue
+        md = _render_table_markdown(td)
+        rejection_log: list[str] = []
+        if not md or not _is_quality_table(md, rejection_log):
+            if rejected_out is not None:
+                dot_rows = 0
+                total_cells = 0
+                empty_cells = 0
+                if md:
+                    md_lines = [ln for ln in md.strip().splitlines() if ln.strip()]
+                    md_data = [ln for ln in md_lines[2:] if "|" in ln and not ln.startswith("|---")]
+                    dot_rows = sum(1 for r in md_data if _TOC_DOT_RE.search(r))
+                    for row in md_data:
+                        inner = row.split("|")[1:-1]
+                        total_cells += len(inner)
+                        empty_cells += sum(1 for c in inner if not c.strip())
+                rejected_out.append({
+                    "strategy": "hrule",
+                    "page": page_num,
+                    "bbox": list(tbl_bbox),
+                    "row_count": td.row_count,
+                    "col_count": td.column_count,
+                    "rejection_reasons": rejection_log,
+                    "quality_metrics": {
+                        "dot_leader_fraction": dot_rows / max(len([ln for ln in (md or "").strip().splitlines() if "|" in ln and not ln.startswith("|---")]), 1),
+                        "empty_cell_fraction": empty_cells / max(total_cells, 1),
+                        "col_count": td.column_count,
+                    },
+                })
             continue
 
-        results.append({
-            "markdown": md,
-            "bbox": (tbl_x0, bbox_y_top, tbl_x1, bbox_y_bottom),
-        })
+        results.append({"table_data": td, "bbox": tbl_bbox})
 
     return results
 
@@ -815,6 +914,7 @@ class RawPage(NamedTuple):
     embedded_image_bytes: list[bytes] = []  # per-image bytes for image-heavy pages (OCR use)
     content_images: list[tuple[str, bytes]] = []  # (asset_id, bytes) for multimodal output
     math_bboxes: list[tuple[float, float, float, float]] = []  # bboxes of undecodable font spans (math candidates)
+    rejected_candidates: list[dict] = []  # table candidates found but rejected by _is_quality_table
 
 
 def _chunk_pages(page_count: int, workers: int = _PARALLEL_IO_WORKERS) -> list[list[int]]:
@@ -909,13 +1009,49 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     _tag_text_decorations(page, spans)
 
     tables = []
+    rejected: list[dict] = []  # accumulate rejected candidates across all strategies
     if _has_ruled_table(page):
         try:
             for tab in page.find_tables():
                 cells = tab.extract()
-                md = _cells_to_markdown(cells)
-                if md and _is_quality_table(md):
-                    tables.append({"markdown": md, "bbox": tuple(tab.bbox), "source": "ruled"})
+                td = cells_to_tabledata(
+                    cells,
+                    bbox=tuple(tab.bbox),
+                    source="ruled",
+                    page=page_num,
+                )
+                if td.row_count == 0:
+                    continue
+                md = _render_table_markdown(td)
+                rejection_log: list[str] = []
+                if md and _is_quality_table(md, rejection_log):
+                    tables.append({"table_data": td, "bbox": tuple(tab.bbox), "source": "ruled"})
+                elif md is not None or rejection_log:
+                    # Candidate was found but rejected — record it
+                    dot_rows = 0
+                    total_cells = 0
+                    empty_cells = 0
+                    if md:
+                        md_lines = [ln for ln in md.strip().splitlines() if ln.strip()]
+                        md_data = [ln for ln in md_lines[2:] if "|" in ln and not ln.startswith("|---")]
+                        dot_rows = sum(1 for r in md_data if _TOC_DOT_RE.search(r))
+                        for row in md_data:
+                            inner = row.split("|")[1:-1]
+                            total_cells += len(inner)
+                            empty_cells += sum(1 for c in inner if not c.strip())
+                    rejected.append({
+                        "strategy": "ruled",
+                        "page": page_num,
+                        "bbox": list(tuple(tab.bbox)),
+                        "row_count": td.row_count,
+                        "col_count": td.column_count,
+                        "rejection_reasons": rejection_log,
+                        "quality_metrics": {
+                            "dot_leader_fraction": dot_rows / max(len([ln for ln in (md or "").strip().splitlines() if "|" in ln and not ln.startswith("|---")]), 1),
+                            "empty_cell_fraction": empty_cells / max(total_cells, 1),
+                            "col_count": td.column_count,
+                        },
+                    })
         except Exception:
             logger.debug("find_tables() failed on page %d", page_num, exc_info=True)
 
@@ -929,14 +1065,14 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
     # pdfplumber fallback: detect borderless (whitespace-aligned) tables when
     # PyMuPDF found nothing and the page has enough text to plausibly contain one.
     if not tables and pdf_pl is not None:
-        for tbl in _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height):
+        for tbl in _try_pdfplumber_tables(pdf_pl, page_num, total_chars, page.rect.height, rejected_out=rejected):
             tables.append({**tbl, "source": "whitespace"})
 
     # Horizontal-rule fallback: detect booktabs-style tables with only h-rules and
     # no vertical lines (strategy='lines' finds nothing; pdfplumber text-strategy
     # also fails because multi-level cell text confuses its column detector).
     if not tables:
-        for tbl in _try_hrule_table(page, spans):
+        for tbl in _try_hrule_table(page, spans, page_num, rejected_out=rejected):
             tables.append({**tbl, "source": "hrule"})
 
     ocr_pixmap: bytes | None = None
@@ -1015,6 +1151,7 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
         embedded_image_bytes=embedded_image_bytes,
         content_images=content_images,
         math_bboxes=math_bboxes,
+        rejected_candidates=rejected,
     )
 
 
@@ -1354,7 +1491,7 @@ def _process_raw_page(
     removable: set[str],
     median: float,
     has_toc: bool = False,
-) -> tuple[int, list[Block], list[Asset]]:
+) -> tuple[int, list[Block], list[Asset], dict]:
     """
     Pure Python processing of one page's extracted data.
     No PyMuPDF calls — safe to run in a thread pool.
@@ -1372,14 +1509,26 @@ def _process_raw_page(
             ExtractionConfidence.EXTRACTED if t.get("source") != "whitespace"
             else ExtractionConfidence.INFERRED
         )
-        pending_tables.append((t["bbox"][1], Block(
-            type=BlockType.TABLE,
-            content=t["markdown"],
-            page=raw.page_num,
-            index=0,
-            confidence=tbl_confidence,
-            metadata={"table_bbox": t["bbox"]},
-        )))
+        if "table_data" in t:
+            block = Block.from_table(
+                t["table_data"],
+                page=raw.page_num,
+                index=0,
+                confidence=tbl_confidence,
+                metadata={"table_bbox": t["bbox"]},
+            )
+        else:
+            # Legacy fallback (Marker path creates blocks without table_data;
+            # kept for safety in case other paths produce legacy-format dicts)
+            block = Block(
+                type=BlockType.TABLE,
+                content=t.get("markdown", ""),
+                page=raw.page_num,
+                index=0,
+                confidence=tbl_confidence,
+                metadata={"table_bbox": t["bbox"]},
+            )
+        pending_tables.append((t["bbox"][1], block))
         table_bboxes.append(t["bbox"])
 
     # Remove spans that overlap with already-extracted tables
@@ -1433,11 +1582,13 @@ def _process_raw_page(
         text = " ".join(result_parts).strip()
         if text:
             all_mono = all(sp.get("mono", False) for sp in current_spans)
+            first = current_spans[0]
             blocks.append(Block(
                 type=BlockType.CODE_BLOCK if all_mono else BlockType.PARAGRAPH,
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": first["x"], "y0": first["y"]},
             ))
         current_spans.clear()
 
@@ -1484,6 +1635,7 @@ def _process_raw_page(
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
             continue
@@ -1496,6 +1648,7 @@ def _process_raw_page(
                 content=text,
                 page=raw.page_num,
                 index=0,
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
             continue
@@ -1510,6 +1663,7 @@ def _process_raw_page(
                 page=raw.page_num,
                 index=0,
                 confidence=ExtractionConfidence.INFERRED,  # inferred from font size/bold, not a markup heading
+                metadata={"x0": span["x"], "y0": span["y"]},
             ))
             prev_text_span = None
         else:
@@ -1563,7 +1717,13 @@ def _process_raw_page(
         for asset_id, img_bytes in raw.content_images
     ]
 
-    return raw.page_num, blocks, assets
+    col_info: dict = {
+        "boundaries": boundaries,
+        "num_columns": len(boundaries) + 1,
+        "page_width": raw.width,
+        "page_height": raw.height,
+    }
+    return raw.page_num, blocks, assets, col_info
 
 
 _MARKER_IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)")
@@ -2043,130 +2203,6 @@ def _pdfplumber_fallback(path: Path, ctx: CompilationContext) -> CompilationCont
     return ctx
 
 
-def _tbl_header_line(md: str) -> str:
-    """Return the first non-separator pipe-delimited line from a markdown table."""
-    for ln in md.splitlines():
-        s = ln.strip()
-        if s.startswith("|") and "---" not in s:
-            return s
-    return ""
-
-
-def _tbl_col_count(header_line: str) -> int:
-    return len([c for c in header_line.split("|") if c.strip()])
-
-
-def _tbl_continuation_rows(b_md: str, a_header: str) -> list[str]:
-    """Extract rows from table b suitable for appending to table a.
-
-    Skips the separator line (always). Skips the header line when it is
-    identical to table a's header (repeated column labels across a page break).
-    When the header differs, it is treated as a data row and kept.
-    """
-    lines = [ln for ln in b_md.splitlines() if ln.strip()]
-    if not lines:
-        return []
-    start = 0
-    if lines[0].strip() == a_header:
-        start = 1  # repeated column header — drop it
-    else:
-        # First line is data treated as header by find_tables — keep it as data
-        pass
-    # Skip the separator line (| --- | --- | ...)
-    if start < len(lines) and "---" in lines[start] and lines[start].strip().startswith("|"):
-        start += 1
-    return [ln for ln in lines[start:] if ln.strip()]
-
-
-def _stitch_page_break_tables(
-    blocks: list[Block],
-    page_heights: dict[int, float],
-    edge_tolerance: float = 30.0,
-) -> list[Block]:
-    """Merge TABLE blocks that are continuations of a table split by a page break.
-
-    Two detection cases (both require table a on page N, table b on page N+1):
-
-    Case 1 — repeated header (no spatial check needed):
-      Publishers often reprint the column header row at the top of each
-      continuation page. When table b's first row is identical to table a's
-      first row, they are almost certainly the same table continued across
-      the break. No edge-proximity check is needed because the header match
-      is already a very strong signal.
-
-    Case 2 — no repeated header (spatial check required):
-      Table a ends within edge_tolerance pts of the bottom of page N AND
-      table b starts within edge_tolerance pts of the top of page N+1 AND
-      column counts match. Requires table_bbox metadata on both blocks.
-
-    Iterates until stable so tables spanning 3+ pages are also handled.
-    """
-    if len(blocks) < 2:
-        return blocks
-
-    changed = True
-    while changed:
-        changed = False
-        result: list[Block] = []
-        absorbed: set[int] = set()
-
-        for i, a in enumerate(blocks):
-            if i in absorbed:
-                continue
-            if a.type != BlockType.TABLE or a.page is None:
-                result.append(a)
-                continue
-
-            # Look for the continuation on the immediately following page
-            merged = False
-            for j in range(i + 1, len(blocks)):
-                if j in absorbed:
-                    continue
-                b = blocks[j]
-                if b.type != BlockType.TABLE:
-                    continue
-                if b.page != a.page + 1:
-                    break  # past the target page
-
-                a_hdr = _tbl_header_line(a.content)
-                b_hdr = _tbl_header_line(b.content)
-
-                # Case 1: identical column headers — strong page-break signal.
-                repeated = bool(a_hdr and b_hdr and a_hdr == b_hdr)
-
-                if not repeated:
-                    # Case 2: no repeated header — require spatial adjacency.
-                    a_bbox = a.metadata.get("table_bbox")
-                    b_bbox = b.metadata.get("table_bbox")
-                    if not a_bbox or not b_bbox:
-                        break
-                    a_height = page_heights.get(a.page, 0.0)
-                    if a_height <= 0 or (a_height - a_bbox[3]) > edge_tolerance:
-                        break
-                    if b_bbox[1] > edge_tolerance:
-                        break
-                    if _tbl_col_count(a_hdr) == 0 or _tbl_col_count(a_hdr) != _tbl_col_count(b_hdr):
-                        break
-
-                rows = _tbl_continuation_rows(b.content, a_hdr)
-                if rows:
-                    merged_block = a.model_copy(update={
-                        "content": a.content + "\n" + "\n".join(rows),
-                    })
-                    result.append(merged_block)
-                    absorbed.add(j)
-                    changed = True
-                    merged = True
-                break
-
-            if not merged:
-                result.append(a)
-
-        blocks = result
-
-    return blocks
-
-
 class PDFParser(ParserPlugin):
     name = "pdf_parser"
     supported_types = ["pdf"]
@@ -2272,6 +2308,7 @@ class PDFParser(ParserPlugin):
 
         # Phase 3: Parallel processing — pure Python, no shared state
         results: dict[int, tuple[list[Block], list[Asset]]] = {}
+        column_info_by_page: dict[int, dict] = {}
         workers = min(8, max(1, page_count))
 
         if workers > 1 and page_count > 4:
@@ -2281,12 +2318,14 @@ class PDFParser(ParserPlugin):
                     for raw in raw_pages
                 }
                 for future in as_completed(futures):
-                    page_num, blocks, assets = future.result()
+                    page_num, blocks, assets, col_info = future.result()
                     results[page_num] = (blocks, assets)
+                    column_info_by_page[page_num] = col_info
         else:
             for raw in raw_pages:
-                page_num, blocks, assets = _process_raw_page(raw, removable, median, has_toc)
+                page_num, blocks, assets, col_info = _process_raw_page(raw, removable, median, has_toc)
                 results[page_num] = (blocks, assets)
+                column_info_by_page[page_num] = col_info
 
         # Phase 4: Assemble in page order and assign final indices
         all_blocks: list[Block] = []
@@ -2299,6 +2338,15 @@ class PDFParser(ParserPlugin):
                 all_blocks.append(block.model_copy(update={"index": idx}))
                 idx += 1
             all_assets.extend(assets)
+
+        # Collect rejected table candidates from all raw pages into document metadata.
+        # Keyed by page number (int) so validators can look up by page.
+        rejected_by_page: dict[int, list[dict]] = {}
+        for raw in raw_pages:
+            if raw.rejected_candidates:
+                rejected_by_page[raw.page_num] = raw.rejected_candidates
+        if rejected_by_page:
+            pdf_metadata["table_rejected_candidates_by_page"] = rejected_by_page
 
         # Phase 4.5: Stitch tables split across page breaks into single tables
         page_heights = {raw.page_num: raw.height for raw in raw_pages}
@@ -2340,6 +2388,14 @@ class PDFParser(ParserPlugin):
             all_blocks, math_equations = _apply_math_ocr_to_blocks(path, raw_pages, all_blocks)
             if math_equations and ctx.progress:
                 ctx.progress(f"Math OCR complete: {math_equations} equation{'s' if math_equations != 1 else ''} extracted")
+
+        multi_column_pages = sorted(
+            pg for pg, ci in column_info_by_page.items() if ci["num_columns"] > 1
+        )
+        # Store column info for ALL pages (not just multi-column) so the
+        # multicolumn validator can access page_width for independent cluster analysis.
+        pdf_metadata["pdf_column_info"] = dict(column_info_by_page)
+        pdf_metadata["pdf_multi_column_pages"] = multi_column_pages
 
         pdf_metadata["pdf_classification"] = pdf_classification
         pdf_metadata["pdf_stats"] = pdf_stats

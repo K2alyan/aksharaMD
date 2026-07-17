@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 import re
+from itertools import groupby as _groupby
 from pathlib import Path
 
 from ...context import CompilationContext
 from ...models.asset import Asset
-from ...models.block import Block, BlockType
+from ...models.block import Block, BlockType, ExtractionConfidence
 from ...models.document import Document
+from ...models.table import ExtractionMethod, TableCell, TableData
 from ..base import ParserPlugin
 from ..registry import register_parser
 
@@ -165,14 +167,156 @@ _HEADING_STYLES = {
 }
 
 
-def _table_to_markdown(table) -> str:
-    rows = []
-    for i, row in enumerate(table.rows):
-        cells = [cell.text.replace("\n", " ").strip() for cell in row.cells]
-        rows.append("| " + " | ".join(cells) + " |")
-        if i == 0:
-            rows.append("| " + " | ".join(["---"] * len(cells)) + " |")
-    return "\n".join(rows)
+_DOCX_CELL_TEXT_MAX = 200
+
+
+def _extract_docx_table_data(table, page: int | None, qn) -> TableData:
+    """Parse a python-docx Table into TableData with rowspan/colspan support."""
+    rows = table.rows
+    if not rows:
+        return TableData(
+            row_count=0, column_count=0, cells=[],
+            extraction_method=ExtractionMethod.DOCX_NATIVE,
+            span_detection="native",
+            header_detection="assumed_first_row",
+        )
+
+    try:
+        col_count = len(table.columns)
+    except Exception:
+        col_count = max(len(r.cells) for r in rows) if rows else 0
+    row_count = len(rows)
+
+    from collections import namedtuple
+    PCel = namedtuple('PCel', ['cell', 'c', 'col_span', 'vmerge'])
+    grid: list[list[PCel]] = []
+
+    for r_idx, row in enumerate(rows):
+        row_entries = []
+        c_offset = 0
+        # Group by identity to detect horizontally merged cells
+        for _, cell_group in _groupby(row.cells, key=id):
+            cell_list = list(cell_group)
+            cell = cell_list[0]
+            col_span = len(cell_list)
+
+            # Detect vMerge from XML
+            tc = cell._tc
+            tc_pr = tc.find(qn('w:tcPr'))
+            vmerge = None
+            if tc_pr is not None:
+                vm = tc_pr.find(qn('w:vMerge'))
+                if vm is not None:
+                    val = vm.get(qn('w:val'), '')
+                    vmerge = 'restart' if val == 'restart' else 'slave'
+
+            row_entries.append(PCel(cell, c_offset, col_span, vmerge))
+            c_offset += col_span
+
+        col_count = max(col_count, c_offset)
+        grid.append(row_entries)
+
+    # Build lookup: (r, c) -> PCel
+    lookup: dict[tuple[int, int], PCel] = {}
+    for r_idx, entries in enumerate(grid):
+        for entry in entries:
+            lookup[(r_idx, entry.c)] = entry
+
+    table_cells: list[TableCell] = []
+    for r_idx, entries in enumerate(grid):
+        for entry in entries:
+            if entry.vmerge == 'slave':
+                continue
+
+            row_span = 1
+            if entry.vmerge == 'restart':
+                for r in range(r_idx + 1, row_count):
+                    slave = lookup.get((r, entry.c))
+                    if slave is not None and slave.vmerge == 'slave':
+                        row_span += 1
+                    else:
+                        break
+
+            cell_text = " ".join(
+                p.text.strip() for p in entry.cell.paragraphs if p.text.strip()
+            )
+            cell_text = cell_text[:_DOCX_CELL_TEXT_MAX]
+
+            table_cells.append(TableCell(
+                text=cell_text,
+                row=r_idx,
+                column=entry.c,
+                row_span=row_span,
+                column_span=entry.col_span,
+            ))
+
+    return TableData(
+        row_count=row_count,
+        column_count=col_count,
+        cells=table_cells,
+        header_rows=[0] if table_cells else [],
+        header_detection="assumed_first_row",
+        span_detection="native",
+        extraction_method=ExtractionMethod.DOCX_NATIVE,
+        page=page,
+    )
+
+
+def _extract_docx_properties(doc, idx: int) -> Block | None:
+    """Extract core properties (title, author, subject, etc.) as a KeyValueGroup."""
+    from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
+
+    try:
+        props = doc.core_properties
+    except Exception:
+        return None
+
+    field_map = [
+        ("Title", "title"),
+        ("Author", "author"),
+        ("Subject", "subject"),
+        ("Description", "description"),
+        ("Category", "category"),
+        ("Keywords", "keywords"),
+        ("Created", "created"),
+        ("Modified", "modified"),
+    ]
+
+    entries = []
+    for label, attr in field_map:
+        try:
+            val = getattr(props, attr, None)
+            if val is not None:
+                val_str = str(val).strip()
+                if val_str and val_str not in ("None", ""):
+                    entries.append(KeyValueEntry(
+                        key=label,
+                        value=val_str[:80],
+                        confidence="extracted",
+                    ))
+        except Exception:
+            # A single malformed core-property (e.g. corrupt date) must not
+            # prevent the surviving properties from being extracted.
+            continue
+
+    if len(entries) < 2:
+        return None
+
+    group = KeyValueGroup(
+        entries=entries,
+        title="Document Properties",
+        group_type=KeyValueGroupType.METADATA,
+        extraction_method="docx.native_properties",
+        confidence="extracted",
+    )
+
+    return Block.from_key_value_group(
+        group,
+        page=1,
+        index=idx,
+        confidence=ExtractionConfidence.EXTRACTED,
+        metadata={"source": "docx_core_properties"},
+    )
 
 
 class DocxParser(ParserPlugin):
@@ -201,6 +345,12 @@ class DocxParser(ParserPlugin):
             title = props.title
         if props.author:
             author = props.author
+
+        # Extract document core properties as a KeyValueGroup
+        kv_block = _extract_docx_properties(doc, idx)
+        if kv_block is not None:
+            blocks.append(kv_block)
+            idx += 1
 
         ordered_numIds = _build_ordered_numids(doc)
 
@@ -341,10 +491,9 @@ class DocxParser(ParserPlugin):
             elif tag == "tbl" and child in table_map:
                 flush_list()
                 table = table_map[child]
-                md = _table_to_markdown(table)
-                if md:
-                    blocks.append(Block(type=BlockType.TABLE, content=md, index=idx,
-                                        page=current_page))
+                table_data = _extract_docx_table_data(table, current_page, qn)
+                if table_data.cells:
+                    blocks.append(Block.from_table(table_data, page=current_page, index=idx))
                     idx += 1
 
         flush_list()
