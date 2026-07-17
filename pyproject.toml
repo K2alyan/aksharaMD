@@ -27,11 +27,11 @@ dependencies = [
     "ebooklib>=0.18",
     "feedparser>=6.0",
     "extract-msg>=0.50",
-    # Pillow CVEs require >=12.2.0 and transformers CVEs require >=5.3.0, but
-    # marker-pdf (all released versions) pins pillow<11 and transformers<5.
-    # Both are blocked until marker-pdf lifts those caps. The affected Pillow
-    # features (PSD/FITS loading) and transformers Trainer class are not in
-    # aksharamd's runtime path. Track: github.com/VikParuchuri/marker/issues
+    # Pillow CVEs require >=12.2.0 but marker-pdf (all released versions)
+    # pins pillow<11 and is blocked until marker-pdf lifts that cap. The
+    # affected Pillow features (PSD/FITS loading) are not in aksharamd's
+    # runtime path. Track: github.com/VikParuchuri/marker/issues
+    # (transformers has its own cap in the `vision` extra below.)
     "Pillow>=10.0",
     "striprtf>=0.0.26",
     "pdfplumber>=0.11",
@@ -78,6 +78,12 @@ ocr = [
 ]
 vision = [
     "marker-pdf>=1.6",
+    # transformers is pulled in transitively by marker-pdf. Cap at <5.0.0
+    # because all currently released marker-pdf versions (1.6.0-1.10.2)
+    # require transformers<5. Removing this cap makes the vision extra
+    # unresolvable. Lower bound tracks marker-pdf's own >=4.45.2 floor.
+    # Track: github.com/VikParuchuri/marker/issues (transformers 5.x support)
+    "transformers>=4.45.2,<5.0.0",
 ]
 math = [
     "pix2tex>=0.1.1",
