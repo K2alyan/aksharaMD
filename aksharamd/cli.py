@@ -734,7 +734,7 @@ def compile(
 
         # Package summary (only when --package was used)
         if run_package and ctx.package_plan is not None:
-            from .packaging.models import PackageSourceKind as _PSK, RepresentationType as _RT
+            from .packaging.models import RepresentationType as _RT
             pkg = ctx.package_plan
             total_elems = len(pkg.elements)
             preserved = sum(1 for e in pkg.elements if e.representation != _RT.OMIT)
@@ -1560,7 +1560,6 @@ def index_search(query: str, results: int, index_dir: str | None) -> None:
 )
 def build_payload(package_dir: str, package_mode: str) -> None:
     """Build an LLM payload from an existing document package."""
-    import json as _json
 
     from .packaging import PackageMode, PackageProfile
     from .packaging.models import DocumentPackagePlan
@@ -1682,7 +1681,6 @@ def inspect_payload(payload_path: str) -> None:
         console.print(f"[red]Failed to load payload: {exc}[/]")
         raise SystemExit(1) from exc
 
-    from .packaging.payload import PayloadContentType as _PCT
 
     # Count by type
     type_counts: dict[str, int] = {}

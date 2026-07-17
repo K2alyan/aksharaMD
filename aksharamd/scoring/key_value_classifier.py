@@ -21,7 +21,6 @@ from .key_value_config import (
     KeyValueCandidateCategory,
 )
 
-
 # ── Exclusion patterns ─────────────────────────────────────────────────────────
 
 _BOOL_NULL_VALUES = frozenset({

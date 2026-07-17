@@ -1,7 +1,10 @@
 """KV QA pilot question definitions."""
 from __future__ import annotations
-from pydantic import BaseModel
+
 from typing import Literal
+
+from pydantic import BaseModel
+
 
 class KVQuestion(BaseModel):
     question_id: str

@@ -42,9 +42,9 @@ class CompilationContext:
     progress: Callable[[str], None] | None = field(default=None, repr=False, compare=False)
 
     # package artifacts — populated only when compile_package() is used
-    package_plan: "DocumentPackagePlan | None" = field(default=None)
-    package_assets: "list[PackageAssetReference]" = field(default_factory=list)
-    package_payload: "LLMPayload | None" = field(default=None)
+    package_plan: DocumentPackagePlan | None = field(default=None)
+    package_assets: list[PackageAssetReference] = field(default_factory=list)
+    package_payload: LLMPayload | None = field(default=None)
 
     # KV detection profile — controls which heuristic paths are active for
     # the post-parse KeyValueGroup promoter. Default (None) resolves to

@@ -41,7 +41,7 @@ class KeyValueDetectionProfile(BaseModel):
     emit_candidate_diagnostics: bool = True
 
     @classmethod
-    def experimental(cls) -> "KeyValueDetectionProfile":
+    def experimental(cls) -> KeyValueDetectionProfile:
         """All paths enabled — for calibration and offline evaluation only."""
         return cls(
             enable_inline_heuristic=True,
@@ -49,7 +49,7 @@ class KeyValueDetectionProfile(BaseModel):
         )
 
     @classmethod
-    def native_only(cls) -> "KeyValueDetectionProfile":
+    def native_only(cls) -> KeyValueDetectionProfile:
         """Only native semantic extraction — production-safe default."""
         return cls()
 

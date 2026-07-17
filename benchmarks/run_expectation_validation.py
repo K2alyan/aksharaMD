@@ -169,6 +169,7 @@ def _run_doc(record: DocRecord, timeout_secs: int = 25) -> RunRecord:
     error tag so they don't inflate false-negative counts.
     """
     import threading
+
     from aksharamd.compiler import Compiler
 
     base = RunRecord(
@@ -198,7 +199,7 @@ def _run_doc(record: DocRecord, timeout_secs: int = 25) -> RunRecord:
         try:
             compiler = Compiler()
             ctx_holder[0] = compiler.compile(record.pdf_path)
-        except Exception as e:
+        except Exception:
             exc_holder[0] = traceback.format_exc(limit=3)
 
     thread = threading.Thread(target=_compile, daemon=True)
@@ -396,7 +397,6 @@ def _false_safe_families(records: list[RunRecord]) -> dict:
 @click.option("--verbose", is_flag=True, default=False)
 def main(neg_controls: int, out: str, timeout: int, verbose: bool) -> None:
     """Run Phase 5 table-expectation detector validation."""
-    import sys
 
     click.echo("Loading ground truth from parsebench eval report...")
     table_records = _load_table_ground_truth()
@@ -441,7 +441,6 @@ def main(neg_controls: int, out: str, timeout: int, verbose: bool) -> None:
 
     # Split into table and neg subsets for metrics
     table_run  = [r for r in run_records if r.category == "table"]
-    all_run    = [r for r in run_records if r.gt_class != "negative" or r.category != "table"]
 
     # Overall metrics (table docs + neg controls)
     metrics_all = _compute_metrics(run_records, "all_docs")
@@ -499,18 +498,18 @@ def main(neg_controls: int, out: str, timeout: int, verbose: bool) -> None:
 
     click.echo(f"\nResults written to {out_path}")
     click.echo("\n=== SUMMARY ===")
-    click.echo(f"Strict metrics (gt=missed only):")
+    click.echo("Strict metrics (gt=missed only):")
     s = metrics_all["strict"]
     click.echo(f"  TP={s['tp']}, FN={s['fn']}, FP={s['fp']}, TN={s['tn']}")
     click.echo(f"  Precision={s['precision']}, Recall={s['recall']}, F1={s['f1']}, FPR={s['fpr']}")
-    click.echo(f"\nBroad metrics (gt=missed|partial):")
+    click.echo("\nBroad metrics (gt=missed|partial):")
     b = metrics_all["broad"]
     click.echo(f"  TP={b['tp']}, FN={b['fn']}, FP={b['fp']}, TN={b['tn']}")
     click.echo(f"  Precision={b['precision']}, Recall={b['recall']}, F1={b['f1']}, FPR={b['fpr']}")
-    click.echo(f"\nGT-class detection rates:")
+    click.echo("\nGT-class detection rates:")
     for cls, stats in breakdown.items():
         click.echo(f"  {cls}: {stats['warned']}/{stats['total']} warned ({stats['warn_rate']:.1%})")
-    click.echo(f"\nFalse-safe family coverage:")
+    click.echo("\nFalse-safe family coverage:")
     for fam, stats in false_safe_families.items():
         click.echo(f"  {fam}: {stats['docs_warned']}/{stats['docs_found']} warned")
 

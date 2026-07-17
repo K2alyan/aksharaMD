@@ -42,9 +42,9 @@ class PackageWriter:
     def write(
         self,
         output_dir: str | Path,
-        plan: "DocumentPackagePlan",
-        document: "Document",
-        validation_report: "ValidationReport | None" = None,
+        plan: DocumentPackagePlan,
+        document: Document,
+        validation_report: ValidationReport | None = None,
     ) -> tuple[list[PackageAssetReference], PackageFidelityReport]:
         """Write tables/, images/, regions/, package_plan.json.
 
@@ -279,7 +279,7 @@ def _try_render_region(document, elem) -> bytes | None:
 
 def _build_fidelity(
     document_id: str,
-    plan: "DocumentPackagePlan",
+    plan: DocumentPackagePlan,
     validation_report,
     elements_with_visual: set[str],
     asset_failures: int,

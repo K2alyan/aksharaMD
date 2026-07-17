@@ -73,13 +73,13 @@ class DetectionResult:
     group: KeyValueGroup | None
     signals: list[str] = field(default_factory=list)
     rejected_reason: str | None = None
-    assessment: "KeyValueCandidateAssessment | None" = None
+    assessment: KeyValueCandidateAssessment | None = None
 
 
 def detect_key_value_entries(
     text: str,
     page: int | None = None,
-    profile: "KeyValueDetectionProfile | None" = None,
+    profile: KeyValueDetectionProfile | None = None,
 ) -> DetectionResult:
     """Try to detect key-value pairs from a text block.
 

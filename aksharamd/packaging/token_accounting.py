@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from .models import (
     RepresentationTokenBreakdown,
-    RepresentationType,
     TokenReport,
     VisualAssetStats,
 )
@@ -30,10 +29,10 @@ def _tokenizer_name() -> str:
 
 def build_token_report(
     document_id: str,
-    plan: "DocumentPackagePlan",
+    plan: DocumentPackagePlan,
     raw_extracted_tokens: int,
     optimized_tokens: int,
-    asset_refs: "list[PackageAssetReference]",
+    asset_refs: list[PackageAssetReference],
 ) -> TokenReport:
     """Build a TokenReport from a finalized plan and asset list."""
     selected = [e for e in plan.elements if e.include_by_default]

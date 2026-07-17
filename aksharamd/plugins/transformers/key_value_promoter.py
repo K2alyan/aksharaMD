@@ -43,9 +43,9 @@ _MAX_PARA_CHARS = 600
 
 
 def detect_and_promote_key_value_groups(
-    ctx: "CompilationContext",
-    profile: "KeyValueDetectionProfile | None" = None,
-) -> "CompilationContext":
+    ctx: CompilationContext,
+    profile: KeyValueDetectionProfile | None = None,
+) -> CompilationContext:
     """Walk document blocks and promote qualifying regions to KeyValueGroup blocks.
 
     Returns ctx with modified document.blocks. Non-mutating: creates new block
@@ -164,7 +164,7 @@ def _try_emit_candidate_diagnostic(block, ctx, profile) -> None:
     )
 
 
-def _try_promote_paragraph(block, ctx, profile) -> "object | None":
+def _try_promote_paragraph(block, ctx, profile) -> object | None:
     """Attempt to promote a single paragraph to a KeyValueGroup."""
     from ...scoring.key_value_detection import detect_key_value_entries
 
@@ -261,7 +261,7 @@ def _collect_adjacent_run(blocks, start_i: int) -> tuple:
     return None, start_i + 1
 
 
-def _try_promote_adjacent_run(run, ctx, profile) -> "object | None":
+def _try_promote_adjacent_run(run, ctx, profile) -> object | None:
     """Attempt to promote a run of adjacent blocks to a KeyValueGroup.
 
     Two strategies are tried in order:

@@ -9,32 +9,28 @@ Covers:
 """
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.models.key_value import KeyValueGroupType
 from aksharamd.plugins.transformers.key_value_promoter import (
-    detect_and_promote_key_value_groups,
-    _parse_alternating_blocks,
     DETECTOR_VERSION,
+    _parse_alternating_blocks,
+    detect_and_promote_key_value_groups,
 )
 from aksharamd.scoring.key_value_classifier import (
-    classify_kv_candidates,
-    _is_dialogue,
-    _is_configuration,
-    _is_citation,
-    _is_section_label,
-    _is_numbered_list,
-    _is_legal_clause,
     _is_academic_definition,
-    _is_medical_section,
+    _is_citation,
+    _is_configuration,
+    _is_dialogue,
     _is_financial_footnote,
+    _is_legal_clause,
+    _is_medical_section,
+    _is_numbered_list,
+    _is_section_label,
+    classify_kv_candidates,
 )
 from aksharamd.scoring.key_value_config import (
-    KeyValueCandidateAssessment,
-    KeyValueCandidateCategory,
     KeyValueDetectionProfile,
 )
 from aksharamd.scoring.key_value_detection import (
@@ -536,7 +532,8 @@ def test_qa_prose_conflates_record_boundaries():
     """Raw prose does NOT scope the record window well — wrong-record
     leakage should be flagged for all questions in the prose format."""
     from benchmarks.kv_eval.repeated_record_qa import (
-        run_qa_comparison, summarize_qa_results,
+        run_qa_comparison,
+        summarize_qa_results,
     )
     results = run_qa_comparison()
     summary = summarize_qa_results(results)

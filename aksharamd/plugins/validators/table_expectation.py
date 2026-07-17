@@ -11,11 +11,11 @@ All findings are maturity="experimental" and carry no readiness-score penalty.
 """
 from __future__ import annotations
 
-from ..base import ValidatorPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import BlockType
 from ...scoring.table_expectation import compute_table_expectation
+from ..base import ValidatorPlugin
+from ..registry import register_plugin
 
 
 class TableExpectationValidator(ValidatorPlugin):

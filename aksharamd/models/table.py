@@ -73,7 +73,7 @@ class TableData(BaseModel):
     id: str = ""                            # set to block.id after block context is known
 
     @model_validator(mode="after")
-    def _validate_and_normalize(self) -> "TableData":
+    def _validate_and_normalize(self) -> TableData:
         # Validate bounds
         if self.row_count < 0:
             raise ValueError(f"row_count must be >= 0, got {self.row_count}")

@@ -1,11 +1,7 @@
 """Run the KV detector against the dev corpus and compute metrics."""
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-from benchmarks.kv_eval.ground_truth import (
-    CorpusMetrics, DetectionOutcome, KeyValueGroundTruth
-)
+from benchmarks.kv_eval.ground_truth import CorpusMetrics, DetectionOutcome, KeyValueGroundTruth
 
 
 def evaluate_text_case(
@@ -34,8 +30,9 @@ def evaluate_text_case(
 
 def evaluate_html_case(html: str, ground_truth: KeyValueGroundTruth) -> DetectionOutcome:
     """Compile HTML through the parser, look for KEY_VALUE_GROUP blocks."""
-    import tempfile, os
-    from pathlib import Path
+    import os
+    import tempfile
+
     from aksharamd.compiler import Compiler
     from aksharamd.models.block import BlockType
 
@@ -68,6 +65,7 @@ def evaluate_html_case(html: str, ground_truth: KeyValueGroundTruth) -> Detectio
 def evaluate_xlsx_case(xlsx_path: str, ground_truth: KeyValueGroundTruth) -> DetectionOutcome:
     """Compile XLSX file, look for KEY_VALUE_GROUP blocks."""
     import tempfile
+
     from aksharamd.compiler import Compiler
     from aksharamd.models.block import BlockType
 
@@ -122,7 +120,7 @@ def _count_records(group) -> int:
 
 def evaluate_adjacent_case(
     blocks: list,
-    ground_truth: "KeyValueGroundTruth",
+    ground_truth: KeyValueGroundTruth,
     profile=None,
 ) -> DetectionOutcome:
     """Run the adjacent-block promoter on a pre-built block list.
@@ -130,10 +128,10 @@ def evaluate_adjacent_case(
     Creates a real CompilationContext, runs detect_and_promote_key_value_groups(),
     checks if a KEY_VALUE_GROUP block was produced.
     """
-    from aksharamd.models.document import Document
-    from aksharamd.models.block import BlockType
-    from aksharamd.plugins.transformers.key_value_promoter import detect_and_promote_key_value_groups
     from aksharamd.context import CompilationContext
+    from aksharamd.models.block import BlockType
+    from aksharamd.models.document import Document
+    from aksharamd.plugins.transformers.key_value_promoter import detect_and_promote_key_value_groups
 
     doc = Document(source="adjacent_test", blocks=blocks, metadata={})
     ctx = CompilationContext(source="adjacent_test", document=doc)
@@ -179,8 +177,8 @@ def _simulate_with_threshold(case, min_blocks: int) -> DetectionOutcome:
     """Re-run promoter pass 1 (inline) on text — pass 2 (adjacent) not simulated
     because it requires multi-block context. We approximate by testing
     whether the combined text would pass detection with the given min."""
-    from aksharamd.scoring.key_value_detection import detect_key_value_entries
     from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
+    from aksharamd.scoring.key_value_detection import detect_key_value_entries
     profile = KeyValueDetectionProfile.experimental()
     result = detect_key_value_entries(case.text, page=1, profile=profile)
     if result.group is not None:
@@ -213,11 +211,12 @@ def simulate_adjacent_threshold_real(
     and applies the same run-collection + Strategy1/Strategy2 logic as the
     production promoter — parameterised by ``min_blocks``.
     """
-    from aksharamd.scoring.key_value_detection import detect_key_value_entries
-    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
     from aksharamd.plugins.transformers.key_value_promoter import (
-        _collect_adjacent_run, _parse_alternating_blocks,
+        _collect_adjacent_run,
+        _parse_alternating_blocks,
     )
+    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
+    from aksharamd.scoring.key_value_detection import detect_key_value_entries
     if profile is None:
         profile = KeyValueDetectionProfile.experimental()
 

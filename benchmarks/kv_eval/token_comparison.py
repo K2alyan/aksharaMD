@@ -1,6 +1,8 @@
 """Compare token counts before and after KV promotion."""
 from __future__ import annotations
+
 from pydantic import BaseModel
+
 
 class TokenComparison(BaseModel):
     case_id: str

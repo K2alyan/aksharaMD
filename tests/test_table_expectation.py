@@ -3,22 +3,17 @@ aksharamd/plugins/validators/table_expectation.py — Phase 5.
 """
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.scoring.table_expectation import (
     RejectedTableCandidate,
-    TableExpectationReport,
-    TableExpectationSignal,
     TableExpectationSignalName,
     aggregate_expectation_findings,
     compute_table_expectation,
 )
-from aksharamd.scoring.table_findings import aggregate_findings, TableFinding
-from aksharamd.scoring.table_quality import TableQualityReport, TableQualitySignal
-
+from aksharamd.scoring.table_findings import aggregate_findings
+from aksharamd.scoring.table_quality import TableQualityReport
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 

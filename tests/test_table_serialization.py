@@ -1,8 +1,6 @@
 """Tests for token-aware table serialization — Phase 8."""
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.models.table import TableCell, TableData
 from aksharamd.renderers.table_markdown import (
     render_table_json_reference,
@@ -11,7 +9,6 @@ from aksharamd.renderers.table_markdown import (
     render_table_row_records,
     render_table_tsv,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -286,7 +283,7 @@ def test_select_text_first_falls_back_to_preview_reference():
 
 # T22: full_inline strategy always returns inline regardless of budget
 def test_select_full_inline_strategy_always_inline():
-    from aksharamd.packaging.models import PackageProfile, TablePayloadFormat
+    from aksharamd.packaging.models import PackageProfile
     from aksharamd.packaging.payload_builder import select_table_serialization
 
     candidates = _make_candidates_simple()
@@ -381,13 +378,20 @@ def test_llm_payload_item_has_inline_complete():
 
 # T28: Planner and payload use same format (covers TSV too)
 def test_planner_and_payload_agree_on_table_format():
+    import tempfile
+    from pathlib import Path
+
     from aksharamd.models.block import Block
     from aksharamd.models.document import Document
     from aksharamd.models.table import ExtractionMethod, TableCell, TableData
-    from aksharamd.packaging import PackageMode, PackageProfile, PackageWriter, build_llm_payload, plan_document
+    from aksharamd.packaging import (
+        PackageMode,
+        PackageProfile,
+        PackageWriter,
+        build_llm_payload,
+        plan_document,
+    )
     from aksharamd.packaging.payload import PayloadContentType
-    import tempfile
-    from pathlib import Path
 
     # Must use a native extraction method to get STRUCTURED_TABLE routing
     cells = [

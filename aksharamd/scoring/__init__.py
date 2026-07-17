@@ -8,24 +8,24 @@ from .models import (
     ScoringRule,
 )
 from .readiness import compute_confidence, compute_readiness_score
-from .table_quality import (
-    SigName,
-    TableQualityReport,
-    TableQualitySignal,
-    compute_table_quality,
+from .table_expectation import (
+    RejectedTableCandidate,
+    TableExpectationReport,
+    TableExpectationSignal,
+    TableExpectationSignalName,
+    aggregate_expectation_findings,
+    compute_table_expectation,
 )
 from .table_findings import (
     TableFinding,
     aggregate_findings,
     risk_findings,
 )
-from .table_expectation import (
-    TableExpectationReport,
-    TableExpectationSignal,
-    TableExpectationSignalName,
-    RejectedTableCandidate,
-    compute_table_expectation,
-    aggregate_expectation_findings,
+from .table_quality import (
+    SigName,
+    TableQualityReport,
+    TableQualitySignal,
+    compute_table_quality,
 )
 
 __all__ = [

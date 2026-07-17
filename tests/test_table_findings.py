@@ -1,22 +1,19 @@
 """Tests for aksharamd/scoring/table_findings.py — Milestone 6."""
 from __future__ import annotations
 
-import pytest
-
-from aksharamd.models.table import BoundingBox, ExtractionMethod, TableCell, TableData
 from aksharamd.models.block import Block
+from aksharamd.models.table import BoundingBox, ExtractionMethod, TableCell, TableData
+from aksharamd.scoring.table_findings import (
+    TableFinding,
+    aggregate_findings,
+    risk_findings,
+)
 from aksharamd.scoring.table_quality import (
     SigName,
     TableQualityReport,
     TableQualitySignal,
     compute_table_quality,
 )
-from aksharamd.scoring.table_findings import (
-    TableFinding,
-    aggregate_findings,
-    risk_findings,
-)
-
 
 # ── Test helpers ───────────────────────────────────────────────────────────────
 
@@ -560,8 +557,9 @@ class TestScoringCompatibility:
 
     def test_risk_findings_do_not_import_readiness(self):
         """table_findings module must not depend on readiness scoring module."""
-        import aksharamd.scoring.table_findings as tf_mod
         import sys
+
+        import aksharamd.scoring.table_findings as tf_mod
         assert "aksharamd.scoring.readiness" not in sys.modules or True
         # Only check that the import of table_findings doesn't import readiness as a side-effect
         # (readiness may already be imported; what matters is table_findings doesn't require it)

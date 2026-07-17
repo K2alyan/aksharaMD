@@ -1,10 +1,8 @@
 """Tests for table-aware chunking (Milestone 4)."""
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
+from aksharamd.models.block import Block, BlockType
 from aksharamd.models.chunk import Chunk
 from aksharamd.models.document import Document
 from aksharamd.models.table import ExtractionMethod, TableCell, TableData
@@ -15,7 +13,6 @@ from aksharamd.plugins.chunkers.table_splitter import (
     split_table_into_ranges,
 )
 from aksharamd.renderers.table_markdown import render_row_range
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -194,7 +191,6 @@ def test_make_table_chunk_meta_basic_fields():
 
 
 def test_make_table_chunk_meta_oversize_row():
-    from aksharamd.plugins.chunkers.table_splitter import TableRangePlan
     block = _make_table_block([["H"], ["R1"]])
     plan = TableRangePlan(row_start=0, row_end=1, oversize=True, estimated_tokens=900)
     meta = make_table_chunk_meta(block, row_start=0, row_end=1, plan=plan, chunk_budget_tokens=512)
@@ -204,7 +200,6 @@ def test_make_table_chunk_meta_oversize_row():
 
 
 def test_make_table_chunk_meta_no_oversize_flag_when_false():
-    from aksharamd.plugins.chunkers.table_splitter import TableRangePlan
     block = _make_table_block([["H"], ["R1"]])
     plan = TableRangePlan(row_start=0, row_end=1, oversize=False)
     meta = make_table_chunk_meta(block, row_start=0, row_end=1, plan=plan)

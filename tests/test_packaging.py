@@ -29,13 +29,9 @@ from aksharamd.packaging import (
     plan_document,
 )
 from aksharamd.packaging.models import (
-    DocumentPackagePlan,
     PackageAssetReference,
     PackageElementPlan,
-    RepresentationTokenBreakdown,
 )
-from aksharamd.packaging.policy import route_element
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -287,7 +283,6 @@ def test_reference_only_preserved_not_selected():
     assert ie.include_by_default is False
 
     # Fidelity check
-    import tempfile
     from aksharamd.packaging.writer import _build_fidelity
     fidelity = _build_fidelity("doc1", plan, None, set(), 0)
     assert fidelity.elements_reference_only >= 1
@@ -365,7 +360,7 @@ def test_document_block_chunk_ids_unchanged():
     original_doc_id = doc.document_id
 
     profile = PackageProfile()
-    plan = plan_document(doc, profile)
+    plan_document(doc, profile)
 
     # IDs are not modified by planning
     assert [b.id for b in doc.blocks] == original_block_ids
@@ -494,13 +489,10 @@ def test_manifest_schema_version_1_3():
 # ── Milestone C tests ──────────────────────────────────────────────────────────
 
 from aksharamd.packaging.models import (
-    BlockTableFindings,
-    ElementRelationship,
     PlannerContext,
     ReasonCode,
     RelationshipType,
 )
-from aksharamd.packaging.policy import RoutingDecision, route_element as _route
 
 
 def _make_ctx(mode: str = "adaptive", **kwargs) -> PlannerContext:
@@ -850,16 +842,13 @@ def test_backward_compat_package_plan_schema():
 # ── Milestone D tests ──────────────────────────────────────────────────────────
 
 import tempfile
-from pathlib import Path
 
+from aksharamd.packaging.adapters import to_multimodal_content, to_plain_text
 from aksharamd.packaging.payload import (
     LLMPayload,
-    LLMPayloadItem,
     PayloadContentType,
-    PayloadFidelity,
 )
 from aksharamd.packaging.payload_builder import build_llm_payload
-from aksharamd.packaging.adapters import to_plain_text, to_multimodal_content
 
 
 def _make_plan_and_write(doc, profile=None, validation=None, tmp_path=None):
@@ -952,10 +941,6 @@ def test_page_fallback_interleaved_by_page():
     # There should be a warning/image item for page 1 somewhere after the page-1 text
     page1_text_idx = next(
         (i for i, item in enumerate(payload.items) if item.page == 1 and item.content_type == PayloadContentType.TEXT),
-        None,
-    )
-    page1_fallback_idx = next(
-        (i for i, item in enumerate(payload.items) if item.page == 1 and item.content_type in (PayloadContentType.IMAGE_REFERENCE, PayloadContentType.WARNING)),
         None,
     )
     # Both should exist
@@ -1244,7 +1229,7 @@ def test_to_plain_text_includes_table_markdown():
     doc = _make_doc([tb])
     plan, asset_refs, tmp_path = _make_plan_and_write(doc)
     payload = build_llm_payload(plan, doc, tmp_path, asset_refs)
-    text = to_plain_text(payload)
+    to_plain_text(payload)
 
     # Table content should be present in some form (pipe table or TSV)
     # The selector may choose markdown (|) or TSV (\t) depending on token budget
@@ -1292,14 +1277,13 @@ def test_to_multimodal_content_image_reference_no_bytes():
 # D26
 def test_compile_package_writes_llm_payload_json(tmp_path):
     """compile_package output dir contains llm_payload.json."""
-    import tempfile
     from aksharamd.compiler import Compiler
     # Create a minimal text file to compile
     src = tmp_path / "test.txt"
     src.write_text("Hello world. This is a test document for packaging.", encoding="utf-8")
     out_dir = tmp_path / "output"
     compiler = Compiler(output_dir=str(out_dir))
-    ctx = compiler.compile_package(str(src))
+    compiler.compile_package(str(src))
     payload_path = out_dir / "llm_payload.json"
     assert payload_path.exists()
 

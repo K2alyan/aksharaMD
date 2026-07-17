@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import hashlib
-from dataclasses import dataclass, field as dc_field
+from dataclasses import dataclass
+from dataclasses import field as dc_field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
@@ -178,7 +178,7 @@ class PackageElementPlan(BaseModel):
     relationships: list[ElementRelationship] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _validate_source_constraints(self) -> "PackageElementPlan":
+    def _validate_source_constraints(self) -> PackageElementPlan:
         if self.source_kind == PackageSourceKind.BLOCK and self.block_id is None:
             raise ValueError("block sources require block_id")
         if self.source_kind == PackageSourceKind.PAGE_REGION:
@@ -223,7 +223,7 @@ class TableArtifact(BaseModel):
     schema_version: str = "1.0"
     document_id: str
     block_id: str
-    table: "TableData"
+    table: TableData
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -314,4 +314,5 @@ class PackageProfile(BaseModel):
 
 
 from ..models.table import TableData as _TableData  # noqa: E402
+
 TableArtifact.model_rebuild(_types_namespace={"TableData": _TableData})

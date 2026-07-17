@@ -1,11 +1,8 @@
 """Page-break table stitching for PDF structured and legacy table blocks."""
 from __future__ import annotations
 
-import re
-
-from ....models.block import Block, BlockType, ExtractionConfidence
+from ....models.block import Block, BlockType
 from ....models.table import ExtractionMethod, TableCell, TableData
-
 
 # ── Markdown-string helpers (used for legacy blocks without table_data) ────────
 

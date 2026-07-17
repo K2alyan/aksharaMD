@@ -262,7 +262,7 @@ def _extract_docx_table_data(table, page: int | None, qn) -> TableData:
     )
 
 
-def _extract_docx_properties(doc, idx: int) -> "Block | None":
+def _extract_docx_properties(doc, idx: int) -> Block | None:
     """Extract core properties (title, author, subject, etc.) as a KeyValueGroup."""
     from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
 

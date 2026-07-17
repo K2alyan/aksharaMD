@@ -7,13 +7,11 @@ from __future__ import annotations
 
 import re
 import statistics
-from typing import Any
 
 from pydantic import BaseModel, Field
 
 from ..models.block import Block
-from ..models.table import ExtractionMethod, TableCell, TableData
-
+from ..models.table import ExtractionMethod, TableData
 
 # ── Data models ────────────────────────────────────────────────────────────────
 

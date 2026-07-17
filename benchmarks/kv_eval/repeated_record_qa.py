@@ -117,8 +117,8 @@ def _questions() -> list[QAQuestion]:
 
 
 def _build_group(text: str):
-    from aksharamd.scoring.key_value_detection import detect_key_value_entries
     from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
+    from aksharamd.scoring.key_value_detection import detect_key_value_entries
 
     profile = KeyValueDetectionProfile.experimental()
     result = detect_key_value_entries(text, page=1, profile=profile)
@@ -196,7 +196,8 @@ def run_qa_comparison() -> list[QAResult]:
     Returns one QAResult per (question, format) combination.
     """
     from aksharamd.renderers.key_value_markdown import (
-        render_key_value_group, render_key_value_tsv,
+        render_key_value_group,
+        render_key_value_tsv,
     )
 
     results: list[QAResult] = []

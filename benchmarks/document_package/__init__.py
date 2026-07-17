@@ -1,3 +1,13 @@
+from .harness import (
+    compute_category_summaries,
+    compute_corpus_summary,
+    compute_token_savings_attribution,
+    detect_anomalies,
+    run_corpus,
+    run_document,
+    serialize_baseline_a,
+    write_benchmark_results,
+)
 from .schema import (
     BASELINE_A_SERIALIZER_VERSION,
     AnomalyRecord,
@@ -21,16 +31,6 @@ from .schema import (
     TextTokenBreakdown,
     TokenSavingsAttribution,
     VisualMetrics,
-)
-from .harness import (
-    run_document,
-    run_corpus,
-    serialize_baseline_a,
-    compute_token_savings_attribution,
-    detect_anomalies,
-    compute_corpus_summary,
-    compute_category_summaries,
-    write_benchmark_results,
 )
 
 __all__ = [

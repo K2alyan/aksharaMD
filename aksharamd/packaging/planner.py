@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field as dc_field
 from typing import TYPE_CHECKING
 
 from .models import (
     BlockTableFindings,
     DocumentPackagePlan,
     ElementRelationship,
-    OmitReason,
-    OmittedElement,
     PackageElementPlan,
-    PackageMode,
     PackageProfile,
     PackageSourceKind,
     PlannerContext,
@@ -72,9 +68,9 @@ def _classify_element_type(block) -> str:
 # ── PlannerContext construction ────────────────────────────────────────────────
 
 def _build_planner_context(
-    document: "Document",
+    document: Document,
     profile: PackageProfile,
-    validation_report: "ValidationReport | None",
+    validation_report: ValidationReport | None,
 ) -> PlannerContext:
     """Assemble all routing information from document + validation in one pass."""
     # Warnings by block and page
@@ -205,9 +201,9 @@ def _bbox_from_issue(issue) -> list[float] | None:
 # ── Main entry point ───────────────────────────────────────────────────────────
 
 def plan_document(
-    document: "Document",
+    document: Document,
     profile: PackageProfile | None = None,
-    validation_report: "ValidationReport | None" = None,
+    validation_report: ValidationReport | None = None,
 ) -> DocumentPackagePlan:
     """Generate a deterministic package plan for the given document.
 

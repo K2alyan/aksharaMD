@@ -30,19 +30,21 @@ if TYPE_CHECKING:
 def build_table_candidates(
     table_data,
     table_id: str,
-    artifact_path: "str | None",
+    artifact_path: str | None,
     block_content_tokens: int,
-    profile: "PackageProfile",
-    title: "str | None" = None,
-) -> "list":
+    profile: PackageProfile,
+    title: str | None = None,
+) -> list:
     """Generate all candidate serializations for one table."""
-    from .token_accounting import count_text_tokens
     from ..renderers.table_markdown import (
-        render_table_markdown, render_table_tsv,
-        render_table_row_records, render_table_preview_reference,
         render_table_json_reference,
+        render_table_markdown,
+        render_table_preview_reference,
+        render_table_row_records,
+        render_table_tsv,
     )
     from .models import TablePayloadFormat, TableSerializationCandidate
+    from .token_accounting import count_text_tokens
 
     header_count = len(table_data.header_rows) if table_data.header_rows else 0
     body_rows = max(0, table_data.row_count - header_count)
@@ -122,9 +124,9 @@ def build_table_candidates(
 def select_table_serialization(
     candidates: list,
     mode: str,
-    profile: "PackageProfile",
+    profile: PackageProfile,
     block_content_tokens: int,
-) -> "object":
+) -> object:
     """Choose the best serialization candidate for the given mode.
 
     Regression guard: a full-inline candidate must not exceed
@@ -213,18 +215,18 @@ def select_table_serialization(
 
 def render_table_for_payload(
     table_data,
-    profile: "PackageProfile | None" = None,
-    block_id: "str | None" = None,
-    block_content: "str | None" = None,
-    artifact_path: "str | None" = None,
-    title: "str | None" = None,
-) -> "tuple[str, object]":
+    profile: PackageProfile | None = None,
+    block_id: str | None = None,
+    block_content: str | None = None,
+    artifact_path: str | None = None,
+    title: str | None = None,
+) -> tuple[str, object]:
     """Canonical table serialization. Returns (text, candidate) for the selected format.
 
     Backward-compatible: callers that only need the text can use [0].
     """
-    from .token_accounting import count_text_tokens
     from .models import TablePayloadFormat, TableSerializationCandidate
+    from .token_accounting import count_text_tokens
 
     if profile is None:
         from .models import PackageProfile
@@ -269,14 +271,14 @@ def _is_heading_block(block: object) -> bool:
         return False
 
 
-def _is_linked_table_fallback(elem: "PackageElementPlan") -> bool:
+def _is_linked_table_fallback(elem: PackageElementPlan) -> bool:
     """True if this element is a TABLE_VISUAL_FALLBACK (stays paired with its source block)."""
     return str(elem.reason_code) == ReasonCode.TABLE_VISUAL_FALLBACK
 
 
 def build_llm_payload(
-    plan: "DocumentPackagePlan",
-    document: "Document",
+    plan: DocumentPackagePlan,
+    document: Document,
     package_dir: Path | str,
     asset_refs: list[PackageAssetReference],
     profile: PackageProfile | None = None,
@@ -305,8 +307,8 @@ def build_llm_payload(
                 asset_ref_by_element[eid] = ref
 
     # ── Split elements into block/linked-fallback vs page fallbacks ────────────
-    block_elements: list["PackageElementPlan"] = []
-    page_fallbacks: list["PackageElementPlan"] = []
+    block_elements: list[PackageElementPlan] = []
+    page_fallbacks: list[PackageElementPlan] = []
 
     for elem in plan.elements:
         if elem.source_kind == PackageSourceKind.BLOCK:
@@ -329,7 +331,7 @@ def build_llm_payload(
             page_to_last_block_idx[elem.page] = i
 
     # Insert page fallbacks in reverse so indices don't shift badly
-    ordered: list["PackageElementPlan"] = list(block_elements)
+    ordered: list[PackageElementPlan] = list(block_elements)
     for fb in reversed(page_fallbacks):
         fb_page = fb.page or 0
         # Find insertion position: after last block on fb_page or earlier page
@@ -359,7 +361,7 @@ def build_llm_payload(
                 image_to_caption_elem[rel.target_element_id] = elem.element_id
 
     # Build element_id -> element map for caption text lookup
-    elem_by_id: dict[str, "PackageElementPlan"] = {e.element_id: e for e in plan.elements}
+    elem_by_id: dict[str, PackageElementPlan] = {e.element_id: e for e in plan.elements}
 
     # ── Generate items ─────────────────────────────────────────────────────────
     items: list[LLMPayloadItem] = []

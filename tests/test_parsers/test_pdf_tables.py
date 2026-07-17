@@ -1,8 +1,6 @@
 """Tests for aksharamd/plugins/parsers/pdf_tables: normalization and stitching."""
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.models.block import Block, BlockType, ExtractionConfidence
 from aksharamd.models.table import (
     BoundingBox,
@@ -16,7 +14,6 @@ from aksharamd.plugins.parsers.pdf_tables.normalization import (
     normalize_pdf_cell_text,
 )
 from aksharamd.plugins.parsers.pdf_tables.stitching import stitch_page_break_tables
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -16,7 +16,6 @@ from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.plugins.validators.multicolumn import MultiColumnOrderValidator, _analyse_page
 
-
 # ── block builders ────────────────────────────────────────────────────────────
 
 def _para(content: str, x0: float, y0: float, page: int = 1) -> Block:

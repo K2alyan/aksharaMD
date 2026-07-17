@@ -18,7 +18,7 @@ import random
 import sys
 import tempfile
 import traceback
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import click
@@ -124,7 +124,6 @@ def _stratified_sample(
 def _compile_one(record: ExampleRecord) -> list[TableRecord]:
     sys.path.insert(0, str(OMNIMARK_ROOT))
     from aksharamd.compiler import Compiler
-    from aksharamd.models.block import BlockType
     from aksharamd.scoring.table_findings import aggregate_findings
     from aksharamd.scoring.table_quality import TableQualityReport
 
@@ -180,7 +179,7 @@ def _compile_one(record: ExampleRecord) -> list[TableRecord]:
                     findings=[f.model_dump() for f in findings],
                     error=None,
                 ))
-    except Exception as exc:
+    except Exception:
         table_records.append(TableRecord(
             test_id=record.test_id,
             grits_con=record.grits_con,

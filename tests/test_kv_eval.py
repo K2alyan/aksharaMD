@@ -12,13 +12,12 @@ Coverage:
 from __future__ import annotations
 
 import json
-import pytest
 
 # ── DETECTOR LOCK ─────────────────────────────────────────────────────────────
 
 def test_el1_build_lock_returns_correct_detector_version():
     """EL1: build_lock() returns KeyValueDetectorLock with detector_version = 'kv_promoter/v1'."""
-    from benchmarks.kv_eval.detector_lock import build_lock, KeyValueDetectorLock
+    from benchmarks.kv_eval.detector_lock import KeyValueDetectorLock, build_lock
     lock = build_lock()
     assert isinstance(lock, KeyValueDetectorLock)
     assert lock.detector_version == "kv_promoter/v1"
@@ -35,8 +34,8 @@ def test_el2_rhetorical_checksum_is_16_char_hex():
 
 def test_el3_inline_max_chars_matches_promoter_constant():
     """EL3: Lock inline_max_chars matches _MAX_PARA_CHARS in key_value_promoter."""
-    from benchmarks.kv_eval.detector_lock import build_lock
     from aksharamd.plugins.transformers.key_value_promoter import _MAX_PARA_CHARS
+    from benchmarks.kv_eval.detector_lock import build_lock
     lock = build_lock()
     assert lock.inline_max_chars == _MAX_PARA_CHARS
 
@@ -52,7 +51,7 @@ def test_el4_lock_serializes_to_valid_json():
 
 def test_el5_lock_roundtrips_from_json():
     """EL5: Lock deserializes back from JSON with identical field values."""
-    from benchmarks.kv_eval.detector_lock import build_lock, KeyValueDetectorLock
+    from benchmarks.kv_eval.detector_lock import KeyValueDetectorLock, build_lock
     lock = build_lock()
     data = lock.model_dump()
     serialized = json.dumps(data)
@@ -123,8 +122,8 @@ def test_ec5_positive_and_negative_polarity():
 
 def test_ei1_contact_block_detected():
     """EI1: Contact-block text → predicted_is_kv=True."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_text_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     text = "Email: alice@example.com\nPhone: 555-1234"
     gt = KeyValueGroundTruth(
@@ -140,8 +139,8 @@ def test_ei1_contact_block_detected():
 
 def test_ei2_rhetorical_prose_not_detected():
     """EI2: Rhetorical prose → predicted_is_kv=False."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_text_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     text = "Note: this explains the process in detail and should be read carefully."
     gt = KeyValueGroundTruth(
@@ -157,8 +156,8 @@ def test_ei2_rhetorical_prose_not_detected():
 
 def test_ei3_long_value_not_detected():
     """EI3: Long-value paragraph → predicted_is_kv=False."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_text_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     text = "Description: This is a very long prose sentence that exceeds eighty characters in length and should be rejected."
     gt = KeyValueGroundTruth(
@@ -174,8 +173,8 @@ def test_ei3_long_value_not_detected():
 
 def test_ei4_schedule_with_two_time_entries():
     """EI4: Schedule with two time entries → predicted_is_kv=True, predicted_record_count >= 1."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_text_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     text = "Monday: 9:00 AM\nFriday: 5:00 PM"
     gt = KeyValueGroundTruth(
@@ -204,7 +203,7 @@ def test_ei5_abergowrie_two_records():
 def test_ei6_inline_precision_above_threshold():
     """EI6: Inline metrics has precision >= 0.85 when run against inline corpus."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
-    from benchmarks.kv_eval.evaluator import evaluate_text_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_text_case
 
     corpus = load_dev_corpus()
     inline_cases = corpus["heuristic_inline"]
@@ -222,7 +221,7 @@ def test_ei6_inline_precision_above_threshold():
 def test_ei7_inline_fpr_below_threshold():
     """EI7: Inline metrics has fpr <= 0.15 when run against negative controls."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
-    from benchmarks.kv_eval.evaluator import evaluate_text_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_text_case
 
     corpus = load_dev_corpus()
     negative_cases = corpus["negative_control"]
@@ -239,8 +238,8 @@ def test_ei7_inline_fpr_below_threshold():
 
 def test_eh1_html_dl_two_pairs_detected():
     """EH1: <dl> with 2 pairs → predicted_is_kv=True."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_html_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     html = "<dl><dt>Email</dt><dd>alice@example.com</dd><dt>Phone</dt><dd>555-1234</dd></dl>"
     gt = KeyValueGroundTruth(
@@ -256,8 +255,8 @@ def test_eh1_html_dl_two_pairs_detected():
 
 def test_eh2_html_no_dl_not_detected():
     """EH2: HTML with no <dl> → predicted_is_kv=False."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_html_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     html = "<p>This is a plain paragraph with no structured data at all.</p>"
     gt = KeyValueGroundTruth(
@@ -274,7 +273,7 @@ def test_eh2_html_no_dl_not_detected():
 def test_eh3_html_dl_precision_is_one():
     """EH3: HTML DL precision = 1.0 on the html corpus (native extraction is deterministic)."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
-    from benchmarks.kv_eval.evaluator import evaluate_html_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_html_case
 
     corpus = load_dev_corpus()
     html_cases = corpus["native_html_dl"]
@@ -293,8 +292,8 @@ def test_eh3_html_dl_precision_is_one():
 
 def test_eh4_html_dl_detection_path_used():
     """EH4: HTML DL detection_path_used = 'native_html_dl'."""
-    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
     from benchmarks.kv_eval.evaluator import evaluate_html_case
+    from benchmarks.kv_eval.ground_truth import KeyValueGroundTruth
 
     html = "<dl><dt>Name</dt><dd>Alice</dd><dt>Email</dt><dd>alice@test.com</dd><dt>Phone</dt><dd>555-0001</dd></dl>"
     gt = KeyValueGroundTruth(
@@ -311,8 +310,9 @@ def test_eh4_html_dl_detection_path_used():
 
 def test_eh5_html_dl_confidence_is_extracted():
     """EH5: HTML DL entries have confidence='extracted' (native path)."""
-    from aksharamd.plugins.parsers.html import _dl_to_key_value_group
     from bs4 import BeautifulSoup
+
+    from aksharamd.plugins.parsers.html import _dl_to_key_value_group
 
     html = "<dl><dt>Email</dt><dd>alice@example.com</dd><dt>Phone</dt><dd>555-1234</dd></dl>"
     soup = BeautifulSoup(html, "html.parser")
@@ -328,8 +328,8 @@ def test_eh5_html_dl_confidence_is_extracted():
 
 def test_et1_compare_tokens_returns_full_model():
     """ET1: compare_tokens() returns TokenComparison with all fields populated."""
-    from benchmarks.kv_eval.token_comparison import compare_tokens, TokenComparison
-    from aksharamd.models.key_value import KeyValueGroup, KeyValueEntry, KeyValueGroupType
+    from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
+    from benchmarks.kv_eval.token_comparison import TokenComparison, compare_tokens
 
     entries = [
         KeyValueEntry(key="Email", value="alice@example.com"),
@@ -352,8 +352,8 @@ def test_et1_compare_tokens_returns_full_model():
 
 def test_et2_small_contact_group_token_ratio():
     """ET2: Small contact group (4 entries): selected_tokens within 50% of source_text_tokens."""
+    from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
     from benchmarks.kv_eval.token_comparison import compare_tokens
-    from aksharamd.models.key_value import KeyValueGroup, KeyValueEntry, KeyValueGroupType
 
     entries = [
         KeyValueEntry(key="Email", value="alice@example.com"),
@@ -371,8 +371,8 @@ def test_et2_small_contact_group_token_ratio():
 
 def test_et3_delta_pct_is_float():
     """ET3: delta_pct is a float (positive or negative acceptable)."""
+    from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
     from benchmarks.kv_eval.token_comparison import compare_tokens
-    from aksharamd.models.key_value import KeyValueGroup, KeyValueEntry, KeyValueGroupType
 
     entries = [
         KeyValueEntry(key="A", value="B"),
@@ -385,8 +385,8 @@ def test_et3_delta_pct_is_float():
 
 def test_et4_large_group_tsv_considered():
     """ET4: Large group (>20 entries): TSV is considered for selection (min of md/tsv)."""
+    from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
     from benchmarks.kv_eval.token_comparison import compare_tokens
-    from aksharamd.models.key_value import KeyValueGroup, KeyValueEntry, KeyValueGroupType
 
     # Build 22 entries
     entries = [KeyValueEntry(key=f"Key{i}", value=f"Value{i}") for i in range(22)]
@@ -462,7 +462,7 @@ def test_ea4_path_names_match_adjacent_min_n_format():
 def test_em1_html_dl_no_fp_on_positive_cases():
     """EM1: HTML DL path has 0 FP in the html corpus (positive cases only)."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
-    from benchmarks.kv_eval.evaluator import evaluate_html_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_html_case
 
     corpus = load_dev_corpus()
     html_cases = [c for c in corpus["native_html_dl"] if c.ground_truth.is_key_value_group]
@@ -476,7 +476,6 @@ def test_em2_rhetorical_labels_produce_no_tp():
     """EM2: Inline path has 0 TP on negative controls containing rhetorical labels."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
     from benchmarks.kv_eval.evaluator import evaluate_text_case
-    from aksharamd.scoring.key_value_detection import _RHETORICAL_LABELS
 
     corpus = load_dev_corpus()
     # Filter negative controls whose reason is "rhetorical_label"
@@ -531,7 +530,7 @@ def test_ec7_corpus_has_adjacent_block_section():
 def test_em4_html_recall_is_one():
     """EM4: HTML DL recall >= 0.99 after corrected corpus (FN=0)."""
     from benchmarks.kv_eval.corpus import load_dev_corpus
-    from benchmarks.kv_eval.evaluator import evaluate_html_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_html_case
 
     corpus = load_dev_corpus()
     html_cases = corpus["native_html_dl"]
@@ -577,9 +576,9 @@ def test_em7_adjacent_real_positive_cases_detected():
     Under kv_promoter/v2 heuristics are opt-in — evaluate with the
     experimental profile so the adjacent promoter runs.
     """
+    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
     from benchmarks.kv_eval.corpus import _adjacent_block_cases
     from benchmarks.kv_eval.evaluator import evaluate_adjacent_case
-    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
 
     profile = KeyValueDetectionProfile.experimental()
     adj_cases = _adjacent_block_cases()
@@ -612,8 +611,8 @@ def test_payload_item_kv_format_fields_exist():
 
 def test_token_comparison_selected_format_field():
     """TokenComparison.selected_format is 'markdown' or 'tsv'."""
+    from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
     from benchmarks.kv_eval.token_comparison import compare_tokens
-    from aksharamd.models.key_value import KeyValueGroup, KeyValueEntry, KeyValueGroupType
 
     entries = [
         KeyValueEntry(key="Email", value="alice@example.com"),

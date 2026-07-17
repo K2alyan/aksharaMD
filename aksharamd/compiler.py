@@ -8,6 +8,10 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .packaging.models import PackageProfile
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +43,8 @@ from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
 from .plugins.validators import multicolumn as _multicolumn_validator_pkg  # noqa: F401
 from .plugins.validators import structure as _validator_pkg  # noqa: F401
-from .plugins.validators import table_quality as _tq_validator_pkg  # noqa: F401
 from .plugins.validators import table_expectation as _te_validator_pkg  # noqa: F401
+from .plugins.validators import table_quality as _tq_validator_pkg  # noqa: F401
 from .scoring import compute_confidence
 from .utils import count_tokens
 
@@ -545,7 +549,7 @@ class Compiler:
     def compile_package(
         self,
         source: str,
-        profile: "PackageProfile | None" = None,
+        profile: PackageProfile | None = None,
         on_stage: Callable[[str], None] | None = None,
         source_id: str | None = None,
     ) -> CompilationContext:
@@ -563,8 +567,7 @@ class Compiler:
         Packaging decisions do not affect document_id, block IDs, or chunk IDs.
         """
         from .packaging import PackageProfile as _PackageProfile
-        from .packaging import PackageWriter, plan_document
-        from .packaging import build_token_report
+        from .packaging import PackageWriter, build_token_report, plan_document
 
         if profile is None:
             profile = _PackageProfile()

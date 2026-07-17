@@ -15,8 +15,6 @@ Regression cases:
 """
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
@@ -25,7 +23,6 @@ from aksharamd.plugins.validators.header_footer_table import (
     _analyse_table,
     _parse_table_cells,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 

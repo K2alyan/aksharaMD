@@ -15,26 +15,24 @@ from pathlib import Path
 
 import pytest
 
+from aksharamd.models.block import Block, BlockType
+from aksharamd.models.document import Document
 from aksharamd.models.key_value import (
     KeyValueEntry,
     KeyValueGroup,
     KeyValueGroupType,
     KeyValueValueType,
 )
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
-from aksharamd.models.document import Document
 from aksharamd.models.table import ExtractionMethod, TableCell, TableData
-from aksharamd.renderers.key_value_markdown import render_key_value_group, render_key_value_tsv
-from aksharamd.scoring.key_value_detection import detect_key_value_entries, DetectionResult
 from aksharamd.packaging import (
-    PackageProfile,
-    RepresentationType,
     PackageWriter,
+    RepresentationType,
     plan_document,
 )
 from aksharamd.packaging.payload import PayloadContentType
 from aksharamd.packaging.payload_builder import build_llm_payload
-
+from aksharamd.renderers.key_value_markdown import render_key_value_group, render_key_value_tsv
+from aksharamd.scoring.key_value_detection import detect_key_value_entries
 
 # ── Fixtures ────────────────────────────────────────────────────────────────────
 
@@ -350,7 +348,7 @@ def test_kr7_tsv_produces_tab_separated():
     """KR7: render_key_value_tsv produces 'key\\tvalue' lines."""
     group = _simple_group()
     rendered = render_key_value_tsv(group)
-    lines = [l for l in rendered.splitlines() if "\t" in l]
+    lines = [line for line in rendered.splitlines() if "\t" in line]
     assert len(lines) >= 2
     for line in lines:
         parts = line.split("\t")
@@ -618,11 +616,7 @@ def test_kc5_packaging_suite_no_regressions():
     """KC5: existing packaging tests still pass — run them inline as a sanity gate."""
     # This test just verifies the module-level packaging imports are intact
     from aksharamd.packaging import (
-        plan_document, PackageWriter, RepresentationType, PackageMode,
-        PackageProfile, PLANNER_VERSION, POLICY_VERSION,
-        route_element, RoutingDecision, build_token_report,
-        PackageSourceKind, OmitReason, ReasonCode,
-        PayloadContentType, LLMPayload, LLMPayloadItem, build_llm_payload,
+        RepresentationType,
     )
     # Verify the existing RepresentationType values are unchanged
     assert RepresentationType.MARKDOWN == "markdown"

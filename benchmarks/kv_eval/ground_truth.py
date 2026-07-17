@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
+
 from aksharamd.models.key_value import KeyValueGroupType, KeyValueValueType
+
 
 class GroundTruthEntry(BaseModel):
     key: str
@@ -43,7 +46,7 @@ class CorpusMetrics(BaseModel):
     f1: float = 0.0
     fpr: float = 0.0   # false positive rate = fp / (fp + tn)
 
-    def compute(self) -> "CorpusMetrics":
+    def compute(self) -> CorpusMetrics:
         self.precision = self.tp / (self.tp + self.fp) if (self.tp + self.fp) > 0 else 0.0
         self.recall = self.tp / (self.tp + self.fn) if (self.tp + self.fn) > 0 else 0.0
         self.f1 = (2 * self.precision * self.recall / (self.precision + self.recall)

@@ -4,9 +4,13 @@ Provides both the v1 lock (preserved for historical evidence) and the v2
 lock introduced with the KeyValueGroup safety milestone.
 """
 from __future__ import annotations
-import hashlib, json
+
+import hashlib
+import json
 from datetime import UTC, datetime
+
 from pydantic import BaseModel
+
 
 class KeyValueDetectorLock(BaseModel):
     detector_version: str
@@ -77,10 +81,10 @@ def _rhetorical_checksum() -> str:
 
 def build_lock() -> KeyValueDetectorLock:
     """Build the v1 lock — DO NOT MODIFY. Preserved for historical evidence."""
-    from aksharamd.scoring.key_value_detection import _MAX_LABEL_WORDS, _MAX_VALUE_CHARS
     from aksharamd.plugins.transformers.key_value_promoter import (
-        _MAX_PARA_CHARS, _MAX_PARA_LINES,
+        _MAX_PARA_CHARS,
     )
+    from aksharamd.scoring.key_value_detection import _MAX_LABEL_WORDS, _MAX_VALUE_CHARS
     from benchmarks.kv_eval.ground_truth import PathMaturityLabels
     maturity = PathMaturityLabels()
     path_maturity = {
@@ -113,16 +117,19 @@ def build_lock() -> KeyValueDetectorLock:
 
 def build_lock_v2() -> KeyValueDetectorLockV2:
     """Build the v2 lock — kv_promoter/v2 configuration snapshot."""
-    from aksharamd.scoring.key_value_detection import _MAX_LABEL_WORDS, _MAX_VALUE_CHARS
     from aksharamd.plugins.transformers.key_value_promoter import (
-        DETECTOR_VERSION, _MAX_PARA_CHARS, _MAX_PARA_LINES,
+        _MAX_PARA_CHARS,
+        DETECTOR_VERSION,
     )
     from aksharamd.scoring.key_value_classifier import (
-        _RECOGNIZED_SCHEMAS, _STRONG_VALUE_TYPES,
+        _RECOGNIZED_SCHEMAS,
+        _STRONG_VALUE_TYPES,
     )
     from aksharamd.scoring.key_value_config import (
-        KeyValueDetectionProfile, KeyValueCandidateCategory,
+        KeyValueCandidateCategory,
+        KeyValueDetectionProfile,
     )
+    from aksharamd.scoring.key_value_detection import _MAX_LABEL_WORDS, _MAX_VALUE_CHARS
     from benchmarks.kv_eval.ground_truth import PathMaturityLabels
 
     maturity = PathMaturityLabels()

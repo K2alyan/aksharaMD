@@ -203,9 +203,9 @@ def render_table_row_records(table: TableData) -> str:
 def render_table_preview_reference(
     table: TableData,
     table_id: str,
-    artifact_path: "str | None",
+    artifact_path: str | None,
     preview_rows: int = 5,
-    title: "str | None" = None,
+    title: str | None = None,
 ) -> str:
     """Preview + artifact reference.
 
@@ -269,7 +269,7 @@ def render_table_preview_reference(
 def render_table_json_reference(
     table: TableData,
     table_id: str,
-    artifact_path: "str | None",
+    artifact_path: str | None,
 ) -> str:
     """Compact reference only. No inline data.
 

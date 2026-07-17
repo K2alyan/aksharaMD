@@ -1,10 +1,8 @@
 """Tests for aksharamd/scoring/table_quality.py — Milestone 5."""
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
+from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.models.table import (
     BoundingBox,
@@ -18,7 +16,6 @@ from aksharamd.scoring.table_quality import (
     TableQualitySignal,
     compute_table_quality,
 )
-
 
 # ── Test helpers ───────────────────────────────────────────────────────────────
 
@@ -548,7 +545,7 @@ def _run_with_validator(blocks: list[Block]) -> CompilationContext:
 def test_validator_populates_block_metadata():
     td = _make_td([["H1", "H2"], ["A", "B"]])
     block = _make_block(td)
-    ctx = _run_with_validator([block])
+    _run_with_validator([block])
     assert "table_quality" in block.metadata
     tq = block.metadata["table_quality"]
     assert "overall_status" in tq
@@ -577,7 +574,7 @@ def test_validator_skips_legacy_table_blocks():
         content="| A | B |\n| --- | --- |\n| 1 | 2 |",
         page=1,
     )
-    ctx = _run_with_validator([legacy])
+    _run_with_validator([legacy])
     assert "table_quality" not in legacy.metadata
 
 
@@ -641,7 +638,6 @@ def test_chunk_no_signal_names_when_all_ok():
 
 def test_no_readiness_score_change_from_quality_validator():
     """TableQualityValidator does not alter the readiness score."""
-    from aksharamd.scoring import compute_confidence
     from aksharamd.plugins.validators.table_quality import TableQualityValidator
 
     td = _make_td([["col1", "col2"], ["A", "B"]])  # generic headers

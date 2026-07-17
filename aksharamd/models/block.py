@@ -48,8 +48,8 @@ class Block(BaseModel):
     confidence: ExtractionConfidence = ExtractionConfidence.EXTRACTED
     metadata: dict = Field(default_factory=dict)
     checksum: str = ""
-    table_data: "TableData | None" = None
-    key_value_group: "KeyValueGroup | None" = None
+    table_data: TableData | None = None
+    key_value_group: KeyValueGroup | None = None
 
     @field_validator("level")
     @classmethod
@@ -59,7 +59,7 @@ class Block(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _compute_derived(self) -> "Block":
+    def _compute_derived(self) -> Block:
         # 1. Always derive content from table_data (enforces canonical invariant)
         if self.type == BlockType.TABLE and self.table_data is not None:
             from ..renderers.table_markdown import render_table_markdown
@@ -103,13 +103,13 @@ class Block(BaseModel):
     @classmethod
     def from_table(
         cls,
-        table_data: "TableData",
+        table_data: TableData,
         *,
         page: int | None = None,
         index: int = 0,
         confidence: ExtractionConfidence = ExtractionConfidence.EXTRACTED,
         metadata: dict | None = None,
-    ) -> "Block":
+    ) -> Block:
         """Canonical constructor for structured table blocks.
 
         Parsers MUST use this method (not Block(type=TABLE, ...)) to ensure
@@ -128,13 +128,13 @@ class Block(BaseModel):
     @classmethod
     def from_key_value_group(
         cls,
-        group: "KeyValueGroup",
+        group: KeyValueGroup,
         *,
         page: int | None = None,
         index: int = 0,
         confidence: ExtractionConfidence = ExtractionConfidence.INFERRED,
         metadata: dict | None = None,
-    ) -> "Block":
+    ) -> Block:
         """Canonical constructor for key-value group blocks.
 
         Parsers MUST use this method to ensure block.content is always
@@ -152,7 +152,7 @@ class Block(BaseModel):
 
 
 # Avoid circular import: TableData is defined in .table which imports nothing from .block
-from .table import TableData  # noqa: E402
 from .key_value import KeyValueGroup  # noqa: E402
+from .table import TableData  # noqa: E402
 
 Block.model_rebuild()

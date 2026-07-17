@@ -17,7 +17,6 @@ from aksharamd.models.chunk import Chunk
 from aksharamd.models.document import Document
 from aksharamd.models.manifest import Manifest
 
-
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _make_doc(blocks: list[Block], file_type: str = "md", pages: int = 1) -> Document:

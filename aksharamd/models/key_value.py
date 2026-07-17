@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import unicodedata
 from enum import StrEnum
 
 from pydantic import BaseModel, Field

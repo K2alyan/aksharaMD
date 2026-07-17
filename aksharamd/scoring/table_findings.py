@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field
 
 from .table_quality import SigName, TableQualityReport, TableQualitySignal
 
-
 # ── Finding model ──────────────────────────────────────────────────────────────
 
 class TableFinding(BaseModel):

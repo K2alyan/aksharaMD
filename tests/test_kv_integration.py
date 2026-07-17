@@ -16,8 +16,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from aksharamd.models.block import Block, BlockType, ExtractionConfidence
 from aksharamd.models.document import Document
 from aksharamd.models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
@@ -25,7 +23,6 @@ from aksharamd.plugins.transformers.key_value_promoter import (
     DETECTOR_VERSION,
     detect_and_promote_key_value_groups,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,8 +70,8 @@ def _html_fixture(dl_html: str) -> str:
 
 def _parse_html_blocks(html_str: str) -> list[Block]:
     """Write HTML to a temp file and parse it with the HTML parser."""
-    from aksharamd.plugins.parsers.html import HTMLParser
     from aksharamd.context import CompilationContext
+    from aksharamd.plugins.parsers.html import HTMLParser
 
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".html", delete=False, encoding="utf-8"
@@ -179,8 +176,8 @@ def _make_docx_no_props(tmp_path: Path) -> Path:
 
 def _parse_docx_blocks(path: Path) -> list[Block]:
     """Parse a DOCX file and return its blocks."""
-    from aksharamd.plugins.parsers.docx import DocxParser
     from aksharamd.context import CompilationContext
+    from aksharamd.plugins.parsers.docx import DocxParser
 
     ctx = CompilationContext(source=str(path), output_dir=tempfile.mkdtemp())
     parser = DocxParser()
@@ -190,8 +187,8 @@ def _parse_docx_blocks(path: Path) -> list[Block]:
 
 def _parse_xlsx_blocks(path: Path) -> list[Block]:
     """Parse an XLSX file and return its blocks."""
-    from aksharamd.plugins.parsers.spreadsheet import XlsxParser
     from aksharamd.context import CompilationContext
+    from aksharamd.plugins.parsers.spreadsheet import XlsxParser
 
     ctx = CompilationContext(source=str(path), output_dir=tempfile.mkdtemp())
     parser = XlsxParser()
@@ -503,8 +500,8 @@ def test_kx4_repeated_first_column_remains_table(tmp_path):
 
 def test_kx5_is_kv_region_returns_false_for_conventional_table():
     """KX5: _is_kv_region returns False for conventional tables."""
-    from aksharamd.plugins.parsers.spreadsheet import _is_kv_region
     from aksharamd.models.table import TableCell
+    from aksharamd.plugins.parsers.spreadsheet import _is_kv_region
 
     # 3-column table
     cells = [
@@ -791,11 +788,9 @@ def test_kb3_key_value_imports_still_work():
     from aksharamd.models.key_value import (
         KeyValueEntry,
         KeyValueGroup,
-        KeyValueGroupType,
-        KeyValueValueType,
     )
-    from aksharamd.scoring.key_value_detection import DetectionResult, detect_key_value_entries
-    from aksharamd.renderers.key_value_markdown import render_key_value_group, render_key_value_tsv
+    from aksharamd.renderers.key_value_markdown import render_key_value_group
+    from aksharamd.scoring.key_value_detection import detect_key_value_entries
 
     # Basic smoke test that imports work and basic functionality is intact
     group = KeyValueGroup(
@@ -861,8 +856,8 @@ def test_kv_block_has_entry_count_in_metadata():
 
 def test_is_kv_region_returns_true_for_valid_kv():
     """_is_kv_region returns True for a proper 2-column KV layout."""
-    from aksharamd.plugins.parsers.spreadsheet import _is_kv_region
     from aksharamd.models.table import TableCell
+    from aksharamd.plugins.parsers.spreadsheet import _is_kv_region
 
     cells = [
         TableCell(text="Project", row=0, column=0),
@@ -877,7 +872,7 @@ def test_is_kv_region_returns_true_for_valid_kv():
 
 def test_validation_issue_metadata_field_present():
     """ValidationIssue.metadata field exists and defaults to empty dict."""
-    from aksharamd.models.validation import ValidationIssue, Severity
+    from aksharamd.models.validation import Severity, ValidationIssue
 
     issue = ValidationIssue(
         severity=Severity.WARNING,

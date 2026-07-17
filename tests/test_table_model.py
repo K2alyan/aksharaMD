@@ -1,8 +1,6 @@
 """Tests for aksharamd/models/table.py — TableData, TableCell, BoundingBox."""
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from aksharamd.models.table import (
@@ -12,7 +10,6 @@ from aksharamd.models.table import (
     TableData,
     _normalize_cell_text,
 )
-
 
 # ── BoundingBox ───────────────────────────────────────────────────────────────
 

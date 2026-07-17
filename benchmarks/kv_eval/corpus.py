@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
+from aksharamd.models.key_value import KeyValueGroupType, KeyValueValueType
 from benchmarks.kv_eval.ground_truth import (
     GroundTruthEntry,
     KeyValueGroundTruth,
 )
-from aksharamd.models.key_value import KeyValueGroupType, KeyValueValueType
 
 
 @dataclass

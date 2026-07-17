@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
+from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
-from aksharamd.models.table import ExtractionMethod, TableCell, TableData, BoundingBox
+from aksharamd.models.table import BoundingBox, TableCell, TableData
 
 
 def _simple_table(

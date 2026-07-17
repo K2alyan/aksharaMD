@@ -4,29 +4,38 @@ Usage:
     python -m benchmarks.kv_eval.run_eval [--output OUTPUT_DIR]
 """
 from __future__ import annotations
-import argparse, json, sys
+
+import argparse
+import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from benchmarks.kv_eval.ground_truth import CorpusMetrics
 
 
 def run_evaluation(output_dir: Path) -> dict:
     """Run full dev-corpus evaluation. Returns summary dict."""
-    from benchmarks.kv_eval.corpus import load_dev_corpus, abergowrie_case
+    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
+    from benchmarks.kv_eval.corpus import abergowrie_case, load_dev_corpus
+    from benchmarks.kv_eval.detector_lock import build_lock, build_lock_v2
     from benchmarks.kv_eval.evaluator import (
-        evaluate_text_case, evaluate_html_case,
+        compute_corpus_metrics,
         evaluate_adjacent_case,
-        compute_corpus_metrics, simulate_adjacent_threshold,
+        evaluate_html_case,
+        evaluate_text_case,
+        simulate_adjacent_threshold,
         simulate_adjacent_threshold_real,
     )
-    from benchmarks.kv_eval.token_comparison import compare_tokens
     from benchmarks.kv_eval.ground_truth import (
-        KeyValueGroundTruth, PathMaturityLabels,
+        PathMaturityLabels,
     )
-    from benchmarks.kv_eval.detector_lock import build_lock, build_lock_v2
     from benchmarks.kv_eval.repeated_record_qa import (
-        run_qa_comparison, summarize_qa_results,
+        run_qa_comparison,
+        summarize_qa_results,
     )
-    from aksharamd.scoring.key_value_config import KeyValueDetectionProfile
+    from benchmarks.kv_eval.token_comparison import compare_tokens
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -262,10 +271,10 @@ def _per_category_metrics(cases, outcomes) -> dict:
     return by_reason
 
 
-def _evaluate_xlsx_cases(xlsx_cases) -> "CorpusMetrics | None":
+def _evaluate_xlsx_cases(xlsx_cases) -> CorpusMetrics | None:
     if not xlsx_cases:
         return None
-    from benchmarks.kv_eval.evaluator import evaluate_xlsx_case, compute_corpus_metrics
+    from benchmarks.kv_eval.evaluator import compute_corpus_metrics, evaluate_xlsx_case
     outcomes = []
     gt_map = {}
     for case in xlsx_cases:
@@ -273,7 +282,7 @@ def _evaluate_xlsx_cases(xlsx_cases) -> "CorpusMetrics | None":
             outcome = evaluate_xlsx_case(case.xlsx_path, case.ground_truth)
             outcomes.append(outcome)
             gt_map[case.ground_truth.case_id] = case.ground_truth
-        except Exception as e:
+        except Exception:
             pass
     if not outcomes:
         return None

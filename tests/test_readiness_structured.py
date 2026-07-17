@@ -8,11 +8,9 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
-
 from aksharamd.compiler import Compiler
 from aksharamd.context import CompilationContext
-from aksharamd.models.block import Block, BlockType, ExtractionConfidence
+from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
 from aksharamd.scoring import (
     SCORING_POLICY,
@@ -24,7 +22,6 @@ from aksharamd.scoring import (
     compute_readiness_score,
 )
 from aksharamd.scoring.models import ConfidenceResult
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 

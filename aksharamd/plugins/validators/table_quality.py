@@ -18,11 +18,11 @@ Warning reconciliation (informational):
 """
 from __future__ import annotations
 
-from ..base import ValidatorPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import BlockType
 from ...scoring.table_quality import compute_table_quality
+from ..base import ValidatorPlugin
+from ..registry import register_plugin
 
 
 class TableQualityValidator(ValidatorPlugin):

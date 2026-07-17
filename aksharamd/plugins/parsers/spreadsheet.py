@@ -106,7 +106,7 @@ def _is_kv_region(cells: list, row_count: int, col_count: int) -> bool:
     return len(col0_values) >= 3
 
 
-def _xlsx_cells_to_kv_group(cells: list, sheet_name: str) -> "object | None":
+def _xlsx_cells_to_kv_group(cells: list, sheet_name: str) -> object | None:
     """Convert a two-column cell list to a KeyValueGroup."""
     from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
 

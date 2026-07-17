@@ -36,7 +36,6 @@ from benchmarks.document_package.schema import (
     VisualMetrics,
 )
 
-
 # ── Schema validation tests ────────────────────────────────────────────────────
 
 def test_corpus_entry_required_fields():
@@ -606,24 +605,24 @@ def _mock_block_typed(content: str, btype, level=None) -> MagicMock:
 
 
 def test_serialize_baseline_a_heading_produces_prefix():
-    from benchmarks.document_package.harness import serialize_baseline_a
     from aksharamd.models.block import BlockType
+    from benchmarks.document_package.harness import serialize_baseline_a
     block = _mock_block_typed("Section Title", BlockType.HEADING, level=2)
     result = serialize_baseline_a([block])
     assert result == "## Section Title"
 
 
 def test_serialize_baseline_a_heading_default_level_1():
-    from benchmarks.document_package.harness import serialize_baseline_a
     from aksharamd.models.block import BlockType
+    from benchmarks.document_package.harness import serialize_baseline_a
     block = _mock_block_typed("Top Heading", BlockType.HEADING, level=None)
     result = serialize_baseline_a([block])
     assert result.startswith("# ")
 
 
 def test_serialize_baseline_a_code_block_produces_fencing():
-    from benchmarks.document_package.harness import serialize_baseline_a
     from aksharamd.models.block import BlockType
+    from benchmarks.document_package.harness import serialize_baseline_a
     block = _mock_block_typed("x = 1", BlockType.CODE_BLOCK)
     result = serialize_baseline_a([block])
     assert result.startswith("```")

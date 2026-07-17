@@ -225,9 +225,9 @@ def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
 _MAX_DEPTH = 100  # guard against pathologically nested HTML causing RecursionError
 
 
-def _dl_to_key_value_group(dl_tag: Tag, page: "int | None") -> "object | None":
+def _dl_to_key_value_group(dl_tag: Tag, page: int | None) -> object | None:
     """Parse a <dl> element into a KeyValueGroup. Returns None if insufficient entries."""
-    from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
+    from ...models.key_value import KeyValueEntry, KeyValueGroup
 
     entries = []
     current_key: str | None = None

@@ -35,14 +35,11 @@ Phase 1 re-score findings (2026-07-13):
 """
 from __future__ import annotations
 
-import pytest
-
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType, ExtractionConfidence
 from aksharamd.models.document import Document
 from aksharamd.plugins.validators.header_footer_table import HeaderFooterTableValidator
 from aksharamd.plugins.validators.multicolumn import MultiColumnOrderValidator
-
 
 # ── shared helpers ────────────────────────────────────────────────────────────
 

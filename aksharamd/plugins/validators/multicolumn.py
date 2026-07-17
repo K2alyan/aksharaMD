@@ -30,10 +30,10 @@ doc.metadata["pdf_column_info"] populated with page_width for each page.
 """
 from __future__ import annotations
 
-from ..base import ValidatorPlugin
-from ..registry import register_plugin
 from ...context import CompilationContext
 from ...models.block import BlockType
+from ..base import ValidatorPlugin
+from ..registry import register_plugin
 
 
 def _find_column_gap(

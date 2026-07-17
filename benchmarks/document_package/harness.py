@@ -8,7 +8,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from statistics import median, mean
+from statistics import mean, median
 from typing import TYPE_CHECKING
 
 from .schema import (
@@ -95,7 +95,7 @@ def serialize_baseline_a(blocks) -> str:
             formatted = f"```\n{content.strip()}\n```"
         elif btype == BlockType.BLOCKQUOTE:
             lines = content.strip().split("\n")
-            formatted = "\n".join(f"> {l}" for l in lines)
+            formatted = "\n".join(f"> {line}" for line in lines)
         else:
             formatted = content.strip()
 
@@ -1004,7 +1004,7 @@ def _write_benchmark_b_report(
         e = _tokens(cap, RepresentationName.CANDIDATE_E)
         lines.append(f"| {cap.document_id} | {a} | {b} | {c} | {d} | {e} |")
 
-    lines.append(f"\n**Aggregate:**")
+    lines.append("\n**Aggregate:**")
     lines.append(f"- Baseline A: median={summary.baseline_a_tokens_median:.0f}, mean={summary.baseline_a_tokens_mean:.0f}")
     lines.append(f"- Baseline B: median={summary.baseline_b_tokens_median:.0f}, mean={summary.baseline_b_tokens_mean:.0f}")
     lines.append(f"- Candidate C: median={summary.candidate_c_tokens_median:.0f}, mean={summary.candidate_c_tokens_mean:.0f}")
@@ -1029,7 +1029,7 @@ def _write_benchmark_b_report(
         # Use first capture as example
         ex = captures[0]
         attr = compute_token_savings_attribution(ex, [])
-        lines.append(f"```")
+        lines.append("```")
         lines.append(f"Baseline A:                    {attr.baseline_a_tokens:>8} tokens")
         lines.append(f"- Furniture removed:           {attr.repeated_furniture_removed_tokens:>8}")
         lines.append(f"- Structural omissions:        {attr.structural_omission_tokens:>8}")
@@ -1039,14 +1039,14 @@ def _write_benchmark_b_report(
         lines.append(f"- Other delta:                 {attr.other_delta:>8}")
         lines.append(f"= Final D tokens:              {attr.final_payload_tokens:>8}")
         lines.append(f"  Reconciliation residual:     {attr.reconciliation_residual:>8}")
-        lines.append(f"```")
+        lines.append("```")
         lines.append(f"*(example: {ex.document_id})*")
 
     # Section 6: Visual assets
     lines.append("\n## Visual-Asset Results by Mode\n")
     total_d = visual_stats.get("candidate_d_visual_assets_total", 0)
     total_e = visual_stats.get("candidate_e_visual_assets_total", 0)
-    lines.append(f"- Candidate C: 0 images (text-first mode suppresses visual assets)")
+    lines.append("- Candidate C: 0 images (text-first mode suppresses visual assets)")
     lines.append(f"- Candidate D (adaptive): {total_d} total visual assets across corpus")
     lines.append(f"- Candidate E (fidelity-first): {total_e} total visual assets across corpus")
 
@@ -1088,7 +1088,7 @@ def _write_benchmark_b_report(
     lines.append(f"- Structured table tokens total: {table_stats['structured_table_tokens_total']}")
     lines.append("\nTable serialization: token-aware selector active. Formats available: markdown, tsv, row_records, "
                  "preview_reference, json_reference. Selected format per table depends on mode and token budget "
-                 f"(max_inline_table_tokens=1200, guard_factor=1.05).")
+                 "(max_inline_table_tokens=1200, guard_factor=1.05).")
 
     # Section 9: Runtime
     lines.append("\n## Runtime and Package Size\n")

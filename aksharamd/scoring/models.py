@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-
 SCORING_POLICY_VERSION = "1.0"
 
 
