@@ -9,7 +9,16 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean, median
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
+
+
+class _AnomalyBaseKwargs(TypedDict):
+    document_id: str
+    baseline_a_tokens: int | None
+    baseline_b_tokens: int | None
+    candidate_c_tokens: int | None
+    candidate_d_tokens: int | None
+    candidate_e_tokens: int | None
 
 from .schema import (
     AnomalyRecord,
@@ -571,14 +580,14 @@ def detect_anomalies(
              if m.representation == RepresentationName.CANDIDATE_C), 0
         )
 
-        base_kwargs = dict(
-            document_id=cap.document_id,
-            baseline_a_tokens=baseline_a,
-            baseline_b_tokens=baseline_b,
-            candidate_c_tokens=cand_c,
-            candidate_d_tokens=cand_d,
-            candidate_e_tokens=cand_e,
-        )
+        base_kwargs: _AnomalyBaseKwargs = {
+            "document_id": cap.document_id,
+            "baseline_a_tokens": baseline_a,
+            "baseline_b_tokens": baseline_b,
+            "candidate_c_tokens": cand_c,
+            "candidate_d_tokens": cand_d,
+            "candidate_e_tokens": cand_e,
+        }
 
         if baseline_a > 0 and baseline_a < baseline_b:
             anomalies.append(AnomalyRecord(
@@ -1113,8 +1122,8 @@ def _write_benchmark_b_report(
     # Section 11: Anomalies
     lines.append("\n## Anomalies\n")
     if anomalies:
-        for a in anomalies:
-            lines.append(f"- **[{a.severity.upper()}]** `{a.document_id}` — {a.anomaly_type}: {a.description}")
+        for anomaly in anomalies:
+            lines.append(f"- **[{anomaly.severity.upper()}]** `{anomaly.document_id}` — {anomaly.anomaly_type}: {anomaly.description}")
     else:
         lines.append("No anomalies detected.")
 

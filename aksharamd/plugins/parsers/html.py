@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64 as _b64
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import chardet
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -14,6 +15,9 @@ from ...models.document import Document
 from ...models.table import ExtractionMethod, TableCell, TableData
 from ..base import ParserPlugin
 from ..registry import register_parser
+
+if TYPE_CHECKING:
+    from ...models.key_value import KeyValueGroup
 
 _MAX_LOCAL_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB cap for local images
 
@@ -123,12 +127,14 @@ def _html_table_to_tabledata(table: Tag, page: int | None = None) -> TableData |
             while grid_occupied.get((r_idx, c_idx)):
                 c_idx += 1
 
+            colspan_attr = cell_tag.get('colspan')
             try:
-                colspan = max(1, int(cell_tag.get('colspan', 1)))
+                colspan = max(1, int(colspan_attr)) if isinstance(colspan_attr, str) else 1
             except (ValueError, TypeError):
                 colspan = 1
+            rowspan_attr = cell_tag.get('rowspan')
             try:
-                rowspan = max(1, int(cell_tag.get('rowspan', 1)))
+                rowspan = max(1, int(rowspan_attr)) if isinstance(rowspan_attr, str) else 1
             except (ValueError, TypeError):
                 rowspan = 1
             # Cap spans to prevent runaway
@@ -225,7 +231,7 @@ def _list_to_lines(element: Tag, ordered: bool, depth: int = 0) -> list[str]:
 _MAX_DEPTH = 100  # guard against pathologically nested HTML causing RecursionError
 
 
-def _dl_to_key_value_group(dl_tag: Tag, page: int | None) -> object | None:
+def _dl_to_key_value_group(dl_tag: Tag, page: int | None) -> KeyValueGroup | None:
     """Parse a <dl> element into a KeyValueGroup. Returns None if insufficient entries."""
     from ...models.key_value import KeyValueEntry, KeyValueGroup
 

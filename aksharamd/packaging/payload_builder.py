@@ -23,18 +23,20 @@ from .payload import (
 from .token_accounting import count_text_tokens
 
 if TYPE_CHECKING:
+    from ..models.block import Block
     from ..models.document import Document
-    from .models import DocumentPackagePlan, PackageElementPlan
+    from ..models.table import TableData
+    from .models import DocumentPackagePlan, PackageElementPlan, TableSerializationCandidate
 
 
 def build_table_candidates(
-    table_data,
+    table_data: TableData,
     table_id: str,
     artifact_path: str | None,
     block_content_tokens: int,
     profile: PackageProfile,
     title: str | None = None,
-) -> list:
+) -> list[TableSerializationCandidate]:
     """Generate all candidate serializations for one table."""
     from ..renderers.table_markdown import (
         render_table_json_reference,
@@ -122,11 +124,11 @@ def build_table_candidates(
 
 
 def select_table_serialization(
-    candidates: list,
+    candidates: list[TableSerializationCandidate],
     mode: str,
     profile: PackageProfile,
     block_content_tokens: int,
-) -> object:
+) -> TableSerializationCandidate:
     """Choose the best serialization candidate for the given mode.
 
     Regression guard: a full-inline candidate must not exceed
@@ -154,17 +156,17 @@ def select_table_serialization(
     max_inline = getattr(profile, "max_inline_table_tokens", 1200)
     GUARD_FACTOR = 1.05
 
-    full_inline = [c for c in candidates if c.preserves_all_rows_inline]
-    preview_ref = next((c for c in candidates if c.format == TablePayloadFormat.PREVIEW_REFERENCE), None)
-    json_ref = next((c for c in candidates if c.format == TablePayloadFormat.JSON_REFERENCE), None)
-    fallback = json_ref or (candidates[-1] if candidates else None)
-
     if not candidates:
         # Should never happen; return a placeholder
         return TableSerializationCandidate(
             format=TablePayloadFormat.MARKDOWN, text="", token_count=0,
             preserves_all_rows_inline=True, preserves_structure_inline=True,
         )
+
+    full_inline = [c for c in candidates if c.preserves_all_rows_inline]
+    preview_ref = next((c for c in candidates if c.format == TablePayloadFormat.PREVIEW_REFERENCE), None)
+    json_ref = next((c for c in candidates if c.format == TablePayloadFormat.JSON_REFERENCE), None)
+    fallback: TableSerializationCandidate = json_ref or candidates[-1]
 
     if strategy == "reference_only":
         return json_ref or fallback
@@ -214,13 +216,13 @@ def select_table_serialization(
 
 
 def render_table_for_payload(
-    table_data,
+    table_data: TableData,
     profile: PackageProfile | None = None,
     block_id: str | None = None,
     block_content: str | None = None,
     artifact_path: str | None = None,
     title: str | None = None,
-) -> tuple[str, object]:
+) -> tuple[str, TableSerializationCandidate]:
     """Canonical table serialization. Returns (text, candidate) for the selected format.
 
     Backward-compatible: callers that only need the text can use [0].
@@ -297,7 +299,7 @@ def build_llm_payload(
     document_id = plan.document_id
 
     # Build block lookup
-    block_by_id: dict[str, object] = {b.id: b for b in document.blocks}
+    block_by_id: dict[str, Block] = {b.id: b for b in document.blocks}
 
     # Build asset ref lookup: element_id -> first matching ref
     asset_ref_by_element: dict[str, PackageAssetReference] = {}
@@ -438,7 +440,7 @@ def build_llm_payload(
             table_markdown: str | None = None
             table_artifact_path: str | None = None
             caption_text: str | None = None
-            table_candidate = None
+            table_candidate: TableSerializationCandidate | None = None
 
             if block is not None and block.table_data is not None:
                 artifact_path = f"tables/{block.id}.json"
@@ -625,7 +627,7 @@ def build_llm_payload(
             kv_record_count = 0
             kv_entry_count = 0
 
-            if kv_group is not None:
+            if kv_group is not None and block is not None:
                 # Check if artifact exists
                 artifact_path_str = f"key_values/{block.id}.json"
                 if (package_dir / artifact_path_str).exists():
@@ -751,14 +753,14 @@ def build_llm_payload(
 
     # Find plan_payload_mismatches: selected elements with no emitted item
     mismatches: list[str] = []
-    for e in plan.elements:
+    for mismatch_elem in plan.elements:
         if (
-            e.include_by_default
-            and e.representation not in (RepresentationType.OMIT, RepresentationType.REFERENCE_ONLY)
-            and e.element_id not in caption_consumed
-            and e.element_id not in emitted_element_ids
+            mismatch_elem.include_by_default
+            and mismatch_elem.representation not in (RepresentationType.OMIT, RepresentationType.REFERENCE_ONLY)
+            and mismatch_elem.element_id not in caption_consumed
+            and mismatch_elem.element_id not in emitted_element_ids
         ):
-            mismatches.append(e.element_id)
+            mismatches.append(mismatch_elem.element_id)
 
     fidelity = PayloadFidelity(
         planned_elements=planned_count,

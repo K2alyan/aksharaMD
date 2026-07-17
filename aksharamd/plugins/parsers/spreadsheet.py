@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv as _csv
 import io
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ...context import CompilationContext
 from ...models.block import Block, BlockType, ExtractionConfidence
@@ -10,6 +11,9 @@ from ...models.document import Document
 from ...models.table import ExtractionMethod, TableCell, TableData
 from ..base import ParserPlugin
 from ..registry import register_parser
+
+if TYPE_CHECKING:
+    from ...models.key_value import KeyValueGroup
 
 _MAX_ROWS_PER_SHEET = 500
 _MAX_COLS = 20
@@ -106,7 +110,7 @@ def _is_kv_region(cells: list, row_count: int, col_count: int) -> bool:
     return len(col0_values) >= 3
 
 
-def _xlsx_cells_to_kv_group(cells: list, sheet_name: str) -> object | None:
+def _xlsx_cells_to_kv_group(cells: list, sheet_name: str) -> KeyValueGroup | None:
     """Convert a two-column cell list to a KeyValueGroup."""
     from ...models.key_value import KeyValueEntry, KeyValueGroup, KeyValueGroupType
 

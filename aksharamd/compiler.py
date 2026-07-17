@@ -578,7 +578,7 @@ class Compiler:
         if on_stage:
             on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):
+            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
                 ctx = plugin.execute(ctx)
 
         if ctx.document is None:

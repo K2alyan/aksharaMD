@@ -176,6 +176,12 @@ def _try_stitch_structured(
     b_td = b.table_data
     assert a_td is not None and b_td is not None
 
+    # Cross-page stitching requires known page numbers on both blocks
+    if a.page is None or b.page is None:
+        return None
+    a_page: int = a.page
+    b_page: int = b.page
+
     if a_td.column_count != b_td.column_count:
         return None
 
@@ -189,7 +195,7 @@ def _try_stitch_structured(
         b_bbox = b_td.bbox or _BoundingBoxFromMeta(b.metadata.get("table_bbox"))
         if a_bbox is None or b_bbox is None:
             return None
-        a_height = page_heights.get(a.page, 0.0)
+        a_height = page_heights.get(a_page, 0.0)
         if a_height <= 0 or (a_height - a_bbox.y1) > edge_tolerance:
             return None
         if b_bbox.y0 > edge_tolerance:
@@ -197,8 +203,8 @@ def _try_stitch_structured(
 
     stitched_td = _stitch_structured(
         a_td, b_td,
-        a_page=a.page,
-        b_page=b.page,
+        a_page=a_page,
+        b_page=b_page,
         repeated_header=repeated,
     )
 
@@ -249,6 +255,8 @@ def _try_stitch_legacy(
     handled here via Markdown string manipulation. Migrating Marker to structured
     TableData is deferred (Phase 4 Milestone 4+).
     """
+    if a.page is None:
+        return None
     a_hdr = _tbl_header_line(a.content)
     b_hdr = _tbl_header_line(b.content)
     repeated = bool(a_hdr and b_hdr and a_hdr == b_hdr)
