@@ -43,8 +43,9 @@ jobs:
 
       - name: Dependency audit (pip-audit)
         run: |
-          pip install pip-audit
-          pip-audit
+          python -m pip install --upgrade pip "setuptools>=83.0.0"
+          python -m pip install pip-audit
+          python -m pip_audit
 
       - name: Run tests with coverage
         run: |
