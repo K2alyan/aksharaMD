@@ -1,0 +1,68 @@
+{
+  "lock_date": "2026-07-13",
+  "repository_commit": "9e66af8467bc8308c362ddd93410215620be985e",
+  "repository_tag": "v0.3.6-7-g9e66af8",
+  "scoring_policy_version": "1.0",
+  "detector": {
+    "name": "table_expectation_validator",
+    "priority": 30,
+    "maturity": "experimental",
+    "warning_code": "W_TABLE_EXPECTED_NOT_EXTRACTED",
+    "score_penalty": 0
+  },
+  "signal_definitions": {
+    "REJECTED_CANDIDATE": {
+      "family": "parser",
+      "fires_when": "Any table candidate found by pdfplumber or hrule strategy but rejected by _is_quality_table",
+      "threshold": "count >= 1"
+    },
+    "CAPTION_NEARBY": {
+      "family": "text",
+      "fires_when": "Paragraph/heading/caption block matches _CAPTION_RE",
+      "pattern": "\\bTable\\s+\\S+",
+      "note": "v2: narrowed to Table-only; Figure/Chart/Exhibit removed. Remaining chart FPs driven by parser+numeric_column_alignment."
+    },
+    "NUMERIC_COLUMN_ALIGNMENT": {
+      "family": "text",
+      "fires_when": "Total of 3+ lines across all paragraph blocks with 3+ tokens and 2+ numeric tokens",
+      "numeric_token_pattern": "^[-+]?[\\d,]+(?:\\.\\d+)?%?$",
+      "threshold": "total_qualifying_lines >= 3"
+    },
+    "LEADER_DOT_ROWS": {
+      "family": "content",
+      "fires_when": "Source 1: rejected candidate with dot_leader in rejection_reasons; Source 2: 3+ paragraph lines matching leader-dot pattern across all blocks",
+      "dot_leader_pattern": "(?:\\.{4,}|(?:\\. ){3,})",
+      "threshold": "total_dot_lines >= 3"
+    },
+    "DOC_TABLE_HEAVY": {
+      "family": "archetype",
+      "fires_when": "Document is classified as table_heavy and page has no extracted tables",
+      "note": "Rarely fires; most docs classify as native_text or layout_heavy"
+    }
+  },
+  "family_independence_rule": "expected=true iff risk signals from >= 2 distinct families fire",
+  "parser_configuration": {
+    "pdfplumber_char_limit": 3000,
+    "note": "Pages with > 3000 chars skip pdfplumber entirely (no rejected candidates generated)"
+  },
+  "optional_dependencies": [
+    "pdfplumber",
+    "pymupdf (fitz)"
+  ],
+  "corpus_version": "parsebench_2026-07-13",
+  "version": "v2",
+  "validation_v1": {
+    "precision": 0.5943,
+    "recall": 0.3549,
+    "f1": 0.4444,
+    "fpr": 0.2448,
+    "chart_fp_rate": 0.74
+  },
+  "validation_v2": {
+    "precision": 0.6129,
+    "recall": 0.3276,
+    "f1": 0.427,
+    "fpr": 0.2069,
+    "chart_fp_rate": 0.6
+  }
+}

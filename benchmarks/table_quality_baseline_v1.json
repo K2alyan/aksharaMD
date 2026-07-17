@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "run_date": "2026-07-13",
+  "corpus": "parsebench table subset",
+  "total_pdfs_sampled": 45,
+  "total_table_records": 53,
+  "bucket_counts": {
+    "good": 15,
+    "mid": 15,
+    "partial": 15
+  },
+  "seed": 42,
+  "finding_stats": {
+    "TABLE_STRUCTURE_INCOMPLETE": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 33,
+      "fn": 18,
+      "total_evaluated": 51,
+      "precision": null,
+      "recall": 0.0,
+      "false_positive_rate": 0.0
+    },
+    "TABLE_CELL_FRAGMENTATION": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 33,
+      "fn": 18,
+      "total_evaluated": 51,
+      "precision": null,
+      "recall": 0.0,
+      "false_positive_rate": 0.0
+    },
+    "TABLE_HEADER_UNCERTAIN": {
+      "tp": 4,
+      "fp": 2,
+      "tn": 31,
+      "fn": 14,
+      "total_evaluated": 51,
+      "precision": 0.667,
+      "recall": 0.222,
+      "false_positive_rate": 0.061
+    },
+    "TABLE_PAGE_FURNITURE_SUSPECTED": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 33,
+      "fn": 18,
+      "total_evaluated": 51,
+      "precision": null,
+      "recall": 0.0,
+      "false_positive_rate": 0.0
+    },
+    "TABLE_STITCHING_UNCERTAIN": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 0,
+      "fn": 0,
+      "total_evaluated": 0,
+      "precision": null,
+      "recall": null,
+      "false_positive_rate": null
+    }
+  },
+  "signal_stats_summary": {
+    "duplicate_header_names": {
+      "fires": 6,
+      "evaluated": 51,
+      "fpr": 0.061
+    },
+    "table_near_top_margin": {
+      "fires": 13,
+      "evaluated": 51,
+      "fpr": 0.303
+    },
+    "table_near_bottom_margin": {
+      "fires": 17,
+      "evaluated": 51,
+      "fpr": 0.273
+    }
+  },
+  "maturity_decisions": {
+    "TABLE_HEADER_UNCERTAIN": "keep_experimental",
+    "TABLE_PAGE_FURNITURE_SUSPECTED": "keep_experimental",
+    "TABLE_CELL_FRAGMENTATION": "keep_experimental",
+    "TABLE_STRUCTURE_INCOMPLETE": "keep_experimental",
+    "TABLE_STITCHING_UNCERTAIN": "keep_experimental"
+  },
+  "notes": [
+    "All 5 findings remain experimental after first corpus validation.",
+    "Only 3 of 33 signals fire in this corpus (margin and duplicate_header_names).",
+    "TABLE_STITCHING_UNCERTAIN: no evaluable records (corpus has only single-page PDFs).",
+    "Next validation: run on 200+ production documents with mixed defect types."
+  ]
+}
