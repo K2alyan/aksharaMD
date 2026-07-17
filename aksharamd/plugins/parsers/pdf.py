@@ -41,6 +41,12 @@ def _ocr_available() -> bool:
 
 
 # ── Marker (vision) availability ──────────────────────────────────────────────
+# SECURITY: The marker integration below MUST NOT accept user-controlled model
+# identifiers, `from_pretrained(...)` targets, or `trust_remote_code` toggles.
+# `create_model_dict()` is always called with no arguments so the resolved
+# checkpoints stay pinned to marker/surya's hardcoded set. Adding any dynamic
+# model-selection surface here would expose transformers CVEs that are
+# currently unreachable (see SECURITY.md "Deferred Dependency Alerts").
 _MARKER_AVAILABLE: bool | None = None
 _MARKER_LOAD_ATTEMPTED: bool = False
 _MARKER_MODELS: dict | None = None
