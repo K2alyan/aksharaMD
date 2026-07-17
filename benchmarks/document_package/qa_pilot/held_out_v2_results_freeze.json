@@ -1,0 +1,186 @@
+{
+  "schema": "held_out_results_freeze_v1",
+  "frozen_at": "2026-07-14T23:00:00+00:00",
+  "status": "CLOSED — no further tuning, regrading, or rerunning on this split",
+
+  "corpus": {
+    "manifest_path": "benchmarks/document_package/corpus_manifest.json",
+    "manifest_sha256": "485492ef576680eb956d62a0c9a8fb988496dc8a1f77565d66840780b45753e2",
+    "split": "held_out",
+    "document_ids": [
+      "pb-ho-text-livingword",
+      "pb-ho-text-cn-article",
+      "pb-ho-table-axa-urd",
+      "pb-ho-chart-egov-p170",
+      "syn-ho-docx-07",
+      "syn-ho-xlsx-03"
+    ]
+  },
+
+  "answer_keys": {
+    "question_set_path": "benchmarks/document_package/qa_pilot/held_out_questions.py",
+    "question_set_sha256": "0898cad707c1eb21519c735b69daacdf9fea293739d1bd29e9288a786aec2150",
+    "question_ids": [
+      "ho-livingword-q01", "ho-livingword-q02", "ho-livingword-q03",
+      "ho-livingword-q04", "ho-livingword-q05",
+      "ho-cnarticle-q01", "ho-cnarticle-q02", "ho-cnarticle-q03",
+      "ho-cnarticle-q04", "ho-cnarticle-q05",
+      "ho-axaurd-q01", "ho-axaurd-q02", "ho-axaurd-q03",
+      "ho-axaurd-q04", "ho-axaurd-q05",
+      "ho-egovp170-q01", "ho-egovp170-q02", "ho-egovp170-q03",
+      "ho-egovp170-q04", "ho-egovp170-q05",
+      "ho-docx07-q01", "ho-docx07-q02", "ho-docx07-q03",
+      "ho-docx07-q04", "ho-docx07-q05",
+      "ho-xlsx03-q01", "ho-xlsx03-q02", "ho-xlsx03-q03",
+      "ho-xlsx03-q04", "ho-xlsx03-q05"
+    ],
+    "amendment_log": "benchmarks/document_package/qa_pilot/amendment_log.json",
+    "corrections_applied": ["ec-ho-001"],
+    "grading_version": "v1.1"
+  },
+
+  "pipeline": {
+    "code_commit": "9e66af8467bc8308c362ddd93410215620be985e",
+    "parser_version": "0.3.6",
+    "optimizer_version": "token_optimizer/v1_id_fix",
+    "optimizer_note": "_merge_fragmented_headings() id fix applied: merged blocks now receive id=checksum instead of id=empty-string",
+    "planner_version": "1.0",
+    "policy_version": "1.0",
+    "payload_schema_version": "1.0",
+    "tokenizer": "tiktoken/cl100k_base"
+  },
+
+  "runs": {
+    "benchmark_run": {
+      "run_id": "held_out_20260714_225227",
+      "path": "benchmarks/document_package/results/held_out_20260714_225227",
+      "note": "Fixed pipeline (id fix applied). Use this for all v2 references."
+    },
+    "qa_pilot_v1_original": {
+      "run_id": "text_only_held_out_v1_20260714_220357",
+      "path": "benchmarks/document_package/qa_pilot/runs/text_only_held_out_v1_20260714_220357",
+      "note": "Original pipeline (id bug present), original answer keys. DO NOT regrade or modify."
+    },
+    "qa_pilot_v1_corrected_keys": {
+      "run_id": "text_only_held_out_v1_corrected_20260714_225136",
+      "path": "benchmarks/document_package/qa_pilot/runs/text_only_held_out_v1_corrected_20260714_225136",
+      "note": "Original pipeline (id bug present), corrected answer keys applied to v1 model outputs."
+    },
+    "qa_pilot_v2": {
+      "run_id": "text_only_held_out_v1_20260714_225315",
+      "path": "benchmarks/document_package/qa_pilot/runs/text_only_held_out_v1_20260714_225315",
+      "note": "AUTHORITATIVE. Fixed pipeline, corrected answer keys. benchmark_run_id=held_out_20260714_225227."
+    }
+  },
+
+  "model": {
+    "model_id": "claude-haiku-4-5-20251001",
+    "max_tokens": 256,
+    "temperature": "api_default",
+    "prompt_version": "v1.0",
+    "system_prompt_path": "benchmarks/document_package/qa_pilot/prompt_v1.py"
+  },
+
+  "final_scores": {
+    "baseline_b": 0.9500,
+    "candidate_c": 0.8667,
+    "candidate_d": 0.8167
+  },
+
+  "per_document_scores_v2": {
+    "pb-ho-text-livingword":  {"baseline_b": 1.0000, "candidate_c": 0.8000, "candidate_d": 0.8000},
+    "pb-ho-text-cn-article":  {"baseline_b": 0.8000, "candidate_c": 0.8000, "candidate_d": 0.8000},
+    "pb-ho-table-axa-urd":    {"baseline_b": 1.0000, "candidate_c": 1.0000, "candidate_d": 1.0000},
+    "pb-ho-chart-egov-p170":  {"baseline_b": 1.0000, "candidate_c": 1.0000, "candidate_d": 1.0000},
+    "syn-ho-docx-07":         {"baseline_b": 0.9000, "candidate_c": 0.8000, "candidate_d": 0.5000},
+    "syn-ho-xlsx-03":         {"baseline_b": 1.0000, "candidate_c": 0.8000, "candidate_d": 0.8000}
+  },
+
+  "token_counts_v2": {
+    "pb-ho-text-livingword":  {"baseline_a": 1829, "baseline_b": 1828, "candidate_c": 1740, "candidate_d": 1740},
+    "pb-ho-text-cn-article":  {"baseline_a": 4096, "baseline_b": 4092, "candidate_c": 4017, "candidate_d": 4017},
+    "pb-ho-table-axa-urd":    {"baseline_a": 432,  "baseline_b": 419,  "candidate_c": 390,  "candidate_d": 390},
+    "pb-ho-chart-egov-p170":  {"baseline_a": 415,  "baseline_b": 410,  "candidate_c": 397,  "candidate_d": 397},
+    "syn-ho-docx-07":         {"baseline_a": 28,   "baseline_b": 28,   "candidate_c": 26,   "candidate_d": 26},
+    "syn-ho-xlsx-03":         {"baseline_a": 2527, "baseline_b": 2527, "candidate_c": 266,  "candidate_d": 266}
+  },
+
+  "gates": {
+    "gate_1_accuracy_parity": {
+      "description": "Candidate C held-out >= DEV accuracy minus 5% tolerance",
+      "dev_c_score": 0.9556,
+      "tolerance": 0.05,
+      "threshold": 0.9056,
+      "held_out_c_score": 0.8667,
+      "result": "FAIL"
+    },
+    "gate_2_token_reduction": {
+      "description": "Candidate C weighted token reduction >= 15%",
+      "actual_reduction_pct": 26.53,
+      "threshold_pct": 15.0,
+      "result": "PASS"
+    },
+    "overall_verdict": "FAIL"
+  },
+
+  "failure_classification": {
+    "ho-livingword-q04": {
+      "category": "representation_spatial_context_loss",
+      "all_reps_fail": false,
+      "failing_reps": ["candidate_c", "candidate_d"],
+      "root_cause": "Candidate_c/d conflated two mass time entries sharing the word 'Abergowrie'. Baseline_b preserves formatting cues that allow the model to distinguish them."
+    },
+    "ho-cnarticle-q02": {
+      "category": "shared_model_failure_nondeterministic",
+      "all_reps_fail": true,
+      "failing_reps": ["baseline_b", "candidate_c", "candidate_d"],
+      "root_cause": "All representations fail in v2. Chinese numeric context sensitive to model sampling; temperature not fixed. Was a selective B-only failure in v1 (likely different sample)."
+    },
+    "ho-docx07-q01": {
+      "category": "micro_document_candidate_omission",
+      "all_reps_fail": false,
+      "failing_reps": ["candidate_c", "candidate_d"],
+      "root_cause": "28-token synthetic DOCX; candidate compression removes content that baseline_b preserves."
+    },
+    "ho-docx07-q05": {
+      "category": "micro_document_candidate_d_only",
+      "all_reps_fail": false,
+      "failing_reps": ["candidate_d"],
+      "root_cause": "Candidate D only. Adaptive-mode ordering or representation diverges from text-first without adding usable information."
+    },
+    "ho-xlsx03-q05": {
+      "category": "sparse_table_serialization",
+      "all_reps_fail": false,
+      "failing_reps": ["candidate_c", "candidate_d"],
+      "root_cause": "XLSX compressed 89.5%; candidate serialization loses specific cell position under sparse row conditions."
+    }
+  },
+
+  "audit": {
+    "regrade_verification": {
+      "total_grade_changes_in_v1_regrade": 3,
+      "changed_grades": [
+        {"doc": "pb-ho-text-livingword", "repr": "baseline_b",  "qid": "ho-livingword-q04", "from": "incorrect", "to": "correct",   "model_answer": "Sun 8.30am"},
+        {"doc": "pb-ho-text-livingword", "repr": "candidate_c", "qid": "ho-livingword-q04", "from": "correct",   "to": "incorrect", "model_answer": "Sunday 10.00am"},
+        {"doc": "pb-ho-text-livingword", "repr": "candidate_d", "qid": "ho-livingword-q04", "from": "correct",   "to": "incorrect", "model_answer": "Sun 10.00am"}
+      ],
+      "no_model_outputs_rerun": true,
+      "no_other_grades_changed": true,
+      "score_math": "One question flip in 5-question doc = 1/5 doc score delta = 1/30 overall mean delta = 0.0333 per representation"
+    }
+  },
+
+  "next_held_out_run_criteria": {
+    "note": "Do not rerun held-out until all DEV promotion criteria pass",
+    "criteria": [
+      "revised Candidate C DEV accuracy within 3pp of Baseline B",
+      "no confirmed meaningful-text loss on DEV",
+      "no duplicate or empty block IDs",
+      "relationship-question DEV accuracy within 3pp of Baseline B",
+      "sparse-table accuracy improved over current TSV",
+      "at least 15% median token reduction vs Baseline B",
+      "adaptive accuracy not lower than text-first by more than 2pp",
+      "full suite and PDF regression clean"
+    ]
+  }
+}

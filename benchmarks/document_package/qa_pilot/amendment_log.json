@@ -1,0 +1,26 @@
+[
+  {
+    "amendment_id": "ec-001",
+    "question_id": "fblbp10-q05",
+    "question_set": "dev",
+    "old_accepted_answers": ["$1,073,338", "1,073,338", "1073338"],
+    "corrected_accepted_answers": ["$27,091,793", "27,091,793", "27091793"],
+    "supporting_source_text": "Rate Information table, row 'Western Agricultural Insurance Company', column 'Written Premium for this Program': $27,091,793",
+    "reason": "Column mixup: old accepted value ($1,073,338) was the 'Written Premium Change' column, not the 'Written Premium for this Program' column that the question asks about.",
+    "date": "2026-07-14",
+    "grading_version_before": "v1.0",
+    "grading_version_after": "v1.1"
+  },
+  {
+    "amendment_id": "ec-ho-001",
+    "question_id": "ho-livingword-q04",
+    "question_set": "held_out",
+    "old_accepted_answers": ["10.00am", "10am"],
+    "corrected_accepted_answers": ["8.30am", "Sun 8.30am", "8.30"],
+    "supporting_source_text": "Sunday Masses schedule lists two separate entries: 'St Teresa's College, Abergowrie  Sun 8.30am' and 'Abergowrie  Sun 10.00am'. The question asks specifically about St Teresa's College.",
+    "reason": "The old accepted answer (10.00am) referred to the plain 'Abergowrie' entry, not the 'St Teresa's College, Abergowrie' entry that the question asks about. The correct time for St Teresa's College, Abergowrie is 8.30am.",
+    "date": "2026-07-14",
+    "grading_version_before": "v1.1",
+    "grading_version_after": "v1.1"
+  }
+]
