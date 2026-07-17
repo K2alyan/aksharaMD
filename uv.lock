@@ -229,6 +229,7 @@ full = [
     { name = "pix2tex" },
     { name = "pytesseract" },
     { name = "sentence-transformers" },
+    { name = "transformers" },
     { name = "watchdog" },
 ]
 index = [
@@ -244,6 +245,7 @@ ocr = [
 ]
 vision = [
     { name = "marker-pdf" },
+    { name = "transformers" },
 ]
 
 [package.metadata]
@@ -294,6 +296,7 @@ requires-dist = [
     { name = "striprtf", specifier = ">=0.0.26" },
     { name = "tiktoken", specifier = ">=0.7" },
     { name = "tiktoken", marker = "extra == 'eval'", specifier = ">=0.7" },
+    { name = "transformers", marker = "extra == 'vision'", specifier = ">=4.45.2,<5.0.0" },
     { name = "watchdog", marker = "extra == 'index'", specifier = ">=4.0" },
     { name = "xlrd", specifier = ">=2.0" },
 ]
