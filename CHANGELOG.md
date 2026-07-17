@@ -3,6 +3,33 @@
 All notable changes to AksharaMD are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **New candidate warning `W_PARSE_FALLBACK`** (Phase 1: detection only).
+  Emitted when a format-specific parser attempted a strict parse, failed,
+  and the compiler preserved the input as raw text so the recoverable
+  content isn't lost.
+  - Currently fires for `.json` (whole-file `JSONDecodeError`) and
+    `.jsonl` / `.ndjson` (**every** non-empty record fails strict parse).
+  - Partial JSONL failures are intentionally NOT flagged in Phase 1 —
+    that surface will be covered by a future `W_PARSE_PARTIAL` signal.
+  - Warning metadata is a fixed schema: `parser`, `source_format`,
+    `exception_class`, `error_location`, `record_total` (JSONL),
+    `failed_record_count` (JSONL), and `warning_maturity="candidate"`.
+    Metadata never carries raw file contents, malformed snippets, or
+    exception message strings — enforced by regression tests.
+  - **Detection is decoupled from scoring in this release.** The
+    readiness score, quality band, and `--min-readiness-score` behaviour
+    are unchanged — `W_PARSE_FALLBACK` currently applies penalty 0.
+    The score effect (proposed 10-point penalty, shifting HIGH → OK for
+    documents that only survive as raw-text preservation) will land in a
+    follow-up release after real-world calibration; see GitHub issue
+    `#41-B`.
+  - See `docs/readiness-score.md` and `docs/output-schema.md` for full
+    schema documentation.
+
 ## [0.3.6] — 2026-07-13
 
 ### Breaking Changes
