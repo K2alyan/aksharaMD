@@ -128,17 +128,27 @@ The following Dependabot vulnerability alerts are present in the lockfile but **
 
 ---
 
-### transformers — 2 alerts (HIGH × 1, MEDIUM × 1)
+### transformers — LightGlue arbitrary code execution (CVE-2026-5241)
 
-**Fixed version required:** ≥ 5.3.0  
-**Locked version:** 4.57.6  
+**Advisory:** GHSA-fgcw-684q-jj6r / CVE-2026-5241 / PYSEC-2026-2290 (High, CVSS 8.0, CWE-829)  
+**Fixed version required:** ≥ 5.5.0 (no 4.x back-port exists; the fix is in 5.5.0 only)  
+**Locked version:** 4.57.6 (in the affected range `< 5.5.0`)  
 **Blocker:** `marker-pdf >= 1.6` declares `transformers < 5.0.0` across all released versions (1.6.0–1.10.2). Affects the `[vision]` and `[math]` optional extras only. The base install does not depend on `transformers`.
 
-**Advisories:**
-- Remote code execution via the `Trainer` class
-- Arbitrary code execution via pickle deserialization
+**Vulnerable code path:** `transformers.models.lightglue.configuration_lightglue.LightGlueConfig` reads `trust_remote_code` from the untrusted `config.json` of the target model repository and forwards it to `AutoConfig.from_pretrained()` for the sub-model configs. As a result, an attacker who controls the model repository can execute arbitrary Python code even when the caller passes `trust_remote_code=False`.
 
-**Practical exposure:** AksharaMD uses `transformers` (via `marker-pdf` / `surya-ocr`) exclusively for neural layout detection inference. The `Trainer` class is never instantiated. Pickle deserialization of untrusted model weights is not performed during normal document ingestion. Risk is low in practice but the installed package remains vulnerable when `[vision]` is installed.
+**Practical exposure in AksharaMD: none.** Evidence-based reachability review 2026-07-17:
 
-**Removal condition:** When `marker-pdf` releases a version that supports `transformers >= 5.0`, remove the `transformers` ignore rule from `.github/dependabot.yml`, upgrade accordingly, regenerate `uv.lock`, and close the alerts.  
+- `aksharamd/` production source has **0** references to `LightGlue`, `AutoModel`, `AutoConfig`, or `trust_remote_code`.
+- `marker-pdf 1.10.2` (installed) has 0 references across 130 `.py` files.
+- `surya-ocr 0.17.1` (installed) has 0 references across 87 `.py` files.
+- The only production entry into marker is `marker.models.create_model_dict()` called with **no arguments**; every downstream checkpoint is a hardcoded Surya-package constant. No user input reaches any `from_pretrained` call anywhere in the pipeline.
+- Dynamic verification: instantiating marker's full model dict loads 40 `transformers.*` submodules; **zero** are `lightglue.*`.
+- The single `trust_remote_code=True` in the tree lives in `benchmarks/docvqa_eval.py:124` for HuggingFace **Datasets** (not `transformers`), targets a well-known dataset, and is annotated `# nosec B615`.
+
+Effective severity for AksharaMD: **informational**. The vulnerable code is present on disk in a transitive dependency but no code path in this repository reaches it under any supported configuration or CLI flow.
+
+**Do not silence:** Do not attempt to hide this alert with a `pyproject.toml` version-range trick or an ignore rule for CVE-2026-5241 specifically. Either would mask a future transitive bump that could unlock the vulnerable path. The `>=5.0.0` ignore rule in `.github/dependabot.yml` is a different, coarse block on incompatible major-version bumps and remains appropriate.
+
+**Removal condition:** When `marker-pdf` releases a version that supports `transformers >= 5.5.0`, open a coordinated bump PR that (1) lifts the `<5.0.0` cap in `pyproject.toml` `[vision]`, (2) sets a floor of `transformers >= 5.5.0`, (3) removes the `transformers >=5.0.0` ignore in `.github/dependabot.yml`, (4) regenerates `uv.lock`, and (5) closes this alert.  
 **Track:** https://github.com/VikParuchuri/marker
