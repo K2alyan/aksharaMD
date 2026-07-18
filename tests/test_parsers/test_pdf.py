@@ -81,6 +81,95 @@ def test_zero_page_width_returns_empty():
     assert _detect_column_boundaries(spans, 0.0) == []
 
 
+# ── Issue #54: cluster-support rule ─────────────────────────────────────────
+#
+# The pre-#54 implementation collected the *set* of rounded line-start
+# x-values, so a lone centered page number could synthesise a phantom column
+# boundary at rel x ≈ 0.33 on plain single-column documents. The line-start
+# cluster now needs at least ``_MIN_LINES_PER_COLUMN_CLUSTER`` (2) supporting
+# lines to be treated as a candidate column margin.
+
+
+def test_lone_centered_footer_line_does_not_synthesise_boundary():
+    """Reproduces the pdflatex-4-pages.pdf pattern in miniature:
+    30 body lines at x=89 (rel 0.15) and one centered page number at
+    x=295 (rel 0.50). The lone outlier must not create a boundary.
+    """
+    page_width = 595.28
+    spans = []
+    for line in range(30):
+        y = 100 + line * 14
+        spans.append(_make_span(89, y))
+        spans.append(_make_span(200, y))  # mid-line span, wide range
+        spans.append(_make_span(400, y))
+    # A single centered element in the footer zone — one y-group only.
+    spans.append(_make_span(295, 725))
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert boundaries == [], (
+        f"a single centered footer line must not synthesise a column "
+        f"boundary; got {boundaries}"
+    )
+
+
+def test_lone_left_outlier_does_not_synthesise_boundary():
+    """Symmetric case: many lines at the right margin plus one lone
+    left-side line-start must not synthesise a boundary either.
+    """
+    page_width = 595.28
+    spans = []
+    for line in range(20):
+        y = 100 + line * 14
+        spans.append(_make_span(320, y))
+        spans.append(_make_span(360, y))
+        spans.append(_make_span(400, y))
+    spans.append(_make_span(89, 500))  # one stray left-side line
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert boundaries == []
+
+
+def test_two_supported_clusters_still_produce_boundary():
+    """A boundary must still be detected when both candidate clusters have
+    at least 2 supporting lines. This is the 3colpres-style minimum.
+    """
+    page_width = 595.28
+    spans = []
+    # Left cluster: 20 lines at x≈72 (rel≈0.12), on the 14 pt grid.
+    for line in range(20):
+        y = 100 + line * 14
+        spans.append(_make_span(72, y))
+        spans.append(_make_span(120, y))
+    # Right cluster: 3 supporting lines at x≈310 (rel≈0.52), each offset by
+    # 7 pt from the left grid so the boundary detector groups them into
+    # their own y-lines rather than merging with a left-column row.
+    for line in range(3):
+        y = 107 + line * 14
+        spans.append(_make_span(310, y))
+        spans.append(_make_span(360, y))
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert len(boundaries) == 1
+    assert 0.25 < boundaries[0] < 0.40
+
+
+def test_lone_outlier_ignored_but_dense_boundary_preserved():
+    """Combined case: a genuine two-column layout PLUS a lone centered
+    footer element. The dense boundary must be preserved; the outlier is
+    dropped without interfering.
+    """
+    page_width = 595.28
+    spans = []
+    for line in range(15):
+        y = 100 + line * 14
+        spans.append(_make_span(72, y))
+    for line in range(15):
+        y = 105 + line * 14  # offset from left column
+        spans.append(_make_span(320, y))
+        spans.append(_make_span(370, y))
+    spans.append(_make_span(295, 725))  # page-number outlier
+    boundaries = _detect_column_boundaries(spans, page_width)
+    assert len(boundaries) == 1
+    assert 0.20 < boundaries[0] < 0.45
+
+
 # ── _cells_to_markdown ──────────────────────────────────────────────────────
 
 def test_basic_table():

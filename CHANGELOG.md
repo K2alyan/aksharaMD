@@ -5,6 +5,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Fixed
+
+- **Phantom column boundary from lone centered footer / page number**
+  (Issue #54, `aksharamd/plugins/parsers/pdf.py::_detect_column_boundaries`).
+  The line-start x-clustering used to collect the *set* of rounded x
+  values, so a single centered element in the footer (typically the page
+  number) contributed the same evidence as a densely-supported real
+  column margin. On plain single-column LaTeX PDFs this synthesised a
+  phantom boundary at rel x ≈ 0.33, which the `(column, y)` span sort
+  then used to reorder mid-line spans into a corrupted reading order.
+  The parser now requires each candidate line-start cluster to have at
+  least `_MIN_LINES_PER_COLUMN_CLUSTER` (= 2) supporting lines.
+  - Downstream effect on `pdflatex-4-pages.pdf`: correct single-column
+    reading order restored; the block-level de-dup step then correctly
+    identifies the intentional `\blindtext` repetition across pages;
+    `MISSING_PAGE` (2 of 4) fires as an honest signal about actual
+    content coverage. Band drops from OK 81 → RISKY 65 as a *consequence
+    of correct extraction*, not from any scoring formula change.
+  - Downstream effect on `026-latex-multicolumn/multicolumn.pdf`:
+    `W_MULTICOLUMN_ORDER` now fires (candidate, penalty 0) — the
+    previously accidentally-hidden interleaving is auditable via
+    `warning_codes`. Readiness score and band unchanged.
+  - Seven other corpus documents (001-trivial, 003-pdflatex-image,
+    006-outline, 011-google-doc, 025-attachment, 027-cropped, 009-geotopo):
+    score and warnings identical to pre-fix.
+  - Detection-only change. Nothing under `aksharamd/scoring/` is
+    touched. `SCORING_POLICY_VERSION` remains `"1.0"`.
+
 ### Added
 
 - **New candidate warning `W_PDF_ATTACHMENT_IGNORED`** (detection only).

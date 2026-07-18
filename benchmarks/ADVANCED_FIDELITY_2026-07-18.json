@@ -51,15 +51,16 @@
     "exit": 0,
     "elapsed_s": 2.022,
     "success": true,
-    "readiness": 81,
-    "band": "OK",
+    "readiness": 65,
+    "band": "RISKY",
     "warnings": [
-      "W_MULTICOLUMN_ORDER"
+      "MISSING_PAGE",
+      "MISSING_PAGE"
     ],
     "errors": [],
     "chunks": 2,
     "pages": 4,
-    "tokens": 619
+    "tokens": 529
   },
   {
     "source": "pdf/005-libreoffice-writer-password/libreoffice-writer-password.pdf",
@@ -234,7 +235,8 @@
     "warnings": [
       "HEADING_SKIP",
       "W_TABLE_EXPECTED_NOT_EXTRACTED",
-      "W_TABLE_EXPECTED_NOT_EXTRACTED"
+      "W_TABLE_EXPECTED_NOT_EXTRACTED",
+      "W_MULTICOLUMN_ORDER"
     ],
     "errors": [],
     "chunks": 9,

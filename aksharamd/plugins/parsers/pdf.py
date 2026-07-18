@@ -1347,6 +1347,16 @@ def _filter_table_spans(spans: list[dict], table_bboxes: list[tuple]) -> list[di
     return [s for s in spans if not in_table(s)]
 
 
+# Minimum number of lines that must share a rounded line-start x-value
+# before that value is treated as a candidate column-margin cluster. A
+# lone line-start — most commonly a centered page number, a mid-page
+# caption, or a floating equation — is not evidence of a real column
+# margin and must not synthesise a boundary. Chosen at 2 to preserve the
+# 3colpres / arXiv-style cases where the shorter column still has
+# several line-starts (Issue #54; see also validators/multicolumn.py).
+_MIN_LINES_PER_COLUMN_CLUSTER = 2
+
+
 def _detect_column_boundaries(spans: list[dict], page_width: float) -> list[float]:
     """
     Return normalized column boundary X positions.
@@ -1357,6 +1367,14 @@ def _detect_column_boundaries(spans: list[dict], page_width: float) -> list[floa
     making two-column layouts like arXiv papers detectable.
 
     Lines are grouped by y-coordinate with 3 pt tolerance to handle sub/superscripts.
+
+    Line-start clusters supported by fewer than
+    ``_MIN_LINES_PER_COLUMN_CLUSTER`` lines are ignored — a single stray
+    line-start (page number, mid-page caption, isolated equation) is not
+    evidence of a real column margin. The pre-Issue-#54 behaviour treated
+    every unique rounded x value as evidence, so a centered page number
+    could synthesise a phantom boundary at rel x ≈ 0.33 on plain
+    single-column documents and corrupt the span-sort reading order.
     """
     if page_width == 0 or not spans:
         return []
@@ -1379,7 +1397,11 @@ def _detect_column_boundaries(spans: list[dict], page_width: float) -> list[floa
     if line_y is not None and line_min_x < float("inf"):
         line_starts.append(line_min_x / page_width)
 
-    xs = sorted({round(x, 2) for x in line_starts if 0.02 < x < 0.98})
+    counts: dict[float, int] = {}
+    for x in line_starts:
+        if 0.02 < x < 0.98:
+            counts[round(x, 2)] = counts.get(round(x, 2), 0) + 1
+    xs = sorted(x for x, c in counts.items() if c >= _MIN_LINES_PER_COLUMN_CLUSTER)
     boundaries = []
     for i in range(1, len(xs)):
         gap = xs[i] - xs[i - 1]

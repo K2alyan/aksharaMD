@@ -66,7 +66,18 @@ _BASELINE: tuple[tuple[str, int, str | None, frozenset[str]], ...] = (
     ("pdf/002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf",
                                                                         0, "HIGH", frozenset()),
     ("pdf/003-pdflatex-image/pdflatex-image.pdf",                       0, "HIGH", frozenset()),
-    ("pdf/004-pdflatex-4-pages/pdflatex-4-pages.pdf",                   0, "OK",   frozenset({"W_MULTICOLUMN_ORDER"})),
+    # 004 (Issue #54): the parser's line-start clustering used to accept a
+    # single centered page number as a "second column", synthesising a
+    # phantom boundary at rel x ≈ 0.33 that reordered the blindtext body.
+    # The parser now requires >= 2 supporting lines per candidate cluster
+    # (see aksharamd/plugins/parsers/pdf.py::_MIN_LINES_PER_COLUMN_CLUSTER).
+    # Post-fix the compiled Markdown is in correct single-column reading
+    # order; the block-level de-duplication step then correctly identifies
+    # that this document is 4 pages of the same `\blindtext` passage and
+    # removes the repeated content, producing MISSING_PAGE warnings for
+    # the pages whose unique content is subsumed. The RISKY band is the
+    # honest signal about that content repetition, not a regression.
+    ("pdf/004-pdflatex-4-pages/pdflatex-4-pages.pdf",                   0, "RISKY", frozenset({"MISSING_PAGE"})),
     # Encrypted PDF — intentional failure.
     ("pdf/005-libreoffice-writer-password/libreoffice-writer-password.pdf",
                                                                         1, None,   frozenset()),
