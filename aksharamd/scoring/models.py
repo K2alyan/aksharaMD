@@ -198,6 +198,12 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         max_penalty=0,
         formula="0 (observational only)",
     ),
+    "W_PDF_ATTACHMENT_IGNORED": ScoringRule(
+        rule_id="W_PDF_ATTACHMENT_IGNORED",
+        description="Informational: PDF contains embedded file attachments that were not extracted",
+        max_penalty=0,
+        formula="0 (observational only)",
+    ),
     "IMAGE_PLACEHOLDER_WITH_ASSETS": ScoringRule(
         rule_id="IMAGE_PLACEHOLDER_WITH_ASSETS",
         description="Informational: image-only page but asset bytes captured for multimodal use",

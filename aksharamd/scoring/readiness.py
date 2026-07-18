@@ -525,6 +525,21 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
             maturity=hft_maturity,
         ))
 
+    # Informational: W_PDF_ATTACHMENT_IGNORED (zero penalty)
+    # Attachment payloads are separate from page content; AksharaMD detects but
+    # does not extract them. Surfaced as informational so a HIGH readiness on
+    # an attachment-bearing PDF is no longer silent.
+    if warnings_by_code.get("W_PDF_ATTACHMENT_IGNORED", 0):
+        att_diag = doc.metadata.get("pdf_attachment_diagnostics", {})
+        att_maturity = att_diag.get("warning_maturity", "")
+        att_count = att_diag.get("attachment_count", 0)
+        informational.append(DeductionRecord(
+            rule_id="W_PDF_ATTACHMENT_IGNORED",
+            description=f"PDF contains {att_count} embedded file attachment(s) that were not extracted",
+            penalty=0,
+            maturity=att_maturity,
+        ))
+
     # Token efficiency note
     if ctx.original_tokens > 0 and ctx.manifest:
         saved = ctx.original_tokens - ctx.manifest.optimized_tokens

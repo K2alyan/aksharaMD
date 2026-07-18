@@ -8,7 +8,7 @@ Validation run of AksharaMD `main` at `29dbb9d` against the advanced document pa
 
 - 25 of 26 documents in the curated subset compiled with valid output; the one non-zero exit was an intentionally-encrypted PDF that correctly raised `ENCRYPTED_PDF` and refused.
 - Readiness scoring accurately signalled degradation on **6 of 8** documents where content was lost or heavily reduced.
-- **Two documents scored HIGH while losing material content**: the multicolumn LaTeX PDF (reading order silently interleaved from both columns) and the PDF-with-attachment (embedded file dropped without any signal). Both are recorded as follow-up issues, not fixed in this PR.
+- **Two documents scored HIGH while losing material content**: the multicolumn LaTeX PDF (reading order silently interleaved from both columns) and the PDF-with-attachment (embedded file dropped without any signal). Both were recorded as follow-up issues at the time of the original 2026-07-18 run; F2 has since been addressed by Issue #51 (the omission now emits `W_PDF_ATTACHMENT_IGNORED` — see updated §F2 below). F1 remains open.
 - Five of the six named ParseBench regression cases (`text_dense__de`, `letter3`, `myctophidae`, `simple2`, `strikeUnderline`, a Japanese fixture) are **not testable in this repository** — the binary corpus is not present. Recorded as an environment/dependency finding, not a code defect.
 
 Optional extras: `[vision]` (Marker), `[ocr]` (Tesseract), and `[math]` (pix2tex) paths were not exercised end-to-end because the required system binaries or model caches are not available in this workstation environment. Existing unit tests already cover the invocation-and-failure surfaces; a fuller in-CI run is called out as a follow-up.
@@ -112,7 +112,7 @@ Detailed inspection of `document.md` for the concerning cases:
 
 ### Silent-drop of embedded content
 
-- **`pdf.attachment` (with-attachment.pdf), band HIGH, score 87** — Output is just the primary page's Lorem Ipsum text. The **embedded file attachment is not surfaced anywhere** in the document.md, block metadata, or manifest. No warning code fires to signal that content was dropped. **Silent-fidelity defect: PDFs with embedded file attachments compile as HIGH readiness with no signal that the attachment was ignored.**
+- **`pdf.attachment` (with-attachment.pdf), band HIGH, score 87, warnings `[W_PDF_ATTACHMENT_IGNORED]`** — Output is just the primary page's Lorem Ipsum text. The embedded file attachment is still not extracted, but the omission is no longer silent: as of Issue #51 the parser emits `W_PDF_ATTACHMENT_IGNORED` (maturity `candidate`, penalty 0) with count-only metadata (`attachment_count=1`, `backend="pymupdf"`). Downstream consumers can now see that the compiled output is not attachment-complete without opening the source PDF. Extraction of the payload itself remains a separate follow-up.
 
 ## Phase 5 — Ground-truth comparison
 
@@ -146,15 +146,14 @@ The public corpus in `benchmarks/.public_corpus/` does not ship formal per-docum
 - **Narrow fix available?** No. The correct fix is Phase-2-style calibration of `W_MULTICOLUMN_ORDER` sensitivity + potentially a new `W_COLUMN_INTERLEAVED` code. That is a scoring-surface change requiring calibration data, not a narrow parser change.
 - **Follow-up**: File as separate issue (see §Delivery).
 
-### F2 — Silent-fidelity defect: embedded PDF attachments dropped without signal
+### F2 — Detected omission with candidate warning: embedded PDF attachments not extracted
 
 - **Reproducer**: `benchmarks/.public_corpus/pdf/025-attachment/with-attachment.pdf`
-- **Current output**: band HIGH, score 87, no warnings
-- **Actual damage**: the embedded attachment is not extracted; no manifest entry, no block, no note in document.md, no warning code.
-- **User impact**: users compiling document sets that include cover-page + attached primary content receive only the cover page, with HIGH readiness misleading them into believing extraction was clean.
-- **Classification**: **severe silent-fidelity defect** + **readiness/warning defect**.
-- **Narrow fix available?** Possibly — a `W_PDF_ATTACHMENT_IGNORED` informational warning with penalty=0 could be added at the point where `pymupdf` detects `/EmbeddedFiles` in the catalogue. But it's a new signal that would need calibration, so best done as a follow-up rather than in this validation PR.
-- **Follow-up**: File as separate issue.
+- **Status (updated 2026-07-18, Issue #51)**: post-change behaviour is band HIGH, score 87, warnings `["W_PDF_ATTACHMENT_IGNORED"]`, informational deduction `{rule_id: "W_PDF_ATTACHMENT_IGNORED", penalty: 0, maturity: "candidate"}`. Metadata is count-only (`attachment_count=1`, `backend="pymupdf"`, `warning_maturity="candidate"`) — no filenames, no bytes, no paths.
+- **Baseline (before fix)**: band HIGH, score 87, no warnings — the omission was silent.
+- **What still is not done**: the attachment payload itself remains unextracted. This PR is warning-only. The compiled `document.md` and blocks still describe only the primary page content; consumers must not assume the compiled output contains attachment contents.
+- **Scope boundary**: adding an extraction path (unpacking the payload into blocks or assets) is out of scope for #51 and is tracked separately. A scoring calibration that lowers the band on attachment-bearing PDFs is likewise out of scope; the current maturity is `candidate` and any penalty change belongs in a dedicated calibration PR.
+- **Follow-up**: (superseded) — issue #51 closes the visibility gap; a separate ticket will cover extraction and/or scoring calibration.
 
 ### F3 — Environment gap: Tesseract binary missing → OCR path is not testable end-to-end on this workstation
 
@@ -222,7 +221,7 @@ Machine-readable per-document evidence: `benchmarks/ADVANCED_FIDELITY_2026-07-18
 To be opened after this PR merges:
 
 1. **Silent-fidelity: multicolumn PDFs score HIGH despite column interleaving** (F1). Track under umbrella of Multi-column reading order calibration.
-2. **Silent-fidelity: PDF attachments dropped without a warning** (F2). New candidate warning code `W_PDF_ATTACHMENT_IGNORED` proposed.
+2. **Detected omission: PDF attachments** (F2). Landed in Issue #51 — candidate warning `W_PDF_ATTACHMENT_IGNORED` now fires with count-only metadata; readiness score/band unchanged pending calibration.
 3. **Environment/CI: exercise the OCR (`[ocr]`), vision (`[vision]`), and math (`[math]`) paths end-to-end in CI** (F3, F4, F5). Extend the `Extras (*)` jobs or add a scheduled `advanced-fidelity` workflow.
 4. **Benchmark corpus: pin ParseBench binary corpus for reproducible regression** (F6).
 5. **Detector calibration: `W_MULTICOLUMN_ORDER` false-positive on `pdflatex-4-pages.pdf`** (F8).
