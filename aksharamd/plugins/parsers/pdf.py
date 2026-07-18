@@ -31,6 +31,11 @@ try:
     import sys as _sys
     fitz.set_messages(stream=_sys.stderr)
 except AttributeError:
+    # pymupdf < 1.26 has no set_messages; the older releases also don't
+    # emit the pymupdf_layout stdout notice, so leaving the destination
+    # at pymupdf's default is safe. Swallow the AttributeError so the
+    # narrower missing-method case doesn't break import; other errors
+    # (e.g. TypeError from a future signature change) will still surface.
     pass
 
 logger = logging.getLogger(__name__)
