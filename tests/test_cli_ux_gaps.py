@@ -30,15 +30,12 @@ def _cli_argv() -> list[str]:
     Mirrors the discovery logic in tests/test_e2e_installed_wheel.py so
     dev-installs and CI wheel-smoke jobs behave the same.
     """
-    binary = os.environ.get("AKSHARAMD_E2E_BINARY")
-    if binary:
-        return [binary]
-    on_path = shutil.which("aksharamd")
-    if on_path:
-        return [on_path]
-    pytest.skip(
-        "aksharamd CLI not installed on PATH; set AKSHARAMD_E2E_BINARY to run"
-    )
+    binary = os.environ.get("AKSHARAMD_E2E_BINARY") or shutil.which("aksharamd")
+    if binary is None:
+        pytest.skip(
+            "aksharamd CLI not installed on PATH; set AKSHARAMD_E2E_BINARY to run"
+        )
+    return [binary]
 
 
 def _cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
