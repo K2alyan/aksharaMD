@@ -816,13 +816,46 @@ def compile(
 @main.command()
 @click.argument("source", type=_SourceArg())
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
-def validate(source: str, verbose: bool):
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help=(
+        "Print a single JSON object to stdout instead of Rich panels. "
+        "Human-readable output is suppressed. Exit code is preserved: 0 "
+        "on validation success, 1 on validation failure. Compatible with "
+        "the same top-level field names used by `compile --json` so "
+        "downstream tooling can share a schema."
+    ),
+)
+def validate(source: str, verbose: bool, output_json: bool):
     """Validate a document or URL without writing any output files."""
     _setup_logging(verbose)
     # compile_to_string runs the full pipeline (parse → validate → chunk) but
     # skips the export stage, so no files are written to disk.
     compiler = Compiler(output_dir=str(Path("output") / _output_stem(source)))
     _, ctx = compiler.compile_to_string(source)
+
+    if output_json:
+        import json as _json
+        m = ctx.manifest
+        warning_codes = [w.code for w in ctx.validation.warnings]
+        error_msgs = [f"[{e.code}] {e.message}" for e in ctx.validation.errors]
+        result: dict = {
+            "success":                ctx.validation.passed,
+            "source":                 (m.source if m else source),
+            "readiness_score":        (m.readiness_score if m else None),
+            "quality_band":           (m.quality_band if m else None),
+            "scoring_policy_version": (m.scoring_policy_version if m else ""),
+            "deductions":             (m.deductions if m else []),
+            "informational":          (m.informational if m else []),
+            "warning_codes":          warning_codes,
+            "errors":                 error_msgs,
+        }
+        # stdout stays JSON-only; operational chatter (Rich panels, logs)
+        # is not written in --json mode.
+        click.echo(_json.dumps(result))
+        sys.exit(0 if ctx.validation.passed else 1)
 
     if ctx.validation.passed:
         console.print("[green]Validation passed[/]")
@@ -1094,14 +1127,70 @@ def stats(reset: bool):
 
 
 @main.command("show-manifest")
-@click.argument("output_dir", type=click.Path(exists=True))
-def show_manifest(output_dir: str):
-    """Print the manifest from a previous compilation."""
-    p = Path(output_dir) / "manifest.json"
-    if not p.exists():
-        console.print("[red]No manifest.json found in output dir[/]")
-        sys.exit(1)
-    console.print_json(p.read_text())
+@click.argument("output_path", type=click.Path(exists=True))
+def show_manifest(output_path: str):
+    """Print the manifest from a previous compilation.
+
+    Accepts any of:
+
+    \b
+    - a `manifest.json` file directly,
+    - a per-source output directory containing `manifest.json`,
+    - a parent output directory whose immediate children hold exactly one
+      `manifest.json` (auto-resolved).
+
+    If multiple immediate children hold `manifest.json`, the command lists
+    them and exits non-zero so the caller can pick.  Discovery is bounded
+    to the supplied directory and its immediate children only.
+    """
+    p = Path(output_path)
+    manifest = _resolve_manifest_path(p)
+    if isinstance(manifest, Path):
+        console.print_json(manifest.read_text())
+        return
+    # manifest is an error message string.
+    console.print(f"[red]{manifest}[/]")
+    sys.exit(1)
+
+
+def _resolve_manifest_path(p: Path) -> Path | str:
+    """Locate the manifest.json for a `show-manifest` invocation.
+
+    Returns the resolved `Path` on success or a human-readable error
+    string on failure.  Discovery is limited to `p` itself and its
+    immediate children — no recursive scan.
+    """
+    if p.is_file():
+        if p.name == "manifest.json":
+            return p
+        return (
+            f"{p} is not a manifest.json file. "
+            "Point at manifest.json directly, at the per-source output "
+            "directory that contains it, or at the parent output directory."
+        )
+    direct = p / "manifest.json"
+    if direct.exists():
+        return direct
+    # Immediate children only — do not descend deeper.
+    candidates = [
+        child / "manifest.json"
+        for child in sorted(p.iterdir())
+        if child.is_dir() and (child / "manifest.json").exists()
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        listing = "\n  - ".join(str(c.relative_to(p)) for c in candidates)
+        return (
+            f"{p} contains multiple manifest-bearing subdirectories. "
+            f"Point at exactly one:\n  - {listing}"
+        )
+    return (
+        f"No manifest.json found at {p} or in its immediate children. "
+        "Run `aksharamd compile <source> -o <dir>` first, then point "
+        "show-manifest at either the resulting per-source subdirectory "
+        "or its parent."
+    )
 
 
 @main.command("mcp-config")
