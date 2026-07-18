@@ -207,10 +207,11 @@ def test_show_manifest_rejects_parent_with_multiple_candidates(tmp_path: Path) -
 
     r = _cli("show-manifest", str(out))
     assert r.returncode == 1
-    # stdout (Rich console.print writes there) should list the candidates.
-    combined = r.stdout + r.stderr
-    assert "multiple" in combined.lower()
-    assert "one" in combined and "two" in combined
+    # Normalise whitespace to survive Rich's terminal-width wrapping.
+    normalised = " ".join((r.stdout + r.stderr).split()).lower()
+    assert "multiple manifest-bearing" in normalised
+    # Both candidate stems must appear in the listing.
+    assert "one" in normalised and "two" in normalised
 
 
 def test_show_manifest_reports_missing_manifest(tmp_path: Path) -> None:
@@ -219,8 +220,9 @@ def test_show_manifest_reports_missing_manifest(tmp_path: Path) -> None:
 
     r = _cli("show-manifest", str(empty))
     assert r.returncode == 1
-    combined = r.stdout + r.stderr
-    assert "no manifest" in combined.lower() or "not found" in combined.lower()
+    # Normalise whitespace to survive Rich's terminal-width wrapping on CI.
+    normalised = " ".join((r.stdout + r.stderr).split()).lower()
+    assert "no manifest.json" in normalised or "not found" in normalised
 
 
 def test_show_manifest_rejects_non_manifest_file(tmp_path: Path) -> None:
@@ -229,5 +231,8 @@ def test_show_manifest_rejects_non_manifest_file(tmp_path: Path) -> None:
 
     r = _cli("show-manifest", str(junk))
     assert r.returncode == 1
-    combined = r.stdout + r.stderr
-    assert "not a manifest" in combined.lower()
+    # Rich console may wrap the message across newlines on narrow
+    # terminals (which CI runners often are), so normalise whitespace
+    # before matching.
+    normalised = " ".join((r.stdout + r.stderr).split()).lower()
+    assert "not a manifest.json file" in normalised
