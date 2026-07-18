@@ -59,7 +59,7 @@ Compact per-document summary (full detail in the machine-readable JSON):
 | pdf.trivial | 0 | HIGH | 87 | 1 | 1 | 171 | — |
 | pdf.libreoffice | 0 | HIGH | 87 | 1 | 1 | 170 | — |
 | pdf.image | 0 | HIGH | 87 | 2 | 1 | 193 | — |
-| pdf.multi_page | 0 | OK | 81 | 2 | 4 | 619 | W_MULTICOLUMN_ORDER |
+| pdf.multi_page | 0 | RISKY | 65 | 2 | 4 | 529 | MISSING_PAGE ×2 (Issue #54 update) |
 | **pdf.encrypted** | **1** | – | – | – | – | – | ENCRYPTED_PDF (intentional failure) |
 | pdf.outline | 0 | OK | 81 | 3 | 4 | 1275 | — |
 | pdf.image_only | 0 | POOR | 41 | 1 | 6 | 106 | NEAR_EMPTY_OUTPUT, LOW_TEXT_DENSITY |
@@ -69,7 +69,7 @@ Compact per-document summary (full detail in the machine-readable JSON):
 | pdf.rotated | 0 | POOR | 41 | 1 | 4 | 61 | NEAR_EMPTY_OUTPUT, LOW_TEXT_DENSITY |
 | pdf.annotations | 0 | RISKY | 67 | 1 | 1 | 11 | LOW_TEXT_DENSITY |
 | **pdf.attachment** | **0** | **HIGH** | **87** | 1 | 1 | 171 | **—** |
-| **pdf.multicolumn** | **0** | **HIGH** | **85** | 9 | 3 | 2307 | HEADING_SKIP, W_TABLE_EXPECTED_NOT_EXTRACTED |
+| **pdf.multicolumn** | **0** | **HIGH** | **85** | 9 | 3 | 2307 | HEADING_SKIP, W_TABLE_EXPECTED_NOT_EXTRACTED, W_MULTICOLUMN_ORDER (Issue #54 update) |
 | pdf.cropped_rotated | 0 | RISKY | 61 | 3 | 4 | 232 | LOW_TEXT_DENSITY |
 | docx | 0 | OK | 83 | 5 | 1 | 152 | — |
 | pptx | 0 | OK | 80 | 3 | 3 | 83 | — |
@@ -88,9 +88,9 @@ Detailed inspection of `document.md` for the concerning cases:
 
 ### Reading order
 
-- **`pdf.multicolumn` (multicolumn.pdf), band HIGH, score 85, tokens 2307** — Headings survive ("## Two-Column", "### Abstract", "## Document with Lorem Ipsum"). **Body is silently interleaved between columns**: "This is a sample document with with Lorem Ipsum text. Lorem ipsum dolor sit amet, iscing elit." — "iscing elit" is the tail of "adipiscing elit" spliced from the second column mid-word. Multiple paragraphs show the same left/right splice pattern. `HEADING_SKIP` and `W_TABLE_EXPECTED_NOT_EXTRACTED` fire, but neither describes the column-interleaving damage. **Silent-fidelity defect: readiness overstates usable quality on multicolumn LaTeX PDFs.**
+- **`pdf.multicolumn` (multicolumn.pdf), band HIGH, score 85, tokens 2307** — Headings survive ("## Two-Column", "### Abstract", "## Document with Lorem Ipsum"). Body is interleaved between columns: "This is a sample document with with Lorem Ipsum text. Lorem ipsum dolor sit amet, iscing elit." — "iscing elit" is the tail of "adipiscing elit" spliced from the second column mid-word. `HEADING_SKIP` and `W_TABLE_EXPECTED_NOT_EXTRACTED` fire. **Update (Issue #54)**: the interleaving is no longer silent — `W_MULTICOLUMN_ORDER` now fires on this document as an informational (candidate) signal. On the pages where the parser previously used a false-supported single-line right-side cluster to force column-first span sorting, that phantom re-ordering is gone; the block sequence surfaces the true interleaving to the validator. Readiness/band stay HIGH (the warning is zero-penalty) but the defect is auditable via `warning_codes`.
 
-- **`pdf.multi_page` (pdflatex-4-pages.pdf), band OK, score 81** — 4 pages, 619 tokens. `W_MULTICOLUMN_ORDER` fires (correct — this fixture appears to be identified as multicolumn even though its intent was 4-page single-column). Signal accurate; content extracted.
+- **`pdf.multi_page` (pdflatex-4-pages.pdf), band RISKY, score 65** — 4 pages, 529 tokens (was 619 pre-Issue-#54). Visual layout is plain single-column `\blindtext` with a centered page number at the bottom. **Update (Issue #54)**: `W_MULTICOLUMN_ORDER` is gone (the previous fire was a false positive driven by the centered page number synthesising a phantom column). The compiled Markdown is now in correct single-column reading order. The block-level de-duplication step then correctly identifies that this document is 4 repetitions of the same `\blindtext` passage and removes the repeats; the exposed content-repetition is signalled by MISSING_PAGE (2 of 4 pages), which drops the band from OK 81 to RISKY 65 in an honest, not-arbitrary way — the score reflects the actual content coverage. Nothing about the scoring formula or `SCORING_POLICY_VERSION` changed.
 
 ### Tables
 
@@ -138,13 +138,11 @@ The public corpus in `benchmarks/.public_corpus/` does not ship formal per-docum
 ### F1 — Silent-fidelity defect: multicolumn PDFs score HIGH despite column interleaving
 
 - **Reproducer**: `benchmarks/.public_corpus/pdf/026-latex-multicolumn/multicolumn.pdf`
-- **Current output**: band HIGH, score 85, 2307 tokens, warnings `HEADING_SKIP` + `W_TABLE_EXPECTED_NOT_EXTRACTED`
-- **Actual damage**: left- and right-column sentences interleaved mid-word ("iscing elit", "abitur auctor", etc.)
-- **User impact**: RAG / retrieval pipelines relying on `--min-readiness-score 70` will ingest scrambled multicolumn text as production-quality content.
-- **Warning gap**: `W_MULTICOLUMN_ORDER` exists in the scoring allowlist (`readiness.py:509`) but does not fire on this document.
-- **Classification**: **severe silent-fidelity defect** + **readiness/warning defect**.
-- **Narrow fix available?** No. The correct fix is Phase-2-style calibration of `W_MULTICOLUMN_ORDER` sensitivity + potentially a new `W_COLUMN_INTERLEAVED` code. That is a scoring-surface change requiring calibration data, not a narrow parser change.
-- **Follow-up**: File as separate issue (see §Delivery).
+- **Post-Issue-#54 output**: band HIGH, score 85, 2307 tokens, warnings `HEADING_SKIP` + `W_TABLE_EXPECTED_NOT_EXTRACTED` + `W_MULTICOLUMN_ORDER` (candidate, penalty 0).
+- **Actual damage**: left- and right-column sentences interleaved mid-word ("iscing elit", "abitur auctor", etc.) — still present at the span level; the parser's block-level output on p2/p3 is now clearly interleaved after Issue #54 removed the phantom column boundary that previously produced accidentally column-first block ordering.
+- **Warning surface (Issue #54 update)**: `W_MULTICOLUMN_ORDER` **now fires** on this document because the block sequence is no longer disguised by a false column split. Readiness stays HIGH because the warning is zero-penalty; a scoring calibration that lowers the band on documents where `W_MULTICOLUMN_ORDER` + column-interleaved output coincide is a separate follow-up.
+- **Classification**: **detected but uncalibrated silent-fidelity defect**. The signal is now visible in `warning_codes`; the score does not yet reflect it.
+- **Follow-up**: Issue #50 tracks broader multicolumn detection improvement (span-level recall) and scoring calibration. Issue #54's charter was warning precision on `pdflatex-4-pages.pdf`; the multicolumn.pdf change here is a natural side effect of correcting the parser's phantom-boundary bug.
 
 ### F2 — Detected omission with candidate warning: embedded PDF attachments not extracted
 
@@ -181,18 +179,25 @@ The public corpus in `benchmarks/.public_corpus/` does not ship formal per-docum
 - **Classification**: **known experimental limitation**. The v3 detector is locked at P=0.613 R=0.328 with penalty=0 per `benchmarks/EXPECTATION_VALIDATION_REPORT_V3.md`. False-safes on prose-heavy docs are documented.
 - **No action** required in this PR.
 
-### F8 — Documentation gap: `pdf.multi_page` (pdflatex-4-pages.pdf) fires `W_MULTICOLUMN_ORDER` on what appears to be a single-column 4-page document
+### F8 — Detector false positive, parser root cause: `W_MULTICOLUMN_ORDER` on `pdflatex-4-pages.pdf`
 
-- **Classification**: **readiness/warning defect** (potential false-positive on the `W_MULTICOLUMN_ORDER` detector).
-- **Confidence**: low. This requires visual inspection of the actual PDF to determine whether the document is genuinely multicolumn or the detector fires spuriously.
-- **Follow-up**: File as separate issue for detector calibration.
+- **Classification (updated Issue #54)**: **parser-level false positive**, root-caused and fixed at the parser layer.
+- **Visual layout**: all four pages are single-column `\blindtext` running paragraphs (standard LaTeX `article` class, centered page number at bottom). Confirmed by rendering.
+- **Root cause**: the PDF parser's `_detect_column_boundaries()` collected the *set* of rounded line-start x-values, so each unique value contributed equally to boundary detection regardless of how many lines supported it. On these pages, ~30 body lines cluster at rel x ≈ 0.15 (the left margin) and **one** centered page number sits at rel x ≈ 0.50. The lone outlier synthesised a phantom column boundary at rel ≈ 0.33, which then reordered spans via the parser's `(column, y)` sort — corrupting the compiled Markdown for pdflatex-4-pages.pdf and, ironically, *masking* the true column interleaving on multicolumn.pdf p2/p3 by producing accidentally column-first block ordering there.
+- **Fix (this PR)**: `_detect_column_boundaries()` now requires each candidate cluster to have at least `_MIN_LINES_PER_COLUMN_CLUSTER = 2` supporting lines. Threshold chosen from corpus evidence, not tuned to one fixture — the 3colpres analogue (minority cluster of exactly 2) still detects; a lone page number at any position is rejected.
+- **Downstream effects (all corpus-verified)**:
+  - `pdflatex-4-pages.pdf`: no phantom column, single-column reading order restored, `W_MULTICOLUMN_ORDER` no longer fires. The block-level de-dup then correctly identifies the intentional `\blindtext` repetition across pages and drops the repeats; MISSING_PAGE (2 of 4) fires as the honest signal. Score 65 / band RISKY.
+  - `multicolumn.pdf`: no change on p1 (boundary was densely supported and still detects). Boundaries on p2/p3 are removed because their "right cluster" was itself a single stray line — under the old rule that stray line was the *only* thing pushing the parser toward column-first sorting; without it the span sort is y-first, exposing the interleaving to the block-level validator. `W_MULTICOLUMN_ORDER` now fires (candidate, penalty 0). Score/band unchanged.
+  - Seven other corpus documents (001, 003, 006, 011, 025, 027, 009): score and warnings identical to pre-fix.
+- **Preserved test coverage**: `test_two_column_layout_detected` (dense two-column arXiv-style), `test_interleaved_warns` and `test_trans_030_warns` on the validator side, and four new parser tests (`test_lone_centered_footer_line_does_not_synthesise_boundary`, `test_lone_left_outlier_does_not_synthesise_boundary`, `test_two_supported_clusters_still_produce_boundary`, `test_lone_outlier_ignored_but_dense_boundary_preserved`).
+- **Scoring immutability**: nothing under `aksharamd/scoring/` was touched; `SCORING_POLICY_VERSION` remains `"1.0"`; no readiness penalty or band threshold changed. The pdflatex-4-pages band drop from OK 81 → RISKY 65 is a downstream consequence of the parser fix revealing legitimate content repetition, not a scoring formula change.
 
 ## Phase 8 — Narrow fixes
 
-**No parser or scoring code changes are included in this PR.** All findings above are either:
-- large architectural work (F1, F2) requiring calibration and new warning-code registration, best tracked separately,
-- environment/dependency limitations (F3–F6) outside this repository's scope, or
-- detector-calibration questions (F7, F8) for a Phase-2-style scoring change.
+**This document was authored during the original 2026-07-18 validation run and has since been amended by Issue #51 (F2) and Issue #54 (F8, and the F1 warning-visibility update).** Findings not yet acted on:
+- large architectural work on span-level multicolumn recall (F1) — tracked by Issue #50,
+- environment/dependency limitations (F3–F6) outside this repository's scope,
+- detector-calibration questions (F7) for a Phase-2-style scoring change.
 
 Per the task explicit instruction: "Do not implement large fixes during the initial validation. Record large or ambiguous changes as separate issues instead."
 
