@@ -191,3 +191,56 @@ _run_pipeline():
   8. propagate source_id + capture_id → document, manifest, each chunk
   9. restore _original_source in document.source + manifest.source  (URL/S3 only)
 ```
+
+## Determinism contract vs wall-clock provenance
+
+Not every field written to disk participates in the identity contract. The
+compiler emits two disjoint classes of information:
+
+### Deterministic / content-derived (in the contract)
+
+Byte-for-byte stable across identical repeat runs on identical inputs:
+
+| Field | Where it lives |
+|---|---|
+| `source_id` | `Document.source_id`, `Manifest.source_id`, `Chunk.source_id` |
+| `capture_id` | `Document.capture_id`, `Manifest.capture_id`, `Chunk.capture_id` (subject to `capture_id`'s defined inputs — see §Derivations) |
+| `document_id` | `Document.document_id`, `Manifest.document_id`, `Chunk.document_id` |
+| Block `checksum` | `Document.blocks[i].checksum` |
+| Block `id` | `Document.blocks[i].id` |
+| Chunk `id` | `Chunk.id` (and the on-disk file name `chunks/<id>.json`) |
+
+Consumers **may** rely on these for cache keys, deduplication, and cross-run
+comparisons.
+
+### Intentionally non-deterministic operational provenance (out of the contract)
+
+Written to disk for auditability and observability, but sourced from a wall
+clock or from measured runtime. Callers must not use these as cache keys:
+
+| Field | Where it lives |
+|---|---|
+| `compiled_at` (ISO 8601) | `Document.compiled_at`, `Manifest.compiled_at`, per-chunk `compiled_at` |
+| `elapsed_seconds` | `Manifest.elapsed_seconds` |
+| `stage_timings.*` (per-stage durations) | `Manifest.stage_timings` |
+| `file_modified_at` (the source file's mtime) | `Manifest.file_modified_at` — reflects the source, not the run |
+
+`file_modified_at` is a wall-clock value from the source's own metadata,
+not from the run itself. It is stable if the source file is not touched
+between runs, but the compiler still treats it as operational provenance:
+it is not part of any content hash and does not participate in
+`document_id`.
+
+### Practical consequence
+
+Byte-for-byte equality of a full `manifest.json` (or `document.json`, or a
+`chunks/<id>.json`) is **not** promised across runs — the `compiled_at`
+and timing fields will differ.  Semantic / content identity via the
+fields in the first table above **is** promised. Use those fields — not
+whole-file digests — when comparing outputs across runs or as cache keys
+in downstream pipelines.
+
+This split is exercised end-to-end by
+`tests/test_stabilization_regressions.py` (identity fields) and by
+`tests/test_e2e_installed_wheel.py::test_content_derived_fields_are_deterministic`
+(chunk file names + identity across repeat runs).
