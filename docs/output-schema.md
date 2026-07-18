@@ -245,7 +245,21 @@ All validation issues found during compilation, including both errors and warnin
 
 See [readiness-score.md](readiness-score.md) for a complete list of warning codes and their recommended actions.
 
-**Metadata privacy invariant.** Warnings that describe extraction fallbacks (currently `W_PARSE_FALLBACK`) carry structured metadata about *what* happened — parser name, source format, exception class, safe line/column location — and deliberately exclude the raw text of the malformed input, the failing snippet, and the exception message string, because those can carry source content that a caller may consider sensitive. Regression tests in `tests/test_parsers/test_parse_fallback.py` lock the invariant in.
+**Metadata privacy invariant.** Warnings that describe extraction fallbacks or omissions (currently `W_PARSE_FALLBACK`, `W_PDF_ATTACHMENT_IGNORED`) carry structured metadata about *what* happened — parser name, source format, exception class, safe line/column location, or omission counts — and deliberately exclude the raw text of the malformed input, the failing snippet, the exception message string, and any attachment filenames or bytes, because those can carry source content that a caller may consider sensitive. Regression tests in `tests/test_parsers/test_parse_fallback.py` and `tests/test_plugins/test_pdf_attachment_warning.py` lock the invariant in.
+
+### PDF-specific document metadata
+
+`Document.metadata` may contain the following PDF-specific diagnostic fields:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `pdf_classification` | string | See `manifest.pdf_classification`. |
+| `pdf_stats` | object | Per-page counts (`image_pages`, `table_pages`, …). |
+| `pdf_ocr_available` | bool | Whether an OCR backend was reachable during this run. |
+| `pdf_vision_available` | bool | Whether the Marker vision extra was reachable. |
+| `pdf_column_info` | object | Per-page column geometry (used by the multicolumn validator). |
+| `pdf_multi_column_pages` | int[] | Pages the detector classified as multi-column. |
+| `pdf_attachment_diagnostics` | object | `{attachment_count, backend, warning_maturity}` — recorded on every PDF parse so consumers can distinguish "no attachments" from "detector did not run". See `W_PDF_ATTACHMENT_IGNORED` in `readiness-score.md`. |
 
 ---
 

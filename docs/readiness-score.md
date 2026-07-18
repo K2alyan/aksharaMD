@@ -179,6 +179,32 @@ The metadata deliberately excludes raw file contents, the failing snippet, and e
 
 **Action:** If you rely on `--min-readiness-score` as an ingestion gate, treat `W_PARSE_FALLBACK` as an early signal that a document routed to a structured parser will only be indexed as raw text. In Phase 1 the readiness score is unchanged, so gates continue to behave as before; when the scoring effect ships in a future release the band for these documents will drop from HIGH to OK.
 
+### `W_PDF_ATTACHMENT_IGNORED`
+
+**Maturity:** candidate  |  **Current penalty:** 0 (observational; scoring effect deferred — see GitHub issue `#51`)
+
+Emitted when a PDF carries one or more embedded file attachments (payloads stored in the PDF's `/EmbeddedFiles` catalog entry, separate from page content) and AksharaMD does not extract those payloads. Without this signal, a HIGH readiness on an attachment-bearing PDF would silently misrepresent the compiled output.
+
+Detection is via PyMuPDF's `embfile_count()` on the primary parse path. The rare pdfplumber fallback path (triggered by xref/metadata corruption) does not run attachment detection because the catalog is also unreliable there.
+
+Metadata (attached to the `ValidationIssue`):
+
+```json
+{
+  "attachment_count":  1,
+  "backend":           "pymupdf",
+  "warning_maturity":  "candidate"
+}
+```
+
+The same fields are also mirrored on `Document.metadata["pdf_attachment_diagnostics"]` so consumers can inspect the count even when no warning fires (`attachment_count: 0`).
+
+Deliberately excluded: attachment filenames, attachment bytes, filesystem paths, PDF metadata strings, and any other attachment-side content. Regression tests in `tests/test_plugins/test_pdf_attachment_warning.py` lock the count-only privacy stance in.
+
+**Boundary:** AksharaMD currently detects but does not extract PDF attachments. The primary PDF page content may compile successfully at HIGH readiness while the attached payloads are dropped. Downstream users must not assume the compiled output contains attachment contents. Adding an extraction path is out of scope for #51 and is tracked separately.
+
+**Action:** If the attachment payload is part of the document you need to ingest, extract it out-of-band (e.g. `pdfdetach -saveall in.pdf out/`) and compile the payloads separately. If you rely on `--min-readiness-score` as an ingestion gate, treat `W_PDF_ATTACHMENT_IGNORED` as a signal that the compiled output is not attachment-complete.
+
 ---
 
 ## Reading Quality Notes

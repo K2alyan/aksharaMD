@@ -2178,11 +2178,38 @@ def _apply_math_ocr_to_blocks(
     return combined, total_equations
 
 
+# ── Embedded attachment detection ────────────────────────────────────────────
+# PDFs can carry embedded file attachments (payloads) separate from page
+# content. AksharaMD extracts page text but does NOT unpack attachments,
+# so a HIGH readiness on a PDF with attachments would silently misrepresent
+# the compiled output. The detector below reports a count so the parser can
+# emit W_PDF_ATTACHMENT_IGNORED with count-only metadata (no filenames, no
+# bytes, no paths — see IDENTITY_DESIGN.md privacy stance).
+_ATTACHMENT_WARNING_MATURITY = "candidate"
+
+
+def _count_embedded_attachments(pdf: fitz.Document) -> int:
+    """Return the number of embedded file attachments in a PyMuPDF document.
+
+    Uses fitz.Document.embfile_count(). Returns 0 on any error — attachment
+    enumeration is best-effort and must never fail the primary parse path.
+    """
+    try:
+        return int(pdf.embfile_count())
+    except Exception:
+        return 0
+
+
 def _pdfplumber_fallback(path: Path, ctx: CompilationContext) -> CompilationContext:
     """Fallback when PyMuPDF reports 0 pages due to corrupted xref/metadata.
 
     pdfminer (used by pdfplumber) is more tolerant of metadata corruption and can
     often read the content layer even when PyMuPDF's xref parser gives up.
+
+    Attachment detection is intentionally NOT run in this path: it is reached
+    only when the PDF's xref/object table is corrupted, at which point the
+    catalog's /Names/EmbeddedFiles entry is also unreliable. Consumers should
+    treat the pdfplumber fallback as making no attachment-completeness claim.
     """
     try:
         import pdfplumber
@@ -2283,6 +2310,28 @@ class PDFParser(ParserPlugin):
         # Collect document-level metadata before Phase 1 I/O (independent of page content).
         pdf_metadata = dict(pdf.metadata)
         toc = pdf.get_toc()  # [[level, title, page], ...]
+
+        # Detect embedded file attachments once per document. AksharaMD does not
+        # extract attachment payloads; record the count so downstream consumers
+        # can see that the compiled output is not attachment-complete.
+        attachment_count = _count_embedded_attachments(pdf)
+        pdf_metadata["pdf_attachment_diagnostics"] = {
+            "attachment_count": attachment_count,
+            "backend": "pymupdf",
+            "warning_maturity": _ATTACHMENT_WARNING_MATURITY,
+        }
+        if attachment_count > 0:
+            plural = "s" if attachment_count != 1 else ""
+            ctx.warn(
+                "W_PDF_ATTACHMENT_IGNORED",
+                f"PDF contains {attachment_count} embedded file attachment{plural} "
+                "that were not extracted.",
+                metadata={
+                    "attachment_count": attachment_count,
+                    "backend": "pymupdf",
+                    "warning_maturity": _ATTACHMENT_WARNING_MATURITY,
+                },
+            )
 
         # Phase 1: I/O extraction
         if page_count >= _PARALLEL_IO_THRESHOLD:

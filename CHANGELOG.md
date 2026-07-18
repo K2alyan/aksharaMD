@@ -7,6 +7,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ### Added
 
+- **New candidate warning `W_PDF_ATTACHMENT_IGNORED`** (detection only).
+  Emitted when a PDF carries one or more embedded file attachments
+  (payloads in the `/EmbeddedFiles` catalog entry, separate from page
+  content) and AksharaMD does not extract those payloads.
+  - Detection is via PyMuPDF's `embfile_count()` on the primary parse
+    path. The pdfplumber fallback path (xref-corruption recovery) does
+    not run attachment detection because the catalog is also unreliable
+    there — documented boundary, not a silent skip.
+  - Warning metadata is count-only: `attachment_count`, `backend`,
+    `warning_maturity="candidate"`. Deliberately excludes attachment
+    filenames, bytes, filesystem paths, and any other attachment-side
+    content — enforced by regression tests in
+    `tests/test_plugins/test_pdf_attachment_warning.py`.
+  - Same fields are mirrored on
+    `Document.metadata["pdf_attachment_diagnostics"]` so consumers can
+    distinguish "no attachments" from "detector did not run"
+    (`attachment_count: 0` vs field absent).
+  - **Detection is decoupled from scoring in this release.** Readiness
+    score, quality band, and `--min-readiness-score` behaviour are
+    unchanged — `W_PDF_ATTACHMENT_IGNORED` currently applies penalty 0.
+    A scoring-calibration decision is tracked separately; see GitHub
+    issue `#51`.
+  - Closes the F2 silent-fidelity concern from
+    `benchmarks/ADVANCED_FIDELITY_2026-07-18.md`: `with-attachment.pdf`
+    no longer compiles to HIGH with no signal that the attachment was
+    dropped. (The attachment payload itself remains unextracted; that
+    is a separate follow-up.)
+  - See `docs/readiness-score.md` and `docs/output-schema.md` for full
+    schema documentation.
+
 - **New candidate warning `W_PARSE_FALLBACK`** (Phase 1: detection only).
   Emitted when a format-specific parser attempted a strict parse, failed,
   and the compiler preserved the input as raw text so the recoverable

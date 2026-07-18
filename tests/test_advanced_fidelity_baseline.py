@@ -79,7 +79,11 @@ _BASELINE: tuple[tuple[str, int, str | None, frozenset[str]], ...] = (
     # These two are the silent-fidelity concerns flagged in the report;
     # the baseline records their observed HIGH band explicitly so any
     # future change (either a fix or a regression) is visible.
-    ("pdf/025-attachment/with-attachment.pdf",                          0, "HIGH", frozenset()),
+    # F2 update (Issue #51): the omission is no longer silent — the parser
+    # now emits W_PDF_ATTACHMENT_IGNORED with count-only metadata. The
+    # readiness band remains HIGH because Issue #51 is warning-only; a
+    # future scoring-calibration PR may lower the band.
+    ("pdf/025-attachment/with-attachment.pdf",                          0, "HIGH", frozenset({"W_PDF_ATTACHMENT_IGNORED"})),
     ("pdf/026-latex-multicolumn/multicolumn.pdf",                       0, "HIGH", frozenset({"HEADING_SKIP"})),
     ("pdf/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",       0, "RISKY", frozenset({"LOW_TEXT_DENSITY"})),
     # Non-PDF formats — one representative each.
@@ -221,13 +225,13 @@ def test_pymupdf_notice_does_not_pollute_json_stdout(tmp_path: Path) -> None:
     assert payload.get("success") is True
 
 
-def test_pdf_with_attachment_currently_scores_high_documented_defect(
+def test_pdf_with_attachment_emits_omission_warning(
     tmp_path: Path,
 ) -> None:
-    """Silent-fidelity concern F2 from the 2026-07-18 report:
-    `pdf.attachment` scores HIGH 87 with no warning that the embedded
-    file was dropped.  When a future fix emits a warning code and/or
-    lowers the band, update the baseline row and close the follow-up."""
+    """Issue #51 lock-in (replaces the 2026-07-18 F2 silent-fidelity pin):
+    `pdf.attachment` still scores HIGH 87 (this PR is warning-only) but
+    now emits W_PDF_ATTACHMENT_IGNORED so the omission is visible. When a
+    future PR calibrates scoring and lowers the band, update this test."""
     _require_corpus()
     argv = _cli_argv()
     src = _CORPUS_ROOT / "pdf/025-attachment/with-attachment.pdf"
@@ -242,10 +246,11 @@ def test_pdf_with_attachment_currently_scores_high_documented_defect(
     assert r.returncode == 0
     payload = json.loads(r.stdout)
     assert payload["quality_band"] == "HIGH", (
-        "with-attachment.pdf no longer scores HIGH — good, probably a fix. "
-        "Update the baseline row + close the attachment silent-fidelity issue."
+        "with-attachment.pdf no longer scores HIGH — probably a scoring "
+        "calibration change. Update this test and the baseline row."
     )
-    assert not payload.get("warning_codes"), (
-        "with-attachment.pdf now emits warnings — check that the new signal "
-        "describes the dropped attachment, then update this test."
+    warnings = set(payload.get("warning_codes") or [])
+    assert "W_PDF_ATTACHMENT_IGNORED" in warnings, (
+        f"attachment omission warning missing: {warnings}. Issue #51 requires "
+        "this warning on any PDF carrying embedded file attachments."
     )
