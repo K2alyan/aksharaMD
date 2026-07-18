@@ -14,7 +14,29 @@ from functools import partial
 from pathlib import Path
 from typing import NamedTuple
 
+# pymupdf 1.28+ emits an informational one-time notice on stdout
+# ("Consider using the pymupdf_layout package...") during document
+# parse, which pollutes `aksharamd compile --json` output. Suppress it
+# via the documented opt-out environment variable BEFORE the import so
+# the module-level check inside pymupdf's _warn_layout_once picks it up.
+os.environ.setdefault("PYMUPDF_SUGGEST_LAYOUT_ANALYZER", "0")
+
 import fitz  # PyMuPDF
+
+# Belt-and-braces: also route any other pymupdf messages to stderr so
+# the JSON contract holds even if a future pymupdf release adds a new
+# stdout-writing notice. Older pymupdf releases (< 1.26) lack
+# set_messages — tolerate that with try/except.
+try:
+    import sys as _sys
+    fitz.set_messages(stream=_sys.stderr)
+except AttributeError:
+    # pymupdf < 1.26 has no set_messages; the older releases also don't
+    # emit the pymupdf_layout stdout notice, so leaving the destination
+    # at pymupdf's default is safe. Swallow the AttributeError so the
+    # narrower missing-method case doesn't break import; other errors
+    # (e.g. TypeError from a future signature change) will still surface.
+    pass
 
 logger = logging.getLogger(__name__)
 
