@@ -15,6 +15,32 @@
 
 Human-reviewed usability is reported separately for the stratified sample (§ Human review).
 
+## Interpretation guardrails
+
+Before reading any number below, note the following:
+
+- **Human-usable rate is a sample rate.** 28 of 45 files received human review; 17 files remain unreviewed. The 60.7 % `human_usable_rate` is `17 / 28`, NOT an extrapolation to `17 / 45`. Do not describe the sample rate as a benchmark-wide product-quality claim.
+- **The review sample is stratified across every corpus slice but is not necessarily statistically representative.** Coverage priorities were: every multicolumn asset, every ParseBench asset, every image-only asset that shows a distinct extraction behaviour, plus representative native-text / malformed / multilingual cases.
+- **Small-denominator slice rates are descriptive only.** For example, the multilingual reviewed count is `1 / 1` and the malformed count is `2 / 2`. These are anecdotes for context, not statistics.
+- **The four success levels are enforced by test.** `execution_success ≥ meaningful_content ≥ structurally_usable`. Definitions are locked in `benchmarks/pdf_benchmark_v1.py` and repeated in § Metric definitions.
+- **The repeat-content-domination threshold changed from 0.10 to 0.50, with a length gate at 100 tokens.** This was a benchmark-metric correction after review — short outputs (title + metadata boilerplate) naturally have high 4-gram duplication ratios and were incorrectly flagged at the earlier threshold. **The change is confined to `benchmarks/pdf_benchmark_v1.py` and does NOT alter any production validator, readiness deduction, warning code, or `SCORING_POLICY`.**
+
+## Metric definitions
+
+All definitions live in `benchmarks/pdf_benchmark_v1.py` and are deterministic (identical inputs → identical outputs). They are independent of asset id / filename / corpus source.
+
+- **`execution_success`** — the CLI subprocess exited with code 0.
+- **`output_package_created`** — `execution_success` is `True` AND the compiled `document.md` file exists AND is non-empty.
+- **`meaningful_content` (`content_extracted`)** — `output_package_created` is `True` AND the compiled `document.md` contains at least `_MIN_MEANINGFUL_CHARS = 200` non-whitespace characters AND the compiler did NOT emit the `NEAR_EMPTY_OUTPUT` warning.
+- **`structurally_usable`** — `content_extracted` is `True` AND (either `len(tokens) < 100` OR `repeat_content_ratio < 0.50`) AND (`LOW_TEXT_DENSITY` did NOT fire OR the PDF has no text layer at all as reported by PyMuPDF's `Page.get_text()`).
+- **`near_empty_output`** — the `NEAR_EMPTY_OUTPUT` warning was emitted by the shipped compiler (surface unchanged; this benchmark reads it verbatim).
+- **`low_text_density`** — the `LOW_TEXT_DENSITY` warning was emitted by the shipped compiler.
+- **`repeat_content_ratio`** — fraction of 4-gram windows in `document.md` that appear more than once. `0.0` on a clean output; approaches `1.0` under pathological repetition. Robust only when `len(tokens) >= 100`.
+- **`hidden_text_layer` / `hidden_text_layer_chars`** — `PyMuPDF Page.get_text()` return status and cumulative character count across pages; distinguishes a PDF with an embedded text layer (extractable without OCR) from one that genuinely requires OCR.
+- **`image_placeholder_ratio`** — fraction of non-empty lines in `document.md` that match the markdown image-placeholder regex `!\[.*\]\(.*\)`. `None` when the output has no lines.
+
+Every field appears in the machine-readable per-asset record.
+
 ## Headline metrics
 
 | Metric | Value |
