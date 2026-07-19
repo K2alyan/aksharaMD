@@ -1,0 +1,6248 @@
+{
+  "harness_version": "1",
+  "run_started_at": "2026-07-19T00:17:02Z",
+  "cli_version": "aksharamd, version 0.3.6",
+  "corpus_root": "benchmarks\\.public_corpus\\pdf",
+  "labels_source": "benchmarks\\multicolumn_recalibration_labels.json",
+  "commit": "c4dfe86bb391727b5eef9ddd28bfd215d1c554c2",
+  "detector": {
+    "name": "W_MULTICOLUMN_ORDER (MultiColumnOrderValidator)",
+    "maturity": "candidate",
+    "penalty": 0,
+    "implementation": "aksharamd/plugins/validators/multicolumn.py",
+    "boundary_helper": "aksharamd/plugins/parsers/pdf.py::_detect_column_boundaries"
+  },
+  "results": [
+    {
+      "asset": "minimal-document.pdf",
+      "relpath": "pdf\\001-trivial\\minimal-document.pdf",
+      "sha256": "f723638db6e763cf4ccadad38a3d38a02d9ecab95dab1f0bbf00e801991b5f92",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.927,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 171
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 1,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 1,
+        "confidence": "high",
+        "evidence": "Rendered \u2014 one paragraph, single-column, no column structure at all.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "002-trivial-libre-office-writer.pdf",
+      "relpath": "pdf\\002-trivial-libre-office-writer\\002-trivial-libre-office-writer.pdf",
+      "sha256": "fc67ce4f76ffb44e818ebe4f673dbeb6002ad93a59f3856ff14fb1d3625f10a5",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.891,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 170
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        }
+      },
+      "blocks_total": 1,
+      "pdf_classification": "native_text",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 1,
+        "confidence": "medium",
+        "evidence": "LibreOffice Writer trivial output; single-column by default.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "pdflatex-image.pdf",
+      "relpath": "pdf\\003-pdflatex-image\\pdflatex-image.pdf",
+      "sha256": "64c5bc35008015936ef3ff60f6ad268a713b5271727b72ef308f87b9b495646f",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.919,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 2,
+        "optimized_tokens": 193
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 5,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 1,
+        "confidence": "high",
+        "evidence": "pdflatex article class with an embedded image \u2014 single-column.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "pdflatex-4-pages.pdf",
+      "relpath": "pdf\\004-pdflatex-4-pages\\pdflatex-4-pages.pdf",
+      "sha256": "f17a09190ad8a04964d78115d8ba7fc7a298557274fa14932ba58612342b7dec",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.955,
+      "compile_summary": {
+        "readiness_score": 65,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "MISSING_PAGE",
+          "MISSING_PAGE"
+        ],
+        "informational": [],
+        "pages": 4,
+        "chunks": 2,
+        "optimized_tokens": 529
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 5,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 53,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 4,
+        "confidence": "high",
+        "evidence": "Rendered all 4 pages \u2014 plain single-column blindtext with centered page number.",
+        "notes": "This was the Issue #54 reproducer. Post-c4dfe86 the detector correctly does not fire on this document.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "libreoffice-writer-password.pdf",
+      "relpath": "pdf\\005-libreoffice-writer-password\\libreoffice-writer-password.pdf",
+      "sha256": "3e333bff0196d0c5320f40cdd1b7a3abd21b316de79de3c0f9083accdaef9358",
+      "cli_exit": 1,
+      "cli_elapsed_s": 0.696,
+      "cli_stderr_head": "",
+      "label": {
+        "expected_positive": null,
+        "layout": "encrypted",
+        "confidence": "high",
+        "evidence": "Encrypted; intentional-failure asset. Excluded from confusion matrix.",
+        "unavailable": true,
+        "excluded_reason": "encrypted; parser cannot produce blocks"
+      }
+    },
+    {
+      "asset": "pdflatex-outline.pdf",
+      "relpath": "pdf\\006-pdflatex-outline\\pdflatex-outline.pdf",
+      "sha256": "17b5a4dac75613b82749c7538fc93991a385a5d419cc9832fdba24c1726a031a",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.08,
+      "compile_summary": {
+        "readiness_score": 81,
+        "quality_band": "OK",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 4,
+        "chunks": 4,
+        "optimized_tokens": 1675
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 5,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 16,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 4,
+        "confidence": "high",
+        "evidence": "pdflatex article class with hierarchical outline \u2014 single-column body across all pages.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "imagemagick-ASCII85Decode.pdf",
+      "relpath": "pdf\\007-imagemagick-images\\imagemagick-ASCII85Decode.pdf",
+      "sha256": "99c687865a8c81b11fe2b6be84b4aaf47bf785556d07274debf9bc1e0807ed2f",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.869,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 46
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "imagemagick-CCITTFaxDecode.pdf",
+      "relpath": "pdf\\007-imagemagick-images\\imagemagick-CCITTFaxDecode.pdf",
+      "sha256": "cf6f94b533dc28974961fd62a67ebfc722224a0be8a4f0c4c91b26a522d5f70d",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.864,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 46
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "imagemagick-images.pdf",
+      "relpath": "pdf\\007-imagemagick-images\\imagemagick-images.pdf",
+      "sha256": "0f2076573bfed1107300a2383b88bbbbc2b85a57f06b3ff478a0faa7ded57b4e",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.844,
+      "compile_summary": {
+        "readiness_score": 41,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "NEAR_EMPTY_OUTPUT",
+          "LOW_TEXT_DENSITY",
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 6,
+        "chunks": 1,
+        "optimized_tokens": 135
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 5
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 6
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        },
+        "6": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        },
+        "5": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        }
+      },
+      "blocks_total": 7,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 5,
+      "label": {
+        "expected_positive": null,
+        "layout": "image_only",
+        "confidence": "high",
+        "evidence": "Image-only PDF; no text spans available for column detection. Excluded.",
+        "unavailable": false,
+        "excluded_reason": "no text \u2014 detector has no input"
+      }
+    },
+    {
+      "asset": "imagemagick-lzw.pdf",
+      "relpath": "pdf\\007-imagemagick-images\\imagemagick-lzw.pdf",
+      "sha256": "ee7ce5f301920761371b0a2537634c39b9a8cd2ab578dee4c17056da297628d8",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.802,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 46
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 3.8399999141693115
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "inline-image.pdf",
+      "relpath": "pdf\\008-reportlab-inline-image\\inline-image.pdf",
+      "sha256": "db5c34fea270f38b152d8476e6f3bba855460958e957f69a0542002538cac1c2",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.926,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 47
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "GeoTopo-komprimiert.pdf",
+      "relpath": "pdf\\009-pdflatex-geotopo\\GeoTopo-komprimiert.pdf",
+      "sha256": "20430e92d42bc06c606f5889d9832c8e5c4dde17f8333f99fbcba96b3a0cba14",
+      "cli_exit": 0,
+      "cli_elapsed_s": 15.064,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_MULTICOLUMN_ORDER",
+          "W_HEADER_FOOTER_TABLE_GARBLED"
+        ],
+        "informational": [
+          {
+            "rule_id": "W_MULTICOLUMN_ORDER",
+            "description": "Multi-column reading order may be incorrect on one or more pages",
+            "penalty": 0,
+            "maturity": "candidate"
+          },
+          {
+            "rule_id": "W_HEADER_FOOTER_TABLE_GARBLED",
+            "description": "A table near a page header or footer may represent garbled page furniture",
+            "penalty": 0,
+            "maturity": "experimental"
+          }
+        ],
+        "pages": 117,
+        "chunks": 152,
+        "optimized_tokens": 59650
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [
+          9,
+          15,
+          23,
+          29,
+          35,
+          39,
+          40,
+          56,
+          71,
+          76,
+          80,
+          81,
+          91,
+          101,
+          108
+        ],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 5
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 104.1,
+            "gap_rel": 0.39,
+            "transition_rate": 0.05,
+            "large_y_drops": 1,
+            "short_frac": 0.3,
+            "signals": [],
+            "warn": false,
+            "page": 6
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 69.6,
+            "gap_rel": 0.22,
+            "transition_rate": 0.16,
+            "large_y_drops": 1,
+            "short_frac": 0.1,
+            "signals": [],
+            "warn": false,
+            "page": 7
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 72.7,
+            "gap_rel": 0.33,
+            "transition_rate": 0.23,
+            "large_y_drops": 1,
+            "short_frac": 0.43,
+            "signals": [],
+            "warn": false,
+            "page": 8
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 64.4,
+            "gap_rel": 0.2,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.33,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 9
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 56.4,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 10
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 11
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 36.7,
+            "gap_rel": 0.26,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 12
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 51.6,
+            "gap_rel": 0.31,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 13
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 21.7,
+            "gap_rel": 0.12,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 14
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 105.8,
+            "gap_rel": 0.3,
+            "transition_rate": 0.71,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.71",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 15
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 152.9,
+            "gap_rel": 0.48,
+            "transition_rate": 0.17,
+            "large_y_drops": 1,
+            "short_frac": 0.62,
+            "signals": [],
+            "warn": false,
+            "page": 16
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 183.0,
+            "gap_rel": 0.43,
+            "transition_rate": 0.12,
+            "large_y_drops": 2,
+            "short_frac": 0.56,
+            "signals": [],
+            "warn": false,
+            "page": 17
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 78.6,
+            "gap_rel": 0.45,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.41,
+            "signals": [],
+            "warn": false,
+            "page": 18
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 245.3,
+            "gap_rel": 0.69,
+            "transition_rate": 0.08,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 19
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 63.2,
+            "gap_rel": 0.25,
+            "transition_rate": 0.09,
+            "large_y_drops": 1,
+            "short_frac": 0.25,
+            "signals": [],
+            "warn": false,
+            "page": 20
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 64.6,
+            "gap_rel": 0.28,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.13,
+            "signals": [],
+            "warn": false,
+            "page": 21
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 169.2,
+            "gap_rel": 0.49,
+            "transition_rate": 0.08,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 22
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 183.5,
+            "gap_rel": 0.47,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 23
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 24
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 84.9,
+            "gap_rel": 0.42,
+            "transition_rate": 0.25,
+            "large_y_drops": 1,
+            "short_frac": 0.4,
+            "signals": [],
+            "warn": false,
+            "page": 25
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 123.0,
+            "gap_rel": 0.77,
+            "transition_rate": 0.17,
+            "large_y_drops": 0,
+            "short_frac": 0.15,
+            "signals": [],
+            "warn": false,
+            "page": 26
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 27
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 36.0,
+            "gap_rel": 0.24,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 28
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 225.0,
+            "gap_rel": 0.61,
+            "transition_rate": 0.33,
+            "large_y_drops": 0,
+            "short_frac": 0.57,
+            "signals": [
+              "high_transition_rate=0.33",
+              "y_monotonic_with_transitions",
+              "short_frac=0.57"
+            ],
+            "warn": true,
+            "page": 29
+          },
+          {
+            "total_blocks": 25,
+            "gap_size": 41.6,
+            "gap_rel": 0.15,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 30
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 31
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 46.8,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 32
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 62.0,
+            "gap_rel": 0.15,
+            "transition_rate": 0.05,
+            "large_y_drops": 2,
+            "short_frac": 0.5,
+            "signals": [],
+            "warn": false,
+            "page": 33
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 222.6,
+            "gap_rel": 0.54,
+            "transition_rate": 0.13,
+            "large_y_drops": 1,
+            "short_frac": 0.19,
+            "signals": [],
+            "warn": false,
+            "page": 34
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 90.5,
+            "gap_rel": 0.48,
+            "transition_rate": 0.5,
+            "large_y_drops": 1,
+            "short_frac": 1.0,
+            "signals": [
+              "high_transition_rate=0.50",
+              "short_frac=1.00"
+            ],
+            "warn": true,
+            "page": 35
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 35.9,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 36
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 67.5,
+            "gap_rel": 0.26,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.38,
+            "signals": [],
+            "warn": false,
+            "page": 37
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 74.5,
+            "gap_rel": 0.2,
+            "transition_rate": 0.28,
+            "large_y_drops": 1,
+            "short_frac": 0.26,
+            "signals": [],
+            "warn": false,
+            "page": 38
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 66.2,
+            "gap_rel": 0.2,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 39
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 76.6,
+            "gap_rel": 0.3,
+            "transition_rate": 0.33,
+            "large_y_drops": 0,
+            "short_frac": 0.2,
+            "signals": [
+              "high_transition_rate=0.33",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 40
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 118.4,
+            "gap_rel": 0.46,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.22,
+            "signals": [],
+            "warn": false,
+            "page": 41
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 61.5,
+            "gap_rel": 0.28,
+            "transition_rate": 0.09,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 42
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 43
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 59.0,
+            "gap_rel": 0.23,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 44
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 71.0,
+            "gap_rel": 0.26,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.08,
+            "signals": [],
+            "warn": false,
+            "page": 45
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 119.2,
+            "gap_rel": 0.6,
+            "transition_rate": 0.17,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 46
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 47
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 65.1,
+            "gap_rel": 0.23,
+            "transition_rate": 0.11,
+            "large_y_drops": 2,
+            "short_frac": 0.5,
+            "signals": [],
+            "warn": false,
+            "page": 48
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 248.7,
+            "gap_rel": 0.86,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.11,
+            "signals": [],
+            "warn": false,
+            "page": 49
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 53.7,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 50
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 48.5,
+            "gap_rel": 0.2,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 51
+          },
+          {
+            "total_blocks": 23,
+            "gap_size": 43.6,
+            "gap_rel": 0.23,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 52
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 186.5,
+            "gap_rel": 0.44,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 53
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 24.4,
+            "gap_rel": 0.14,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 54
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 72.9,
+            "gap_rel": 0.41,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.15,
+            "signals": [],
+            "warn": false,
+            "page": 55
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 175.2,
+            "gap_rel": 0.51,
+            "transition_rate": 0.43,
+            "large_y_drops": 0,
+            "short_frac": 0.62,
+            "signals": [
+              "high_transition_rate=0.43",
+              "y_monotonic_with_transitions",
+              "short_frac=0.62"
+            ],
+            "warn": true,
+            "page": 56
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 128.4,
+            "gap_rel": 0.63,
+            "transition_rate": 0.1,
+            "large_y_drops": 0,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 57
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 39.0,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 58
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 83.3,
+            "gap_rel": 0.41,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.21,
+            "signals": [],
+            "warn": false,
+            "page": 59
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 26.2,
+            "gap_rel": 0.27,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 60
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 36.2,
+            "gap_rel": 0.42,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 61
+          },
+          {
+            "total_blocks": 25,
+            "gap_size": 48.9,
+            "gap_rel": 0.13,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 62
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 139.2,
+            "gap_rel": 0.7,
+            "transition_rate": 0.15,
+            "large_y_drops": 0,
+            "short_frac": 0.07,
+            "signals": [],
+            "warn": false,
+            "page": 63
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 153.1,
+            "gap_rel": 0.55,
+            "transition_rate": 0.25,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "y_monotonic_with_transitions"
+            ],
+            "warn": false,
+            "page": 64
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 33.7,
+            "gap_rel": 0.14,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 65
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 78.6,
+            "gap_rel": 0.3,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 66
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 67
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 68
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 58.5,
+            "gap_rel": 0.4,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 69
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 39.2,
+            "gap_rel": 0.15,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 70
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 95.7,
+            "gap_rel": 0.26,
+            "transition_rate": 0.33,
+            "large_y_drops": 1,
+            "short_frac": 0.23,
+            "signals": [
+              "high_transition_rate=0.33"
+            ],
+            "warn": true,
+            "page": 71
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 47.1,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 72
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 175.9,
+            "gap_rel": 0.42,
+            "transition_rate": 0.11,
+            "large_y_drops": 1,
+            "short_frac": 0.05,
+            "signals": [],
+            "warn": false,
+            "page": 73
+          },
+          {
+            "total_blocks": 6,
+            "gap_size": 49.0,
+            "gap_rel": 0.46,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 74
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 70.0,
+            "gap_rel": 0.31,
+            "transition_rate": 0.23,
+            "large_y_drops": 2,
+            "short_frac": 0.29,
+            "signals": [],
+            "warn": false,
+            "page": 75
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 64.2,
+            "gap_rel": 0.24,
+            "transition_rate": 0.44,
+            "large_y_drops": 1,
+            "short_frac": 0.1,
+            "signals": [
+              "high_transition_rate=0.44"
+            ],
+            "warn": true,
+            "page": 76
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 167.0,
+            "gap_rel": 0.41,
+            "transition_rate": 0.14,
+            "large_y_drops": 1,
+            "short_frac": 0.2,
+            "signals": [],
+            "warn": false,
+            "page": 77
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 111.8,
+            "gap_rel": 0.4,
+            "transition_rate": 0.14,
+            "large_y_drops": 2,
+            "short_frac": 0.75,
+            "signals": [],
+            "warn": false,
+            "page": 78
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 57.5,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 79
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 80.0,
+            "gap_rel": 0.61,
+            "transition_rate": 0.29,
+            "large_y_drops": 0,
+            "short_frac": 0.12,
+            "signals": [
+              "high_transition_rate=0.29",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 80
+          },
+          {
+            "total_blocks": 6,
+            "gap_size": 127.9,
+            "gap_rel": 0.44,
+            "transition_rate": 0.4,
+            "large_y_drops": 1,
+            "short_frac": 0.17,
+            "signals": [
+              "high_transition_rate=0.40"
+            ],
+            "warn": true,
+            "page": 81
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 181.4,
+            "gap_rel": 0.65,
+            "transition_rate": 0.09,
+            "large_y_drops": 0,
+            "short_frac": 0.25,
+            "signals": [],
+            "warn": false,
+            "page": 82
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 109.5,
+            "gap_rel": 0.49,
+            "transition_rate": 0.15,
+            "large_y_drops": 1,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 83
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 84
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 53.8,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 85
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 179.6,
+            "gap_rel": 0.54,
+            "transition_rate": 0.2,
+            "large_y_drops": 0,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 86
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 157.3,
+            "gap_rel": 0.48,
+            "transition_rate": 0.13,
+            "large_y_drops": 1,
+            "short_frac": 0.06,
+            "signals": [],
+            "warn": false,
+            "page": 87
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 54.5,
+            "gap_rel": 0.38,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 88
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 59.5,
+            "gap_rel": 0.27,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 89
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 90
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 146.6,
+            "gap_rel": 0.51,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.2,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 91
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 41.1,
+            "gap_rel": 0.16,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 92
+          },
+          {
+            "total_blocks": 22,
+            "gap_size": 41.1,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 93
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 72.9,
+            "gap_rel": 0.21,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.05,
+            "signals": [],
+            "warn": false,
+            "page": 94
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 148.1,
+            "gap_rel": 0.43,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.11,
+            "signals": [],
+            "warn": false,
+            "page": 95
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 62.1,
+            "gap_rel": 0.21,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.36,
+            "signals": [],
+            "warn": false,
+            "page": 96
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 260.2,
+            "gap_rel": 0.63,
+            "transition_rate": 0.2,
+            "large_y_drops": 1,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 97
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 98.6,
+            "gap_rel": 0.4,
+            "transition_rate": 0.22,
+            "large_y_drops": 0,
+            "short_frac": 0.1,
+            "signals": [],
+            "warn": false,
+            "page": 98
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 54.3,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 99
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 100
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 65.9,
+            "gap_rel": 0.26,
+            "transition_rate": 0.58,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.58",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 101
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 102
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 28.0,
+            "gap_rel": 0.49,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 103
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 65.6,
+            "gap_rel": 0.27,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.07,
+            "signals": [],
+            "warn": false,
+            "page": 104
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 58.9,
+            "gap_rel": 0.2,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 105
+          },
+          {
+            "total_blocks": 21,
+            "gap_size": 109.2,
+            "gap_rel": 0.38,
+            "transition_rate": 0.05,
+            "large_y_drops": 2,
+            "short_frac": 0.29,
+            "signals": [],
+            "warn": false,
+            "page": 106
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 56.1,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 107
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 88.6,
+            "gap_rel": 0.38,
+            "transition_rate": 0.43,
+            "large_y_drops": 2,
+            "short_frac": 0.12,
+            "signals": [
+              "high_transition_rate=0.43"
+            ],
+            "warn": true,
+            "page": 108
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 109
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 110
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 36.3,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 111
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 229.5,
+            "gap_rel": 1.0,
+            "transition_rate": 0.12,
+            "large_y_drops": 1,
+            "short_frac": 0.33,
+            "signals": [],
+            "warn": false,
+            "page": 112
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 113
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 114
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 115
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 242.0,
+            "gap_rel": 1.0,
+            "transition_rate": 0.12,
+            "large_y_drops": 1,
+            "short_frac": 0.33,
+            "signals": [],
+            "warn": false,
+            "page": 116
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 117
+          }
+        ],
+        "warned": true,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "14": {
+          "boundaries": [
+            0.315
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "12": {
+          "boundaries": [
+            0.27
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "10": {
+          "boundaries": [
+            0.265,
+            0.44
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "16": {
+          "boundaries": [
+            0.325
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "9": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "15": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "17": {
+          "boundaries": [
+            0.27999999999999997,
+            0.42
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "20": {
+          "boundaries": [
+            0.445
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "11": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "22": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "21": {
+          "boundaries": [
+            0.45
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "19": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "13": {
+          "boundaries": [
+            0.31
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "18": {
+          "boundaries": [
+            0.335
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "8": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "7": {
+          "boundaries": [
+            0.425
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "5": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "6": {
+          "boundaries": [
+            0.45
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "23": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "24": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "25": {
+          "boundaries": [
+            0.28500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "26": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "27": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "28": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "30": {
+          "boundaries": [
+            0.305,
+            0.425
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "31": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "32": {
+          "boundaries": [
+            0.355,
+            0.45999999999999996
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "33": {
+          "boundaries": [
+            0.355,
+            0.475
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "34": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "35": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "36": {
+          "boundaries": [
+            0.31
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "37": {
+          "boundaries": [
+            0.32999999999999996
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "38": {
+          "boundaries": [
+            0.5
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "39": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "40": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "41": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "42": {
+          "boundaries": [
+            0.365
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "43": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "44": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "45": {
+          "boundaries": [
+            0.35
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "46": {
+          "boundaries": [
+            0.315
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "47": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "48": {
+          "boundaries": [
+            0.255,
+            0.395
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "49": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "29": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "51": {
+          "boundaries": [
+            0.265
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "52": {
+          "boundaries": [
+            0.325,
+            0.45
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "53": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "54": {
+          "boundaries": [
+            0.28500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "55": {
+          "boundaries": [
+            0.38
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "56": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "57": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "58": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "59": {
+          "boundaries": [
+            0.38
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "60": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "61": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "62": {
+          "boundaries": [
+            0.28,
+            0.465
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "63": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "64": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "65": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "67": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "68": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "69": {
+          "boundaries": [
+            0.345
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "70": {
+          "boundaries": [
+            0.33999999999999997
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "71": {
+          "boundaries": [
+            0.34
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "72": {
+          "boundaries": [
+            0.375,
+            0.505
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "73": {
+          "boundaries": [
+            0.345
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "74": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "75": {
+          "boundaries": [
+            0.275,
+            0.48
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "76": {
+          "boundaries": [
+            0.275
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "77": {
+          "boundaries": [
+            0.43
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "78": {
+          "boundaries": [
+            0.295,
+            0.5
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "79": {
+          "boundaries": [
+            0.29500000000000004,
+            0.485
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "80": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "81": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "82": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "83": {
+          "boundaries": [
+            0.35
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "66": {
+          "boundaries": [
+            0.41500000000000004
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "85": {
+          "boundaries": [
+            0.29,
+            0.41
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "86": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "87": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "88": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "89": {
+          "boundaries": [
+            0.28,
+            0.42
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "90": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "91": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "92": {
+          "boundaries": [
+            0.28
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "93": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "94": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "95": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "96": {
+          "boundaries": [
+            0.495
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "97": {
+          "boundaries": [
+            0.33499999999999996
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "98": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "99": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "100": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "101": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "102": {
+          "boundaries": [
+            0.27
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "103": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "104": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "84": {
+          "boundaries": [
+            0.365
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "106": {
+          "boundaries": [
+            0.39,
+            0.62
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "107": {
+          "boundaries": [
+            0.41500000000000004
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "108": {
+          "boundaries": [
+            0.33499999999999996,
+            0.53
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "109": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "110": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "111": {
+          "boundaries": [
+            0.325
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "112": {
+          "boundaries": [
+            0.39
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "113": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "114": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "115": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "116": {
+          "boundaries": [
+            0.37
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "117": {
+          "boundaries": [
+            0.37
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "105": {
+          "boundaries": [
+            0.42
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "50": {
+          "boundaries": [
+            0.55
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 1423,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 169,
+      "label": {}
+    },
+    {
+      "asset": "GeoTopo.pdf",
+      "relpath": "pdf\\009-pdflatex-geotopo\\GeoTopo.pdf",
+      "sha256": "a0b9242aef9b5a2c4850160cc9aaf64f5c7b8be705d6872ae28aebf5ab512540",
+      "cli_exit": 0,
+      "cli_elapsed_s": 16.029,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_MULTICOLUMN_ORDER",
+          "W_HEADER_FOOTER_TABLE_GARBLED"
+        ],
+        "informational": [
+          {
+            "rule_id": "W_MULTICOLUMN_ORDER",
+            "description": "Multi-column reading order may be incorrect on one or more pages",
+            "penalty": 0,
+            "maturity": "candidate"
+          },
+          {
+            "rule_id": "W_HEADER_FOOTER_TABLE_GARBLED",
+            "description": "A table near a page header or footer may represent garbled page furniture",
+            "penalty": 0,
+            "maturity": "experimental"
+          }
+        ],
+        "pages": 117,
+        "chunks": 157,
+        "optimized_tokens": 60526
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [
+          9,
+          15,
+          23,
+          29,
+          35,
+          39,
+          40,
+          56,
+          71,
+          76,
+          80,
+          81,
+          91,
+          101,
+          108
+        ],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 5
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 104.1,
+            "gap_rel": 0.39,
+            "transition_rate": 0.05,
+            "large_y_drops": 1,
+            "short_frac": 0.3,
+            "signals": [],
+            "warn": false,
+            "page": 6
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 69.6,
+            "gap_rel": 0.22,
+            "transition_rate": 0.16,
+            "large_y_drops": 1,
+            "short_frac": 0.1,
+            "signals": [],
+            "warn": false,
+            "page": 7
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 72.7,
+            "gap_rel": 0.33,
+            "transition_rate": 0.23,
+            "large_y_drops": 1,
+            "short_frac": 0.43,
+            "signals": [],
+            "warn": false,
+            "page": 8
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 64.4,
+            "gap_rel": 0.2,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.33,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 9
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 56.4,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 10
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 11
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 36.7,
+            "gap_rel": 0.25,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 12
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 51.6,
+            "gap_rel": 0.31,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 13
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 21.7,
+            "gap_rel": 0.12,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 14
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 105.8,
+            "gap_rel": 0.3,
+            "transition_rate": 0.71,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.71",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 15
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 152.9,
+            "gap_rel": 0.48,
+            "transition_rate": 0.17,
+            "large_y_drops": 1,
+            "short_frac": 0.62,
+            "signals": [],
+            "warn": false,
+            "page": 16
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 183.0,
+            "gap_rel": 0.43,
+            "transition_rate": 0.12,
+            "large_y_drops": 2,
+            "short_frac": 0.56,
+            "signals": [],
+            "warn": false,
+            "page": 17
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 78.6,
+            "gap_rel": 0.45,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.41,
+            "signals": [],
+            "warn": false,
+            "page": 18
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 245.3,
+            "gap_rel": 0.69,
+            "transition_rate": 0.08,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 19
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 63.2,
+            "gap_rel": 0.25,
+            "transition_rate": 0.09,
+            "large_y_drops": 1,
+            "short_frac": 0.25,
+            "signals": [],
+            "warn": false,
+            "page": 20
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 64.6,
+            "gap_rel": 0.28,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.13,
+            "signals": [],
+            "warn": false,
+            "page": 21
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 169.2,
+            "gap_rel": 0.49,
+            "transition_rate": 0.08,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 22
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 183.5,
+            "gap_rel": 0.47,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 23
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 24
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 84.9,
+            "gap_rel": 0.42,
+            "transition_rate": 0.25,
+            "large_y_drops": 1,
+            "short_frac": 0.4,
+            "signals": [],
+            "warn": false,
+            "page": 25
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 123.0,
+            "gap_rel": 0.77,
+            "transition_rate": 0.17,
+            "large_y_drops": 0,
+            "short_frac": 0.15,
+            "signals": [],
+            "warn": false,
+            "page": 26
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 27
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 36.0,
+            "gap_rel": 0.24,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 28
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 225.0,
+            "gap_rel": 0.61,
+            "transition_rate": 0.33,
+            "large_y_drops": 0,
+            "short_frac": 0.57,
+            "signals": [
+              "high_transition_rate=0.33",
+              "y_monotonic_with_transitions",
+              "short_frac=0.57"
+            ],
+            "warn": true,
+            "page": 29
+          },
+          {
+            "total_blocks": 25,
+            "gap_size": 41.6,
+            "gap_rel": 0.15,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 30
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 31
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 125.5,
+            "gap_rel": 0.55,
+            "transition_rate": 0.11,
+            "large_y_drops": 1,
+            "short_frac": 0.6,
+            "signals": [],
+            "warn": false,
+            "page": 32
+          },
+          {
+            "total_blocks": 21,
+            "gap_size": 100.7,
+            "gap_rel": 0.25,
+            "transition_rate": 0.05,
+            "large_y_drops": 2,
+            "short_frac": 0.43,
+            "signals": [],
+            "warn": false,
+            "page": 33
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 222.6,
+            "gap_rel": 0.54,
+            "transition_rate": 0.13,
+            "large_y_drops": 1,
+            "short_frac": 0.19,
+            "signals": [],
+            "warn": false,
+            "page": 34
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 90.5,
+            "gap_rel": 0.48,
+            "transition_rate": 0.5,
+            "large_y_drops": 1,
+            "short_frac": 1.0,
+            "signals": [
+              "high_transition_rate=0.50",
+              "short_frac=1.00"
+            ],
+            "warn": true,
+            "page": 35
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 35.9,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 36
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 67.5,
+            "gap_rel": 0.26,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.38,
+            "signals": [],
+            "warn": false,
+            "page": 37
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 74.5,
+            "gap_rel": 0.2,
+            "transition_rate": 0.28,
+            "large_y_drops": 1,
+            "short_frac": 0.26,
+            "signals": [],
+            "warn": false,
+            "page": 38
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 66.2,
+            "gap_rel": 0.2,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 39
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 76.6,
+            "gap_rel": 0.3,
+            "transition_rate": 0.33,
+            "large_y_drops": 0,
+            "short_frac": 0.2,
+            "signals": [
+              "high_transition_rate=0.33",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 40
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 118.4,
+            "gap_rel": 0.46,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.22,
+            "signals": [],
+            "warn": false,
+            "page": 41
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 61.5,
+            "gap_rel": 0.28,
+            "transition_rate": 0.09,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 42
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 43
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 59.0,
+            "gap_rel": 0.23,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 44
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 71.0,
+            "gap_rel": 0.26,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.08,
+            "signals": [],
+            "warn": false,
+            "page": 45
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 119.2,
+            "gap_rel": 0.6,
+            "transition_rate": 0.17,
+            "large_y_drops": 0,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 46
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 47
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 65.1,
+            "gap_rel": 0.23,
+            "transition_rate": 0.11,
+            "large_y_drops": 2,
+            "short_frac": 0.5,
+            "signals": [],
+            "warn": false,
+            "page": 48
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 248.7,
+            "gap_rel": 0.86,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.11,
+            "signals": [],
+            "warn": false,
+            "page": 49
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 53.7,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 50
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 48.5,
+            "gap_rel": 0.2,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 51
+          },
+          {
+            "total_blocks": 23,
+            "gap_size": 43.6,
+            "gap_rel": 0.23,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 52
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 186.5,
+            "gap_rel": 0.44,
+            "transition_rate": 0.07,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 53
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 24.4,
+            "gap_rel": 0.14,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 54
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 72.9,
+            "gap_rel": 0.41,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.15,
+            "signals": [],
+            "warn": false,
+            "page": 55
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 175.2,
+            "gap_rel": 0.51,
+            "transition_rate": 0.43,
+            "large_y_drops": 0,
+            "short_frac": 0.62,
+            "signals": [
+              "high_transition_rate=0.43",
+              "y_monotonic_with_transitions",
+              "short_frac=0.62"
+            ],
+            "warn": true,
+            "page": 56
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 128.4,
+            "gap_rel": 0.63,
+            "transition_rate": 0.1,
+            "large_y_drops": 0,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 57
+          },
+          {
+            "total_blocks": 20,
+            "gap_size": 39.0,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 58
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 83.3,
+            "gap_rel": 0.41,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.21,
+            "signals": [],
+            "warn": false,
+            "page": 59
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 26.2,
+            "gap_rel": 0.27,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 60
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 36.2,
+            "gap_rel": 0.42,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 61
+          },
+          {
+            "total_blocks": 25,
+            "gap_size": 48.9,
+            "gap_rel": 0.13,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 62
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 139.2,
+            "gap_rel": 0.7,
+            "transition_rate": 0.15,
+            "large_y_drops": 0,
+            "short_frac": 0.07,
+            "signals": [],
+            "warn": false,
+            "page": 63
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 153.1,
+            "gap_rel": 0.55,
+            "transition_rate": 0.25,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "y_monotonic_with_transitions"
+            ],
+            "warn": false,
+            "page": 64
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 33.7,
+            "gap_rel": 0.14,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 65
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 78.6,
+            "gap_rel": 0.3,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 66
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 67
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 68
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 58.5,
+            "gap_rel": 0.4,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 69
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 39.2,
+            "gap_rel": 0.15,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 70
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 95.7,
+            "gap_rel": 0.26,
+            "transition_rate": 0.33,
+            "large_y_drops": 1,
+            "short_frac": 0.23,
+            "signals": [
+              "high_transition_rate=0.33"
+            ],
+            "warn": true,
+            "page": 71
+          },
+          {
+            "total_blocks": 18,
+            "gap_size": 47.1,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 72
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 175.9,
+            "gap_rel": 0.42,
+            "transition_rate": 0.11,
+            "large_y_drops": 1,
+            "short_frac": 0.05,
+            "signals": [],
+            "warn": false,
+            "page": 73
+          },
+          {
+            "total_blocks": 6,
+            "gap_size": 49.0,
+            "gap_rel": 0.46,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 74
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 70.0,
+            "gap_rel": 0.31,
+            "transition_rate": 0.23,
+            "large_y_drops": 2,
+            "short_frac": 0.29,
+            "signals": [],
+            "warn": false,
+            "page": 75
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 64.2,
+            "gap_rel": 0.24,
+            "transition_rate": 0.44,
+            "large_y_drops": 1,
+            "short_frac": 0.1,
+            "signals": [
+              "high_transition_rate=0.44"
+            ],
+            "warn": true,
+            "page": 76
+          },
+          {
+            "total_blocks": 15,
+            "gap_size": 167.0,
+            "gap_rel": 0.41,
+            "transition_rate": 0.14,
+            "large_y_drops": 1,
+            "short_frac": 0.2,
+            "signals": [],
+            "warn": false,
+            "page": 77
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 111.8,
+            "gap_rel": 0.4,
+            "transition_rate": 0.14,
+            "large_y_drops": 2,
+            "short_frac": 0.75,
+            "signals": [],
+            "warn": false,
+            "page": 78
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 57.5,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 79
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 80.0,
+            "gap_rel": 0.61,
+            "transition_rate": 0.29,
+            "large_y_drops": 0,
+            "short_frac": 0.12,
+            "signals": [
+              "high_transition_rate=0.29",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 80
+          },
+          {
+            "total_blocks": 6,
+            "gap_size": 127.9,
+            "gap_rel": 0.44,
+            "transition_rate": 0.4,
+            "large_y_drops": 1,
+            "short_frac": 0.17,
+            "signals": [
+              "high_transition_rate=0.40"
+            ],
+            "warn": true,
+            "page": 81
+          },
+          {
+            "total_blocks": 12,
+            "gap_size": 181.4,
+            "gap_rel": 0.65,
+            "transition_rate": 0.09,
+            "large_y_drops": 0,
+            "short_frac": 0.25,
+            "signals": [],
+            "warn": false,
+            "page": 82
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 109.5,
+            "gap_rel": 0.49,
+            "transition_rate": 0.15,
+            "large_y_drops": 1,
+            "short_frac": 0.14,
+            "signals": [],
+            "warn": false,
+            "page": 83
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 84
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 53.8,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 85
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 179.6,
+            "gap_rel": 0.54,
+            "transition_rate": 0.2,
+            "large_y_drops": 0,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 86
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 157.3,
+            "gap_rel": 0.48,
+            "transition_rate": 0.13,
+            "large_y_drops": 1,
+            "short_frac": 0.06,
+            "signals": [],
+            "warn": false,
+            "page": 87
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 88
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 94.6,
+            "gap_rel": 0.27,
+            "transition_rate": 0.12,
+            "large_y_drops": 2,
+            "short_frac": 0.33,
+            "signals": [],
+            "warn": false,
+            "page": 89
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 90
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 146.6,
+            "gap_rel": 0.51,
+            "transition_rate": 0.5,
+            "large_y_drops": 0,
+            "short_frac": 0.2,
+            "signals": [
+              "high_transition_rate=0.50",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 91
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 41.1,
+            "gap_rel": 0.16,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 92
+          },
+          {
+            "total_blocks": 22,
+            "gap_size": 41.1,
+            "gap_rel": 0.19,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 93
+          },
+          {
+            "total_blocks": 19,
+            "gap_size": 72.9,
+            "gap_rel": 0.21,
+            "transition_rate": 0.06,
+            "large_y_drops": 1,
+            "short_frac": 0.05,
+            "signals": [],
+            "warn": false,
+            "page": 94
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 148.1,
+            "gap_rel": 0.43,
+            "transition_rate": 0.12,
+            "large_y_drops": 0,
+            "short_frac": 0.11,
+            "signals": [],
+            "warn": false,
+            "page": 95
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 62.1,
+            "gap_rel": 0.21,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.36,
+            "signals": [],
+            "warn": false,
+            "page": 96
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 260.2,
+            "gap_rel": 0.63,
+            "transition_rate": 0.2,
+            "large_y_drops": 1,
+            "short_frac": 0.09,
+            "signals": [],
+            "warn": false,
+            "page": 97
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 98.6,
+            "gap_rel": 0.4,
+            "transition_rate": 0.22,
+            "large_y_drops": 0,
+            "short_frac": 0.1,
+            "signals": [],
+            "warn": false,
+            "page": 98
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 54.3,
+            "gap_rel": 0.22,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 99
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 100
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 65.9,
+            "gap_rel": 0.26,
+            "transition_rate": 0.58,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [
+              "high_transition_rate=0.58",
+              "y_monotonic_with_transitions"
+            ],
+            "warn": true,
+            "page": 101
+          },
+          {
+            "total_blocks": 13,
+            "gap_size": 80.2,
+            "gap_rel": 0.39,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.15,
+            "signals": [],
+            "warn": false,
+            "page": 102
+          },
+          {
+            "total_blocks": 11,
+            "gap_size": 28.0,
+            "gap_rel": 0.49,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 103
+          },
+          {
+            "total_blocks": 14,
+            "gap_size": 65.6,
+            "gap_rel": 0.27,
+            "transition_rate": 0.08,
+            "large_y_drops": 1,
+            "short_frac": 0.07,
+            "signals": [],
+            "warn": false,
+            "page": 104
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 58.9,
+            "gap_rel": 0.2,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 105
+          },
+          {
+            "total_blocks": 21,
+            "gap_size": 109.2,
+            "gap_rel": 0.38,
+            "transition_rate": 0.05,
+            "large_y_drops": 2,
+            "short_frac": 0.29,
+            "signals": [],
+            "warn": false,
+            "page": 106
+          },
+          {
+            "total_blocks": 16,
+            "gap_size": 56.1,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 107
+          },
+          {
+            "total_blocks": 8,
+            "gap_size": 88.6,
+            "gap_rel": 0.38,
+            "transition_rate": 0.43,
+            "large_y_drops": 2,
+            "short_frac": 0.12,
+            "signals": [
+              "high_transition_rate=0.43"
+            ],
+            "warn": true,
+            "page": 108
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 109
+          },
+          {
+            "total_blocks": 10,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 110
+          },
+          {
+            "total_blocks": 17,
+            "gap_size": 36.3,
+            "gap_rel": 0.18,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 111
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 229.5,
+            "gap_rel": 1.0,
+            "transition_rate": 0.12,
+            "large_y_drops": 1,
+            "short_frac": 0.33,
+            "signals": [],
+            "warn": false,
+            "page": 112
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 113
+          },
+          {
+            "total_blocks": 5,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 114
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 115
+          },
+          {
+            "total_blocks": 9,
+            "gap_size": 242.0,
+            "gap_rel": 1.0,
+            "transition_rate": 0.12,
+            "large_y_drops": 1,
+            "short_frac": 0.33,
+            "signals": [],
+            "warn": false,
+            "page": 116
+          },
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 117
+          }
+        ],
+        "warned": true,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "20": {
+          "boundaries": [
+            0.445
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "18": {
+          "boundaries": [
+            0.335
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "15": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "16": {
+          "boundaries": [
+            0.325
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "12": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "22": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "19": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "5": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "13": {
+          "boundaries": [
+            0.31
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "17": {
+          "boundaries": [
+            0.27999999999999997,
+            0.42
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "21": {
+          "boundaries": [
+            0.45
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "9": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "6": {
+          "boundaries": [
+            0.45
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "8": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "7": {
+          "boundaries": [
+            0.425
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "11": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "14": {
+          "boundaries": [
+            0.315
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "10": {
+          "boundaries": [
+            0.265,
+            0.44
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "23": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "24": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "25": {
+          "boundaries": [
+            0.28500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "26": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "27": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "28": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "29": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "30": {
+          "boundaries": [
+            0.305,
+            0.425
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "31": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "32": {
+          "boundaries": [
+            0.45499999999999996
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "33": {
+          "boundaries": [
+            0.355,
+            0.475
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "34": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "35": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "36": {
+          "boundaries": [
+            0.31
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "37": {
+          "boundaries": [
+            0.32999999999999996
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "38": {
+          "boundaries": [
+            0.5
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "39": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "40": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "41": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "43": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "44": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "45": {
+          "boundaries": [
+            0.35
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "46": {
+          "boundaries": [
+            0.315
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "47": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "48": {
+          "boundaries": [
+            0.255,
+            0.395
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "49": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "50": {
+          "boundaries": [
+            0.55
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "51": {
+          "boundaries": [
+            0.265
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "52": {
+          "boundaries": [
+            0.325,
+            0.45
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "53": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "54": {
+          "boundaries": [
+            0.28500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "55": {
+          "boundaries": [
+            0.38
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "56": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "57": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "58": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "59": {
+          "boundaries": [
+            0.38
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "60": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "61": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "63": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "64": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "65": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "66": {
+          "boundaries": [
+            0.41500000000000004
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "67": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "68": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "69": {
+          "boundaries": [
+            0.345
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "70": {
+          "boundaries": [
+            0.33999999999999997
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "71": {
+          "boundaries": [
+            0.34
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "72": {
+          "boundaries": [
+            0.375,
+            0.505
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "73": {
+          "boundaries": [
+            0.345
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "74": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "75": {
+          "boundaries": [
+            0.275,
+            0.48
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "76": {
+          "boundaries": [
+            0.275
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "77": {
+          "boundaries": [
+            0.43
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "78": {
+          "boundaries": [
+            0.295,
+            0.5
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "80": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "81": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "82": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "83": {
+          "boundaries": [
+            0.35
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "84": {
+          "boundaries": [
+            0.365
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "85": {
+          "boundaries": [
+            0.29,
+            0.41
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "86": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "87": {
+          "boundaries": [
+            0.295
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "88": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "89": {
+          "boundaries": [
+            0.27,
+            0.52
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "90": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "91": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "92": {
+          "boundaries": [
+            0.28
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "93": {
+          "boundaries": [
+            0.355
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "94": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "95": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "62": {
+          "boundaries": [
+            0.28,
+            0.465
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "97": {
+          "boundaries": [
+            0.33499999999999996
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "98": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "99": {
+          "boundaries": [
+            0.47500000000000003
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "100": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "101": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "102": {
+          "boundaries": [
+            0.335
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "103": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "104": {
+          "boundaries": [
+            0.385
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "105": {
+          "boundaries": [
+            0.42
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "106": {
+          "boundaries": [
+            0.39,
+            0.62
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "96": {
+          "boundaries": [
+            0.495
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "108": {
+          "boundaries": [
+            0.33499999999999996,
+            0.53
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "109": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "110": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "111": {
+          "boundaries": [
+            0.325
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "112": {
+          "boundaries": [
+            0.39
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "113": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "114": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "115": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "116": {
+          "boundaries": [
+            0.37
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "117": {
+          "boundaries": [
+            0.37
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "107": {
+          "boundaries": [
+            0.41500000000000004
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "79": {
+          "boundaries": [
+            0.29500000000000004,
+            0.485
+          ],
+          "num_columns": 3,
+          "page_width": 595.2760009765625
+        },
+        "42": {
+          "boundaries": [
+            0.365
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 1406,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 166,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column_academic",
+        "pages": 117,
+        "confidence": "medium",
+        "evidence": "Long academic PDF, primarily single-column body. Pre-#54 pinned as HIGH 87 in advanced-fidelity baseline. Detector currently fires with candidate warnings that reflect body-text density variations, not real interleaving.",
+        "notes": "Was tracked in baseline as HIGH 87 with W_MULTICOLUMN_ORDER + W_TABLE_EXPECTED_NOT_EXTRACTED + W_HEADER_FOOTER_TABLE_GARBLED. Post-#54 need to verify whether the multicolumn warning is still there and whether the compiled output shows real interleaving.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "pdflatex-forms.pdf",
+      "relpath": "pdf\\010-pdflatex-forms\\pdflatex-forms.pdf",
+      "sha256": "fc6265298caafffeee9dd2d7f3ae2e53ab9f61ec0561369429d442f731d339da",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.964,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 49
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 612.0
+        }
+      },
+      "blocks_total": 3,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "form_single_page",
+        "pages": 1,
+        "confidence": "medium",
+        "evidence": "PDF form; sparse text. No real column layout.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "google-doc-document.pdf",
+      "relpath": "pdf\\011-google-doc-document\\google-doc-document.pdf",
+      "sha256": "69f6b7f493b1bc55d518942976cbeadc4ec0a36f6d8a6dc24feffc516d35b2c9",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.964,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 3,
+        "optimized_tokens": 331
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 596.0
+        }
+      },
+      "blocks_total": 5,
+      "pdf_classification": "table_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 1,
+        "confidence": "medium",
+        "evidence": "Google Docs export; default single-column.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "libreoffice-form.pdf",
+      "relpath": "pdf\\012-libreoffice-form\\libreoffice-form.pdf",
+      "sha256": "9105eeef8c8cafdb141b7edd768a5e08adffe320d1d4f89e1a7112a2b37d1c57",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.957,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 23
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        }
+      },
+      "blocks_total": 4,
+      "pdf_classification": "native_text",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "form_single_page",
+        "confidence": "medium",
+        "evidence": "Form export; not multi-column.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "reportlab-overlay.pdf",
+      "relpath": "pdf\\013-reportlab-overlay\\reportlab-overlay.pdf",
+      "sha256": "fdbdd49a118053577240850826a7eff6ac4ce7288527bf4c483714f0113860ed",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.906,
+      "compile_summary": {
+        "readiness_score": 67,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 27
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 1,
+      "pdf_classification": "native_text",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": null,
+        "layout": "unknown_visual",
+        "confidence": "low",
+        "evidence": "Not previously inspected; classified after run.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "mistitled_outlines_example.pdf",
+      "relpath": "pdf\\014-outlines\\mistitled_outlines_example.pdf",
+      "sha256": "362dc3cc03538e864841a08d2b7365daf926651a2fe2c343669e03c8ac33b1af",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.129,
+      "compile_summary": {
+        "readiness_score": 81,
+        "quality_band": "OK",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 4,
+        "chunks": 4,
+        "optimized_tokens": 1675
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 5,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 4,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 16,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "habibi-oneline-cmap.pdf",
+      "relpath": "pdf\\015-arabic\\habibi-oneline-cmap.pdf",
+      "sha256": "31b50622a8623723188bbb69385881c70ca8bedaa5099a19392c0d0afcccd8ee",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.955,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 60
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "habibi-rotated.pdf",
+      "relpath": "pdf\\015-arabic\\habibi-rotated.pdf",
+      "sha256": "56329f1e3cff5358f1f2aadcfac03467cce51b36b2e2daab9c14cef26f7ea536",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.297,
+      "compile_summary": {
+        "readiness_score": 41,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "NEAR_EMPTY_OUTPUT",
+          "LOW_TEXT_DENSITY",
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 4,
+        "chunks": 1,
+        "optimized_tokens": 100
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 841.8897705078125
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 841.8897705078125
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 5,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 3,
+      "label": {
+        "expected_positive": null,
+        "layout": "arabic_rtl_rotated",
+        "confidence": "high",
+        "evidence": "Rotated Arabic pages; body content is rasterised. Excluded.",
+        "unavailable": false,
+        "excluded_reason": "rotated + sparse"
+      }
+    },
+    {
+      "asset": "habibi.pdf",
+      "relpath": "pdf\\015-arabic\\habibi.pdf",
+      "sha256": "1017c4559eb7d0ccf7d151a3f051c8c1da27a7c1dc8050b2b687e3d3228e1b6f",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.008,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 60
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": null,
+        "layout": "arabic_rtl",
+        "confidence": "high",
+        "evidence": "Arabic RTL script; body text extraction is sparse. Not a fair multicolumn test case.",
+        "unavailable": false,
+        "excluded_reason": "RTL / sparse extraction; detector has insufficient signal"
+      }
+    },
+    {
+      "asset": "libre-office-link.pdf",
+      "relpath": "pdf\\016-libre-office-link\\libre-office-link.pdf",
+      "sha256": "bc38b458acd125c09fb7603cf0cca5d8737eea9fe353c2aef2c42b3db9cf9076",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.997,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 60
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "unreadablemetadata.pdf",
+      "relpath": "pdf\\017-unreadable-meta-data\\unreadablemetadata.pdf",
+      "sha256": "9900c4c7edaa0b950314f33d8946b1247e3eafeea893958be76e62a32e1cd38a",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.957,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "CORRUPTED_METADATA"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 401
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {},
+      "blocks_total": 1,
+      "pdf_classification": "low_confidence",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "base64image.pdf",
+      "relpath": "pdf\\018-base64-image\\base64image.pdf",
+      "sha256": "aaad90df16fce40ec768629d2135479b98f65b39bb27c7f80fb106393187d619",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.05,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 65
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2755737304688
+        }
+      },
+      "blocks_total": 3,
+      "pdf_classification": "native_text",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "grayscale-image.pdf",
+      "relpath": "pdf\\019-grayscale-image\\grayscale-image.pdf",
+      "sha256": "3adfd74b88cebcdd46c83f9b1d86b6995700233126b53e2f1fcacb40eab2dc84",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.958,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 46
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 243.0
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "output_with_metadata_pymupdf.pdf",
+      "relpath": "pdf\\020-xmp\\output_with_metadata_pymupdf.pdf",
+      "sha256": "8e52052b0d7242a6d3df844e0f24ed3c09ca36440761d1b00f85bbabc15f7369",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.042,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 50
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.280029296875
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "crazyones-pdfa.pdf",
+      "relpath": "pdf\\021-pdfa\\crazyones-pdfa.pdf",
+      "sha256": "f05f2738a1fa8c1d2e1147881fe1a62516a7f8caaf784067790731f56df626c4",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.993,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 210
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 3,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 612.0
+        }
+      },
+      "blocks_total": 3,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "pdfkit.pdf",
+      "relpath": "pdf\\022-pdfkit\\pdfkit.pdf",
+      "sha256": "8820ba44cd62264fd561e921aacc214cee7ba76723f525d591cdb2104a87f0dd",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.04,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 55
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 2,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.0
+        }
+      },
+      "blocks_total": 3,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "cmyk-image.pdf",
+      "relpath": "pdf\\023-cmyk-image\\cmyk-image.pdf",
+      "sha256": "5a5f76a951e403a5b357992789afc5164fd6c2914583741de7a1dd08ec029ab2",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.195,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 46
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 612.0
+        }
+      },
+      "blocks_total": 2,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {}
+    },
+    {
+      "asset": "annotated_pdf.pdf",
+      "relpath": "pdf\\024-annotations\\annotated_pdf.pdf",
+      "sha256": "c327f921abfba23a5c42d5c429ba99ded1cf5511521003aba6d2aff9c940d9cc",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.113,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 57
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.280029296875
+        }
+      },
+      "blocks_total": 3,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column_annotated",
+        "pages": 1,
+        "confidence": "medium",
+        "evidence": "Annotated PDF; body single-column.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "with-attachment.pdf",
+      "relpath": "pdf\\025-attachment\\with-attachment.pdf",
+      "sha256": "1c7e5f3bb3bbf9a2424cac84f46b17e5b62af0719d63b445c280c76634b316ba",
+      "cli_exit": 0,
+      "cli_elapsed_s": 0.948,
+      "compile_summary": {
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "W_PDF_ATTACHMENT_IGNORED"
+        ],
+        "informational": [
+          {
+            "rule_id": "W_PDF_ATTACHMENT_IGNORED",
+            "description": "PDF contains 1 embedded file attachment(s) that were not extracted",
+            "penalty": 0,
+            "maturity": "candidate"
+          }
+        ],
+        "pages": 1,
+        "chunks": 1,
+        "optimized_tokens": 171
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 1,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": false,
+        "layout": "single_column",
+        "pages": 1,
+        "confidence": "high",
+        "evidence": "Attachment-carrying single-column PDF; Issue #51 reproducer.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "multicolumn.pdf",
+      "relpath": "pdf\\026-latex-multicolumn\\multicolumn.pdf",
+      "sha256": "bdb495e95b3e1afae95013099dc59b0cea047f1fa70f677ee9cb33f10faa1c6c",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.179,
+      "compile_summary": {
+        "readiness_score": 85,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "HEADING_SKIP",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_TABLE_EXPECTED_NOT_EXTRACTED",
+          "W_MULTICOLUMN_ORDER"
+        ],
+        "informational": [
+          {
+            "rule_id": "W_MULTICOLUMN_ORDER",
+            "description": "Multi-column reading order may be incorrect on one or more pages",
+            "penalty": 0,
+            "maturity": "candidate"
+          }
+        ],
+        "pages": 3,
+        "chunks": 9,
+        "optimized_tokens": 2307
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [
+          3
+        ],
+        "page_analyses": [
+          {
+            "total_blocks": 6,
+            "gap_size": 95.5,
+            "gap_rel": 0.4,
+            "transition_rate": 0.2,
+            "large_y_drops": 1,
+            "short_frac": 0.67,
+            "signals": [
+              "short_frac=0.67"
+            ],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 7,
+            "gap_size": 106.2,
+            "gap_rel": 0.39,
+            "transition_rate": 0.33,
+            "large_y_drops": 0,
+            "short_frac": 0.86,
+            "signals": [
+              "high_transition_rate=0.33",
+              "y_monotonic_with_transitions",
+              "short_frac=0.86"
+            ],
+            "warn": true,
+            "page": 3
+          }
+        ],
+        "warned": true,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [
+            0.33
+          ],
+          "num_columns": 2,
+          "page_width": 595.2760009765625
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.2760009765625
+        }
+      },
+      "blocks_total": 15,
+      "pdf_classification": "table_heavy",
+      "duplicate_blocks_removed": 0,
+      "label": {
+        "expected_positive": true,
+        "layout": "multicolumn",
+        "pages": 3,
+        "confidence": "high",
+        "evidence": "Rendered p2 \u2014 genuine two-column LaTeX academic layout. Compiled Markdown shows span-level interleaving (documented in ADVANCED_FIDELITY_2026-07-18.md \u00a7F1).",
+        "notes": "Post-c4dfe86 the detector now fires (W_MULTICOLUMN_ORDER) \u2014 this is the primary TP for the recalibration.",
+        "unavailable": false
+      }
+    },
+    {
+      "asset": "cropped-rotated-scaled.pdf",
+      "relpath": "pdf\\027-cropped-rotated-scaled\\cropped-rotated-scaled.pdf",
+      "sha256": "cc195eac510b81123de4f55ac9f8185f2120975a7b75a106460b98615737aacd",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.169,
+      "compile_summary": {
+        "readiness_score": 61,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "informational": [],
+        "pages": 4,
+        "chunks": 3,
+        "optimized_tokens": 261
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          },
+          {
+            "total_blocks": 0,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 4
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 384.0
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 540.0
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 550.0
+        },
+        "4": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 780.0
+        }
+      },
+      "blocks_total": 14,
+      "pdf_classification": "layout_heavy",
+      "duplicate_blocks_removed": 3,
+      "label": {
+        "expected_positive": false,
+        "layout": "cropped_rotated_sparse",
+        "pages": 4,
+        "confidence": "high",
+        "evidence": "Cropped/rotated/scaled pages with very sparse text. No column structure.",
+        "unavailable": false,
+        "excluded_reason": "sparse text \u2014 detector has insufficient signal"
+      }
+    },
+    {
+      "asset": "wrong-references.pdf",
+      "relpath": "pdf\\028-image-references-deduplication\\wrong-references.pdf",
+      "sha256": "16cb8e10bd59e30b4d350f11d0ed9c7d0bd7e7bb962a46022c89836e2aa44f63",
+      "cli_exit": 0,
+      "cli_elapsed_s": 1.34,
+      "compile_summary": {
+        "readiness_score": 47,
+        "quality_band": "POOR",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY",
+          "OCR_REQUIRED"
+        ],
+        "informational": [],
+        "pages": 3,
+        "chunks": 1,
+        "optimized_tokens": 95
+      },
+      "multicolumn_diagnostics": {
+        "problem_pages": [],
+        "page_analyses": [
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 1
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 2
+          },
+          {
+            "total_blocks": 1,
+            "gap_size": 0.0,
+            "gap_rel": 0.0,
+            "transition_rate": 0.0,
+            "large_y_drops": 0,
+            "short_frac": 0.0,
+            "signals": [],
+            "warn": false,
+            "page": 3
+          }
+        ],
+        "warned": false,
+        "warning_maturity": "candidate"
+      },
+      "column_info_by_page": {
+        "1": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        },
+        "2": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        },
+        "3": {
+          "boundaries": [],
+          "num_columns": 1,
+          "page_width": 595.303955078125
+        }
+      },
+      "blocks_total": 6,
+      "pdf_classification": "scanned",
+      "duplicate_blocks_removed": 2,
+      "label": {}
+    }
+  ]
+}
