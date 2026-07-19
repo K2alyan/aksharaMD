@@ -166,20 +166,165 @@ Physical motivation, in order of restrictiveness (least → most):
 - **GeoTopo FP class is not addressed.** The two GeoTopo documents remain document-level false positives under every candidate. Their FP class is different (text-share above 0.05, substantial alternations ≥ 1) and needs its own analysis. It should be tracked separately in future Issue #50 phases.
 - **Span-level false negatives are out of scope.** `elpais` and `simple2` are span-level cases and are not touched by the block-level detector or by any of the candidates evaluated here.
 
-## Ranked recommendations
+## Review addendum — verification of the four questions
 
-1. **H6_thin_tall_marker** — passes the shipping gate; three physically-motivated conditions; most robust of the three passing candidates on prima facie grounds.
-2. H7_thin_marker_no_cov — passes; simplest formulation; but no explicit protection against small isolated insets, only via `alt_substantial <= 0`.
-3. H8_top_aligned_sidebar — passes; assumes sidebars are top-aligned. Would miss a bottom-aligned sidebar.
-4. H1–H5 individually and the H1+H2 / H1+H3 combinations — reject; every one silences `3colpres` because the parser-detected column geometry there closely resembles a sidebar.
+Following the interim finding, four verification questions were raised. Each is answered from the raw data captured in the JSON.
 
-## Ship-or-stop decision
+### 1. Metric semantics — what does the minority cluster actually represent?
 
-**A candidate that passes the shipping gate exists.** The next Issue #50 move is therefore option 1 in the phase spec: implement a detector-only sidebar correction based on H6 (or H7 / H8, at implementer's discretion) in a follow-up PR — **provided** the implementer secures at least one additional annotated sidebar FP to widen the shipping-gate corpus before merging.
+Direct dump of every block in `3colpres` p1 (13 blocks) with cluster assignment relative to the validator's boundary at `x = 321.6`:
 
-If a widened corpus is not available and a single-datapoint pass is judged insufficient, option 2 stands: stop the block-level sidebar workstream, keep this analysis as evidence, and move to the separate span-level detector track.
+| block id | type | x0 | y0 | chars | words | cluster |
+|---|---|---:|---:|---:|---:|:---:|
+| `b339160b…` | paragraph | 56.7 | 32.5 | 81 | 14 | 0 |
+| `63f31da3…` | heading | 67.2 | 100.9 | 28 | 5 | 0 |
+| `1f1b0043…` | paragraph | 145.3 | 135.5 | 134 | 23 | 0 |
+| `4d1c0e7a…` | paragraph | 56.7 | 255.5 | 338 | 58 | 0 |
+| `c486cd23…` | paragraph | 56.7 | 399.5 | 517 | 81 | 0 |
+| `cd365dd2…` | paragraph | 56.7 | 603.5 | 268 | 44 | 0 |
+| `48b2ca62…` | paragraph | 56.7 | 760.2 | 2411 | 402 | 0 |
+| `4a65a8d1…` | paragraph | 233.3 | 651.5 | 154 | 24 | 0 |
+| **`e8dd1ccc…`** | **heading** | **409.9** | **687.5** | **20** | **4** | **1** |
+| `e1c70511…` | paragraph | 233.3 | 699.5 | 93 | 11 | 0 |
+| **`29d7c0e5…`** | **paragraph** | **459.5** | **760.2** | **22** | **10** | **1** |
+| `b149a5ae…` | image | — | — | 40 | 4 | n/a |
+| `634ec856…` | image | — | — | 40 | 4 | n/a |
 
-**This PR ships neither. It is evidence only.**
+**Answer to the question:** `3colpres`'s minority cluster (cluster 1) is not one of the three magazine columns. It is **two small bottom-right blocks** — a 4-word heading at `(409.9, 687.5)` and a 10-word caption at `(459.5, 760.2)`. Total: 42 characters, ~14 words. The middle-column blocks at `x = 233.3` are lumped into cluster 0 with the leftmost blocks because they sit below the validator's biggest-gap boundary of `x = 321.6`. **The block-level detector cannot see the three-column body of `3colpres`.**
+
+That has a consequential implication for the interpretation of the baseline warning on `3colpres`: it fires because `transition_rate = 0.300` — the two isolated bottom-right blocks create transitions in the y-sorted block sequence. It does **not** fire because the detector "sees" real multicolumn corruption. This mirrors, structurally, exactly what happens on `strikeUnderline`.
+
+Same dump for `strikeUnderline` p1 (9 blocks) with validator boundary at `x = 235.4`:
+
+| block id | type | x0 | y0 | chars | words | cluster |
+|---|---|---:|---:|---:|---:|:---:|
+| `1c05abad…` | paragraph | 58.3 | 144.9 | 127 | 6 | 0 |
+| **`7486c1dd…`** | **heading** | **404.6** | **144.9** | **6** | **1** | **1** |
+| `6cab1eb3…` | paragraph | 66.3 | 156.5 | 1230 | 39 | 0 |
+| **`79628677…`** | **heading** | **404.6** | **223.0** | **6** | **1** | **1** |
+| `e5b49515…` | paragraph | 66.3 | 234.6 | 3116 | 129 | 0 |
+| **`1cd116f9…`** | **heading** | **404.6** | **420.4** | **6** | **1** | **1** |
+| `cf890620…` | paragraph | 66.3 | 432.0 | 3013 | 154 | 0 |
+| **`d8cf12b3…`** | **heading** | **404.6** | **617.8** | **6** | **1** | **1** |
+| `347f3588…` | paragraph | 66.3 | 629.3 | 476 | 13 | 0 |
+
+`strikeUnderline`'s minority cluster (cluster 1) is **four 1-word heading blocks running down the right margin** from `y = 145` to `y = 618`, uniform x-position `x = 404.6`, all extremely short (6 chars each — revision-marker tags). This IS the sidebar the visual review identified.
+
+**Structural comparison:**
+
+| dimension | `strikeUnderline` cluster 1 | `3colpres` cluster 1 |
+|---|---|---|
+| Blocks | 4 (all headings) | 2 (heading + paragraph) |
+| Total chars | 24 | 42 |
+| Total words | 4 | 14 |
+| x-position | uniform at 404.6 | 409.9 and 459.5 (heterogeneous) |
+| y-range (y0) | 145 – 618 (473 pt, ~60% of page) | 687 – 760 (73 pt, ~9% of page) |
+| Vertical position | top-to-bottom | bottom-of-page |
+| Interpretation | right-margin revision-marker sidebar | small bottom-right callout / caption region |
+
+Neither minority cluster corresponds to a real reading column. Both are incidental objects that create transitions in the y-sorted block sequence. What separates them geometrically is **vertical placement + coverage**: the sidebar spans the page height and is top-aligned; the callout is compact and sits at the bottom.
+
+### 2. Threshold sensitivity — is H6 stable or brittle?
+
+A 40-cell grid was run over `share_max ∈ {0.010, 0.015, 0.020, 0.025, 0.030}`, `cov_min ∈ {0.30, 0.40, 0.50, 0.60}`, `alt_max ∈ {0, 1}`.
+
+**Result: 30 / 40 cells pass the shipping gate.** The 10 failing cells are all at `cov_min = 0.60`, exactly where `strikeUnderline`'s measured 0.597 fails the sidebar test.
+
+The H6 default `(share ≤ 0.020, cov ≥ 0.40, alt ≤ 0)` sits inside a stable operating region:
+
+| neighbour | share_max | cov_min | alt_max | passes | flipped_ids |
+|---|---:|---:|---:|:---:|---|
+| −1 step in share | 0.015 | 0.40 | 0 | yes | `strikeUnderline` |
+| −1 step in cov | 0.020 | 0.30 | 0 | yes | `strikeUnderline` |
+| H6 default | 0.020 | 0.40 | 0 | yes | `strikeUnderline` |
+| +1 step in alt | 0.020 | 0.40 | 1 | yes | `strikeUnderline` |
+| +1 step in cov | 0.020 | 0.50 | 0 | yes | `strikeUnderline` |
+| +1 step in share | 0.025 | 0.40 | 0 | yes | `strikeUnderline` |
+
+Every direct neighbour passes with the same outcome (only `strikeUnderline` flips). No collateral damage in any direction. The brittle edge is at `cov ≥ 0.60`, which is not reachable from H6 by a single step.
+
+**Verdict:** H6 lies in a stable region. However, the entire region owes its stability to a single data point — see Section 3 for why that is a serious constraint.
+
+Raw grid in `benchmarks/SIDEBAR_MULTICOLUMN_THRESHOLD_GRID_2026-07-19.json`.
+
+### 3. Full changed-decision audit
+
+The exhaustive changed-decision audit for H6, H7, and H8 is in `benchmarks/SIDEBAR_MULTICOLUMN_CHANGED_DECISIONS_2026-07-19.json`. Summary:
+
+| Rule | Total page flips | On corpus positives silenced | On corpus negatives raised | On unexpected assets | Desirable? |
+|---|---:|---:|---:|---:|:---:|
+| H6 | 1 | 0 | 0 | 0 | yes |
+| H7 | 1 | 0 | 0 | 0 | yes |
+| H8 | 1 | 0 | 0 | 0 | yes |
+
+The **only page-level flip on this corpus is `strikeUnderline` p1**. Every other page — including all 15 baseline-warning GeoTopo pages, the `3colpres` p1 baseline warning, and the `multicolumn.pdf` p3 baseline warning — retains its baseline decision under all three candidates.
+
+Confirmed:
+- No candidate suppresses a confirmed observable true positive.
+- No candidate creates a new false positive.
+- No public-corpus control's decision changes unexpectedly.
+- Every candidate operates only on page-level geometry — no document identity, no filename lookup.
+
+### 4. Causal placement — where does the rule apply?
+
+**H6 as currently defined is a page-level suppression rule.** Given a page whose baseline detector warns, H6 asks "does the smaller cluster look like a sidebar?", and if so, it silences the warning for the whole page.
+
+**This is not the correct implementation model for a future detector change.** The correct model is:
+
+1. Detect that a minority cluster satisfies the sidebar signature.
+2. **Exclude that cluster's blocks** from the analysis.
+3. Recompute `gap_size`, `gap_rel`, `transition_rate`, `large_y_drops`, `short_frac` on the remaining blocks.
+4. Warn only if the recomputed geometry still supports the multicolumn hypothesis.
+
+The two approaches — page-level suppression vs. cluster exclusion + recomputation — happen to produce identical confusion matrices on this corpus, because no page carries a real multicolumn body **and** a sidebar simultaneously. Verification: for `strikeUnderline`, excluding the 4 sidebar headings leaves 5 body paragraphs all at `x ≈ 66`; the recomputed `transition_rate` collapses to 0, no HTR signal fires, warning is silenced — same result. For `3colpres`, the minority cluster fails the sidebar test (`cov = 0.09 < 0.40`), so no exclusion happens; baseline verdict stands — same result.
+
+But the two approaches diverge on the mixed case:
+
+- A page with genuine multicolumn body **plus** a right-margin sidebar: page-level suppression would incorrectly silence the entire warning. Cluster exclusion + recomputation would remove only the sidebar cluster and reveal the real column geometry.
+
+**No such mixed-case page exists in the current corpus.** So the two implementations are experimentally indistinguishable here, but they are architecturally different, and only the latter is safe to ship.
+
+## Revised recommendation
+
+Given the four verification results together, the recommendation from the interim reading needs to be tightened:
+
+1. **Metric semantics** — the H6 signal is physically meaningful, but the interpretation is that "the minority cluster is a thin tall marker not participating in reading order," not "the page is not multicolumn." A page can be multicolumn AND have a sidebar.
+2. **Threshold sensitivity** — H6 is in a stable region, but the whole region owes its stability to `strikeUnderline` alone. Widening the corpus is a prerequisite, not a nice-to-have.
+3. **Changed-decision audit** — clean on this corpus.
+4. **Causal placement** — H6 as a page-level suppression rule would be unsafe to ship for the mixed case. The correct implementation is cluster exclusion + baseline recomputation.
+
+**Ship-none is the honest conclusion for this PR.** The rule that would ship in a follow-up detector-change PR is:
+
+```
+if minority_cluster satisfies (share <= 0.020 AND cov >= 0.40 AND alt_substantial == 0):
+    excluded_blocks = blocks in minority cluster
+    remaining_blocks = blocks NOT in minority cluster
+    recompute baseline signals on remaining_blocks
+    warn if the recomputed signals fire
+else:
+    warn as baseline
+```
+
+Not:
+
+```
+if minority_cluster satisfies sidebar signature:
+    do not warn
+else:
+    warn as baseline
+```
+
+Before that implementation PR can be opened, two prerequisites must be met:
+
+1. **At least one additional annotated sidebar FP** must be located, added to the frozen corpus, and confirmed to exhibit the same signature. `strikeUnderline` alone is not enough evidence.
+2. **A test page that combines a real multicolumn body with a sidebar** must be found or constructed, so that the cluster-exclusion-and-recompute path can be validated. If none exists in observable corpus, a controlled synthetic page (analogous to the ones in `tests/test_plugins/test_multicolumn_validator.py`) is acceptable.
+
+## Ranked recommendations (revised)
+
+1. **Ship none in this PR.** Preserve the analysis, threshold grid, and changed-decision audit as evidence.
+2. Next Issue #50 phase: find a second sidebar FP + build a mixed-case test page.
+3. Then: implementer proposes a detector-change PR using **cluster-exclusion + recomputation**, not page-level suppression, gated at H6 default thresholds (or their post-widening replacement).
+4. If a widened corpus does not surface a second sidebar FP within one work cycle, close the block-level sidebar workstream and move to the span-level detector track.
 
 ## Appendix — span-only cases (excluded from primary metric)
 

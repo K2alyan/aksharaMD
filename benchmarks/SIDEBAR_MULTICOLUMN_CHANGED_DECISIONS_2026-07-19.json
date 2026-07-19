@@ -1,0 +1,83 @@
+{
+  "harness_version": "sidebar_multicolumn_threshold_sensitivity.py@2026-07-19",
+  "source_analysis": "SIDEBAR_MULTICOLUMN_SIGNAL_ANALYSIS_2026-07-19.json",
+  "rules": {
+    "H6": {
+      "share_max": 0.02,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "requires_top": false,
+      "top_max": null
+    },
+    "H7": {
+      "share_max": 0.01,
+      "cov_min": null,
+      "alt_max": 0,
+      "requires_top": false,
+      "top_max": null
+    },
+    "H8": {
+      "share_max": 0.02,
+      "cov_min": 0.4,
+      "alt_max": null,
+      "requires_top": true,
+      "top_max": 50.0
+    }
+  },
+  "changes": [
+    {
+      "rule": "H6",
+      "corpus": "parsebench",
+      "asset": "strikeUnderline",
+      "page": 1,
+      "ground_truth_positive": false,
+      "baseline_warn": true,
+      "candidate_warn": false,
+      "flip": "silenced",
+      "desirable_change": true,
+      "sidebar_metrics": {
+        "text_share_smaller": 0.003005259203606311,
+        "smaller_y_coverage_frac": 0.597121344672309,
+        "alternations_substantial": 0,
+        "top_alignment_delta": 0.0
+      },
+      "notes": "target FP silenced \u2014 the intended change"
+    },
+    {
+      "rule": "H7",
+      "corpus": "parsebench",
+      "asset": "strikeUnderline",
+      "page": 1,
+      "ground_truth_positive": false,
+      "baseline_warn": true,
+      "candidate_warn": false,
+      "flip": "silenced",
+      "desirable_change": true,
+      "sidebar_metrics": {
+        "text_share_smaller": 0.003005259203606311,
+        "smaller_y_coverage_frac": 0.597121344672309,
+        "alternations_substantial": 0,
+        "top_alignment_delta": 0.0
+      },
+      "notes": "target FP silenced \u2014 the intended change"
+    },
+    {
+      "rule": "H8",
+      "corpus": "parsebench",
+      "asset": "strikeUnderline",
+      "page": 1,
+      "ground_truth_positive": false,
+      "baseline_warn": true,
+      "candidate_warn": false,
+      "flip": "silenced",
+      "desirable_change": true,
+      "sidebar_metrics": {
+        "text_share_smaller": 0.003005259203606311,
+        "smaller_y_coverage_frac": 0.597121344672309,
+        "alternations_substantial": 0,
+        "top_alignment_delta": 0.0
+      },
+      "notes": "target FP silenced \u2014 the intended change"
+    }
+  ]
+}

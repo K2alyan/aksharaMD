@@ -384,3 +384,69 @@ def test_artifact_declares_no_production_code_change():
     # The JSON records commit_under_evaluation; assert it is populated.
     assert isinstance(r.get("commit_under_evaluation"), str)
     assert len(r["commit_under_evaluation"]) >= 7
+
+
+# ── Review-addendum artifacts ────────────────────────────────────────────
+
+
+_GRID = _REPO_ROOT / "benchmarks" / "SIDEBAR_MULTICOLUMN_THRESHOLD_GRID_2026-07-19.json"
+_CHG = _REPO_ROOT / "benchmarks" / "SIDEBAR_MULTICOLUMN_CHANGED_DECISIONS_2026-07-19.json"
+
+
+def test_threshold_grid_has_stable_h6_neighbourhood():
+    if not _GRID.exists():
+        pytest.skip(f"grid artifact not present: {_GRID}")
+    with _GRID.open("r", encoding="utf-8") as f:
+        g = json.load(f)
+    # Every immediate H6 neighbour must pass the shipping gate.
+    for r in g["summary"]["h6_neighbourhood"]:
+        assert r["gate_pass"], (
+            f"H6 neighbourhood cell (share<={r['share_max']}, "
+            f"cov>={r['cov_min']}, alt<={r['alt_max']}) fails the gate: "
+            f"{r['gate_reasons']}"
+        )
+    # In each passing neighbour cell, the ONLY flipped id is strikeUnderline.
+    for r in g["summary"]["h6_neighbourhood"]:
+        if r["gate_pass"]:
+            assert r["flipped_ids"] == ["strikeUnderline"], (
+                f"unexpected flips in H6 neighbourhood cell: {r['flipped_ids']}"
+            )
+
+
+def test_threshold_grid_brittle_edge_is_cov_060():
+    """The failing cells in the 40-cell grid are all at cov_min = 0.60,
+    exactly where strikeUnderline's measured 0.597 sits. This test
+    documents the brittle edge — if a future grid change shifts it,
+    the report body must be revised.
+    """
+    if not _GRID.exists():
+        pytest.skip("grid missing")
+    with _GRID.open("r", encoding="utf-8") as f:
+        g = json.load(f)
+    failing = [r for r in g["rows"] if not r["gate_pass"]]
+    assert failing, "expected some grid cells to fail — none did"
+    # Every failing cell must be at cov_min = 0.60.
+    cov_failures = {r["cov_min"] for r in failing}
+    assert cov_failures == {0.60}, (
+        f"unexpected cov thresholds in failing cells: {cov_failures}"
+    )
+
+
+def test_changed_decisions_audit_flips_only_strikeunderline():
+    """The complete changed-decision audit across H6/H7/H8 must show
+    exactly one page-level flip per rule, all on strikeUnderline p1.
+    """
+    if not _CHG.exists():
+        pytest.skip("changes artifact missing")
+    with _CHG.open("r", encoding="utf-8") as f:
+        c = json.load(f)
+    for rule in ("H6", "H7", "H8"):
+        rule_changes = [ch for ch in c["changes"] if ch["rule"] == rule]
+        assert len(rule_changes) == 1, (
+            f"expected exactly one flip for {rule}; got {len(rule_changes)}"
+        )
+        (ch,) = rule_changes
+        assert ch["asset"] == "strikeUnderline"
+        assert ch["page"] == 1
+        assert ch["flip"] == "silenced"
+        assert ch["desirable_change"] is True

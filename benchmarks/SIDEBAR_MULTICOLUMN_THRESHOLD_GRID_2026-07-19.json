@@ -1,0 +1,925 @@
+{
+  "harness_version": "sidebar_multicolumn_threshold_sensitivity.py@2026-07-19",
+  "source_analysis": "SIDEBAR_MULTICOLUMN_SIGNAL_ANALYSIS_2026-07-19.json",
+  "commit_under_evaluation": "0847038ca20884d648786e79316974fc6e83cc02",
+  "grid": {
+    "share_axis": [
+      0.01,
+      0.015,
+      0.02,
+      0.025,
+      0.03
+    ],
+    "cov_axis": [
+      0.3,
+      0.4,
+      0.5,
+      0.6
+    ],
+    "alt_max_axis": [
+      0,
+      1
+    ]
+  },
+  "rows": [
+    {
+      "share_max": 0.01,
+      "cov_min": 0.3,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.3,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.4,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.5,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.5,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.6,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.01,
+      "cov_min": 0.6,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.3,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.3,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.4,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.5,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.5,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.6,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.015,
+      "cov_min": 0.6,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.3,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.3,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.4,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.5,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.5,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.6,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.02,
+      "cov_min": 0.6,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.3,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.3,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.4,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.5,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.5,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.6,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.025,
+      "cov_min": 0.6,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.3,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.3,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.4,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.4,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.5,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.5,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 2,
+      "TN": 24,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.0769,
+      "gate_pass": true,
+      "gate_reasons": [],
+      "flipped_ids": [
+        "strikeUnderline"
+      ]
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.6,
+      "alt_max": 0,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    },
+    {
+      "share_max": 0.03,
+      "cov_min": 0.6,
+      "alt_max": 1,
+      "TP": 2,
+      "FP": 3,
+      "TN": 23,
+      "FN": 0,
+      "recall": 1.0,
+      "false_positive_rate": 0.1154,
+      "gate_pass": false,
+      "gate_reasons": [
+        "strikeUnderline still warns"
+      ],
+      "flipped_ids": []
+    }
+  ],
+  "summary": {
+    "total_cells": 40,
+    "passing_cells": 30,
+    "passing_thresholds": [
+      [
+        0.01,
+        0.3,
+        0
+      ],
+      [
+        0.01,
+        0.3,
+        1
+      ],
+      [
+        0.01,
+        0.4,
+        0
+      ],
+      [
+        0.01,
+        0.4,
+        1
+      ],
+      [
+        0.01,
+        0.5,
+        0
+      ],
+      [
+        0.01,
+        0.5,
+        1
+      ],
+      [
+        0.015,
+        0.3,
+        0
+      ],
+      [
+        0.015,
+        0.3,
+        1
+      ],
+      [
+        0.015,
+        0.4,
+        0
+      ],
+      [
+        0.015,
+        0.4,
+        1
+      ],
+      [
+        0.015,
+        0.5,
+        0
+      ],
+      [
+        0.015,
+        0.5,
+        1
+      ],
+      [
+        0.02,
+        0.3,
+        0
+      ],
+      [
+        0.02,
+        0.3,
+        1
+      ],
+      [
+        0.02,
+        0.4,
+        0
+      ],
+      [
+        0.02,
+        0.4,
+        1
+      ],
+      [
+        0.02,
+        0.5,
+        0
+      ],
+      [
+        0.02,
+        0.5,
+        1
+      ],
+      [
+        0.025,
+        0.3,
+        0
+      ],
+      [
+        0.025,
+        0.3,
+        1
+      ],
+      [
+        0.025,
+        0.4,
+        0
+      ],
+      [
+        0.025,
+        0.4,
+        1
+      ],
+      [
+        0.025,
+        0.5,
+        0
+      ],
+      [
+        0.025,
+        0.5,
+        1
+      ],
+      [
+        0.03,
+        0.3,
+        0
+      ],
+      [
+        0.03,
+        0.3,
+        1
+      ],
+      [
+        0.03,
+        0.4,
+        0
+      ],
+      [
+        0.03,
+        0.4,
+        1
+      ],
+      [
+        0.03,
+        0.5,
+        0
+      ],
+      [
+        0.03,
+        0.5,
+        1
+      ]
+    ],
+    "h6_default": {
+      "share_max": 0.02,
+      "cov_min": 0.4,
+      "alt_max": 0
+    },
+    "h6_neighbourhood": [
+      {
+        "share_max": 0.015,
+        "cov_min": 0.4,
+        "alt_max": 0,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      },
+      {
+        "share_max": 0.02,
+        "cov_min": 0.3,
+        "alt_max": 0,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      },
+      {
+        "share_max": 0.02,
+        "cov_min": 0.4,
+        "alt_max": 0,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      },
+      {
+        "share_max": 0.02,
+        "cov_min": 0.4,
+        "alt_max": 1,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      },
+      {
+        "share_max": 0.02,
+        "cov_min": 0.5,
+        "alt_max": 0,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      },
+      {
+        "share_max": 0.025,
+        "cov_min": 0.4,
+        "alt_max": 0,
+        "TP": 2,
+        "FP": 2,
+        "TN": 24,
+        "FN": 0,
+        "recall": 1.0,
+        "false_positive_rate": 0.0769,
+        "gate_pass": true,
+        "gate_reasons": [],
+        "flipped_ids": [
+          "strikeUnderline"
+        ]
+      }
+    ]
+  }
+}
