@@ -398,8 +398,54 @@ def test_document_approval_requires_expected_label_and_defect_kind(tmp_path: Pat
     assert outcome.calibration_reason == "page_level_ground_truth_missing"
 
 
-def test_page_approval_requires_non_null_page_ground_truth(tmp_path: Path) -> None:
-    """Verified + expected_label + defect_kind + populated page GT →
+def test_page_approval_requires_review_status_complete(tmp_path: Path) -> None:
+    """A minimal `page_level_ground_truth` without the shape the reviewer
+    expects (review_status="complete", non-empty pages array, no ambiguous
+    pages) must NOT trigger page-level approval.
+    """
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(
+        body=body,
+        expected_label="true-positive",
+        defect_kind="block-level",
+        # Missing review_status / pages array → incomplete
+        page_level_ground_truth={"known_pages_with_defect": [1, 2]},
+    )
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.approved_for_document_calibration is True
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "page_level_ground_truth_incomplete"
+
+
+def test_ambiguous_pages_reject_page_approval(tmp_path: Path) -> None:
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(
+        body=body,
+        expected_label="true-positive",
+        defect_kind="block-level",
+        page_level_ground_truth={
+            "review_status": "complete",
+            "page_count": 2,
+            "pages": [
+                {"page": 1, "extraction_status": "correct"},
+                {"page": 2, "extraction_status": "ambiguous"},
+            ],
+        },
+    )
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.approved_for_document_calibration is True
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "page_level_ground_truth_ambiguous"
+
+
+def test_fully_reviewed_page_ground_truth_grants_page_approval(tmp_path: Path) -> None:
+    """review_status="complete" + non-empty pages + no ambiguous entries →
     both approvals True; calibration_reason is empty.
     """
     body = b"%PDF-1.4 fake"
@@ -407,7 +453,13 @@ def test_page_approval_requires_non_null_page_ground_truth(tmp_path: Path) -> No
         body=body,
         expected_label="true-positive",
         defect_kind="block-level",
-        page_level_ground_truth={"known_pages_with_defect": [1, 2]},
+        page_level_ground_truth={
+            "review_status": "complete",
+            "page_count": 1,
+            "pages": [
+                {"page": 1, "extraction_status": "damaged", "evidence": "..."},
+            ],
+        },
     )
     fake = _FakeHttp({_happy_url(asset): (200, body)})
     lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
