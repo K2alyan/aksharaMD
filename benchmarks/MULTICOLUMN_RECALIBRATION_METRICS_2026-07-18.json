@@ -1,0 +1,592 @@
+{
+  "commit_under_test": "c4dfe86bb391727b5eef9ddd28bfd215d1c554c2",
+  "cli_version": "aksharamd, version 0.3.6",
+  "corpus_size_total": 34,
+  "labelled_TP": 1,
+  "labelled_FP": 2,
+  "labelled_TN": 15,
+  "labelled_FN": 0,
+  "excluded": 16,
+  "precision": 0.333,
+  "recall": 1.0,
+  "false_positive_rate": 0.118,
+  "f1": 0.5,
+  "false_positive_documents": [
+    "GeoTopo-komprimiert.pdf",
+    "GeoTopo.pdf"
+  ],
+  "false_positive_page_totals": {
+    "GeoTopo-komprimiert.pdf": [
+      9,
+      15,
+      23,
+      29,
+      35,
+      39,
+      40,
+      56,
+      71,
+      76,
+      80,
+      81,
+      91,
+      101,
+      108
+    ],
+    "GeoTopo.pdf": [
+      9,
+      15,
+      23,
+      29,
+      35,
+      39,
+      40,
+      56,
+      71,
+      76,
+      80,
+      81,
+      91,
+      101,
+      108
+    ]
+  },
+  "false_negative_documents": [],
+  "true_positive_documents": [
+    "multicolumn.pdf"
+  ],
+  "excluded_documents": [
+    "libreoffice-writer-password.pdf",
+    "imagemagick-ASCII85Decode.pdf",
+    "imagemagick-CCITTFaxDecode.pdf",
+    "imagemagick-images.pdf",
+    "imagemagick-lzw.pdf",
+    "reportlab-overlay.pdf",
+    "habibi-oneline-cmap.pdf",
+    "habibi-rotated.pdf",
+    "habibi.pdf",
+    "base64image.pdf",
+    "grayscale-image.pdf",
+    "output_with_metadata_pymupdf.pdf",
+    "pdfkit.pdf",
+    "cmyk-image.pdf",
+    "cropped-rotated-scaled.pdf",
+    "wrong-references.pdf"
+  ],
+  "per_document": [
+    {
+      "asset": "minimal-document.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "002-trivial-libre-office-writer.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "pdflatex-image.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "pdflatex-4-pages.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 65,
+      "band": "RISKY",
+      "pages": 4,
+      "problem_pages": [],
+      "warnings": [
+        "MISSING_PAGE",
+        "MISSING_PAGE"
+      ]
+    },
+    {
+      "asset": "libreoffice-writer-password.pdf",
+      "label_layout": "encrypted",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": null,
+      "band": null,
+      "pages": null,
+      "problem_pages": [],
+      "warnings": null
+    },
+    {
+      "asset": "pdflatex-outline.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 81,
+      "band": "OK",
+      "pages": 4,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "imagemagick-ASCII85Decode.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "imagemagick-CCITTFaxDecode.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "imagemagick-images.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 41,
+      "band": "POOR",
+      "pages": 6,
+      "problem_pages": [],
+      "warnings": [
+        "NEAR_EMPTY_OUTPUT",
+        "LOW_TEXT_DENSITY",
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "imagemagick-lzw.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "inline-image.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "GeoTopo-komprimiert.pdf",
+      "label_layout": "single_column_academic",
+      "expected_positive": false,
+      "warning_fired": true,
+      "verdict": "FP",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 117,
+      "problem_pages": [
+        9,
+        15,
+        23,
+        29,
+        35,
+        39,
+        40,
+        56,
+        71,
+        76,
+        80,
+        81,
+        91,
+        101,
+        108
+      ],
+      "warnings": [
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_MULTICOLUMN_ORDER",
+        "W_HEADER_FOOTER_TABLE_GARBLED"
+      ]
+    },
+    {
+      "asset": "GeoTopo.pdf",
+      "label_layout": "single_column_academic",
+      "expected_positive": false,
+      "warning_fired": true,
+      "verdict": "FP",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 117,
+      "problem_pages": [
+        9,
+        15,
+        23,
+        29,
+        35,
+        39,
+        40,
+        56,
+        71,
+        76,
+        80,
+        81,
+        91,
+        101,
+        108
+      ],
+      "warnings": [
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_MULTICOLUMN_ORDER",
+        "W_HEADER_FOOTER_TABLE_GARBLED"
+      ]
+    },
+    {
+      "asset": "pdflatex-forms.pdf",
+      "label_layout": "form_single_page",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "google-doc-document.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "libreoffice-form.pdf",
+      "label_layout": "form_single_page",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "reportlab-overlay.pdf",
+      "label_layout": "unknown_visual",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 67,
+      "band": "RISKY",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "LOW_TEXT_DENSITY"
+      ]
+    },
+    {
+      "asset": "mistitled_outlines_example.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 81,
+      "band": "OK",
+      "pages": 4,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "habibi-oneline-cmap.pdf",
+      "label_layout": "arabic_rtl_sparse",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "habibi-rotated.pdf",
+      "label_layout": "arabic_rtl_rotated",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 41,
+      "band": "POOR",
+      "pages": 4,
+      "problem_pages": [],
+      "warnings": [
+        "NEAR_EMPTY_OUTPUT",
+        "LOW_TEXT_DENSITY",
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "habibi.pdf",
+      "label_layout": "arabic_rtl",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "libre-office-link.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "unreadablemetadata.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "CORRUPTED_METADATA"
+      ]
+    },
+    {
+      "asset": "base64image.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "grayscale-image.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "output_with_metadata_pymupdf.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "crazyones-pdfa.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": []
+    },
+    {
+      "asset": "pdfkit.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "cmyk-image.pdf",
+      "label_layout": "image_only",
+      "expected_positive": null,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "annotated_pdf.pdf",
+      "label_layout": "single_column_annotated",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 47,
+      "band": "POOR",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "OCR_REQUIRED"
+      ]
+    },
+    {
+      "asset": "with-attachment.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "TN",
+      "score": 87,
+      "band": "HIGH",
+      "pages": 1,
+      "problem_pages": [],
+      "warnings": [
+        "W_PDF_ATTACHMENT_IGNORED"
+      ]
+    },
+    {
+      "asset": "multicolumn.pdf",
+      "label_layout": "multicolumn",
+      "expected_positive": true,
+      "warning_fired": true,
+      "verdict": "TP",
+      "score": 85,
+      "band": "HIGH",
+      "pages": 3,
+      "problem_pages": [
+        3
+      ],
+      "warnings": [
+        "HEADING_SKIP",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_TABLE_EXPECTED_NOT_EXTRACTED",
+        "W_MULTICOLUMN_ORDER"
+      ]
+    },
+    {
+      "asset": "cropped-rotated-scaled.pdf",
+      "label_layout": "cropped_rotated_sparse",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 61,
+      "band": "RISKY",
+      "pages": 4,
+      "problem_pages": [],
+      "warnings": [
+        "LOW_TEXT_DENSITY"
+      ]
+    },
+    {
+      "asset": "wrong-references.pdf",
+      "label_layout": "single_column",
+      "expected_positive": false,
+      "warning_fired": false,
+      "verdict": "excluded",
+      "score": 47,
+      "band": "POOR",
+      "pages": 3,
+      "problem_pages": [],
+      "warnings": [
+        "LOW_TEXT_DENSITY",
+        "OCR_REQUIRED"
+      ]
+    }
+  ]
+}

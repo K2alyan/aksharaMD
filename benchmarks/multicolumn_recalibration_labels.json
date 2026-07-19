@@ -1,0 +1,346 @@
+{
+  "protocol": {
+    "issue": 50,
+    "commit_under_evaluation": "c4dfe86bb391727b5eef9ddd28bfd215d1c554c2",
+    "detector": "W_MULTICOLUMN_ORDER",
+    "maturity_at_evaluation": "candidate",
+    "penalty_at_evaluation": 0,
+    "positive_definition": "A document that AksharaMD's block-level multicolumn detector SHOULD fire on because its extracted block sequence exhibits column-interleaving OR its underlying source has multi-column layout that produces reading-order damage in the compiled Markdown.",
+    "negative_definition": "A document with single-column source layout or with source multi-column layout that AksharaMD nevertheless renders in correct reading order (i.e. no observable interleaving in `document.md`).",
+    "unknown_definition": "Document layout has not been visually verified for this evaluation. Reported alongside metrics but not counted in confusion matrix.",
+    "unit_of_evaluation": "document (top-level warning decision). Page-level detector diagnostics are also reported when available (multicolumn_diagnostics.page_analyses).",
+    "warning_decision_rule": "Positive prediction iff `W_MULTICOLUMN_ORDER` appears in the compiled document's `warning_codes`. Otherwise negative.",
+    "ambiguous_case_policy": "If visual layout is single-column but detector's block-level diagnostics show a spurious geometric signal below the warn threshold, count as TN and note under `notes`. If a multicolumn document produces correct reading order without firing, count as FN (block-level detection missed it) and note that span-level detection would be required.",
+    "backend": "PyMuPDF primary + pdfplumber fallback; boundaries via _detect_column_boundaries (post-#54 with _MIN_LINES_PER_COLUMN_CLUSTER=2).",
+    "historical_baseline": {
+      "source": "aksharamd/plugins/validators/multicolumn.py docstring + project_parsebench_progress.md memory",
+      "phase_1_rescore_2026_07_13": {"precision": 1.00, "recall": 0.40, "note": "2 of 5 ordering targets"},
+      "shipped_metrics": {"precision": 1.00, "recall": 0.33, "note": "on 21-doc external ParseBench corpus"},
+      "known_FN_class": ["ikea3", "elpais", "simple2 (span-level interleaving; block-level detector cannot see these by design)"]
+    },
+    "external_assets_unavailable": [
+      "ikea3", "elpais", "simple2", "3colpres", "eastbaytimes", "battery",
+      "2colmercedes", "text_dense__de", "letter3", "myctophidae", "strikeUnderline",
+      "japanese_case"
+    ],
+    "external_assets_note": "The ParseBench binary corpus used for the Phase 5 numbers is not present in this repository. This recalibration measures against only the public corpus that ships in `benchmarks/.public_corpus/pdf/`. The Phase 5 numbers are retained for historical comparison but the two corpora are not directly comparable."
+  },
+  "labels": {
+    "001-trivial/minimal-document.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 1,
+      "confidence": "high",
+      "evidence": "Rendered — one paragraph, single-column, no column structure at all.",
+      "unavailable": false
+    },
+    "002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 1,
+      "confidence": "medium",
+      "evidence": "LibreOffice Writer trivial output; single-column by default.",
+      "unavailable": false
+    },
+    "003-pdflatex-image/pdflatex-image.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 1,
+      "confidence": "high",
+      "evidence": "pdflatex article class with an embedded image — single-column.",
+      "unavailable": false
+    },
+    "004-pdflatex-4-pages/pdflatex-4-pages.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 4,
+      "confidence": "high",
+      "evidence": "Rendered all 4 pages — plain single-column blindtext with centered page number.",
+      "notes": "This was the Issue #54 reproducer. Post-c4dfe86 the detector correctly does not fire on this document.",
+      "unavailable": false
+    },
+    "005-libreoffice-writer-password/libreoffice-writer-password.pdf": {
+      "expected_positive": null,
+      "layout": "encrypted",
+      "confidence": "high",
+      "evidence": "Encrypted; intentional-failure asset. Excluded from confusion matrix.",
+      "unavailable": true,
+      "excluded_reason": "encrypted; parser cannot produce blocks"
+    },
+    "006-pdflatex-outline/pdflatex-outline.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 4,
+      "confidence": "high",
+      "evidence": "pdflatex article class with hierarchical outline — single-column body across all pages.",
+      "unavailable": false
+    },
+    "007-imagemagick-images/imagemagick-images.pdf": {
+      "expected_positive": null,
+      "layout": "image_only",
+      "confidence": "high",
+      "evidence": "Image-only PDF; no text spans available for column detection. Excluded.",
+      "unavailable": false,
+      "excluded_reason": "no text — detector has no input"
+    },
+    "008-reportlab-inline-image/reportlab-inline-image.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": null,
+      "confidence": "medium",
+      "evidence": "Reportlab-generated PDF with inline image; single-column by construction (default reportlab).",
+      "unavailable": false
+    },
+    "009-pdflatex-geotopo/GeoTopo.pdf": {
+      "expected_positive": false,
+      "layout": "single_column_academic",
+      "pages": 117,
+      "confidence": "high",
+      "evidence": "German math textbook (Topologie). Rendered p20, p60 — both are single-column body with inline figures and math. Verified single-column throughout the sample.",
+      "notes": "Post-c4dfe86 W_MULTICOLUMN_ORDER fires on 15 pages (9, 15, 23, 29, 35, 39, 40, 56, 71, 76, 80, 81, 91, 101, 108). All 15 are false positives — they are pages with equations, itemised lists, figures, or captions that create geometric artefacts (transition_rate 0.29–0.71) without a real column boundary. Top document-level FP for the recalibration.",
+      "unavailable": false
+    },
+    "GeoTopo-komprimiert.pdf": {
+      "expected_positive": false,
+      "layout": "single_column_academic",
+      "pages": 117,
+      "confidence": "high",
+      "evidence": "Compressed variant of 009-pdflatex-geotopo/GeoTopo.pdf. Same content, same layout.",
+      "notes": "Same 15-page firing pattern as GeoTopo.pdf. Counted as a duplicate FP for the corpus; kept in the run to prove determinism across a compression variant.",
+      "unavailable": false
+    },
+    "reportlab-inline-image.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "reportlab inline-image test fixture; single-column by construction. Matches asset name `inline-image.pdf` in the corpus.",
+      "unavailable": false
+    },
+    "inline-image.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "reportlab inline-image fixture.",
+      "unavailable": false
+    },
+    "libre-office-link.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "LibreOffice link fixture; short single-column body.",
+      "unavailable": false
+    },
+    "unreadablemetadata.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "Metadata-focused fixture; short single-column body.",
+      "unavailable": false
+    },
+    "output_with_metadata_pymupdf.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "low",
+      "evidence": "XMP metadata fixture. Compiled band POOR 47 suggests very sparse body — likely no column structure to speak of.",
+      "unavailable": false,
+      "excluded_reason": "sparse text — insufficient signal"
+    },
+    "crazyones-pdfa.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "PDF/A conformance fixture. Compiled band HIGH 87 — has real single-column text.",
+      "unavailable": false
+    },
+    "pdfkit.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "low",
+      "evidence": "pdfkit output fixture. Compiled band POOR 47 — sparse.",
+      "unavailable": false,
+      "excluded_reason": "sparse text"
+    },
+    "mistitled_outlines_example.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "Outline-metadata fixture. Compiled band OK 81 with 4 pages — non-trivial body.",
+      "unavailable": false
+    },
+    "reportlab-overlay.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "medium",
+      "evidence": "Reportlab overlay fixture. Compiled band RISKY 67 — has some text.",
+      "unavailable": false
+    },
+    "wrong-references.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "confidence": "low",
+      "evidence": "Image-references-deduplication fixture. Compiled band POOR 47 — sparse text.",
+      "unavailable": false,
+      "excluded_reason": "sparse text"
+    },
+    "imagemagick-ASCII85Decode.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "imagemagick-CCITTFaxDecode.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "imagemagick-lzw.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "base64image.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "grayscale-image.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "cmyk-image.pdf": {"expected_positive": null, "layout": "image_only", "unavailable": false, "excluded_reason": "image-only"},
+    "habibi-oneline-cmap.pdf": {"expected_positive": null, "layout": "arabic_rtl_sparse", "unavailable": false, "excluded_reason": "arabic/RTL sparse"},
+    "010-pdflatex-forms/pdflatex-forms.pdf": {
+      "expected_positive": false,
+      "layout": "form_single_page",
+      "pages": 1,
+      "confidence": "medium",
+      "evidence": "PDF form; sparse text. No real column layout.",
+      "unavailable": false
+    },
+    "011-google-doc-document/google-doc-document.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 1,
+      "confidence": "medium",
+      "evidence": "Google Docs export; default single-column.",
+      "unavailable": false
+    },
+    "012-libreoffice-form/libreoffice-form.pdf": {
+      "expected_positive": false,
+      "layout": "form_single_page",
+      "confidence": "medium",
+      "evidence": "Form export; not multi-column.",
+      "unavailable": false
+    },
+    "013-reportlab-overlay/reportlab-overlay.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "Not previously inspected; classified after run.",
+      "unavailable": false
+    },
+    "014-outlines/outlines.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "Outline metadata test; layout not previously inspected.",
+      "unavailable": false
+    },
+    "015-arabic/habibi.pdf": {
+      "expected_positive": null,
+      "layout": "arabic_rtl",
+      "confidence": "high",
+      "evidence": "Arabic RTL script; body text extraction is sparse. Not a fair multicolumn test case.",
+      "unavailable": false,
+      "excluded_reason": "RTL / sparse extraction; detector has insufficient signal"
+    },
+    "015-arabic/habibi-rotated.pdf": {
+      "expected_positive": null,
+      "layout": "arabic_rtl_rotated",
+      "confidence": "high",
+      "evidence": "Rotated Arabic pages; body content is rasterised. Excluded.",
+      "unavailable": false,
+      "excluded_reason": "rotated + sparse"
+    },
+    "016-libre-office-link/016-libre-office-link.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "Not previously inspected.",
+      "unavailable": false
+    },
+    "017-unreadable-meta-data/017-unreadable-meta-data.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "Metadata-focused fixture; layout unknown.",
+      "unavailable": false
+    },
+    "018-base64-image/018-base64-image.pdf": {
+      "expected_positive": null,
+      "layout": "image_only_or_unknown",
+      "confidence": "low",
+      "evidence": "Base64 image fixture; likely no plain text.",
+      "unavailable": false,
+      "excluded_reason": "likely image-only; verify after run"
+    },
+    "019-grayscale-image/019-grayscale-image.pdf": {
+      "expected_positive": null,
+      "layout": "image_only_or_unknown",
+      "confidence": "low",
+      "evidence": "Grayscale image fixture; likely no plain text.",
+      "unavailable": false,
+      "excluded_reason": "likely image-only"
+    },
+    "020-xmp/020-xmp.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "XMP metadata fixture; layout unknown.",
+      "unavailable": false
+    },
+    "021-pdfa/021-pdfa.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "PDF/A conformance fixture.",
+      "unavailable": false
+    },
+    "022-pdfkit/022-pdfkit.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "pdfkit fixture.",
+      "unavailable": false
+    },
+    "023-cmyk-image/023-cmyk-image.pdf": {
+      "expected_positive": null,
+      "layout": "image_only_or_unknown",
+      "confidence": "low",
+      "evidence": "CMYK image fixture.",
+      "unavailable": false,
+      "excluded_reason": "likely image-only"
+    },
+    "024-annotations/annotated_pdf.pdf": {
+      "expected_positive": false,
+      "layout": "single_column_annotated",
+      "pages": 1,
+      "confidence": "medium",
+      "evidence": "Annotated PDF; body single-column.",
+      "unavailable": false
+    },
+    "025-attachment/with-attachment.pdf": {
+      "expected_positive": false,
+      "layout": "single_column",
+      "pages": 1,
+      "confidence": "high",
+      "evidence": "Attachment-carrying single-column PDF; Issue #51 reproducer.",
+      "unavailable": false
+    },
+    "026-latex-multicolumn/multicolumn.pdf": {
+      "expected_positive": true,
+      "layout": "multicolumn",
+      "pages": 3,
+      "confidence": "high",
+      "evidence": "Rendered p2 — genuine two-column LaTeX academic layout. Compiled Markdown shows span-level interleaving (documented in ADVANCED_FIDELITY_2026-07-18.md §F1).",
+      "notes": "Post-c4dfe86 the detector now fires (W_MULTICOLUMN_ORDER) — this is the primary TP for the recalibration.",
+      "unavailable": false
+    },
+    "027-cropped-rotated-scaled/cropped-rotated-scaled.pdf": {
+      "expected_positive": false,
+      "layout": "cropped_rotated_sparse",
+      "pages": 4,
+      "confidence": "high",
+      "evidence": "Cropped/rotated/scaled pages with very sparse text. No column structure.",
+      "unavailable": false,
+      "excluded_reason": "sparse text — detector has insufficient signal"
+    },
+    "028-image-references-deduplication/image-references-deduplication.pdf": {
+      "expected_positive": null,
+      "layout": "unknown_visual",
+      "confidence": "low",
+      "evidence": "Image references fixture.",
+      "unavailable": false
+    }
+  }
+}
