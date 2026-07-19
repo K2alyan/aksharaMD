@@ -276,12 +276,31 @@ def _document_label_valid(entry: dict) -> bool:
     return bool(entry.get("expected_label")) and bool(entry.get("defect_kind"))
 
 
-def _page_ground_truth_valid(entry: dict) -> bool:
-    """Page-level metadata gate. `page_level_ground_truth` must be
-    non-null AND non-empty for per-page metrics to be honest.
+def _page_ground_truth_status(entry: dict) -> str:
+    """Return one of:
+
+    - "missing"       — `page_level_ground_truth` is null or absent.
+    - "incomplete"    — present but `review_status != "complete"`,
+                        page_count mismatched, or the `pages` array is empty.
+    - "ambiguous"     — at least one reviewed page carries
+                        `extraction_status == "ambiguous"`.
+    - "complete"      — every page is reviewed and none is ambiguous.
+
+    Only "complete" is sufficient for page-level calibration approval.
     """
     gt = entry.get("page_level_ground_truth")
-    return gt is not None and bool(gt)
+    if not gt:
+        return "missing"
+    if gt.get("review_status") != "complete":
+        return "incomplete"
+    pages = gt.get("pages") or []
+    if not pages:
+        return "incomplete"
+    if len(pages) != gt.get("page_count"):
+        return "incomplete"
+    if any(p.get("extraction_status") == "ambiguous" for p in pages):
+        return "ambiguous"
+    return "complete"
 
 
 def _compute_calibration_gates(
@@ -300,8 +319,13 @@ def _compute_calibration_gates(
         if not entry.get("expected_label"):
             return False, False, "expected_label_missing"
         return False, False, "defect_kind_missing"
-    if not _page_ground_truth_valid(entry):
+    page_status = _page_ground_truth_status(entry)
+    if page_status == "missing":
         return True, False, "page_level_ground_truth_missing"
+    if page_status == "incomplete":
+        return True, False, "page_level_ground_truth_incomplete"
+    if page_status == "ambiguous":
+        return True, False, "page_level_ground_truth_ambiguous"
     return True, True, ""
 
 

@@ -60,8 +60,23 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench (Zhang et al., 2026, arXiv:2604.08538) + retain Apache-2.0 notice.",
       "expected_label": "true-positive",
-      "page_level_ground_truth": null,
-      "defect_kind": "block-level",
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "three-column",
+            "extraction_status": "damaged",
+            "defect_kind": "mixed",
+            "severity": "material",
+            "evidence": "Extracted line \"AANLCP JOURN A L \u2026 \u2022 Continual changes have been relationship, and look forward made to the website which is chock to hearing their ideas\" splices content from 3 columns into a single reading-order sequence. Block-level W_MULTICOLUMN_ORDER also fires.",
+            "confidence": "high",
+            "detector_observability": "block-level-observable"
+          }
+        ]
+      },
+      "defect_kind": "mixed",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
       "notes": "Historical primary TP that drove threshold=0.28 calibration (validators/multicolumn.py:133)."
@@ -90,8 +105,23 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-positive",
-      "page_level_ground_truth": null,
-      "defect_kind": "span-level",
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "mixed",
+            "extraction_status": "ambiguous",
+            "defect_kind": "non-multicolumn",
+            "severity": "unknown",
+            "evidence": "Magazine catalogue spread with multiple content zones (headings, thumbnails, prices). Extraction produces 51 short blocks and 7 HEADING_SKIP warnings. The problem class is layout complexity, not multi-column reading order per se.",
+            "confidence": "medium",
+            "detector_observability": "not-applicable"
+          }
+        ]
+      },
+      "defect_kind": "non-multicolumn",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
       "notes": "Known SPAN-LEVEL FN class (validators/multicolumn.py:163). Block-level detector cannot see the damage by design."
@@ -120,7 +150,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-positive",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "mixed",
+            "extraction_status": "damaged",
+            "defect_kind": "span-level",
+            "severity": "material",
+            "evidence": "Spanish-newspaper front page (El Pais) with 4-column body plus banner headline, subhead, image caption, and boxed sidebars. Extraction reports OK 79 with 4 HEADING warnings but no W_MULTICOLUMN_ORDER \u2014 a span-level splice class the block-level detector does not observe.",
+            "confidence": "medium",
+            "detector_observability": "span-level-only"
+          }
+        ]
+      },
       "defect_kind": "span-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -150,7 +195,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-positive",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "two-column",
+            "extraction_status": "ambiguous",
+            "defect_kind": "span-level",
+            "severity": "unknown",
+            "evidence": "Clean two-column academic page. Extraction yields 8 blocks band HIGH 85 with only HEADING_HIERARCHY. Block sequence appears column-first-sorted; span-level splices possible but not verified from block output alone.",
+            "confidence": "low",
+            "detector_observability": "span-level-only"
+          }
+        ]
+      },
       "defect_kind": "span-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -180,7 +240,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "single-column",
+            "extraction_status": "correct",
+            "defect_kind": "none",
+            "severity": "none",
+            "evidence": "East Bay Times library article \u2014 single-column body with masthead, headline, byline, four paragraphs. Extraction 6 blocks band OK 83, no multicolumn warning. Reading order matches visual.",
+            "confidence": "high",
+            "detector_observability": "block-level-observable"
+          }
+        ]
+      },
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -210,7 +285,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "two-column",
+            "extraction_status": "correct",
+            "defect_kind": "none",
+            "severity": "none",
+            "evidence": "Two-column battery-safety information sheet. Extraction 2 blocks band HIGH 87 no warnings. Column-first block order preserved; the correct multicolumn output.",
+            "confidence": "high",
+            "detector_observability": "block-level-observable"
+          }
+        ]
+      },
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -240,7 +330,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "two-column",
+            "extraction_status": "correct",
+            "defect_kind": "none",
+            "severity": "none",
+            "evidence": "Two-column Mercedes-branded product-description page. Extraction 7 blocks band HIGH 85 with only HEADING_HIERARCHY. Correct hard-negative for the block-level detector.",
+            "confidence": "medium",
+            "detector_observability": "block-level-observable"
+          }
+        ]
+      },
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -269,7 +374,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "unknown",
+            "extraction_status": "ambiguous",
+            "defect_kind": "non-multicolumn",
+            "severity": "unknown",
+            "evidence": "German dense-text page. Extraction 10 blocks band HIGH 85 only HEADING_HIERARCHY. Rendered layout not fully assessable at review DPI; the historical concern was dense-text fidelity not multicolumn reading order.",
+            "confidence": "low",
+            "detector_observability": "not-applicable"
+          }
+        ]
+      },
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -299,8 +419,23 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
-      "defect_kind": "block-level",
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "single-column",
+            "extraction_status": "not-assessable",
+            "defect_kind": "non-multicolumn",
+            "severity": "unknown",
+            "evidence": "UK Home Office single-column letter (image-only PDF). Extraction fires OCR_REQUIRED, no text layer to evaluate reading order against. Historical concern was OCR fidelity, not multicolumn.",
+            "confidence": "high",
+            "detector_observability": "not-applicable"
+          }
+        ]
+      },
+      "defect_kind": "non-multicolumn",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
       "notes": "READINESS_CALIBRATION_DEV_REPORT.md lists letter3 among 'Image-only / OCR unavailable' cases (line 449) \u2014 expected_label reflects the block-level detector's expected non-fire, not the readiness classification of the document itself."
@@ -329,8 +464,23 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
-      "defect_kind": "block-level",
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "single-column",
+            "extraction_status": "not-assessable",
+            "defect_kind": "non-multicolumn",
+            "severity": "unknown",
+            "evidence": "Scientific taxonomy page (fish family Myctophidae) \u2014 image-only PDF. Extraction 1 block POOR 47 with OCR_REQUIRED. Single-column layout visually.",
+            "confidence": "high",
+            "detector_observability": "not-applicable"
+          }
+        ]
+      },
+      "defect_kind": "non-multicolumn",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
       "notes": "Named in EXPECTATION_VALIDATION_REPORT_V3.md and READINESS_CALIBRATION_DEV_REPORT.md."
@@ -359,7 +509,22 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "single-column",
+            "extraction_status": "correct",
+            "defect_kind": "none",
+            "severity": "none",
+            "evidence": "ERISA benefits table of contents with strikethrough numeric revisions and a light-grey right-side revision-bar. Extraction 5 blocks band HIGH 85 but block-level detector FALSE-POSITIVE fires W_MULTICOLUMN_ORDER because of the sidebar geometry. Reading order is actually correct.",
+            "confidence": "high",
+            "detector_observability": "block-level-observable"
+          }
+        ]
+      },
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
@@ -390,8 +555,23 @@
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
       "expected_label": "true-negative",
-      "page_level_ground_truth": null,
-      "defect_kind": "block-level",
+      "page_level_ground_truth": {
+        "review_status": "complete",
+        "page_count": 1,
+        "pages": [
+          {
+            "page": 1,
+            "layout": "mixed",
+            "extraction_status": "not-assessable",
+            "defect_kind": "non-multicolumn",
+            "severity": "unknown",
+            "evidence": "Japanese magazine-style page (large photo + right-hand vertical Japanese text + multiple columns of body text). Extraction 1 block POOR 47 OCR_REQUIRED. Japanese script not decoded; multicolumn evaluation not applicable.",
+            "confidence": "high",
+            "detector_observability": "not-applicable"
+          }
+        ]
+      },
+      "defect_kind": "non-multicolumn",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
       "notes": "Identity resolved from historical evidence, NOT by preference. Cited exactly as text_dense__japanese in benchmarks/READINESS_CALIBRATION_DEV_REPORT.md line 280 (rs=85 band=HIGH signals=3/3 fail), line 303 ('text_dense__japanese: The readiness score sees a cleanly-structured PDF...'), line 449 ('Image-only / OCR unavailable (letter3, myctophidae, japanese)'), and line 473 ('japanese: 85\u219255'). The 5 candidate multilang/multicolumns Japanese files were NOT the historical fixture."
@@ -526,6 +706,118 @@
       "source_artefact": "benchmarks/parsebench_assets.lock.checksums.json",
       "source_artefact_note": "sha256 and size_bytes copied from the reviewed checksum artefact merged as PR #62 (squashed as 086c885); values independently recomputed from the local cache at review time.",
       "assets_promoted": 12
+    },
+    {
+      "phase": "B5 (page-level ground truth)",
+      "promoted_at": "2026-07-18",
+      "source_evidence": "benchmarks/PARSEBENCH_PAGE_GROUND_TRUTH_2026-07-18.md",
+      "assets_annotated": 12,
+      "label_corrections_applied": 5,
+      "corrections": [
+        {
+          "asset_id": "3colpres",
+          "field": "defect_kind",
+          "old": "block-level",
+          "new": "mixed",
+          "reason": "Historical label put this in block-level TP class, but the extraction shows mid-line splicing across columns \u2014 span-level. Block-level detector still fires (W_MULTICOLUMN_ORDER present)."
+        },
+        {
+          "asset_id": "ikea3",
+          "field": "defect_kind",
+          "old": "span-level",
+          "new": "non-multicolumn",
+          "reason": "Historical label said span-level FN, but visually this is an IKEA catalogue magazine spread with a MIXED layout of headings, thumbnails, prices, captions \u2014 not a classic column-interleaving case. Multicolumn detector applicability is limited."
+        },
+        {
+          "asset_id": "letter3",
+          "field": "defect_kind",
+          "old": "block-level",
+          "new": "non-multicolumn",
+          "reason": "This is an IMAGE-only PDF requiring OCR. Extraction returns 1 block POOR 47 with OCR_REQUIRED. Not a multicolumn asset at all \u2014 the historical block-level detector cannot apply."
+        },
+        {
+          "asset_id": "myctophidae",
+          "field": "defect_kind",
+          "old": "block-level",
+          "new": "non-multicolumn",
+          "reason": "IMAGE-only PDF requiring OCR. Not a multicolumn asset."
+        },
+        {
+          "asset_id": "japanese_case",
+          "field": "defect_kind",
+          "old": "block-level",
+          "new": "non-multicolumn",
+          "reason": "The historical Japanese fixture (text_dense__japanese) is an image / non-decoded page \u2014 extraction fires OCR_REQUIRED and produces 1 block POOR 47. The multicolumn detector cannot apply."
+        }
+      ]
     }
-  ]
+  ],
+  "page_calibration_summary": {
+    "schema_note": "These counts are computed from per-asset fields in this same lockfile. See tests/test_parsebench_page_ground_truth.py::test_page_calibration_summary_parity for the derivation rule.",
+    "historical_expected_label_counts": {
+      "true-positive": [
+        "3colpres",
+        "elpais",
+        "ikea3",
+        "simple2"
+      ],
+      "true-negative": [
+        "2colmercedes",
+        "battery",
+        "eastbaytimes",
+        "japanese_case",
+        "letter3",
+        "myctophidae",
+        "strikeUnderline",
+        "text_dense__de"
+      ],
+      "excluded_or_null": []
+    },
+    "reviewer_confirmed_page_level_corpus": {
+      "notes": [
+        "Only assets with review_status=complete and no page marked extraction_status=ambiguous are counted.",
+        "Ambiguous assets and non-multicolumn assets are EXCLUDED from these counts.",
+        "This corpus is what the expanded page-level recalibration must run against."
+      ],
+      "block_level_observable_positives": [
+        "3colpres"
+      ],
+      "span_only_positives": [
+        "elpais"
+      ],
+      "hard_negatives": [
+        "2colmercedes",
+        "battery"
+      ],
+      "single_column_negatives": [
+        "eastbaytimes"
+      ],
+      "detector_false_positives": [
+        "strikeUnderline"
+      ]
+    },
+    "excluded_from_page_metrics": {
+      "ambiguous": [
+        "ikea3",
+        "simple2",
+        "text_dense__de"
+      ],
+      "non_multicolumn": [
+        "ikea3",
+        "japanese_case",
+        "letter3",
+        "myctophidae"
+      ]
+    },
+    "expected_runtime_verification_at_this_lockfile": {
+      "checksum_verified_count": 12,
+      "approved_for_document_calibration_count": 12,
+      "approved_for_page_calibration_count": 9,
+      "page_disapproved_with_reason_page_level_ground_truth_ambiguous": [
+        "ikea3",
+        "simple2",
+        "text_dense__de"
+      ]
+    }
+  }
 }
