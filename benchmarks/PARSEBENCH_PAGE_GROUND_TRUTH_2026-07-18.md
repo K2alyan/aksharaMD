@@ -18,17 +18,81 @@ inspection began; no new network fetch occurred.
 
 ## Executive summary
 
+Two independent summaries are provided. Consumers of this dataset must
+not blur the two.
+
+### (A) Historical / document-level labels
+
+These counts use the frozen `expected_label` values recorded at
+promotion time. They are **historical** — they reflect the label the
+asset was originally shipped with, not the reviewer's page-level
+verdict. Every count is derivable from `assets[*].expected_label` in
+the lockfile.
+
+| Historical `expected_label` | Count | Assets |
+|---|---:|---|
+| true-positive (multicolumn) | 4 | 3colpres, elpais, ikea3, simple2 |
+| true-negative (not multicolumn) | 8 | 2colmercedes, battery, eastbaytimes, japanese_case, letter3, myctophidae, strikeUnderline, text_dense__de |
+| excluded / null | 0 | — |
+
+Document-level `approved_for_document_calibration` remains `True` for
+all 12 assets after checksum verification — no historical label was
+overwritten by this phase.
+
+### (B) Reviewer-confirmed page-level corpus
+
+These counts use ONLY assets whose page ground truth was reviewer-verified
+non-ambiguous. Ambiguous assets and assets whose defect class is not
+multicolumn are **excluded** — they do not appear as confirmed
+positives or negatives. Every count is derivable from
+`page_calibration_summary.reviewer_confirmed_page_level_corpus` (which
+is in turn derivable from per-asset `page_level_ground_truth` +
+`defect_kind`).
+
+| Reviewer-confirmed category | Count | Assets |
+|---|---:|---|
+| block-level-observable positives (real column-interleaving damage AND the block-level detector should fire) | **1** | 3colpres |
+| span-only positives (real damage exists but the block-level detector cannot see it) | **1** | elpais |
+| hard negatives (correct extraction on a real multi-column page; detector must stay silent) | **2** | 2colmercedes, battery |
+| single-column negatives (correct extraction on single-column source) | **1** | eastbaytimes |
+| detector false positives (single-column page where the block-level detector wrongly fires) | **1** | strikeUnderline |
+
+Assets **excluded** from the confirmed page-level corpus:
+
+| Exclusion reason | Count | Assets |
+|---|---:|---|
+| ambiguous at 100 DPI review (extraction_status=ambiguous) | **3** | ikea3, simple2, text_dense__de |
+| non-multicolumn (image-only PDF or magazine layout; irrelevant to detector) | **4** | ikea3, japanese_case, letter3, myctophidae |
+
+`ikea3` deliberately appears in **both** exclusion buckets — it is
+ambiguous AND its defect class is not multicolumn. Either flag
+alone is sufficient to exclude it from the confirmed page-level
+corpus.
+
+Note the deliberate asymmetries with (A):
+
+- `simple2` is historically labelled a true-positive but its only
+  reviewed page is ambiguous, so it is NOT counted as a confirmed
+  page-level positive. Its historical label is preserved for
+  document-level comparisons.
+- `ikea3` is historically labelled a true-positive but its reviewed
+  page is both ambiguous AND reclassified to `non-multicolumn`
+  (magazine layout, not column-interleaving) — so it appears in BOTH
+  exclusion buckets and in NEITHER confirmed bucket.
+- `text_dense__de` is historically labelled a true-negative but its
+  reviewed page is ambiguous at 100 DPI, so it is NOT counted as a
+  confirmed hard negative.
+
+Recalibration consumers **MUST NOT** collapse (A) and (B). The expanded
+recalibration in the next PR will consume category (B) exclusively for
+page-level precision/recall metrics.
+
+### Corrections
+
 | Metric | Value |
 |---|---:|
 | Assets reviewed (12 assets total) | **12** |
 | Total pages reviewed | **12** (every asset is exactly 1 page) |
-| Independent multicolumn positives (real column-interleaving damage) | **3** — `3colpres`, `elpais`, `simple2` |
-| Block-level-observable positives (multicolumn detector fires and the damage is block-level in the sense that block sequence is corrupted) | **1** — `3colpres` (mixed block + span) |
-| Span-only positives (real damage exists but block-level detector cannot see it) | **2** — `elpais`, `simple2` |
-| Hard negatives (correct extraction on a real multi-column page) | **2** — `battery`, `2colmercedes` |
-| Clean single-column negatives (correct extraction on single-column source) | **1** — `eastbaytimes` |
-| Ambiguous pages | **3** — `ikea3`, `simple2`, `text_dense__de` |
-| Non-multicolumn assets (irrelevant to detector; historical inclusion was a mislabel) | **5** — `ikea3`, `text_dense__de`, `letter3`, `myctophidae`, `japanese_case` |
 | Label / defect-kind corrections applied | **5** (see §Corrections) |
 
 ## Per-page review
@@ -102,21 +166,106 @@ of the same information.
 
 ## Corrections
 
-Five `defect_kind` values were changed under evidence:
+Five `defect_kind` values were changed under evidence. Each row records
+the raw signal (block/warning counts from the installed-wheel
+extraction) that drove the decision. All numeric counts below are
+reproducible from `%TEMP%\parsebench_ground_truth_compile\<asset>\`
+(installed-wheel `v0.3.6`, commit `a90f0f7`, cache revision
+`2805a1d940f95a203e0ae4b88be9934f7765b3fc`).
 
-| Asset | Old `defect_kind` | New `defect_kind` | Reason |
-|---|---|---|---|
-| 3colpres | block-level | mixed | Both block-level and span-level damage present. |
-| ikea3 | span-level | non-multicolumn | Magazine catalogue layout — problem class is not column reading order. |
-| letter3 | block-level | non-multicolumn | Image-only PDF; requires OCR. |
-| myctophidae | block-level | non-multicolumn | Image-only PDF; requires OCR. |
-| japanese_case | block-level | non-multicolumn | Non-decoded Japanese script; requires OCR. |
+### 3colpres — `block-level` → `mixed`
 
-No `expected_label` corrections were applied. Documenting the layout
-discrepancy on `battery` (declared "single-column control" in the
-historical docstring but visually two-column) but not correcting the
-top-level label because the calibration intent (block-level detector
-should stay silent) is preserved.
+Both block-level AND span-level damage are present.
+
+- Extraction: 11 blocks, band HIGH 85, warnings `HEADING_SKIP` +
+  `W_MULTICOLUMN_ORDER` — the block-level detector correctly fires.
+- Span-level evidence: the extracted sentence
+  `"AANLCP JOURN A L … • Continual changes have been relationship, and look forward made to the website which is chock to hearing their ideas"`
+  splices content from three separate columns into a single sentence.
+  This is line-level interleaving inside blocks that block sequence
+  reordering alone cannot fix.
+- Confidence: high. Observability: block-level-observable.
+- Consequence: `3colpres` is the ONLY confirmed block-level-observable
+  true positive in the corpus.
+
+### ikea3 — `span-level` → `non-multicolumn`
+
+Magazine-catalogue layout, not column-interleaving.
+
+- Extraction: 51 short blocks, band OK 79, warnings 7×`HEADING_SKIP` +
+  `W_TABLE_EXPECTED_NOT_EXTRACTED`. The block-level multicolumn
+  detector does **not** fire.
+- Rendered page shows multiple product tiles, numeric callouts
+  (178, 160, 92, 310), thumbnails, captions — the "reading order"
+  concept the multicolumn detector operates on does not apply because
+  there are no continuous columns to interleave.
+- The page is nonetheless kept `extraction_status="ambiguous"` (not
+  `correct`) because the extraction produces 51 short fragments that
+  a human reader may or may not judge as "recovered content" — this
+  ambiguity is separate from the multicolumn question.
+- Confidence: medium. Observability: not-applicable.
+- Consequence: `ikea3` is EXCLUDED from the reviewer-confirmed page
+  corpus (both because it is ambiguous AND because its defect class
+  is now non-multicolumn). Its historical `expected_label=true-positive`
+  is **preserved** for document-level accounting.
+
+### letter3 — `block-level` → `non-multicolumn`
+
+Image-only PDF — no decodable text stream.
+
+- Extraction: 1 block, band POOR 47, warning `OCR_REQUIRED`. The
+  block-level detector has nothing to see.
+- Rendered page shows a UK Home Office single-column letter that
+  is rasterised into the PDF.
+- The historical `block-level` label came from grouping regressions
+  by "the block-level detector might fire" — but the block-level
+  detector cannot fire on this page because there is no text stream
+  to attribute to columns.
+- Confidence: high. Observability: not-applicable.
+
+### myctophidae — `block-level` → `non-multicolumn`
+
+Image-only PDF — no decodable text stream.
+
+- Extraction: 1 block, band POOR 47, warning `OCR_REQUIRED`.
+- Rendered page shows a scientific-taxonomy plate (fish species,
+  drawings, captions) rasterised into the PDF.
+- Same rationale as `letter3`: the multicolumn concept does not
+  apply to an image-only page.
+- Confidence: high. Observability: not-applicable.
+
+### japanese_case — `block-level` → `non-multicolumn`
+
+Non-decoded Japanese page — no meaningful text stream.
+
+- Extraction: 1 block, band POOR 47, warning `OCR_REQUIRED`.
+- Rendered page shows a Japanese magazine spread with vertical
+  Japanese text, Latin-script sidebars, and an image. The PDF text
+  stream does not carry decodable Japanese glyphs at review DPI.
+- Reclassifying to `non-multicolumn` is the honest answer — the
+  historical `block-level` label imported the "multicolumn detector
+  might fire" framing to a page where the detector has no input.
+- Confidence: high. Observability: not-applicable.
+
+### What was NOT corrected
+
+- **No `expected_label` values were changed.** All 12 assets keep their
+  historical document-level label so historical/document-level
+  accounting stays byte-identical to Phase B3/B4.
+- `battery` layout discrepancy is *documented* (see per-page review)
+  but not *corrected* at the top-level label because the calibration
+  intent (a document where the block-level detector should not fire)
+  is preserved.
+- `elpais` keeps `defect_kind=span-level`: the block-level detector
+  correctly stays silent while the rendered layout is consistent with
+  the historical span-level splicing claim.
+- `simple2` keeps `defect_kind=span-level` with
+  `extraction_status="ambiguous"` and `confidence=low`: at 100 DPI the
+  span-level splicing claim is neither confirmed nor refuted.
+- `strikeUnderline` keeps `defect_kind=block-level`: the block-level
+  detector is what triggers the false positive on this page, so the
+  defect class it maps to remains block-level even though
+  `extraction_status="correct"`.
 
 The corrections and their rationale are also recorded in
 `benchmarks/parsebench_assets.lock.json` under
@@ -140,18 +289,56 @@ block-level-observable slice.
 
 After annotation, the lockfile carries a populated non-empty
 `page_level_ground_truth` for every asset. The fetcher's
-`approved_for_page_calibration` gate (introduced in PR #63) will
-therefore flip to `True` for every asset that also passes checksum
-verification and has non-null `expected_label` + `defect_kind`.
+`approved_for_page_calibration` gate (introduced in PR #63) is now
+gated on the `_page_ground_truth_status()` state machine which
+distinguishes `missing` / `incomplete` / `ambiguous` / `complete`.
 
 - **12 / 12** assets: `page_level_ground_truth` populated with
   `review_status="complete"` and a non-empty `pages` array.
 - **0 / 12** assets with `review_status="incomplete"` — none.
-- Assets that will surface `approved_for_page_calibration=True` after
-  the next authorised fetch: all 12 (checksums are verified, labels and
-  defect kinds are populated). This includes the 5 assets classified as
-  `non-multicolumn` — page approval says the *evidence* is complete,
-  not that the block-level multicolumn detector should fire.
+- **9 / 12** assets will surface `approved_for_page_calibration=True`
+  after any authorised fetch (or cache verification) at this lockfile:
+  `3colpres`, `elpais`, `eastbaytimes`, `battery`, `2colmercedes`,
+  `strikeUnderline`, `letter3`, `myctophidae`, `japanese_case`.
+- **3 / 12** assets will surface `approved_for_page_calibration=False`
+  with `calibration_reason="page_level_ground_truth_ambiguous"`:
+  `ikea3`, `simple2`, `text_dense__de` (their reviewed page carries
+  `extraction_status="ambiguous"`).
+
+Page-approval does NOT imply "multicolumn positive". The 5 assets
+classified as `non-multicolumn` (letter3, myctophidae, japanese_case,
+plus ikea3 which is also ambiguous) receive page-approval only when
+they are unambiguous — page approval says the *evidence* is complete,
+not that the block-level multicolumn detector should fire.
+
+### Runtime verification (cached, no network fetch)
+
+Runtime verification was executed against the pre-existing local cache
+at `%LOCALAPPDATA%\aksharamd\parsebench\<revision>\` with no new
+network fetch (`AKSHARAMD_PARSEBENCH_ALLOW_NETWORK=1` set only to
+satisfy the fetcher's opt-in gate; every asset was served from the
+verified cache). Result:
+
+```
+3colpres         checksum-verified  doc-approved  page-approved  reason=(empty)
+ikea3            checksum-verified  doc-approved  page-DISAPPROVED  reason=page_level_ground_truth_ambiguous
+elpais           checksum-verified  doc-approved  page-approved  reason=(empty)
+simple2          checksum-verified  doc-approved  page-DISAPPROVED  reason=page_level_ground_truth_ambiguous
+eastbaytimes     checksum-verified  doc-approved  page-approved  reason=(empty)
+battery          checksum-verified  doc-approved  page-approved  reason=(empty)
+2colmercedes     checksum-verified  doc-approved  page-approved  reason=(empty)
+text_dense__de   checksum-verified  doc-approved  page-DISAPPROVED  reason=page_level_ground_truth_ambiguous
+letter3          checksum-verified  doc-approved  page-approved  reason=(empty)
+myctophidae      checksum-verified  doc-approved  page-approved  reason=(empty)
+strikeUnderline  checksum-verified  doc-approved  page-approved  reason=(empty)
+japanese_case    checksum-verified  doc-approved  page-approved  reason=(empty)
+
+Totals: checksum-verified=12/12, document-approved=12/12,
+        page-approved=9/12, ambiguous=3/12
+```
+
+These totals match `page_calibration_summary.expected_runtime_verification_at_this_lockfile`
+in the lockfile exactly.
 
 ## Rendering + review methodology
 

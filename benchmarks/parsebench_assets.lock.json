@@ -751,5 +751,73 @@
         }
       ]
     }
-  ]
+  ],
+  "page_calibration_summary": {
+    "schema_note": "These counts are computed from per-asset fields in this same lockfile. See tests/test_parsebench_page_ground_truth.py::test_page_calibration_summary_parity for the derivation rule.",
+    "historical_expected_label_counts": {
+      "true-positive": [
+        "3colpres",
+        "elpais",
+        "ikea3",
+        "simple2"
+      ],
+      "true-negative": [
+        "2colmercedes",
+        "battery",
+        "eastbaytimes",
+        "japanese_case",
+        "letter3",
+        "myctophidae",
+        "strikeUnderline",
+        "text_dense__de"
+      ],
+      "excluded_or_null": []
+    },
+    "reviewer_confirmed_page_level_corpus": {
+      "notes": [
+        "Only assets with review_status=complete and no page marked extraction_status=ambiguous are counted.",
+        "Ambiguous assets and non-multicolumn assets are EXCLUDED from these counts.",
+        "This corpus is what the expanded page-level recalibration must run against."
+      ],
+      "block_level_observable_positives": [
+        "3colpres"
+      ],
+      "span_only_positives": [
+        "elpais"
+      ],
+      "hard_negatives": [
+        "2colmercedes",
+        "battery"
+      ],
+      "single_column_negatives": [
+        "eastbaytimes"
+      ],
+      "detector_false_positives": [
+        "strikeUnderline"
+      ]
+    },
+    "excluded_from_page_metrics": {
+      "ambiguous": [
+        "ikea3",
+        "simple2",
+        "text_dense__de"
+      ],
+      "non_multicolumn": [
+        "ikea3",
+        "japanese_case",
+        "letter3",
+        "myctophidae"
+      ]
+    },
+    "expected_runtime_verification_at_this_lockfile": {
+      "checksum_verified_count": 12,
+      "approved_for_document_calibration_count": 12,
+      "approved_for_page_calibration_count": 9,
+      "page_disapproved_with_reason_page_level_ground_truth_ambiguous": [
+        "ikea3",
+        "simple2",
+        "text_dense__de"
+      ]
+    }
+  }
 }

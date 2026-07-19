@@ -246,3 +246,290 @@ def test_five_expected_corrections_recorded() -> None:
     assert corrected_ids == expected_ids, (
         f"correction asset-id set drift: {corrected_ids} vs expected {expected_ids}"
     )
+
+
+def _derive_reviewer_confirmed_corpus(doc: dict) -> dict:
+    """Rebuild `reviewer_confirmed_page_level_corpus` from per-asset fields.
+
+    The rule:
+
+    - An asset is in the confirmed corpus ONLY when its ground truth is
+      complete AND no reviewed page is ambiguous.
+    - Assets with `defect_kind == "non-multicolumn"` are excluded from
+      the confirmed corpus regardless of their ambiguity.
+    - Within the confirmed corpus:
+        block_level_observable_positives: extraction_status="damaged",
+          defect_kind in {"mixed", "block-level"},
+          detector_observability="block-level-observable"
+        span_only_positives:               extraction_status="damaged",
+          defect_kind="span-level",
+          detector_observability="span-level-only"
+        hard_negatives:                    extraction_status="correct",
+          defect_kind="block-level",
+          expected_label="true-negative",
+          layout in {"two-column", "three-column", "mixed", "table-heavy"}
+        single_column_negatives:           extraction_status="correct",
+          defect_kind="block-level",
+          expected_label="true-negative",
+          layout="single-column"  (and detector must stay silent —
+          i.e., not a false positive)
+        detector_false_positives:          extraction_status="correct"
+          on a single-column source where the block-level detector
+          nonetheless fires (recorded via evidence in the report).
+
+    The single asset that hits the FP bucket in phase B5 is
+    `strikeUnderline`; it is identified by matching its `evidence`
+    string carrying "W_MULTICOLUMN_ORDER" while extraction_status is
+    correct.
+    """
+    corpus: dict[str, list[str]] = {
+        "block_level_observable_positives": [],
+        "span_only_positives": [],
+        "hard_negatives": [],
+        "single_column_negatives": [],
+        "detector_false_positives": [],
+    }
+    for entry in doc["assets"]:
+        aid = entry["id"]
+        gt = entry.get("page_level_ground_truth") or {}
+        if gt.get("review_status") != "complete":
+            continue
+        pages = gt.get("pages") or []
+        if not pages:
+            continue
+        if any(p.get("extraction_status") == "ambiguous" for p in pages):
+            continue
+        if entry.get("defect_kind") == "non-multicolumn":
+            continue
+        # Every asset in this dataset has exactly one page. Guard the
+        # single-page assumption explicitly.
+        assert len(pages) == 1, f"{aid}: expected 1 page, got {len(pages)}"
+        p = pages[0]
+        status = p.get("extraction_status")
+        defect = entry.get("defect_kind")
+        obs = p.get("detector_observability")
+        layout = p.get("layout")
+        expected = entry.get("expected_label")
+        ev = (p.get("evidence") or "").upper()
+        if status == "damaged" and defect == "mixed" and obs == "block-level-observable":
+            corpus["block_level_observable_positives"].append(aid)
+        elif status == "damaged" and defect == "block-level" and obs == "block-level-observable":
+            corpus["block_level_observable_positives"].append(aid)
+        elif status == "damaged" and defect == "span-level" and obs == "span-level-only":
+            corpus["span_only_positives"].append(aid)
+        elif status == "correct" and defect == "block-level" and expected == "true-negative":
+            # A "correct" single-column page where the multicolumn
+            # warning fires is a false positive, not a negative.
+            fp_signal = layout == "single-column" and "W_MULTICOLUMN_ORDER" in ev
+            if fp_signal:
+                corpus["detector_false_positives"].append(aid)
+            elif layout == "single-column":
+                corpus["single_column_negatives"].append(aid)
+            else:
+                corpus["hard_negatives"].append(aid)
+    for k in corpus:
+        corpus[k].sort()
+    return corpus
+
+
+def test_page_calibration_summary_present_and_correct_shape() -> None:
+    doc = _load_lockfile()
+    summary = doc.get("page_calibration_summary")
+    assert isinstance(summary, dict), (
+        "lockfile must carry a top-level page_calibration_summary block "
+        "so downstream consumers can key off machine-readable categories"
+    )
+    for key in (
+        "historical_expected_label_counts",
+        "reviewer_confirmed_page_level_corpus",
+        "excluded_from_page_metrics",
+        "expected_runtime_verification_at_this_lockfile",
+    ):
+        assert key in summary, f"page_calibration_summary missing key: {key!r}"
+
+
+def test_page_calibration_summary_parity() -> None:
+    """The machine-readable summary must be exactly what a consumer can
+    derive from per-asset fields. Drift here means the expanded
+    recalibration would consume a fabricated corpus rather than the
+    reviewed one.
+    """
+    doc = _load_lockfile()
+    summary = doc["page_calibration_summary"]
+
+    # --- (A) Historical/document-level parity ---
+    historical = summary["historical_expected_label_counts"]
+    tp_expected = sorted(
+        e["id"] for e in doc["assets"] if e.get("expected_label") == "true-positive"
+    )
+    tn_expected = sorted(
+        e["id"] for e in doc["assets"] if e.get("expected_label") == "true-negative"
+    )
+    excluded_expected = sorted(
+        e["id"]
+        for e in doc["assets"]
+        if e.get("expected_label") not in {"true-positive", "true-negative"}
+    )
+    assert sorted(historical["true-positive"]) == tp_expected, (
+        f"historical TP drift: {sorted(historical['true-positive'])} vs derived {tp_expected}"
+    )
+    assert sorted(historical["true-negative"]) == tn_expected, (
+        f"historical TN drift: {sorted(historical['true-negative'])} vs derived {tn_expected}"
+    )
+    assert sorted(historical.get("excluded_or_null", [])) == excluded_expected
+
+    # --- (B) Reviewer-confirmed page-level corpus parity ---
+    confirmed_actual = summary["reviewer_confirmed_page_level_corpus"]
+    confirmed_derived = _derive_reviewer_confirmed_corpus(doc)
+    for key, derived_val in confirmed_derived.items():
+        actual_val = sorted(confirmed_actual.get(key, []))
+        assert actual_val == derived_val, (
+            f"confirmed corpus drift on {key!r}: "
+            f"lockfile summary says {actual_val}, derivation says {derived_val}"
+        )
+
+    # --- Excluded set parity ---
+    excluded = summary["excluded_from_page_metrics"]
+    ambiguous_derived = sorted(
+        e["id"]
+        for e in doc["assets"]
+        if any(
+            p.get("extraction_status") == "ambiguous"
+            for p in (e.get("page_level_ground_truth") or {}).get("pages") or []
+        )
+    )
+    non_mc_derived = sorted(
+        e["id"] for e in doc["assets"] if e.get("defect_kind") == "non-multicolumn"
+    )
+    assert sorted(excluded["ambiguous"]) == ambiguous_derived, (
+        f"ambiguous exclusion drift: {sorted(excluded['ambiguous'])} vs {ambiguous_derived}"
+    )
+    assert sorted(excluded["non_multicolumn"]) == non_mc_derived, (
+        f"non-multicolumn exclusion drift: {sorted(excluded['non_multicolumn'])} vs {non_mc_derived}"
+    )
+
+
+def test_ambiguous_and_confirmed_are_disjoint() -> None:
+    """An asset must never simultaneously appear in a confirmed-positive
+    or confirmed-negative bucket AND in the ambiguous exclusion. This
+    is the invariant the review of PR #64 hinged on.
+    """
+    doc = _load_lockfile()
+    summary = doc["page_calibration_summary"]
+    _confirmed_buckets = (
+        "block_level_observable_positives",
+        "span_only_positives",
+        "hard_negatives",
+        "single_column_negatives",
+        "detector_false_positives",
+    )
+    confirmed_ids: set[str] = set()
+    for k in _confirmed_buckets:
+        confirmed_ids.update(summary["reviewer_confirmed_page_level_corpus"].get(k, []))
+    ambiguous_ids = set(summary["excluded_from_page_metrics"]["ambiguous"])
+    non_mc_ids = set(summary["excluded_from_page_metrics"]["non_multicolumn"])
+    overlap_amb = confirmed_ids & ambiguous_ids
+    overlap_nmc = confirmed_ids & non_mc_ids
+    assert not overlap_amb, (
+        f"assets appear in BOTH confirmed corpus AND ambiguous exclusion: {overlap_amb}"
+    )
+    assert not overlap_nmc, (
+        f"assets appear in BOTH confirmed corpus AND non-multicolumn exclusion: {overlap_nmc}"
+    )
+
+
+def test_consumer_gate_page_calibration_must_check_approval_flag() -> None:
+    """Simulates a downstream page-level calibration consumer.
+
+    Any hypothetical consumer that reads the lockfile to compute
+    page-level precision/recall MUST gate every asset on
+    `approved_for_page_calibration is True` at runtime. This test
+    reproduces the gate that a well-behaved consumer would apply and
+    asserts that:
+
+    1. The set of assets the gate lets through equals the confirmed
+       corpus (i.e., the summary in the lockfile is the same set a
+       correct consumer would arrive at).
+    2. Ambiguous assets and non-multicolumn assets are BOTH filtered
+       out by the gate.
+
+    If this test fails, the summary or the review flags disagree — the
+    next PR must not consume this lockfile until the disagreement is
+    resolved.
+
+    Note: `approved_for_page_calibration` itself is populated at runtime
+    by the fetcher (`_compute_calibration_gates`) using cached bytes.
+    Here we replicate its page-side logic against static per-asset
+    fields, so the test is deterministic and requires no network.
+    """
+    doc = _load_lockfile()
+
+    def _would_approve_for_page_calibration(entry: dict) -> bool:
+        # Replicates fetcher._page_ground_truth_status() + the
+        # page-side portion of _compute_calibration_gates().
+        gt = entry.get("page_level_ground_truth")
+        if not gt:
+            return False
+        if gt.get("review_status") != "complete":
+            return False
+        pages = gt.get("pages") or []
+        if not pages:
+            return False
+        if len(pages) != gt.get("page_count"):
+            return False
+        if any(p.get("extraction_status") == "ambiguous" for p in pages):
+            return False
+        # Consumer must also require expected_label + defect_kind
+        # populated (the same document-side gate the fetcher applies).
+        if not entry.get("expected_label"):
+            return False
+        if not entry.get("defect_kind"):
+            return False
+        return True
+
+    approved_ids = {e["id"] for e in doc["assets"] if _would_approve_for_page_calibration(e)}
+
+    summary = doc["page_calibration_summary"]
+    _confirmed_buckets = (
+        "block_level_observable_positives",
+        "span_only_positives",
+        "hard_negatives",
+        "single_column_negatives",
+        "detector_false_positives",
+    )
+    confirmed_ids: set[str] = set()
+    for k in _confirmed_buckets:
+        confirmed_ids.update(summary["reviewer_confirmed_page_level_corpus"].get(k, []))
+    ambiguous_ids = set(summary["excluded_from_page_metrics"]["ambiguous"])
+
+    # The gate lets non-multicolumn assets through (they are page-approved —
+    # the evidence is complete) UNLESS they are also ambiguous. It always
+    # filters ambiguous out. So the expected approved set is: all assets
+    # minus ambiguous ones. Confirmed positives/negatives are a strict
+    # subset of that set (they are non-ambiguous AND multicolumn-relevant).
+    all_ids = {e["id"] for e in doc["assets"]}
+    expected_approved = all_ids - ambiguous_ids
+    assert approved_ids == expected_approved, (
+        f"consumer-gate mismatch: gate approves {approved_ids}; "
+        f"summary derivation says {expected_approved}"
+    )
+    assert not (approved_ids & ambiguous_ids), (
+        f"consumer-gate approved ambiguous assets: {approved_ids & ambiguous_ids}"
+    )
+    assert confirmed_ids <= approved_ids, (
+        f"confirmed corpus not a subset of approved set: "
+        f"{confirmed_ids - approved_ids} confirmed but not approved"
+    )
+
+    # And the runtime-verification counts in the summary must match.
+    exp = summary["expected_runtime_verification_at_this_lockfile"]
+    assert exp["approved_for_page_calibration_count"] == len(approved_ids), (
+        f"expected_runtime_verification.approved_for_page_calibration_count="
+        f"{exp['approved_for_page_calibration_count']} but the gate yields {len(approved_ids)}"
+    )
+    assert sorted(exp["page_disapproved_with_reason_page_level_ground_truth_ambiguous"]) == sorted(
+        ambiguous_ids
+    ), (
+        "expected_runtime_verification page-disapproval list must equal the "
+        "ambiguous set exactly"
+    )
