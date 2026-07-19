@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -141,7 +142,8 @@ def main() -> int:
         labels_doc = json.load(f)
     labels: dict[str, dict] = labels_doc.get("labels", {})
 
-    out_root = args.out_root or (Path(os.environ.get("TEMP") or "/tmp") / "aksharamd_mc_recalibration")
+    default_root = Path(os.environ.get("TEMP") or tempfile.gettempdir()) / "aksharamd_mc_recalibration"
+    out_root = args.out_root or default_root
     out_root.mkdir(parents=True, exist_ok=True)
 
     # Enumerate PDFs directly under corpus/<id>/*.pdf.
