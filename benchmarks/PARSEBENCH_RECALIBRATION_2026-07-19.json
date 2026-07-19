@@ -1,0 +1,898 @@
+{
+  "harness_version": "parsebench_recalibration.py@2026-07-19",
+  "run_started_at": "2026-07-19T16:50:51Z",
+  "commit_under_evaluation": "d479b9014e4b553ae575d86aed45a0c0e9522678",
+  "public_frozen_source": "MULTICOLUMN_RECALIBRATION_2026-07-18.json",
+  "public_labels_source": "multicolumn_recalibration_labels.json",
+  "lockfile_source": "parsebench_assets.lock.json",
+  "rules": {
+    "baseline": "HTR OR (|signals| >= 2), with gap gate gap_rel>=0.15 AND gap_size>=60",
+    "C3": "same warn logic as baseline but raise gap gate to gap_rel>=0.30 AND gap_size>=60",
+    "C4": "warn iff HTR AND (YMT OR SF), with baseline gap gate",
+    "C3+C4": "warn iff HTR AND (YMT OR SF), with C3 gap gate"
+  },
+  "corpus_counts": {
+    "parsebench": {
+      "assets_total": 12,
+      "doc_historical_eligible": 12,
+      "doc_reviewer_confirmed_eligible": 6,
+      "page_eligible": 6,
+      "observable_eligible": 5
+    },
+    "public_frozen": {
+      "results_total": 34,
+      "doc_historical_eligible": 22
+    }
+  },
+  "eligibility_ids": {
+    "parsebench_doc_historical_ids": [
+      "2colmercedes",
+      "3colpres",
+      "battery",
+      "eastbaytimes",
+      "elpais",
+      "ikea3",
+      "japanese_case",
+      "letter3",
+      "myctophidae",
+      "simple2",
+      "strikeUnderline",
+      "text_dense__de"
+    ],
+    "parsebench_doc_reviewer_confirmed_ids": [
+      "2colmercedes",
+      "3colpres",
+      "battery",
+      "eastbaytimes",
+      "elpais",
+      "strikeUnderline"
+    ],
+    "parsebench_page_ids": [
+      "2colmercedes#1",
+      "3colpres#1",
+      "battery#1",
+      "eastbaytimes#1",
+      "elpais#1",
+      "strikeUnderline#1"
+    ],
+    "parsebench_observable_ids": [
+      "2colmercedes#1",
+      "3colpres#1",
+      "battery#1",
+      "eastbaytimes#1",
+      "strikeUnderline#1"
+    ],
+    "public_doc_historical_ids": [
+      "001-trivial/minimal-document.pdf",
+      "002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf",
+      "003-pdflatex-image/pdflatex-image.pdf",
+      "004-pdflatex-4-pages/pdflatex-4-pages.pdf",
+      "006-pdflatex-outline/pdflatex-outline.pdf",
+      "008-reportlab-inline-image/inline-image.pdf",
+      "009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+      "009-pdflatex-geotopo/GeoTopo.pdf",
+      "010-pdflatex-forms/pdflatex-forms.pdf",
+      "011-google-doc-document/google-doc-document.pdf",
+      "012-libreoffice-form/libreoffice-form.pdf",
+      "014-outlines/mistitled_outlines_example.pdf",
+      "016-libre-office-link/libre-office-link.pdf",
+      "017-unreadable-meta-data/unreadablemetadata.pdf",
+      "020-xmp/output_with_metadata_pymupdf.pdf",
+      "021-pdfa/crazyones-pdfa.pdf",
+      "022-pdfkit/pdfkit.pdf",
+      "024-annotations/annotated_pdf.pdf",
+      "025-attachment/with-attachment.pdf",
+      "026-latex-multicolumn/multicolumn.pdf",
+      "027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",
+      "028-image-references-deduplication/wrong-references.pdf"
+    ]
+  },
+  "metrics": {
+    "baseline": {
+      "rule": "baseline",
+      "parsebench": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 7,
+          "FN": 3,
+          "n": 12,
+          "precision": 0.5,
+          "recall": 0.25,
+          "false_positive_rate": 0.125,
+          "f1": 0.3333
+        },
+        "doc_reviewer_confirmed": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 6,
+          "precision": 0.5,
+          "recall": 0.5,
+          "false_positive_rate": 0.25,
+          "f1": 0.5
+        },
+        "page": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 6,
+          "precision": 0.5,
+          "recall": 0.5,
+          "false_positive_rate": 0.25,
+          "f1": 0.5
+        },
+        "observable": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 0,
+          "n": 5,
+          "precision": 0.5,
+          "recall": 1.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.6667
+        }
+      },
+      "public_frozen": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 2,
+          "TN": 19,
+          "FN": 0,
+          "n": 22,
+          "precision": 0.3333,
+          "recall": 1.0,
+          "false_positive_rate": 0.0952,
+          "f1": 0.5
+        }
+      },
+      "combined": {
+        "doc_historical": {
+          "TP": 2,
+          "FP": 3,
+          "TN": 26,
+          "FN": 3,
+          "n": 34,
+          "precision": 0.4,
+          "recall": 0.4,
+          "false_positive_rate": 0.1034,
+          "f1": 0.4
+        }
+      }
+    },
+    "C3": {
+      "rule": "C3",
+      "parsebench": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 7,
+          "FN": 3,
+          "n": 12,
+          "precision": 0.5,
+          "recall": 0.25,
+          "false_positive_rate": 0.125,
+          "f1": 0.3333
+        },
+        "doc_reviewer_confirmed": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 6,
+          "precision": 0.5,
+          "recall": 0.5,
+          "false_positive_rate": 0.25,
+          "f1": 0.5
+        },
+        "page": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 6,
+          "precision": 0.5,
+          "recall": 0.5,
+          "false_positive_rate": 0.25,
+          "f1": 0.5
+        },
+        "observable": {
+          "TP": 1,
+          "FP": 1,
+          "TN": 3,
+          "FN": 0,
+          "n": 5,
+          "precision": 0.5,
+          "recall": 1.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.6667
+        }
+      },
+      "public_frozen": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 2,
+          "TN": 19,
+          "FN": 0,
+          "n": 22,
+          "precision": 0.3333,
+          "recall": 1.0,
+          "false_positive_rate": 0.0952,
+          "f1": 0.5
+        }
+      },
+      "combined": {
+        "doc_historical": {
+          "TP": 2,
+          "FP": 3,
+          "TN": 26,
+          "FN": 3,
+          "n": 34,
+          "precision": 0.4,
+          "recall": 0.4,
+          "false_positive_rate": 0.1034,
+          "f1": 0.4
+        }
+      }
+    },
+    "C4": {
+      "rule": "C4",
+      "parsebench": {
+        "doc_historical": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 7,
+          "FN": 4,
+          "n": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.125,
+          "f1": 0.0
+        },
+        "doc_reviewer_confirmed": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 2,
+          "n": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        },
+        "page": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 2,
+          "n": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        },
+        "observable": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 5,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        }
+      },
+      "public_frozen": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 2,
+          "TN": 19,
+          "FN": 0,
+          "n": 22,
+          "precision": 0.3333,
+          "recall": 1.0,
+          "false_positive_rate": 0.0952,
+          "f1": 0.5
+        }
+      },
+      "combined": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 3,
+          "TN": 26,
+          "FN": 4,
+          "n": 34,
+          "precision": 0.25,
+          "recall": 0.2,
+          "false_positive_rate": 0.1034,
+          "f1": 0.2222
+        }
+      }
+    },
+    "C3+C4": {
+      "rule": "C3+C4",
+      "parsebench": {
+        "doc_historical": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 7,
+          "FN": 4,
+          "n": 12,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.125,
+          "f1": 0.0
+        },
+        "doc_reviewer_confirmed": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 2,
+          "n": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        },
+        "page": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 2,
+          "n": 6,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        },
+        "observable": {
+          "TP": 0,
+          "FP": 1,
+          "TN": 3,
+          "FN": 1,
+          "n": 5,
+          "precision": 0.0,
+          "recall": 0.0,
+          "false_positive_rate": 0.25,
+          "f1": 0.0
+        }
+      },
+      "public_frozen": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 2,
+          "TN": 19,
+          "FN": 0,
+          "n": 22,
+          "precision": 0.3333,
+          "recall": 1.0,
+          "false_positive_rate": 0.0952,
+          "f1": 0.5
+        }
+      },
+      "combined": {
+        "doc_historical": {
+          "TP": 1,
+          "FP": 3,
+          "TN": 26,
+          "FN": 4,
+          "n": 34,
+          "precision": 0.25,
+          "recall": 0.2,
+          "false_positive_rate": 0.1034,
+          "f1": 0.2222
+        }
+      }
+    }
+  },
+  "per_document_parsebench": [
+    {
+      "asset": "3colpres",
+      "expected_label": "true-positive",
+      "defect_kind": "mixed",
+      "baseline_warn_doc": true,
+      "C3_warn_doc": true,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.611
+    },
+    {
+      "asset": "ikea3",
+      "expected_label": "true-positive",
+      "defect_kind": "non-multicolumn",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.588
+    },
+    {
+      "asset": "elpais",
+      "expected_label": "true-positive",
+      "defect_kind": "span-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.565
+    },
+    {
+      "asset": "simple2",
+      "expected_label": "true-positive",
+      "defect_kind": "span-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.729
+    },
+    {
+      "asset": "eastbaytimes",
+      "expected_label": "true-negative",
+      "defect_kind": "block-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.628
+    },
+    {
+      "asset": "battery",
+      "expected_label": "true-negative",
+      "defect_kind": "block-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.637
+    },
+    {
+      "asset": "2colmercedes",
+      "expected_label": "true-negative",
+      "defect_kind": "block-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.562
+    },
+    {
+      "asset": "text_dense__de",
+      "expected_label": "true-negative",
+      "defect_kind": "block-level",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 1.609
+    },
+    {
+      "asset": "letter3",
+      "expected_label": "true-negative",
+      "defect_kind": "non-multicolumn",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 61.791
+    },
+    {
+      "asset": "myctophidae",
+      "expected_label": "true-negative",
+      "defect_kind": "non-multicolumn",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 44.176
+    },
+    {
+      "asset": "strikeUnderline",
+      "expected_label": "true-negative",
+      "defect_kind": "block-level",
+      "baseline_warn_doc": true,
+      "C3_warn_doc": true,
+      "C4_warn_doc": true,
+      "C3+C4_warn_doc": true,
+      "compile_elapsed_s": 1.623
+    },
+    {
+      "asset": "japanese_case",
+      "expected_label": "true-negative",
+      "defect_kind": "non-multicolumn",
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false,
+      "compile_elapsed_s": 29.548
+    }
+  ],
+  "per_document_public_frozen": [
+    {
+      "id": "001-trivial/minimal-document.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "003-pdflatex-image/pdflatex-image.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "004-pdflatex-4-pages/pdflatex-4-pages.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "005-libreoffice-writer-password/libreoffice-writer-password.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "006-pdflatex-outline/pdflatex-outline.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "007-imagemagick-images/imagemagick-ASCII85Decode.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "007-imagemagick-images/imagemagick-images.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "007-imagemagick-images/imagemagick-lzw.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "008-reportlab-inline-image/inline-image.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": true,
+      "C3_warn_doc": true,
+      "C4_warn_doc": true,
+      "C3+C4_warn_doc": true
+    },
+    {
+      "id": "009-pdflatex-geotopo/GeoTopo.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": true,
+      "C3_warn_doc": true,
+      "C4_warn_doc": true,
+      "C3+C4_warn_doc": true
+    },
+    {
+      "id": "010-pdflatex-forms/pdflatex-forms.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "011-google-doc-document/google-doc-document.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "012-libreoffice-form/libreoffice-form.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "013-reportlab-overlay/reportlab-overlay.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "014-outlines/mistitled_outlines_example.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "015-arabic/habibi-oneline-cmap.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "015-arabic/habibi-rotated.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "015-arabic/habibi.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "016-libre-office-link/libre-office-link.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "017-unreadable-meta-data/unreadablemetadata.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "018-base64-image/base64image.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "019-grayscale-image/grayscale-image.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "020-xmp/output_with_metadata_pymupdf.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "021-pdfa/crazyones-pdfa.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "022-pdfkit/pdfkit.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "023-cmyk-image/cmyk-image.pdf",
+      "expected_positive": null,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "024-annotations/annotated_pdf.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "025-attachment/with-attachment.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "026-latex-multicolumn/multicolumn.pdf",
+      "expected_positive": true,
+      "baseline_warn_doc": true,
+      "C3_warn_doc": true,
+      "C4_warn_doc": true,
+      "C3+C4_warn_doc": true
+    },
+    {
+      "id": "027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    },
+    {
+      "id": "028-image-references-deduplication/wrong-references.pdf",
+      "expected_positive": false,
+      "baseline_warn_doc": false,
+      "C3_warn_doc": false,
+      "C4_warn_doc": false,
+      "C3+C4_warn_doc": false
+    }
+  ],
+  "changed_decisions": [
+    {
+      "candidate": "C4",
+      "corpus": "parsebench",
+      "scope": "document",
+      "id": "3colpres",
+      "baseline": true,
+      "candidate_verdict": false,
+      "flip": "silenced",
+      "candidate_reason": "Require HTR AND (YMT OR SF); reject single-signal warnings",
+      "ground_truth_eligibility": "reviewer_confirmed",
+      "exclusion_reason": "",
+      "affects_document_verdict": true,
+      "page_noise_only": false,
+      "baseline_signals": {},
+      "candidate_signals": {}
+    },
+    {
+      "candidate": "C3+C4",
+      "corpus": "parsebench",
+      "scope": "document",
+      "id": "3colpres",
+      "baseline": true,
+      "candidate_verdict": false,
+      "flip": "silenced",
+      "candidate_reason": "Raise gap gate to gap_rel>=0.30 AND require HTR AND (YMT OR SF)",
+      "ground_truth_eligibility": "reviewer_confirmed",
+      "exclusion_reason": "",
+      "affects_document_verdict": true,
+      "page_noise_only": false,
+      "baseline_signals": {},
+      "candidate_signals": {}
+    },
+    {
+      "candidate": "C4",
+      "corpus": "parsebench",
+      "scope": "page",
+      "id": "3colpres#1",
+      "baseline": true,
+      "candidate_verdict": false,
+      "flip": "silenced",
+      "candidate_reason": "Require HTR AND (YMT OR SF); reject single-signal warnings",
+      "ground_truth_eligibility": "reviewer_confirmed+observable",
+      "exclusion_reason": "",
+      "affects_document_verdict": true,
+      "page_noise_only": false,
+      "baseline_signals": {
+        "gap_size": 176.6,
+        "gap_rel": 0.44,
+        "transition_rate": 0.3,
+        "large_y_drops": 1,
+        "short_frac": 0.18,
+        "htr": true,
+        "ymt": false,
+        "sf": false,
+        "baseline_gap_gate": true,
+        "c3_gap_gate": true
+      },
+      "candidate_signals": {
+        "gap_size": 176.6,
+        "gap_rel": 0.44,
+        "transition_rate": 0.3,
+        "large_y_drops": 1,
+        "short_frac": 0.18,
+        "htr": true,
+        "ymt": false,
+        "sf": false,
+        "baseline_gap_gate": true,
+        "c3_gap_gate": true
+      }
+    },
+    {
+      "candidate": "C3+C4",
+      "corpus": "parsebench",
+      "scope": "page",
+      "id": "3colpres#1",
+      "baseline": true,
+      "candidate_verdict": false,
+      "flip": "silenced",
+      "candidate_reason": "Raise gap gate to gap_rel>=0.30 AND require HTR AND (YMT OR SF)",
+      "ground_truth_eligibility": "reviewer_confirmed+observable",
+      "exclusion_reason": "",
+      "affects_document_verdict": true,
+      "page_noise_only": false,
+      "baseline_signals": {
+        "gap_size": 176.6,
+        "gap_rel": 0.44,
+        "transition_rate": 0.3,
+        "large_y_drops": 1,
+        "short_frac": 0.18,
+        "htr": true,
+        "ymt": false,
+        "sf": false,
+        "baseline_gap_gate": true,
+        "c3_gap_gate": true
+      },
+      "candidate_signals": {
+        "gap_size": 176.6,
+        "gap_rel": 0.44,
+        "transition_rate": 0.3,
+        "large_y_drops": 1,
+        "short_frac": 0.18,
+        "htr": true,
+        "ymt": false,
+        "sf": false,
+        "baseline_gap_gate": true,
+        "c3_gap_gate": true
+      }
+    }
+  ]
+}
