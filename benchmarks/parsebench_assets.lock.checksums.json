@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "issue": 53,
+  "phase": "B3 (authorised checksum capture)",
+  "not_promoted": true,
+  "promotion_status": "awaiting-review",
+  "authored_on_commit": "4e4c8187a9c892b610efa43629118cbbe58bc7ff",
+  "lockfile_this_pairs_with": "benchmarks/parsebench_assets.lock.json",
+  "dataset_repo": "llamaindex/ParseBench",
+  "dataset_revision": "2805a1d940f95a203e0ae4b88be9934f7765b3fc",
+  "fetch_notes": [
+    "Fetch executed under explicit user authorisation; AKSHARAMD_PARSEBENCH_ALLOW_NETWORK=1.",
+    "All 12 files landed inside %LOCALAPPDATA%/aksharamd/parsebench/<revision>/ on the workstation running the capture; not inside the git tree.",
+    "sha256 and size_bytes below were computed from the LOCAL cache bytes, not from HTTP response headers.",
+    "This artefact is NOT the main lockfile. Do not promote these values into benchmarks/parsebench_assets.lock.json without reviewer sign-off."
+  ],
+  "captured_by": "Desktop-Kalyan",
+  "captures": [
+    {
+      "asset_id": "3colpres",
+      "filename": "text_multicolumns__3colpres.pdf",
+      "hf_repo_path": "docs/text/text_multicolumns__3colpres.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\3colpres.pdf",
+      "sha256": "16eed63b9358f882688a0be862617c636e7e0a41522e93555cdd14b8ee8d1a38",
+      "size_bytes": 141877,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "ikea3",
+      "filename": "text_misc__ikea3.pdf",
+      "hf_repo_path": "docs/text/text_misc__ikea3.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\ikea3.pdf",
+      "sha256": "71f0afa05dd13f5f44ffa62d0da9307f958b613aee9bf157b83aabaa1246a7c8",
+      "size_bytes": 102834,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "elpais",
+      "filename": "text_multicolumns__elpais.pdf",
+      "hf_repo_path": "docs/text/text_multicolumns__elpais.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\elpais.pdf",
+      "sha256": "606d29fc7cd44c299d24e3d3afd5630f0131fcfc8e46a8711e77d10aab998477",
+      "size_bytes": 157074,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "simple2",
+      "filename": "text_multicolumns__simple2.pdf",
+      "hf_repo_path": "docs/text/text_multicolumns__simple2.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\simple2.pdf",
+      "sha256": "a9e67fd22a73b02fb679278c18b4e38cb9a070ee609b77abae67d4334f4e57e3",
+      "size_bytes": 64600,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "eastbaytimes",
+      "filename": "text_simple__eastbaytimes.pdf",
+      "hf_repo_path": "docs/text/text_simple__eastbaytimes.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\eastbaytimes.pdf",
+      "sha256": "d83ba708c7e6b89d9d2a5806de64d1388d3398381955d472074548d1d6eb2fcf",
+      "size_bytes": 357729,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "battery",
+      "filename": "text_multicolumns__battery.pdf",
+      "hf_repo_path": "docs/text/text_multicolumns__battery.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\battery.pdf",
+      "sha256": "a427a0bbde99d48eb175514520c66f92a3984128e1e3f6f5e43dd58235cde15a",
+      "size_bytes": 24668,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "2colmercedes",
+      "filename": "text_multicolumns__2colmercedes.pdf",
+      "hf_repo_path": "docs/text/text_multicolumns__2colmercedes.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\2colmercedes.pdf",
+      "sha256": "06d39180fc492c57e283f4c3af1aeeb0fbb870dd1e3052b797627c624a865db3",
+      "size_bytes": 53623,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "text_dense__de",
+      "filename": "text_dense__de.pdf",
+      "hf_repo_path": "docs/text/text_dense__de.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\text_dense__de.pdf",
+      "sha256": "478dbfab0b00331e5929e353aa4501cead230e9220d784eb9e831975f15d1acb",
+      "size_bytes": 146903,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "letter3",
+      "filename": "text_simple__letter3.pdf",
+      "hf_repo_path": "docs/text/text_simple__letter3.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\letter3.pdf",
+      "sha256": "85fda5abc064ef4dc487de9511fb30c15872155dc2316b1c748910869061122b",
+      "size_bytes": 428353,
+      "computed_at": "2026-07-19T04:57:59Z"
+    },
+    {
+      "asset_id": "myctophidae",
+      "filename": "text_simple__myctophidae.pdf",
+      "hf_repo_path": "docs/text/text_simple__myctophidae.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\myctophidae.pdf",
+      "sha256": "19ea93c776cd2db0f26a588bf3eee14d9aa71130c480cf39270c919ecb8a89ff",
+      "size_bytes": 237915,
+      "computed_at": "2026-07-19T04:58:00Z"
+    },
+    {
+      "asset_id": "strikeUnderline",
+      "filename": "text_simple__strikeUnderline.pdf",
+      "hf_repo_path": "docs/text/text_simple__strikeUnderline.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\strikeUnderline.pdf",
+      "sha256": "1abc3f1fa7e0b20a5bab92cb2c3d34a271faf65a91f002248891adb2275be35a",
+      "size_bytes": 74175,
+      "computed_at": "2026-07-19T04:58:00Z"
+    },
+    {
+      "asset_id": "japanese_case",
+      "filename": "text_dense__japanese.pdf",
+      "hf_repo_path": "docs/text/text_dense__japanese.pdf",
+      "cache_destination": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\japanese_case.pdf",
+      "sha256": "e7c65ee22344057d308a2ac77adbd2b76399099edfb84683318b961056f9028c",
+      "size_bytes": 1155889,
+      "computed_at": "2026-07-19T04:58:00Z"
+    }
+  ]
+}
