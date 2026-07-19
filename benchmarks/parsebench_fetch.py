@@ -49,6 +49,7 @@ in `--all` mode.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -89,7 +90,12 @@ class FetchOutcome:
     bytes_downloaded: int | None = None
     validation: str = "identity-only"
     checksum_status: str = "unavailable"
-    approved_for_calibration: bool = False
+    # Two-level calibration approval — do NOT collapse into one Boolean.
+    # A document-approved asset can still lack the page-level annotations
+    # required for honest per-page metrics.
+    approved_for_document_calibration: bool = False
+    approved_for_page_calibration: bool = False
+    calibration_reason: str = ""
 
 
 @dataclass
@@ -254,6 +260,80 @@ def _default_http_fetch(url: str) -> tuple[int, bytes]:
         raise FetchError(20, f"network timeout: {exc}") from exc
 
 
+def _sha256_of_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _document_label_valid(entry: dict) -> bool:
+    """Document-level metadata gate. An asset needs both `expected_label`
+    (positive/negative classification) AND `defect_kind` (block-level /
+    span-level / mixed) to be scorable at the document level.
+    """
+    return bool(entry.get("expected_label")) and bool(entry.get("defect_kind"))
+
+
+def _page_ground_truth_valid(entry: dict) -> bool:
+    """Page-level metadata gate. `page_level_ground_truth` must be
+    non-null AND non-empty for per-page metrics to be honest.
+    """
+    gt = entry.get("page_level_ground_truth")
+    return gt is not None and bool(gt)
+
+
+def _compute_calibration_gates(
+    entry: dict, checksum_status: str
+) -> tuple[bool, bool, str]:
+    """Return (document_approval, page_approval, reason).
+
+    reason is a machine-readable short string explaining the FIRST failed
+    gate encountered, or the empty string when all gates pass. Downstream
+    consumers key on this string, not on the free-form error field.
+    """
+    if checksum_status != "verified":
+        return False, False, f"checksum_status_{checksum_status}"
+    if not _document_label_valid(entry):
+        # Which piece of document metadata is missing?
+        if not entry.get("expected_label"):
+            return False, False, "expected_label_missing"
+        return False, False, "defect_kind_missing"
+    if not _page_ground_truth_valid(entry):
+        return True, False, "page_level_ground_truth_missing"
+    return True, True, ""
+
+
+def _verify_local_bytes(entry: dict, dest: Path) -> tuple[str, str, str]:
+    """Verify a cached file against the lockfile's promoted sha256/size.
+
+    Returns (checksum_status, validation, error_message).
+
+    - If the lockfile has no sha256 (still Phase B2 style), status is
+      "unavailable" and validation is "identity-only".
+    - If the lockfile has sha256 and the file matches, status is
+      "verified" and validation is "checksum-verified".
+    - If mismatch, error_message is populated and the caller returns
+      code 23 (checksum mismatch).
+    """
+    expected_sha = entry.get("sha256")
+    expected_size = entry.get("size_bytes")
+    if not expected_sha:
+        return "unavailable", "identity-only", ""
+    actual_size = dest.stat().st_size
+    if expected_size is not None and actual_size != expected_size:
+        return "mismatch", "checksum-verified", (
+            f"size mismatch: expected {expected_size}, got {actual_size}"
+        )
+    actual_sha = _sha256_of_file(dest)
+    if actual_sha != expected_sha:
+        return "mismatch", "checksum-verified", (
+            f"sha256 mismatch: expected {expected_sha}, got {actual_sha}"
+        )
+    return "verified", "checksum-verified", ""
+
+
 def _fetch_one(
     entry: dict,
     cache_root: Path,
@@ -278,6 +358,23 @@ def _fetch_one(
     _validate_destination(cache_root, dest)
 
     if dest.exists() and dest.stat().st_size > 0:
+        checksum_status, validation, mismatch_msg = _verify_local_bytes(entry, dest)
+        if checksum_status == "mismatch":
+            return FetchOutcome(
+                asset_id=aid,
+                filename=filename,
+                hf_repo_path=hf_path,
+                destination=str(dest),
+                status="error",
+                error_code=23,
+                error=mismatch_msg,
+                validation=validation,
+                checksum_status=checksum_status,
+                approved_for_document_calibration=False,
+                approved_for_page_calibration=False,
+                calibration_reason="checksum_mismatch",
+            )
+        doc_ok, page_ok, reason = _compute_calibration_gates(entry, checksum_status)
         return FetchOutcome(
             asset_id=aid,
             filename=filename,
@@ -287,9 +384,11 @@ def _fetch_one(
             error_code=0,
             error="",
             bytes_downloaded=None,
-            validation="identity-only",
-            checksum_status="unavailable",
-            approved_for_calibration=False,
+            validation=validation,
+            checksum_status=checksum_status,
+            approved_for_document_calibration=doc_ok,
+            approved_for_page_calibration=page_ok,
+            calibration_reason=reason,
         )
 
     url = f"{_HF_BASE}/{_HF_REPO}/resolve/{revision}/{hf_path}"
@@ -340,15 +439,31 @@ def _fetch_one(
             error_code=26, error=f"local filesystem failure: {exc}",
         )
 
+    checksum_status, validation, mismatch_msg = _verify_local_bytes(entry, dest)
+    if checksum_status == "mismatch":
+        return FetchOutcome(
+            asset_id=aid, filename=filename, hf_repo_path=hf_path,
+            destination=str(dest), status="error",
+            error_code=23, error=mismatch_msg,
+            bytes_downloaded=len(body),
+            validation=validation,
+            checksum_status=checksum_status,
+            approved_for_document_calibration=False,
+            approved_for_page_calibration=False,
+            calibration_reason="checksum_mismatch",
+        )
+    doc_ok, page_ok, reason = _compute_calibration_gates(entry, checksum_status)
     return FetchOutcome(
         asset_id=aid, filename=filename, hf_repo_path=hf_path,
         destination=str(dest),
         status="fetched",
         error_code=0, error="",
         bytes_downloaded=len(body),
-        validation="identity-only",
-        checksum_status="unavailable",
-        approved_for_calibration=False,
+        validation=validation,
+        checksum_status=checksum_status,
+        approved_for_document_calibration=doc_ok,
+        approved_for_page_calibration=page_ok,
+        calibration_reason=reason,
     )
 
 

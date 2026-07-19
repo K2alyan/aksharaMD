@@ -169,16 +169,35 @@ def test_cache_destinations_are_outside_the_repo() -> None:
         )
 
 
-def test_main_lockfile_still_has_null_per_asset_checksums() -> None:
-    """This artefact must not have leaked its values into the main lockfile."""
+def test_promoted_lockfile_values_match_artefact_exactly() -> None:
+    """Post-promotion parity: for every asset, the main lockfile's sha256
+    and size_bytes must equal the corresponding capture in the frozen
+    artefact. If they drift, a promotion or a capture is out of date and
+    the two files must be reconciled before the next fetcher run.
+    """
     _skip_if_missing(_LOCKFILE)
+    _skip_if_missing(_CHECKSUMS)
     with _LOCKFILE.open("r", encoding="utf-8") as f:
         lock = json.load(f)
+    with _CHECKSUMS.open("r", encoding="utf-8") as f:
+        chk = json.load(f)
+    cap_by_id = {c["asset_id"]: c for c in chk["captures"]}
     for entry in lock["assets"]:
-        aid = entry.get("id")
-        for field in ("sha256", "size_bytes", "mirror_url", "binary_url"):
-            assert entry.get(field) is None, (
-                f"main lockfile asset {aid!r} has non-null {field}. "
-                f"Promotion from the checksums artefact must happen via a "
-                f"separate reviewed PR, not silently in the capture PR."
+        aid = entry["id"]
+        cap = cap_by_id.get(aid)
+        assert cap is not None, f"main lockfile asset {aid!r} has no matching artefact capture"
+        assert entry.get("sha256") == cap.get("sha256"), (
+            f"asset {aid!r}: main lockfile sha256={entry.get('sha256')!r} "
+            f"does not match artefact sha256={cap.get('sha256')!r}"
+        )
+        assert entry.get("size_bytes") == cap.get("size_bytes"), (
+            f"asset {aid!r}: main lockfile size_bytes={entry.get('size_bytes')!r} "
+            f"does not match artefact size_bytes={cap.get('size_bytes')!r}"
+        )
+        # mirror_url / binary_url must still be null even after promotion —
+        # the promotion PR only copies sha256 and size_bytes.
+        for f_ in ("mirror_url", "binary_url"):
+            assert entry.get(f_) is None, (
+                f"asset {aid!r} has non-null {f_} after promotion; promotion must not "
+                f"introduce a mirror URL."
             )

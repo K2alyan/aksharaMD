@@ -38,7 +38,10 @@
   "assets": [
     {
       "id": "3colpres",
-      "aliases": ["text_multicolumns__3colpres", "text_multicolumns__3colpres.pdf"],
+      "aliases": [
+        "text_multicolumns__3colpres",
+        "text_multicolumns__3colpres.pdf"
+      ],
       "tier": "A (independent true-positive)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -47,8 +50,8 @@
       "filename": "text_multicolumns__3colpres.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "16eed63b9358f882688a0be862617c636e7e0a41522e93555cdd14b8ee8d1a38",
+      "size_bytes": 141877,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the dataset compilation. Underlying document's original copyright not verified.",
@@ -65,7 +68,10 @@
     },
     {
       "id": "ikea3",
-      "aliases": ["text_misc__ikea3", "text_misc__ikea3.pdf"],
+      "aliases": [
+        "text_misc__ikea3",
+        "text_misc__ikea3.pdf"
+      ],
       "tier": "A (independent true-positive)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -74,11 +80,11 @@
       "filename": "text_misc__ikea3.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "71f0afa05dd13f5f44ffa62d0da9307f958b613aee9bf157b83aabaa1246a7c8",
+      "size_bytes": 102834,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "license_caveat": "Applies to the compilation. Filename indicates IKEA-branded marketing content — original copyright likely IKEA. Independent permission not verified.",
+      "license_caveat": "Applies to the compilation. Filename indicates IKEA-branded marketing content \u2014 original copyright likely IKEA. Independent permission not verified.",
       "copyright_owner": "LlamaIndex (compilation); underlying appears IKEA (Inter IKEA Systems B.V.).",
       "redistribution": "reference-fetch-only",
       "availability": "available-stable",
@@ -92,7 +98,10 @@
     },
     {
       "id": "elpais",
-      "aliases": ["text_multicolumns__elpais", "text_multicolumns__elpais.pdf"],
+      "aliases": [
+        "text_multicolumns__elpais",
+        "text_multicolumns__elpais.pdf"
+      ],
       "tier": "A (independent true-positive)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -101,12 +110,12 @@
       "filename": "text_multicolumns__elpais.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "606d29fc7cd44c299d24e3d3afd5630f0131fcfc8e46a8711e77d10aab998477",
+      "size_bytes": 157074,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "license_caveat": "Applies to the compilation. Filename indicates a page from El País (Spanish newspaper) — publisher copyright applies.",
-      "copyright_owner": "LlamaIndex (compilation); underlying likely Prisa / El País.",
+      "license_caveat": "Applies to the compilation. Filename indicates a page from El Pa\u00eds (Spanish newspaper) \u2014 publisher copyright applies.",
+      "copyright_owner": "LlamaIndex (compilation); underlying likely Prisa / El Pa\u00eds.",
       "redistribution": "reference-fetch-only",
       "availability": "available-stable",
       "attribution": "Cite ParseBench + retain Apache-2.0 notice.",
@@ -119,7 +128,10 @@
     },
     {
       "id": "simple2",
-      "aliases": ["text_multicolumns__simple2", "text_multicolumns__simple2.pdf"],
+      "aliases": [
+        "text_multicolumns__simple2",
+        "text_multicolumns__simple2.pdf"
+      ],
       "tier": "A (independent true-positive)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -128,8 +140,8 @@
       "filename": "text_multicolumns__simple2.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "a9e67fd22a73b02fb679278c18b4e38cb9a070ee609b77abae67d4334f4e57e3",
+      "size_bytes": 64600,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying document not identified per-file.",
@@ -142,11 +154,14 @@
       "defect_kind": "span-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
-      "notes": "Known SPAN-LEVEL FN class. Sibling filenames (simple2col, simple2col2) exist — treat simple2 as the exact primary."
+      "notes": "Known SPAN-LEVEL FN class. Sibling filenames (simple2col, simple2col2) exist \u2014 treat simple2 as the exact primary."
     },
     {
       "id": "eastbaytimes",
-      "aliases": ["text_simple__eastbaytimes", "text_simple__eastbaytimes.pdf"],
+      "aliases": [
+        "text_simple__eastbaytimes",
+        "text_simple__eastbaytimes.pdf"
+      ],
       "tier": "B (hard negative)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -155,11 +170,11 @@
       "filename": "text_simple__eastbaytimes.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "d83ba708c7e6b89d9d2a5806de64d1388d3398381955d472074548d1d6eb2fcf",
+      "size_bytes": 357729,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "license_caveat": "Applies to the compilation. East Bay Times is a US newspaper (MediaNews Group / Digital First Media) — publisher copyright applies.",
+      "license_caveat": "Applies to the compilation. East Bay Times is a US newspaper (MediaNews Group / Digital First Media) \u2014 publisher copyright applies.",
       "copyright_owner": "LlamaIndex (compilation); underlying likely MediaNews Group.",
       "redistribution": "reference-fetch-only",
       "availability": "available-stable",
@@ -169,11 +184,14 @@
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
-      "notes": "Historical hard negative at transition_rate ≈ 0.25 (validators/multicolumn.py:133)."
+      "notes": "Historical hard negative at transition_rate \u2248 0.25 (validators/multicolumn.py:133)."
     },
     {
       "id": "battery",
-      "aliases": ["text_multicolumns__battery", "text_multicolumns__battery.pdf"],
+      "aliases": [
+        "text_multicolumns__battery",
+        "text_multicolumns__battery.pdf"
+      ],
       "tier": "B (hard negative)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -182,8 +200,8 @@
       "filename": "text_multicolumns__battery.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "a427a0bbde99d48eb175514520c66f92a3984128e1e3f6f5e43dd58235cde15a",
+      "size_bytes": 24668,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying not identified per-file.",
@@ -200,7 +218,10 @@
     },
     {
       "id": "2colmercedes",
-      "aliases": ["text_multicolumns__2colmercedes", "text_multicolumns__2colmercedes.pdf"],
+      "aliases": [
+        "text_multicolumns__2colmercedes",
+        "text_multicolumns__2colmercedes.pdf"
+      ],
       "tier": "B (hard negative)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -209,11 +230,11 @@
       "filename": "text_multicolumns__2colmercedes.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "06d39180fc492c57e283f4c3af1aeeb0fbb870dd1e3052b797627c624a865db3",
+      "size_bytes": 53623,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "license_caveat": "Applies to the compilation. Filename indicates Mercedes-Benz corporate material — original copyright likely Mercedes-Benz Group AG.",
+      "license_caveat": "Applies to the compilation. Filename indicates Mercedes-Benz corporate material \u2014 original copyright likely Mercedes-Benz Group AG.",
       "copyright_owner": "LlamaIndex (compilation); underlying likely Mercedes-Benz Group AG.",
       "redistribution": "reference-fetch-only",
       "availability": "available-stable",
@@ -227,7 +248,9 @@
     },
     {
       "id": "text_dense__de",
-      "aliases": ["text_dense__de.pdf"],
+      "aliases": [
+        "text_dense__de.pdf"
+      ],
       "tier": "C (broader regression)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -236,8 +259,8 @@
       "filename": "text_dense__de.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "478dbfab0b00331e5929e353aa4501cead230e9220d784eb9e831975f15d1acb",
+      "size_bytes": 146903,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying not identified per-file.",
@@ -254,7 +277,10 @@
     },
     {
       "id": "letter3",
-      "aliases": ["text_simple__letter3", "text_simple__letter3.pdf"],
+      "aliases": [
+        "text_simple__letter3",
+        "text_simple__letter3.pdf"
+      ],
       "tier": "C (broader regression)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -263,8 +289,8 @@
       "filename": "text_simple__letter3.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "85fda5abc064ef4dc487de9511fb30c15872155dc2316b1c748910869061122b",
+      "size_bytes": 428353,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying not identified per-file.",
@@ -277,11 +303,14 @@
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
-      "notes": "READINESS_CALIBRATION_DEV_REPORT.md lists letter3 among 'Image-only / OCR unavailable' cases (line 449) — expected_label reflects the block-level detector's expected non-fire, not the readiness classification of the document itself."
+      "notes": "READINESS_CALIBRATION_DEV_REPORT.md lists letter3 among 'Image-only / OCR unavailable' cases (line 449) \u2014 expected_label reflects the block-level detector's expected non-fire, not the readiness classification of the document itself."
     },
     {
       "id": "myctophidae",
-      "aliases": ["text_simple__myctophidae", "text_simple__myctophidae.pdf"],
+      "aliases": [
+        "text_simple__myctophidae",
+        "text_simple__myctophidae.pdf"
+      ],
       "tier": "C (broader regression)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -290,11 +319,11 @@
       "filename": "text_simple__myctophidae.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "19ea93c776cd2db0f26a588bf3eee14d9aa71130c480cf39270c919ecb8a89ff",
+      "size_bytes": 237915,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
-      "license_caveat": "Applies to the compilation. Underlying appears encyclopedic (family Myctophidae — a fish clade).",
+      "license_caveat": "Applies to the compilation. Underlying appears encyclopedic (family Myctophidae \u2014 a fish clade).",
       "copyright_owner": "LlamaIndex (compilation); underlying unidentified.",
       "redistribution": "reference-fetch-only",
       "availability": "available-stable",
@@ -308,7 +337,10 @@
     },
     {
       "id": "strikeUnderline",
-      "aliases": ["text_simple__strikeUnderline", "text_simple__strikeUnderline.pdf"],
+      "aliases": [
+        "text_simple__strikeUnderline",
+        "text_simple__strikeUnderline.pdf"
+      ],
       "tier": "C (broader regression)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -317,8 +349,8 @@
       "filename": "text_simple__strikeUnderline.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "1abc3f1fa7e0b20a5bab92cb2c3d34a271faf65a91f002248891adb2275be35a",
+      "size_bytes": 74175,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying not identified per-file.",
@@ -336,7 +368,10 @@
     {
       "id": "japanese_case",
       "resolved_identity": "text_dense__japanese",
-      "aliases": ["text_dense__japanese", "text_dense__japanese.pdf"],
+      "aliases": [
+        "text_dense__japanese",
+        "text_dense__japanese.pdf"
+      ],
       "tier": "C (broader regression)",
       "source_project": "ParseBench (LlamaIndex)",
       "canonical_dataset_page": "https://huggingface.co/datasets/llamaindex/ParseBench/tree/main/docs/text",
@@ -345,8 +380,8 @@
       "filename": "text_dense__japanese.pdf",
       "binary_url": null,
       "mirror_url": null,
-      "sha256": null,
-      "size_bytes": null,
+      "sha256": "e7c65ee22344057d308a2ac77adbd2b76399099edfb84683318b961056f9028c",
+      "size_bytes": 1155889,
       "license": "Apache-2.0",
       "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
       "license_caveat": "Applies to the compilation. Underlying not identified per-file (Japanese-language dense-text page).",
@@ -359,7 +394,7 @@
       "defect_kind": "block-level",
       "ci_retrieval": "nightly",
       "checked_at": "2026-07-18",
-      "notes": "Identity resolved from historical evidence, NOT by preference. Cited exactly as text_dense__japanese in benchmarks/READINESS_CALIBRATION_DEV_REPORT.md line 280 (rs=85 band=HIGH signals=3/3 fail), line 303 ('text_dense__japanese: The readiness score sees a cleanly-structured PDF...'), line 449 ('Image-only / OCR unavailable (letter3, myctophidae, japanese)'), and line 473 ('japanese: 85→55'). The 5 candidate multilang/multicolumns Japanese files were NOT the historical fixture."
+      "notes": "Identity resolved from historical evidence, NOT by preference. Cited exactly as text_dense__japanese in benchmarks/READINESS_CALIBRATION_DEV_REPORT.md line 280 (rs=85 band=HIGH signals=3/3 fail), line 303 ('text_dense__japanese: The readiness score sees a cleanly-structured PDF...'), line 449 ('Image-only / OCR unavailable (letter3, myctophidae, japanese)'), and line 473 ('japanese: 85\u219255'). The 5 candidate multilang/multicolumns Japanese files were NOT the historical fixture."
     }
   ],
   "rights_review_queue": [
@@ -368,7 +403,7 @@
       "priority": "high",
       "original_copyright_owner": "Inter IKEA Systems B.V. (inferred from IKEA brand)",
       "original_license": "unknown",
-      "parsebench_copy_completeness": "unknown — need to check if the file is a full document or an excerpt",
+      "parsebench_copy_completeness": "unknown \u2014 need to check if the file is a full document or an excerpt",
       "direct_permission_evidence": "none",
       "recommended_action": "retain reference-fetch-only pending IKEA licence review; do not mirror",
       "notes": "Corporate-branded content. LlamaIndex Apache-2.0 declaration does not extend to IKEA's underlying rights."
@@ -376,17 +411,17 @@
     {
       "asset_id": "elpais",
       "priority": "high",
-      "original_copyright_owner": "PRISA / Diario El País (inferred from brand)",
+      "original_copyright_owner": "PRISA / Diario El Pa\u00eds (inferred from brand)",
       "original_license": "unknown",
       "parsebench_copy_completeness": "unknown",
       "direct_permission_evidence": "none",
       "recommended_action": "retain reference-fetch-only pending publisher licence review; do not mirror",
-      "notes": "Newspaper content — publisher copyright applies."
+      "notes": "Newspaper content \u2014 publisher copyright applies."
     },
     {
       "asset_id": "eastbaytimes",
       "priority": "high",
-      "original_copyright_owner": "MediaNews Group (Digital First Media) — East Bay Times publisher (inferred)",
+      "original_copyright_owner": "MediaNews Group (Digital First Media) \u2014 East Bay Times publisher (inferred)",
       "original_license": "unknown",
       "parsebench_copy_completeness": "unknown",
       "direct_permission_evidence": "none",
@@ -411,7 +446,7 @@
       "parsebench_copy_completeness": "unknown",
       "direct_permission_evidence": "none",
       "recommended_action": "retain reference-fetch-only until underlying document identified",
-      "notes": "Historical primary TP — high calibration value; still no direct-rights evidence."
+      "notes": "Historical primary TP \u2014 high calibration value; still no direct-rights evidence."
     },
     {
       "asset_id": "simple2",
@@ -456,7 +491,7 @@
     {
       "asset_id": "myctophidae",
       "priority": "low",
-      "original_copyright_owner": "unknown (encyclopedic; possibly Wikipedia — MDT / CC BY-SA if so)",
+      "original_copyright_owner": "unknown (encyclopedic; possibly Wikipedia \u2014 MDT / CC BY-SA if so)",
       "original_license": "unknown",
       "parsebench_copy_completeness": "unknown",
       "direct_permission_evidence": "none",
@@ -482,6 +517,15 @@
       "direct_permission_evidence": "none",
       "recommended_action": "retain reference-fetch-only",
       "notes": "Identity resolved to text_dense__japanese in Phase B1. Rights review still pending."
+    }
+  ],
+  "promotion_history": [
+    {
+      "phase": "B4",
+      "promoted_at": "2026-07-18",
+      "source_artefact": "benchmarks/parsebench_assets.lock.checksums.json",
+      "source_artefact_note": "sha256 and size_bytes copied from the reviewed checksum artefact merged as PR #62 (squashed as 086c885); values independently recomputed from the local cache at review time.",
+      "assets_promoted": 12
     }
   ]
 }
