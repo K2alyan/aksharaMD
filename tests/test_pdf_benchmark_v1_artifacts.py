@@ -163,8 +163,14 @@ def _mk_result(**kwargs) -> RunResult:
         "asset_id": "x",
         "corpus_source": "public",
         "document_class": "native-text",
-        "parse_success": True,
+        "execution_success": True,
         "exit_code": 0,
+        "output_package_created": True,
+        "content_extracted": True,
+        "structurally_usable": True,
+        "human_review_status": "not_reviewed",
+        "human_usability": "not_reviewed",
+        "human_review_evidence": "",
         "runtime_seconds": 1.0,
         "output_chars": 400,
         "estimated_tokens": 100,
@@ -173,12 +179,17 @@ def _mk_result(**kwargs) -> RunResult:
         "page_count_pdf": 1,
         "page_count_output": 1,
         "missing_pages": False,
+        "hidden_text_layer": True,
+        "hidden_text_layer_chars": 400,
+        "image_placeholder_ratio": None,
         "readiness_score": 85,
         "quality_band": "HIGH",
         "warning_codes": [],
         "informational": [],
         "repeat_content_ratio": 0.0,
-        "ocr_required": False,
+        "low_text_density": False,
+        "near_empty_output": False,
+        "ocr_warning_emitted": False,
         "stdout_head": "",
         "stderr_head": "",
         "fidelity_flags": {},
@@ -191,23 +202,26 @@ def test_aggregate_counts_success_and_bands():
     results = [
         _mk_result(asset_id="a", quality_band="HIGH"),
         _mk_result(asset_id="b", quality_band="OK"),
-        _mk_result(asset_id="c", quality_band="HIGH", parse_success=False, exit_code=1),
+        _mk_result(asset_id="c", quality_band="HIGH", execution_success=False, exit_code=1,
+                   output_package_created=False, content_extracted=False, structurally_usable=False),
     ]
     ag = _aggregate(results)
     assert ag["overall"]["n"] == 3
-    assert ag["overall"]["parse_success_count"] == 2
-    assert ag["overall"]["parse_success_rate"] == pytest.approx(2 / 3, abs=1e-4)
+    assert ag["overall"]["execution_success_count"] == 2
+    assert ag["overall"]["execution_success_rate"] == pytest.approx(2 / 3, abs=1e-4)
     assert ag["overall"]["quality_band_distribution"] == {"HIGH": 2, "OK": 1}
 
 
-def test_aggregate_records_failures_separately():
+def test_aggregate_records_execution_failures_separately():
     results = [
         _mk_result(asset_id="a"),
-        _mk_result(asset_id="b", parse_success=False, exit_code=1, stderr_head="boom"),
+        _mk_result(asset_id="b", execution_success=False, exit_code=1,
+                   output_package_created=False, content_extracted=False,
+                   structurally_usable=False, stderr_head="boom"),
     ]
     ag = _aggregate(results)
-    assert len(ag["failures"]) == 1
-    (f,) = ag["failures"]
+    assert len(ag["execution_failures"]) == 1
+    (f,) = ag["execution_failures"]
     assert f["asset_id"] == "b"
     assert f["exit_code"] == 1
     assert "boom" in f["stderr_head"]
@@ -217,11 +231,42 @@ def test_aggregate_by_document_class_isolates_classes():
     results = [
         _mk_result(asset_id="a", document_class="multicolumn"),
         _mk_result(asset_id="b", document_class="multicolumn"),
-        _mk_result(asset_id="c", document_class="image-only", ocr_required=True),
+        _mk_result(asset_id="c", document_class="image-only", ocr_warning_emitted=True),
     ]
     ag = _aggregate(results)
     assert ag["by_document_class"]["multicolumn"]["n"] == 2
-    assert ag["by_document_class"]["image-only"]["ocr_required_count"] == 1
+    assert ag["by_document_class"]["image-only"]["ocr_warning_count"] == 1
+
+
+def test_aggregate_reports_content_and_structural_failures():
+    """Documents that ran but produced no meaningful content go into
+    content_failures; those with content but not structurally usable
+    go into structural_failures."""
+    results = [
+        _mk_result(asset_id="ok"),
+        _mk_result(asset_id="near_empty", content_extracted=False,
+                   structurally_usable=False, near_empty_output=True, output_chars=40),
+        _mk_result(asset_id="damaged", structurally_usable=False,
+                   repeat_content_ratio=0.85),
+    ]
+    ag = _aggregate(results)
+    assert len(ag["content_failures"]) == 1
+    assert ag["content_failures"][0]["asset_id"] == "near_empty"
+    assert len(ag["structural_failures"]) == 1
+    assert ag["structural_failures"][0]["asset_id"] == "damaged"
+
+
+def test_aggregate_records_human_review_metrics():
+    results = [
+        _mk_result(asset_id="a", human_review_status="reviewed", human_usability="usable"),
+        _mk_result(asset_id="b", human_review_status="reviewed", human_usability="materially_damaged"),
+        _mk_result(asset_id="c"),  # not reviewed
+    ]
+    ag = _aggregate(results)
+    assert ag["overall"]["human_reviewed_count"] == 2
+    assert ag["overall"]["human_usable_count"] == 1
+    assert ag["overall"]["human_materially_damaged_count"] == 1
+    assert ag["overall"]["human_usable_rate"] == pytest.approx(0.5)
 
 
 # ── Artifact tests (skipped if artifacts absent) ────────────────────────
@@ -282,7 +327,9 @@ def test_result_aggregate_matches_per_asset_counts():
     per_asset = r["per_asset"]
     ov = r["aggregate"]["overall"]
     assert ov["n"] == len(per_asset)
-    assert ov["parse_success_count"] == sum(1 for row in per_asset if row["parse_success"])
+    assert ov["execution_success_count"] == sum(1 for row in per_asset if row["execution_success"])
+    assert ov["content_extracted_count"] == sum(1 for row in per_asset if row["content_extracted"])
+    assert ov["structurally_usable_count"] == sum(1 for row in per_asset if row["structurally_usable"])
 
 
 def test_result_records_no_network_or_scoring_change():
@@ -294,18 +341,86 @@ def test_result_records_no_network_or_scoring_change():
     assert "aksharamd" in deps
 
 
-def test_baseline_result_has_no_parse_failure_regression():
-    """Guard against silent parse-quality regressions. If any file that
-    parsed cleanly on this baseline stops parsing on a later commit, the
-    subsequent PR should investigate the regression before merging.
-
-    Not enforced on other systems / phases. This test locks the Phase-1
-    100% success rate we measured on cb1a5cd.
+def test_baseline_result_no_execution_regression():
+    """Lock the process-level reliability floor. Execution rate must
+    stay near 100% (CLI does not crash).
     """
     r = _load_result()
     ov = r["aggregate"]["overall"]
-    # Do not lock the count (corpus may grow) — lock only the rate.
-    assert ov["parse_success_rate"] >= 0.98, (
-        f"Phase-1 baseline parse success rate dropped to {ov['parse_success_rate']}; "
-        "investigate the regression before merging."
+    assert ov["execution_success_rate"] >= 0.98, (
+        f"execution success rate dropped to {ov['execution_success_rate']}; "
+        "investigate regression before merging."
+    )
+
+
+def test_baseline_headline_metrics_are_separated():
+    """The four success levels must all appear in the aggregate. This
+    guards against a regression where content and execution are silently
+    collapsed back into one number.
+    """
+    r = _load_result()
+    ov = r["aggregate"]["overall"]
+    for k in ("execution_success_rate", "output_package_created_rate",
+              "meaningful_content_rate", "structurally_usable_rate"):
+        assert k in ov, f"headline metric {k!r} missing from aggregate"
+    # The four rates must form a non-increasing sequence: content
+    # extraction cannot exceed execution; structural usability cannot
+    # exceed content.
+    assert ov["execution_success_rate"] >= ov["meaningful_content_rate"]
+    assert ov["meaningful_content_rate"] >= ov["structurally_usable_rate"]
+
+
+def test_baseline_image_only_audit_present_for_every_image_only_asset():
+    """Every image-only asset in the manifest must appear in the
+    per-asset result, and each must carry hidden_text_layer + output_chars
+    fields for the audit table.
+    """
+    m = _load_manifest()
+    r = _load_result()
+    img_ids = {a["asset_id"] for a in m["assets"]
+               if a["document_class"] == "image-only" and a["eligibility"] == "eligible"}
+    per_asset = {row["asset_id"]: row for row in r["per_asset"]}
+    for aid in img_ids:
+        assert aid in per_asset, f"image-only asset {aid!r} missing from result"
+        row = per_asset[aid]
+        for key in ("hidden_text_layer", "hidden_text_layer_chars", "output_chars",
+                    "warning_codes", "quality_band"):
+            assert key in row, f"{aid}: audit field {key!r} missing"
+
+
+_PARITY = _REPO_ROOT / "benchmarks" / "PDF_BENCHMARK_V1_PARITY_AUDIT_2026-07-19.json"
+
+
+def test_parity_audit_present_and_matching():
+    """The known-case parity audit must have been run and all cases
+    must match the shipped-detector output. Skipped when the audit JSON
+    is absent (e.g., a developer running only the pure tests offline).
+    """
+    if not _PARITY.exists():
+        pytest.skip(f"parity audit artifact missing: {_PARITY}")
+    with _PARITY.open("r", encoding="utf-8") as f:
+        p = json.load(f)
+    assert p["all_match"] is True, (
+        f"parity audit reported drift: {[r for r in p['audit_rows'] if r.get('drift')]}"
+    )
+    # Every asset in the known-case list must have been audited.
+    audited_ids = {row["asset_id"] for row in p["audit_rows"]}
+    expected_ids = set(p["known_cases"])
+    assert audited_ids == expected_ids
+
+
+def test_baseline_human_review_sample_is_stratified():
+    """The stratified human-review sample must cover every primary
+    slice with at least one review (the reviewer supplies the JSON).
+    """
+    r = _load_result()
+    reviewed = [row for row in r["per_asset"] if row["human_review_status"] == "reviewed"]
+    if not reviewed:
+        pytest.skip("no human reviews supplied in this run")
+    covered = {row["document_class"] for row in reviewed}
+    # Every class that has AT LEAST one reviewed asset must show up.
+    manifest_classes = {row["document_class"] for row in r["per_asset"]}
+    # Require coverage of every class present in the corpus.
+    assert covered == manifest_classes, (
+        f"reviewer sample covers {covered} but corpus has {manifest_classes}"
     )

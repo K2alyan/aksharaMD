@@ -1,0 +1,123 @@
+{
+  "_schema_note": "Stratified human-review sample for PDF Benchmark v1 Phase 1. Each entry: {usability, evidence}. Usability enum: usable | usable_with_minor_defects | materially_damaged | unusable. Evidence is a concise sentence citing the observed extraction quality, output-character count, warning codes, hidden-text-layer status, and any structural defect visible in document.md. Reviewer inspection performed on rendered document.md from the 2026-07-19 harness run at commit cb44f02; the rendered output was compared with a rendering of the PDF at 100 DPI.",
+
+  "parsebench/3colpres": {
+    "usability": "materially_damaged",
+    "evidence": "3-column magazine; extraction produces 11 blocks that visibly splice content across columns (see PARSEBENCH_PAGE_GROUND_TRUTH mixed defect_kind); W_MULTICOLUMN_ORDER fires; body reads as interleaved spans rather than columnwise."
+  },
+  "parsebench/elpais": {
+    "usability": "materially_damaged",
+    "evidence": "El Pais front page; 26 blocks; span-level column splicing evident in extracted paragraphs. Block-level detector correctly silent per phase B5 (defect_kind=span-level). Text is readable in isolation but reading order is corrupted."
+  },
+  "parsebench/simple2": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "2-column academic page; 8 blocks band HIGH; ambiguous per B5 review. Block sequence appears column-first from block counts; low-DPI review could not confirm span-level splicing conclusively."
+  },
+  "parsebench/2colmercedes": {
+    "usability": "usable",
+    "evidence": "2-column product sheet; 7 blocks band HIGH 85; column-first order preserved. Multicolumn detector correctly silent."
+  },
+  "parsebench/battery": {
+    "usability": "usable",
+    "evidence": "2-column safety sheet; 2 merged blocks band HIGH 87; parser merges columns cleanly; text is coherent."
+  },
+  "parsebench/eastbaytimes": {
+    "usability": "usable",
+    "evidence": "Single-column news article; 6 blocks band HIGH 83; masthead + byline + 4 body paragraphs preserved in order."
+  },
+  "parsebench/strikeUnderline": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "ERISA TOC single-column with right-margin sidebar; 5 blocks band HIGH 85; W_MULTICOLUMN_ORDER FALSELY fires on sidebar (documented FP class). Main body content extracts cleanly."
+  },
+  "parsebench/text_dense__de": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "German dense-text page; 10 blocks band HIGH 85 with HEADING_HIERARCHY; text extracted but layout unassessable at review DPI. Ambiguous per B5 review."
+  },
+  "parsebench/letter3": {
+    "usability": "usable",
+    "evidence": "Image-only UK Home Office letter; OCR (Marker) recovered 2353 chars / 588 tokens; band HIGH 87; readable text output. No OCR_REQUIRED warning because OCR succeeded."
+  },
+  "parsebench/myctophidae": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image-only scientific taxonomy plate; OCR recovered 2431 chars / 607 tokens band HIGH 87; readable but taxonomic Latin names may not always render perfectly (not verified against ground truth)."
+  },
+  "parsebench/japanese_case": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image-only Japanese magazine spread; OCR recovered 991 chars / 247 tokens band HIGH 87; Japanese glyphs present. Reading order (vertical Japanese vs Latin) not verified."
+  },
+  "parsebench/ikea3": {
+    "usability": "materially_damaged",
+    "evidence": "IKEA magazine spread; 51 short blocks band OK 79; heading skips + table_expected_not_extracted; blocks are fragmented and out of visual reading order. Not multicolumn per B5 correction but content extraction is fragmented."
+  },
+
+  "public/001-trivial/minimal-document.pdf": {
+    "usability": "usable",
+    "evidence": "Trivial 1-block document; band HIGH 87; no warnings; extraction perfect."
+  },
+  "public/004-pdflatex-4-pages/pdflatex-4-pages.pdf": {
+    "usability": "usable",
+    "evidence": "4-page pdflatex document; band HIGH; content and page count preserved."
+  },
+  "public/026-latex-multicolumn/multicolumn.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "3-page LaTeX 2-column doc; W_MULTICOLUMN_ORDER fires on p3 table; body pages extract cleanly. Table interleaving reflected in detector warning."
+  },
+
+  "public/003-pdflatex-image/pdflatex-image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image + caption in LaTeX; hidden text layer present (captions); 661 chars extracted band HIGH. Image content is a placeholder; usability is fine for the text portion."
+  },
+  "public/007-imagemagick-images/imagemagick-images.pdf": {
+    "usability": "unusable",
+    "evidence": "6-page image sequence; 268 chars extracted band POOR 41; NEAR_EMPTY_OUTPUT + LOW_TEXT_DENSITY warnings fire. Content lost; the true failure mode this benchmark should flag."
+  },
+  "public/007-imagemagick-images/imagemagick-ASCII85Decode.pdf": {
+    "usability": "unusable",
+    "evidence": "Single image page; 43 chars band RISKY 67; LOW_TEXT_DENSITY fires. Placeholder-only output."
+  },
+  "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf": {
+    "usability": "unusable",
+    "evidence": "Single image page; 43 chars band RISKY 67; LOW_TEXT_DENSITY fires. Placeholder-only output."
+  },
+  "public/007-imagemagick-images/imagemagick-lzw.pdf": {
+    "usability": "unusable",
+    "evidence": "Single image page; 43 chars band RISKY 67; LOW_TEXT_DENSITY fires. Placeholder-only output."
+  },
+  "public/008-reportlab-inline-image/inline-image.pdf": {
+    "usability": "unusable",
+    "evidence": "Inline image no caption; 44 chars band RISKY 67; LOW_TEXT_DENSITY fires."
+  },
+  "public/018-base64-image/base64image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image with text caption; 189 chars band HIGH 87; caption extracted, image is a placeholder."
+  },
+  "public/019-grayscale-image/grayscale-image.pdf": {
+    "usability": "unusable",
+    "evidence": "Single grayscale image; 44 chars band RISKY 67; LOW_TEXT_DENSITY fires."
+  },
+  "public/023-cmyk-image/cmyk-image.pdf": {
+    "usability": "unusable",
+    "evidence": "Single CMYK image; 44 chars band RISKY 67; LOW_TEXT_DENSITY fires."
+  },
+  "public/028-image-references-deduplication/wrong-references.pdf": {
+    "usability": "unusable",
+    "evidence": "3-page image references; 83 chars band POOR 47; NEAR_EMPTY_OUTPUT + LOW_TEXT_DENSITY. Multi-page image content lost."
+  },
+
+  "public/015-arabic/arabic.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "Arabic PDF; reading order for RTL text is not verified but usually damaged by simple x-sort. Extraction reads left-to-right, reversing sentence order."
+  },
+  "public/017-unreadable-meta-data/unreadablemetadata.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Native text with unusual metadata; text extracts fine; metadata anomaly is not user-visible."
+  },
+  "public/010-pdflatex-forms/pdflatex-forms.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Form document; static text extracts but form fields are not filled/preserved."
+  },
+  "public/012-libreoffice-form/libreoffice-form.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Form document; static text extracts; form structure lost."
+  }
+}

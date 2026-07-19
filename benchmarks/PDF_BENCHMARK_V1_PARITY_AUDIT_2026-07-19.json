@@ -1,0 +1,160 @@
+{
+  "harness_version": "pdf_benchmark_v1_parity_audit.py@2026-07-19",
+  "commit_under_evaluation": "cb44f02a35c1bfbfe59b6507b122d79f890d24c0",
+  "generated_at": "2026-07-19T21:13:28Z",
+  "known_cases": [
+    "parsebench/strikeUnderline",
+    "parsebench/3colpres",
+    "parsebench/elpais",
+    "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf",
+    "public/010-pdflatex-forms/pdflatex-forms.pdf",
+    "public/001-trivial/minimal-document.pdf"
+  ],
+  "audit_rows": [
+    {
+      "asset_id": "parsebench/strikeUnderline",
+      "status": "match",
+      "expected": {
+        "output_chars": 8022,
+        "readiness_score": 85,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "HEADING_HIERARCHY",
+          "W_MULTICOLUMN_ORDER"
+        ],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 8022,
+        "readiness_score": 85,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "HEADING_HIERARCHY",
+          "W_MULTICOLUMN_ORDER"
+        ],
+        "pages": 1
+      },
+      "drift": {}
+    },
+    {
+      "asset_id": "parsebench/3colpres",
+      "status": "match",
+      "expected": {
+        "output_chars": 4183,
+        "readiness_score": 85,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "HEADING_SKIP",
+          "W_MULTICOLUMN_ORDER"
+        ],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 4183,
+        "readiness_score": 85,
+        "quality_band": "HIGH",
+        "warning_codes": [
+          "HEADING_SKIP",
+          "W_MULTICOLUMN_ORDER"
+        ],
+        "pages": 1
+      },
+      "drift": {}
+    },
+    {
+      "asset_id": "parsebench/elpais",
+      "status": "match",
+      "expected": {
+        "output_chars": 3842,
+        "readiness_score": 79,
+        "quality_band": "OK",
+        "warning_codes": [
+          "HEADING_HIERARCHY",
+          "HEADING_SKIP",
+          "HEADING_SKIP",
+          "HEADING_SKIP"
+        ],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 3842,
+        "readiness_score": 79,
+        "quality_band": "OK",
+        "warning_codes": [
+          "HEADING_HIERARCHY",
+          "HEADING_SKIP",
+          "HEADING_SKIP",
+          "HEADING_SKIP"
+        ],
+        "pages": 1
+      },
+      "drift": {}
+    },
+    {
+      "asset_id": "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf",
+      "status": "match",
+      "expected": {
+        "output_chars": 43,
+        "readiness_score": 67,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 43,
+        "readiness_score": 67,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "pages": 1
+      },
+      "drift": {}
+    },
+    {
+      "asset_id": "public/010-pdflatex-forms/pdflatex-forms.pdf",
+      "status": "match",
+      "expected": {
+        "output_chars": 63,
+        "readiness_score": 67,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 63,
+        "readiness_score": 67,
+        "quality_band": "RISKY",
+        "warning_codes": [
+          "LOW_TEXT_DENSITY"
+        ],
+        "pages": 1
+      },
+      "drift": {}
+    },
+    {
+      "asset_id": "public/001-trivial/minimal-document.pdf",
+      "status": "match",
+      "expected": {
+        "output_chars": 593,
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "pages": 1
+      },
+      "actual": {
+        "output_chars": 593,
+        "readiness_score": 87,
+        "quality_band": "HIGH",
+        "warning_codes": [],
+        "pages": 1
+      },
+      "drift": {}
+    }
+  ],
+  "all_match": true
+}

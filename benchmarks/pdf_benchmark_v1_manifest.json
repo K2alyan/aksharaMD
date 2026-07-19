@@ -1,6 +1,6 @@
 {
   "harness_version": "pdf_benchmark_v1.py@2026-07-19",
-  "commit_under_evaluation": "cb1a5cd7587c2354a581e29e37ef0e5a2df4fc05",
+  "commit_under_evaluation": "cb44f02a35c1bfbfe59b6507b122d79f890d24c0",
   "python_version": "3.12.2",
   "platform": "Windows-11-10.0.26200-SP0",
   "asset_count_total": 46,
