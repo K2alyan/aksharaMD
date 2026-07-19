@@ -176,7 +176,9 @@ def test_happy_path_fetches_and_records_identity_only(tmp_path: Path) -> None:
     assert outcome.bytes_downloaded == len(body)
     assert outcome.validation == "identity-only"
     assert outcome.checksum_status == "unavailable"
-    assert outcome.approved_for_calibration is False
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "checksum_status_unavailable"
     assert Path(outcome.destination).exists()
 
 
@@ -327,7 +329,7 @@ def _promoted_asset(body: bytes = b"%PDF-1.4 fake", **overrides) -> dict:
 
 def test_fetch_matches_promoted_checksum_records_verified(tmp_path: Path) -> None:
     body = b"%PDF-1.4 fake"
-    asset = _promoted_asset(body=body)
+    asset = _promoted_asset(body=body)  # no expected_label / defect_kind / page GT
     fake = _FakeHttp({_happy_url(asset): (200, body)})
     lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
     report = fetch(lock, tmp_path / "cache", http_fetch=fake)
@@ -336,15 +338,16 @@ def test_fetch_matches_promoted_checksum_records_verified(tmp_path: Path) -> Non
     assert outcome.error_code == 0
     assert outcome.checksum_status == "verified"
     assert outcome.validation == "checksum-verified"
-    # Even with checksum verified, ground truth is still null → not approved.
-    assert outcome.approved_for_calibration is False
+    # Byte identity alone is insufficient for either level of approval.
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "expected_label_missing"
 
 
 def test_fetch_checksum_mismatch_returns_code_23(tmp_path: Path) -> None:
     real_body = b"%PDF-1.4 real"
     wrong_body = b"%PDF-1.4 wrong"
     asset = _promoted_asset(body=real_body)
-    # Fetcher receives the wrong bytes but the lockfile promises real_body's sha256
     fake = _FakeHttp({_happy_url(asset): (200, wrong_body)})
     lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
     report = fetch(lock, tmp_path / "cache", http_fetch=fake)
@@ -353,6 +356,10 @@ def test_fetch_checksum_mismatch_returns_code_23(tmp_path: Path) -> None:
     assert outcome.checksum_status == "mismatch"
     assert "sha256 mismatch" in outcome.error or "size mismatch" in outcome.error
     assert report.exit_code == 23
+    # Neither approval survives a checksum failure.
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "checksum_mismatch"
 
 
 def test_fetch_size_mismatch_returns_code_23(tmp_path: Path) -> None:
@@ -365,32 +372,93 @@ def test_fetch_size_mismatch_returns_code_23(tmp_path: Path) -> None:
     (outcome,) = report.outcomes
     assert outcome.error_code == 23
     assert "size mismatch" in outcome.error
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
 
 
-def test_calibration_approval_requires_label_and_defect_kind(tmp_path: Path) -> None:
-    """Byte identity alone is insufficient. `expected_label` + `defect_kind`
-    must be present to flip `approved_for_calibration`.
+def test_document_approval_requires_expected_label_and_defect_kind(tmp_path: Path) -> None:
+    """Verified + expected_label + defect_kind + null page GT →
+    document-approved, page-rejected. This is the shape of the current
+    lockfile's 12 promoted assets.
     """
     body = b"%PDF-1.4 fake"
-    asset = _promoted_asset(body=body, expected_label="true-positive", defect_kind="block-level")
+    asset = _promoted_asset(
+        body=body,
+        expected_label="true-positive",
+        defect_kind="block-level",
+        # page_level_ground_truth intentionally omitted / null
+    )
     fake = _FakeHttp({_happy_url(asset): (200, body)})
     lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
     report = fetch(lock, tmp_path / "cache", http_fetch=fake)
     (outcome,) = report.outcomes
     assert outcome.checksum_status == "verified"
-    assert outcome.approved_for_calibration is True
+    assert outcome.approved_for_document_calibration is True
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "page_level_ground_truth_missing"
+
+
+def test_page_approval_requires_non_null_page_ground_truth(tmp_path: Path) -> None:
+    """Verified + expected_label + defect_kind + populated page GT →
+    both approvals True; calibration_reason is empty.
+    """
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(
+        body=body,
+        expected_label="true-positive",
+        defect_kind="block-level",
+        page_level_ground_truth={"known_pages_with_defect": [1, 2]},
+    )
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.approved_for_document_calibration is True
+    assert outcome.approved_for_page_calibration is True
+    assert outcome.calibration_reason == ""
+
+
+def test_missing_expected_label_rejects_both_approvals(tmp_path: Path) -> None:
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(
+        body=body,
+        defect_kind="block-level",  # label omitted
+    )
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "expected_label_missing"
+
+
+def test_missing_defect_kind_rejects_both_approvals(tmp_path: Path) -> None:
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(
+        body=body,
+        expected_label="true-positive",  # defect_kind omitted
+    )
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.approved_for_document_calibration is False
+    assert outcome.approved_for_page_calibration is False
+    assert outcome.calibration_reason == "defect_kind_missing"
 
 
 def test_cached_second_run_still_verifies_checksum(tmp_path: Path) -> None:
     """Cache-hit path must re-verify — the file could have been tampered
-    with between runs.
+    with between runs. Both approval fields must be False on tamper detection.
     """
     body = b"%PDF-1.4 fake"
-    asset = _promoted_asset(body=body)
+    asset = _promoted_asset(body=body, expected_label="true-positive", defect_kind="block-level")
     fake = _FakeHttp({_happy_url(asset): (200, body)})
     lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
     report1 = fetch(lock, tmp_path / "cache", http_fetch=fake)
     assert report1.outcomes[0].status == "fetched"
+    assert report1.outcomes[0].approved_for_document_calibration is True
     # Corrupt the cached file
     dest = Path(report1.outcomes[0].destination)
     dest.write_bytes(b"tampered content")
@@ -398,3 +466,6 @@ def test_cached_second_run_still_verifies_checksum(tmp_path: Path) -> None:
     report2 = fetch(lock, tmp_path / "cache", http_fetch=_FakeHttp({}))
     assert report2.outcomes[0].error_code == 23
     assert report2.outcomes[0].checksum_status == "mismatch"
+    assert report2.outcomes[0].approved_for_document_calibration is False
+    assert report2.outcomes[0].approved_for_page_calibration is False
+    assert report2.outcomes[0].calibration_reason == "checksum_mismatch"
