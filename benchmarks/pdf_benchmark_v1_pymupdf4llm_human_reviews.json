@@ -1,0 +1,123 @@
+{
+  "_schema_note": "Human review of PyMuPDF4LLM output (pymupdf4llm 1.27.2.3) on the same 28 asset ids reviewed for AksharaMD Phase 1. Each verdict is on PyMuPDF4LLM's OWN document.md, not AksharaMD's — the tool differs. Enum: usable | usable_with_minor_defects | materially_damaged | unusable. Evidence cites observed extraction quality, output chars, and any structural issue.",
+
+  "parsebench/3colpres": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "4188 chars; extracts magazine headline + body sections. Column order reads plausibly on inspection; some fragmentation but not the interleaved sentence-splicing seen in AksharaMD's output."
+  },
+  "parsebench/elpais": {
+    "usability": "materially_damaged",
+    "evidence": "4036 chars but Spanish accents are garbled: 'EL PA?S' instead of 'EL PAÍS'. Also 'S?BADO', 'A?o' — character encoding failure on Latin-1 supplement. Reading order plausible on inspection."
+  },
+  "parsebench/simple2": {
+    "usability": "usable",
+    "evidence": "4394 chars; extracts European Fund evaluation cleanly. Section headings preserved; body text flows correctly."
+  },
+  "parsebench/2colmercedes": {
+    "usability": "usable",
+    "evidence": "3737 chars; audit-report body extracted with section headings preserved; column order correct."
+  },
+  "parsebench/battery": {
+    "usability": "usable",
+    "evidence": "2551 chars; safety-warning content extracted with lettered list preserved (a/b/c bullets); heading '## CAUSE BATTERY EXPLOSION' rendered correctly."
+  },
+  "parsebench/eastbaytimes": {
+    "usability": "usable",
+    "evidence": "Single-column news article extracted cleanly; byline + body preserved."
+  },
+  "parsebench/strikeUnderline": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "7772 chars, LARGER than AksharaMD output. Preserves strikethrough markup as '~~text~~' — semantic markup is retained. Body content readable; markdown fidelity higher than AksharaMD on this asset."
+  },
+  "parsebench/text_dense__de": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "German dense-text extracted; layout not fully verified at review DPI, similar to AksharaMD's review."
+  },
+  "parsebench/letter3": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — PyMuPDF4LLM has no OCR; image-only UK Home Office letter produces empty output. AksharaMD Marker OCR delivered 2353 chars on this asset."
+  },
+  "parsebench/myctophidae": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — no OCR; scientific-taxonomy image plate produces empty output. AksharaMD Marker delivered 2431 chars."
+  },
+  "parsebench/japanese_case": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — no OCR; Japanese magazine image produces empty output. AksharaMD Marker delivered 991 chars of Japanese."
+  },
+  "parsebench/ikea3": {
+    "usability": "materially_damaged",
+    "evidence": "5285 chars but content appears interleaved between columns similar to AksharaMD: 'Ideas Styles Shop at IKEA Here we have gathered lots of Creating a certain style in Here we have gathered lots'. Magazine layout defeats simple x-sort."
+  },
+
+  "public/001-trivial/minimal-document.pdf": {
+    "usability": "usable",
+    "evidence": "598 chars; Lorem Ipsum body extracted verbatim."
+  },
+  "public/004-pdflatex-4-pages/pdflatex-4-pages.pdf": {
+    "usability": "usable",
+    "evidence": "14491 chars; 4-page LaTeX doc extracted with content per page preserved."
+  },
+  "public/026-latex-multicolumn/multicolumn.pdf": {
+    "usability": "usable",
+    "evidence": "7168 chars; two-column LaTeX document extracted with section structure preserved. Same result as AksharaMD (both preserve the body)."
+  },
+
+  "public/003-pdflatex-image/pdflatex-image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image caption text extracted; image itself referenced as 'picture intentionally omitted'."
+  },
+  "public/007-imagemagick-images/imagemagick-images.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — 6-page image sequence. No OCR."
+  },
+  "public/007-imagemagick-images/imagemagick-ASCII85Decode.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/007-imagemagick-images/imagemagick-lzw.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/008-reportlab-inline-image/inline-image.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "62 chars; near-empty output with only a placeholder."
+  },
+  "public/018-base64-image/base64image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Caption text extracted; image referenced with placeholder."
+  },
+  "public/019-grayscale-image/grayscale-image.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single grayscale image; no OCR."
+  },
+  "public/023-cmyk-image/cmyk-image.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single CMYK image; no OCR."
+  },
+  "public/028-image-references-deduplication/wrong-references.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "Content-poor multi-page image references PDF; small text extracted, most content lost."
+  },
+
+  "public/015-arabic/habibi.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "28 chars — 'habibi' + Arabic letters partially extracted but with garbled/duplicated ordering. Reading order for Arabic RTL is broken."
+  },
+  "public/017-unreadable-meta-data/unreadablemetadata.pdf": {
+    "usability": "unusable",
+    "evidence": "**Execution failure** — PyMuPDF4LLM raises IndexError on this PDF. AksharaMD parses it (usable_with_minor_defects)."
+  },
+  "public/010-pdflatex-forms/pdflatex-forms.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "22 chars — near-empty output. Form field text not preserved. AksharaMD delivered 63 chars on this asset."
+  },
+  "public/012-libreoffice-form/libreoffice-form.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "135 chars — sparse content. Static text partially extracted; form structure lost."
+  }
+}
