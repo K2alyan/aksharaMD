@@ -115,16 +115,39 @@ def test_every_asset_is_reference_fetch_only() -> None:
         )
 
 
-def test_no_mirror_or_checksum_populated_in_phase_b1() -> None:
+def test_no_mirror_or_binary_url_populated() -> None:
+    """`mirror_url` and `binary_url` must remain `null` forever. Only
+    `sha256` and `size_bytes` are populated by the promotion PR, and only
+    from a reviewed checksum artefact.
+    """
     _skip_if_missing(_LOCKFILE)
     with _LOCKFILE.open("r", encoding="utf-8") as f:
         doc = json.load(f)
     for entry in doc["assets"]:
-        for field in ("mirror_url", "sha256", "size_bytes", "binary_url"):
+        for field in ("mirror_url", "binary_url"):
             assert entry[field] is None, (
-                f"asset {entry['id']!r} has non-null {field}; Phase B1 must NEVER invent "
-                f"mirror URLs, checksums, or sizes. Authorised-fetch is a separate PR."
+                f"asset {entry['id']!r} has non-null {field}; the reference-fetch-only "
+                f"policy forbids any mirror URL."
             )
+
+
+def test_checksums_are_populated_from_promotion() -> None:
+    """Post-promotion: every asset carries a 64-char lowercase-hex sha256
+    and a positive size_bytes. If either is missing on an asset, the
+    promotion is incomplete.
+    """
+    _skip_if_missing(_LOCKFILE)
+    with _LOCKFILE.open("r", encoding="utf-8") as f:
+        doc = json.load(f)
+    for entry in doc["assets"]:
+        sha = entry.get("sha256")
+        size = entry.get("size_bytes")
+        assert isinstance(sha, str) and len(sha) == 64 and all(
+            c in "0123456789abcdef" for c in sha
+        ), f"asset {entry['id']!r}: sha256 must be 64-char lowercase hex, got {sha!r}"
+        assert isinstance(size, int) and size > 0, (
+            f"asset {entry['id']!r}: size_bytes must be a positive int, got {size!r}"
+        )
 
 
 def test_japanese_identity_resolved_to_text_dense_variant() -> None:

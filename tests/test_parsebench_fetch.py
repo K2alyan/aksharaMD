@@ -310,3 +310,91 @@ def test_cli_accepts_env_var_set_to_1(monkeypatch: pytest.MonkeyPatch, tmp_path:
         "--cache-root", str(tmp_path / "cache"),
     ])
     assert exit_code == 11
+
+
+# ── runtime checksum verification (Phase B4 promotion) ─────────────────
+
+
+def _promoted_asset(body: bytes = b"%PDF-1.4 fake", **overrides) -> dict:
+    """A lockfile entry with promoted sha256 and size_bytes."""
+    import hashlib
+    e = _valid_asset()
+    e["sha256"] = hashlib.sha256(body).hexdigest()
+    e["size_bytes"] = len(body)
+    e.update(overrides)
+    return e
+
+
+def test_fetch_matches_promoted_checksum_records_verified(tmp_path: Path) -> None:
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(body=body)
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.status == "fetched"
+    assert outcome.error_code == 0
+    assert outcome.checksum_status == "verified"
+    assert outcome.validation == "checksum-verified"
+    # Even with checksum verified, ground truth is still null → not approved.
+    assert outcome.approved_for_calibration is False
+
+
+def test_fetch_checksum_mismatch_returns_code_23(tmp_path: Path) -> None:
+    real_body = b"%PDF-1.4 real"
+    wrong_body = b"%PDF-1.4 wrong"
+    asset = _promoted_asset(body=real_body)
+    # Fetcher receives the wrong bytes but the lockfile promises real_body's sha256
+    fake = _FakeHttp({_happy_url(asset): (200, wrong_body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.error_code == 23
+    assert outcome.checksum_status == "mismatch"
+    assert "sha256 mismatch" in outcome.error or "size mismatch" in outcome.error
+    assert report.exit_code == 23
+
+
+def test_fetch_size_mismatch_returns_code_23(tmp_path: Path) -> None:
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(body=body)
+    asset["size_bytes"] = len(body) + 100  # deliberately wrong
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.error_code == 23
+    assert "size mismatch" in outcome.error
+
+
+def test_calibration_approval_requires_label_and_defect_kind(tmp_path: Path) -> None:
+    """Byte identity alone is insufficient. `expected_label` + `defect_kind`
+    must be present to flip `approved_for_calibration`.
+    """
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(body=body, expected_label="true-positive", defect_kind="block-level")
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    (outcome,) = report.outcomes
+    assert outcome.checksum_status == "verified"
+    assert outcome.approved_for_calibration is True
+
+
+def test_cached_second_run_still_verifies_checksum(tmp_path: Path) -> None:
+    """Cache-hit path must re-verify — the file could have been tampered
+    with between runs.
+    """
+    body = b"%PDF-1.4 fake"
+    asset = _promoted_asset(body=body)
+    fake = _FakeHttp({_happy_url(asset): (200, body)})
+    lock = _write_lockfile(tmp_path, revision=_VALID_SHA, assets=[asset])
+    report1 = fetch(lock, tmp_path / "cache", http_fetch=fake)
+    assert report1.outcomes[0].status == "fetched"
+    # Corrupt the cached file
+    dest = Path(report1.outcomes[0].destination)
+    dest.write_bytes(b"tampered content")
+    # Second run must detect the mismatch and return 23
+    report2 = fetch(lock, tmp_path / "cache", http_fetch=_FakeHttp({}))
+    assert report2.outcomes[0].error_code == 23
+    assert report2.outcomes[0].checksum_status == "mismatch"

@@ -49,6 +49,7 @@ in `--all` mode.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -254,6 +255,53 @@ def _default_http_fetch(url: str) -> tuple[int, bytes]:
         raise FetchError(20, f"network timeout: {exc}") from exc
 
 
+def _sha256_of_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _label_and_ground_truth_valid(entry: dict) -> bool:
+    """Calibration-readiness gate on the *metadata* side (byte identity is
+    a separate condition). The current lockfile carries null page-level
+    ground truth for every asset, so this returns False across the board.
+    Once ground truth is populated, this condition contributes to the
+    calibration-approval decision alongside checksum verification.
+    """
+    return bool(entry.get("expected_label")) and bool(entry.get("defect_kind"))
+
+
+def _verify_local_bytes(entry: dict, dest: Path) -> tuple[str, str, str]:
+    """Verify a cached file against the lockfile's promoted sha256/size.
+
+    Returns (checksum_status, validation, error_message).
+
+    - If the lockfile has no sha256 (still Phase B2 style), status is
+      "unavailable" and validation is "identity-only".
+    - If the lockfile has sha256 and the file matches, status is
+      "verified" and validation is "checksum-verified".
+    - If mismatch, error_message is populated and the caller returns
+      code 23 (checksum mismatch).
+    """
+    expected_sha = entry.get("sha256")
+    expected_size = entry.get("size_bytes")
+    if not expected_sha:
+        return "unavailable", "identity-only", ""
+    actual_size = dest.stat().st_size
+    if expected_size is not None and actual_size != expected_size:
+        return "mismatch", "checksum-verified", (
+            f"size mismatch: expected {expected_size}, got {actual_size}"
+        )
+    actual_sha = _sha256_of_file(dest)
+    if actual_sha != expected_sha:
+        return "mismatch", "checksum-verified", (
+            f"sha256 mismatch: expected {expected_sha}, got {actual_sha}"
+        )
+    return "verified", "checksum-verified", ""
+
+
 def _fetch_one(
     entry: dict,
     cache_root: Path,
@@ -278,6 +326,21 @@ def _fetch_one(
     _validate_destination(cache_root, dest)
 
     if dest.exists() and dest.stat().st_size > 0:
+        checksum_status, validation, mismatch_msg = _verify_local_bytes(entry, dest)
+        if checksum_status == "mismatch":
+            return FetchOutcome(
+                asset_id=aid,
+                filename=filename,
+                hf_repo_path=hf_path,
+                destination=str(dest),
+                status="error",
+                error_code=23,
+                error=mismatch_msg,
+                validation=validation,
+                checksum_status=checksum_status,
+                approved_for_calibration=False,
+            )
+        approved = checksum_status == "verified" and _label_and_ground_truth_valid(entry)
         return FetchOutcome(
             asset_id=aid,
             filename=filename,
@@ -287,9 +350,9 @@ def _fetch_one(
             error_code=0,
             error="",
             bytes_downloaded=None,
-            validation="identity-only",
-            checksum_status="unavailable",
-            approved_for_calibration=False,
+            validation=validation,
+            checksum_status=checksum_status,
+            approved_for_calibration=approved,
         )
 
     url = f"{_HF_BASE}/{_HF_REPO}/resolve/{revision}/{hf_path}"
@@ -340,15 +403,27 @@ def _fetch_one(
             error_code=26, error=f"local filesystem failure: {exc}",
         )
 
+    checksum_status, validation, mismatch_msg = _verify_local_bytes(entry, dest)
+    if checksum_status == "mismatch":
+        return FetchOutcome(
+            asset_id=aid, filename=filename, hf_repo_path=hf_path,
+            destination=str(dest), status="error",
+            error_code=23, error=mismatch_msg,
+            bytes_downloaded=len(body),
+            validation=validation,
+            checksum_status=checksum_status,
+            approved_for_calibration=False,
+        )
+    approved = checksum_status == "verified" and _label_and_ground_truth_valid(entry)
     return FetchOutcome(
         asset_id=aid, filename=filename, hf_repo_path=hf_path,
         destination=str(dest),
         status="fetched",
         error_code=0, error="",
         bytes_downloaded=len(body),
-        validation="identity-only",
-        checksum_status="unavailable",
-        approved_for_calibration=False,
+        validation=validation,
+        checksum_status=checksum_status,
+        approved_for_calibration=approved,
     )
 
 
