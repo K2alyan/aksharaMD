@@ -1,0 +1,654 @@
+{
+  "harness_version": "sidebar_cluster_exclusion_prototype.py@2026-07-19",
+  "commit_under_evaluation": "71c491672b0494e3543991d356629f910a243ff6",
+  "fixtures": [
+    {
+      "name": "sidebar_only_page",
+      "page_width": 612.0,
+      "page_height": 792.0,
+      "blocks": [
+        {
+          "index": 0,
+          "type": "paragraph",
+          "x0": 66.0,
+          "y0": 145.0,
+          "content": "Section one. Section one. Section one. Section one. Section one. Section one. Section one. Section one. Section one. Section one. Section one. Section one.",
+          "chars": 155,
+          "words": 24
+        },
+        {
+          "index": 10,
+          "type": "heading",
+          "x0": 404.0,
+          "y0": 145.0,
+          "content": "\u00a71",
+          "chars": 2,
+          "words": 1
+        },
+        {
+          "index": 11,
+          "type": "heading",
+          "x0": 404.0,
+          "y0": 223.0,
+          "content": "\u00a72",
+          "chars": 2,
+          "words": 1
+        },
+        {
+          "index": 1,
+          "type": "paragraph",
+          "x0": 66.0,
+          "y0": 234.0,
+          "content": "Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences. Body paragraph with sentences.",
+          "chars": 991,
+          "words": 128
+        },
+        {
+          "index": 12,
+          "type": "heading",
+          "x0": 404.0,
+          "y0": 420.0,
+          "content": "\u00a73",
+          "chars": 2,
+          "words": 1
+        },
+        {
+          "index": 2,
+          "type": "paragraph",
+          "x0": 66.0,
+          "y0": 432.0,
+          "content": "Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body. Continuing body.",
+          "chars": 509,
+          "words": 60
+        },
+        {
+          "index": 13,
+          "type": "heading",
+          "x0": 404.0,
+          "y0": 617.0,
+          "content": "\u00a74",
+          "chars": 2,
+          "words": 1
+        },
+        {
+          "index": 3,
+          "type": "paragraph",
+          "x0": 66.0,
+          "y0": 629.0,
+          "content": "Final body paragraph. Final body paragraph. Final body paragraph. Final body paragraph. Final body paragraph. Final body paragraph. Final body paragraph. Final body paragraph.",
+          "chars": 175,
+          "words": 24
+        }
+      ],
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": false,
+      "expected_multicolumn": false,
+      "expected_h6_matches": true,
+      "notes": "single-column body + right-margin sidebar; genuine FP class"
+    },
+    {
+      "name": "true_three_column_page",
+      "page_width": 612.0,
+      "page_height": 792.0,
+      "blocks": [
+        {
+          "index": 0,
+          "type": "paragraph",
+          "x0": 57.0,
+          "y0": 32.0,
+          "content": "Left column, sentence. Left column, sentence. Left column, sentence. Left column, sentence.",
+          "chars": 91,
+          "words": 12
+        },
+        {
+          "index": 1,
+          "type": "heading",
+          "x0": 67.0,
+          "y0": 101.0,
+          "content": "Section header Section header",
+          "chars": 29,
+          "words": 4
+        },
+        {
+          "index": 8,
+          "type": "paragraph",
+          "x0": 145.0,
+          "y0": 135.0,
+          "content": "Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top. Middle column top.",
+          "chars": 474,
+          "words": 75
+        },
+        {
+          "index": 2,
+          "type": "paragraph",
+          "x0": 57.0,
+          "y0": 255.0,
+          "content": "Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body. Left column body.",
+          "chars": 719,
+          "words": 120
+        },
+        {
+          "index": 3,
+          "type": "paragraph",
+          "x0": 57.0,
+          "y0": 400.0,
+          "content": "More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body. More left column body.",
+          "chars": 1379,
+          "words": 240
+        },
+        {
+          "index": 4,
+          "type": "paragraph",
+          "x0": 57.0,
+          "y0": 603.0,
+          "content": "Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body. Even more left column body.",
+          "chars": 839,
+          "words": 150
+        },
+        {
+          "index": 6,
+          "type": "paragraph",
+          "x0": 233.0,
+          "y0": 651.0,
+          "content": "Middle column start. Middle column start. Middle column start. Middle column start. Middle column start. Middle column start. Middle column start. Middle column start.",
+          "chars": 167,
+          "words": 24
+        },
+        {
+          "index": 20,
+          "type": "heading",
+          "x0": 410.0,
+          "y0": 687.0,
+          "content": "Callout Heading",
+          "chars": 15,
+          "words": 2
+        },
+        {
+          "index": 7,
+          "type": "paragraph",
+          "x0": 233.0,
+          "y0": 699.0,
+          "content": "Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues. Middle column continues.",
+          "chars": 299,
+          "words": 36
+        },
+        {
+          "index": 5,
+          "type": "paragraph",
+          "x0": 57.0,
+          "y0": 760.0,
+          "content": "Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body. Final left column body.",
+          "chars": 7199,
+          "words": 1200
+        },
+        {
+          "index": 21,
+          "type": "paragraph",
+          "x0": 460.0,
+          "y0": 760.0,
+          "content": "Small caption text here.",
+          "chars": 24,
+          "words": 4
+        }
+      ],
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": true,
+      "expected_multicolumn": true,
+      "expected_h6_matches": false,
+      "notes": "3colpres surrogate: parser lumps left+middle columns; callout is cluster 1. Baseline warns because callout blocks create y-sorted transitions. H6 does NOT match because callout is compact (cov \u2248 0.09), so cluster exclusion is not applied and the baseline verdict is preserved. Documents that H6 preserves 3colpres via the coverage gate, not via alternations."
+    },
+    {
+      "name": "mixed_multicolumn_and_sidebar_page",
+      "page_width": 612.0,
+      "page_height": 792.0,
+      "blocks": [
+        {
+          "index": 0,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 100.0,
+          "content": "Left column paragraph number one, has enough words to count.",
+          "chars": 60,
+          "words": 10
+        },
+        {
+          "index": 1,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 104.0,
+          "content": "Right column paragraph one, matches the length of the left.",
+          "chars": 59,
+          "words": 10
+        },
+        {
+          "index": 16,
+          "type": "heading",
+          "x0": 500.0,
+          "y0": 120.0,
+          "content": "\u204b",
+          "chars": 1,
+          "words": 1
+        },
+        {
+          "index": 2,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 178.0,
+          "content": "Left column continues with more sentences for word count.",
+          "chars": 57,
+          "words": 9
+        },
+        {
+          "index": 3,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 182.0,
+          "content": "Right column continues alongside the left column body flow.",
+          "chars": 59,
+          "words": 9
+        },
+        {
+          "index": 4,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 256.0,
+          "content": "Left column third paragraph with sufficient content length.",
+          "chars": 59,
+          "words": 8
+        },
+        {
+          "index": 5,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 260.0,
+          "content": "Right column third paragraph matches left in vertical position.",
+          "chars": 63,
+          "words": 9
+        },
+        {
+          "index": 17,
+          "type": "heading",
+          "x0": 500.0,
+          "y0": 260.0,
+          "content": "\u204b",
+          "chars": 1,
+          "words": 1
+        },
+        {
+          "index": 6,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 334.0,
+          "content": "Left column fourth paragraph continuing the body text stream.",
+          "chars": 61,
+          "words": 9
+        },
+        {
+          "index": 7,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 338.0,
+          "content": "Right column fourth paragraph continues the body text.",
+          "chars": 54,
+          "words": 8
+        },
+        {
+          "index": 8,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 412.0,
+          "content": "Left column fifth paragraph, still going with body content.",
+          "chars": 59,
+          "words": 9
+        },
+        {
+          "index": 9,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 416.0,
+          "content": "Right column fifth paragraph, still tracking the left column.",
+          "chars": 61,
+          "words": 9
+        },
+        {
+          "index": 18,
+          "type": "heading",
+          "x0": 500.0,
+          "y0": 420.0,
+          "content": "\u204b",
+          "chars": 1,
+          "words": 1
+        },
+        {
+          "index": 10,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 490.0,
+          "content": "Left column sixth paragraph with enough body words.",
+          "chars": 51,
+          "words": 8
+        },
+        {
+          "index": 11,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 494.0,
+          "content": "Right column sixth paragraph matches left in overall word count.",
+          "chars": 64,
+          "words": 10
+        },
+        {
+          "index": 12,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 568.0,
+          "content": "Left column seventh paragraph, penultimate on this side.",
+          "chars": 56,
+          "words": 8
+        },
+        {
+          "index": 13,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 572.0,
+          "content": "Right column seventh paragraph, penultimate on this side too.",
+          "chars": 61,
+          "words": 9
+        },
+        {
+          "index": 19,
+          "type": "heading",
+          "x0": 500.0,
+          "y0": 620.0,
+          "content": "\u204b",
+          "chars": 1,
+          "words": 1
+        },
+        {
+          "index": 14,
+          "type": "paragraph",
+          "x0": 60.0,
+          "y0": 646.0,
+          "content": "Left column final paragraph on the two-column body layout.",
+          "chars": 58,
+          "words": 9
+        },
+        {
+          "index": 15,
+          "type": "paragraph",
+          "x0": 180.0,
+          "y0": 650.0,
+          "content": "Right column final paragraph closes out the two body columns.",
+          "chars": 61,
+          "words": 10
+        }
+      ],
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": true,
+      "expected_multicolumn": true,
+      "expected_h6_matches": true,
+      "expected_blanket_suppression_warn": false,
+      "notes": "Genuine two-column body PLUS right-margin sidebar. Largest x-gap sits between right body column (x=180) and sidebar (x=500), so H6 sees sidebar as the minority cluster. Baseline warns correctly. Blanket suppression would INCORRECTLY silence. Cluster exclusion removes only the sidebar and recomputes: the two body columns' 60-vs-180 gap becomes the new largest gap and the recomputed baseline still fires."
+    },
+    {
+      "name": "single_column_control",
+      "page_width": 612.0,
+      "page_height": 792.0,
+      "blocks": [
+        {
+          "index": 0,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 100.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 1,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 190.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 2,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 280.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 3,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 370.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 4,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 460.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 5,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 550.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        },
+        {
+          "index": 6,
+          "type": "paragraph",
+          "x0": 72.0,
+          "y0": 640.0,
+          "content": "Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph. Single-column body paragraph.",
+          "chars": 599,
+          "words": 60
+        }
+      ],
+      "expected_baseline_warn": false,
+      "expected_cluster_exclusion_warn": false,
+      "expected_multicolumn": false,
+      "expected_h6_matches": false,
+      "notes": "single-column control; baseline stays silent"
+    }
+  ],
+  "results": [
+    {
+      "name": "sidebar_only_page",
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": false,
+      "expected_multicolumn": false,
+      "baseline": {
+        "total_blocks": 8,
+        "gap_size": 338.0,
+        "gap_rel": 1.0,
+        "transition_rate": 0.86,
+        "large_y_drops": 0,
+        "short_frac": 0.5,
+        "signals": [
+          "high_transition_rate=0.86",
+          "y_monotonic_with_transitions"
+        ],
+        "warn": true
+      },
+      "cross_cluster": {
+        "smaller_cluster": 1,
+        "larger_cluster": 0,
+        "text_share_smaller": 0.004352557127312296,
+        "words_share_smaller": 0.016666666666666666,
+        "smaller_y_coverage_frac": 0.5959595959595959,
+        "y_overlap_frac": 1.0,
+        "top_alignment_delta": 0.0,
+        "bottom_alignment_delta": 12.0,
+        "alternations_substantial": 0,
+        "smaller_cluster_block_ids": [
+          10,
+          11,
+          12,
+          13
+        ],
+        "gap_mid": 235.0
+      },
+      "h6_matches": true,
+      "blanket_suppression_warn": false,
+      "cluster_exclusion_warn": false,
+      "excluded_block_ids": [
+        10,
+        11,
+        12,
+        13
+      ],
+      "recomputed_signals": {
+        "total_blocks": 4,
+        "gap_size": 0.0,
+        "gap_rel": 0.0,
+        "transition_rate": 0.0,
+        "large_y_drops": 0,
+        "short_frac": 0.0,
+        "signals": [],
+        "warn": false
+      },
+      "notes": "single-column body + right-margin sidebar; genuine FP class"
+    },
+    {
+      "name": "true_three_column_page",
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": true,
+      "expected_multicolumn": true,
+      "baseline": {
+        "total_blocks": 11,
+        "gap_size": 177.0,
+        "gap_rel": 0.44,
+        "transition_rate": 0.3,
+        "large_y_drops": 0,
+        "short_frac": 0.27,
+        "signals": [
+          "high_transition_rate=0.30",
+          "y_monotonic_with_transitions"
+        ],
+        "warn": true
+      },
+      "cross_cluster": {
+        "smaller_cluster": 1,
+        "larger_cluster": 0,
+        "text_share_smaller": 0.003471295060080107,
+        "words_share_smaller": 0.0032137118371719335,
+        "smaller_y_coverage_frac": 0.09217171717171717,
+        "y_overlap_frac": 1.0,
+        "top_alignment_delta": 655.0,
+        "bottom_alignment_delta": 0.0,
+        "alternations_substantial": 0,
+        "smaller_cluster_block_ids": [
+          20,
+          21
+        ],
+        "gap_mid": 321.5
+      },
+      "h6_matches": false,
+      "blanket_suppression_warn": true,
+      "cluster_exclusion_warn": true,
+      "excluded_block_ids": [],
+      "recomputed_signals": null,
+      "notes": "3colpres surrogate: parser lumps left+middle columns; callout is cluster 1. Baseline warns because callout blocks create y-sorted transitions. H6 does NOT match because callout is compact (cov \u2248 0.09), so cluster exclusion is not applied and the baseline verdict is preserved. Documents that H6 preserves 3colpres via the coverage gate, not via alternations."
+    },
+    {
+      "name": "mixed_multicolumn_and_sidebar_page",
+      "expected_baseline_warn": true,
+      "expected_cluster_exclusion_warn": true,
+      "expected_multicolumn": true,
+      "baseline": {
+        "total_blocks": 20,
+        "gap_size": 320.0,
+        "gap_rel": 0.73,
+        "transition_rate": 0.42,
+        "large_y_drops": 0,
+        "short_frac": 0.2,
+        "signals": [
+          "high_transition_rate=0.42",
+          "y_monotonic_with_transitions"
+        ],
+        "warn": true
+      },
+      "cross_cluster": {
+        "smaller_cluster": 1,
+        "larger_cluster": 0,
+        "text_share_smaller": 0.004223864836325237,
+        "words_share_smaller": 0.02702702702702703,
+        "smaller_y_coverage_frac": 0.6313131313131313,
+        "y_overlap_frac": 1.0,
+        "top_alignment_delta": 20.0,
+        "bottom_alignment_delta": 30.0,
+        "alternations_substantial": 0,
+        "smaller_cluster_block_ids": [
+          16,
+          17,
+          18,
+          19
+        ],
+        "gap_mid": 340.0
+      },
+      "h6_matches": true,
+      "blanket_suppression_warn": false,
+      "cluster_exclusion_warn": true,
+      "excluded_block_ids": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "recomputed_signals": {
+        "total_blocks": 16,
+        "gap_size": 120.0,
+        "gap_rel": 1.0,
+        "transition_rate": 1.0,
+        "large_y_drops": 0,
+        "short_frac": 0.0,
+        "signals": [
+          "high_transition_rate=1.00",
+          "y_monotonic_with_transitions"
+        ],
+        "warn": true
+      },
+      "notes": "Genuine two-column body PLUS right-margin sidebar. Largest x-gap sits between right body column (x=180) and sidebar (x=500), so H6 sees sidebar as the minority cluster. Baseline warns correctly. Blanket suppression would INCORRECTLY silence. Cluster exclusion removes only the sidebar and recomputes: the two body columns' 60-vs-180 gap becomes the new largest gap and the recomputed baseline still fires."
+    },
+    {
+      "name": "single_column_control",
+      "expected_baseline_warn": false,
+      "expected_cluster_exclusion_warn": false,
+      "expected_multicolumn": false,
+      "baseline": {
+        "total_blocks": 7,
+        "gap_size": 0.0,
+        "gap_rel": 0.0,
+        "transition_rate": 0.0,
+        "large_y_drops": 0,
+        "short_frac": 0.0,
+        "signals": [],
+        "warn": false
+      },
+      "cross_cluster": {},
+      "h6_matches": false,
+      "blanket_suppression_warn": false,
+      "cluster_exclusion_warn": false,
+      "excluded_block_ids": [],
+      "recomputed_signals": null,
+      "notes": "single-column control; baseline stays silent"
+    }
+  ],
+  "acceptance_gate_pass": true,
+  "acceptance_gate_reasons": []
+}
