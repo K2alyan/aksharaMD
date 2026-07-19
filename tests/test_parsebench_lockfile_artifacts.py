@@ -82,10 +82,15 @@ def test_dataset_source_records_apache_license_and_paper() -> None:
     assert ds.get("project") == "ParseBench"
     assert ds.get("dataset_license") == "Apache-2.0"
     assert ds.get("paper_arxiv_id") == "2604.08538"
-    # Reproducibility policy: no revision pinned in this phase, must remain null
-    assert ds.get("dataset_revision") is None, (
-        "dataset_revision must remain null in Phase B1 — the pinning happens in a later "
-        "authorised-fetch PR."
+    # Reproducibility policy: from Phase B2 the revision must be a
+    # 40-character hexadecimal HuggingFace commit SHA (never a mutable
+    # branch name). Phase B1 accepted null; from B2 onward the value is
+    # locked to a specific SHA that reviewers can trace back to a HF
+    # dataset commit.
+    rev = ds.get("dataset_revision")
+    assert rev is not None, "dataset_revision must be pinned from Phase B2 onwards"
+    assert isinstance(rev, str) and len(rev) == 40 and all(c in "0123456789abcdef" for c in rev), (
+        f"dataset_revision must be a 40-char hex SHA; got {rev!r}"
     )
 
 
