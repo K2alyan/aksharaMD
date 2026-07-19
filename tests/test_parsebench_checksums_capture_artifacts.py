@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -105,21 +105,68 @@ def test_captured_asset_ids_match_main_lockfile() -> None:
     )
 
 
+def _is_windows_style_absolute(s: str) -> bool:
+    """A `C:\\...` / `D:/...` style path."""
+    return len(s) >= 3 and s[0].isalpha() and s[1] == ":" and s[2] in ("\\", "/")
+
+
+def _is_posix_style_absolute(s: str) -> bool:
+    return s.startswith("/")
+
+
+def _dest_is_outside_repo(cache_destination: str, repo_root: Path) -> tuple[bool, str]:
+    """Return (is_outside, reason). Works across platforms.
+
+    - A Windows absolute path (`C:\\...`) is trivially outside a POSIX repo
+      root (`/home/runner/...`) because the two use different filesystem
+      root conventions. Same in reverse.
+    - When the path convention matches the current runtime, compare
+      resolved paths.
+    """
+    is_win_abs = _is_windows_style_absolute(cache_destination)
+    is_posix_abs = _is_posix_style_absolute(cache_destination)
+    repo_str = str(repo_root)
+    repo_is_win = _is_windows_style_absolute(repo_str)
+    repo_is_posix = _is_posix_style_absolute(repo_str)
+
+    if is_win_abs and not repo_is_win:
+        return True, "windows absolute path on a non-windows repo root"
+    if is_posix_abs and not repo_is_posix:
+        return True, "posix absolute path on a non-posix repo root"
+    if not (is_win_abs or is_posix_abs):
+        # Relative or unrecognised path — reject: we require an absolute path
+        return False, "cache_destination is not an absolute path we recognise"
+
+    # Same convention as runtime — compare with PurePath semantics.
+    # (Path.resolve() would be wrong here because it would follow symlinks
+    # and may return a normalized form that misses genuine outside-repo
+    # nesting. PurePath comparison of `parts` is enough for the invariant.)
+    dest_parts: tuple[str, ...]
+    repo_parts: tuple[str, ...]
+    if is_win_abs:
+        dest_parts = PureWindowsPath(cache_destination).parts
+        repo_parts = PureWindowsPath(repo_str).parts
+    else:
+        dest_parts = PurePosixPath(cache_destination).parts
+        repo_parts = PurePosixPath(repo_str).parts
+    # If destination's leading segments equal the repo root parts, the dest is inside the repo.
+    if dest_parts[: len(repo_parts)] == repo_parts:
+        return False, f"destination sits under repo root parts {repo_parts}"
+    return True, "outside repo root"
+
+
 def test_cache_destinations_are_outside_the_repo() -> None:
     _skip_if_missing(_CHECKSUMS)
     with _CHECKSUMS.open("r", encoding="utf-8") as f:
         doc = json.load(f)
-    repo = _REPO_ROOT.resolve()
+    repo_root = _REPO_ROOT
     for entry in doc["captures"]:
-        dest = Path(entry["cache_destination"]).resolve()
-        try:
-            dest.relative_to(repo)
-            pytest.fail(
-                f"asset {entry['asset_id']!r} cache_destination {dest} is INSIDE the "
-                f"repo tree at {repo}. Corpus bytes must never be committed."
-            )
-        except ValueError:
-            pass  # good — outside the repo
+        dest_str = entry["cache_destination"]
+        ok, reason = _dest_is_outside_repo(dest_str, repo_root)
+        assert ok, (
+            f"asset {entry['asset_id']!r} cache_destination {dest_str!r} "
+            f"is not confirmed outside the repo tree at {repo_root} — reason: {reason}"
+        )
 
 
 def test_main_lockfile_still_has_null_per_asset_checksums() -> None:
