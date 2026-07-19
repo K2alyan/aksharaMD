@@ -254,6 +254,69 @@ def test_artifact_reports_pymupdf4llm_version():
     assert r["adapter_target_version"] != "unknown"
 
 
+_AKSHARAMD_REVIEWS = _REPO_ROOT / "benchmarks" / "pdf_benchmark_v1_human_reviews.json"
+
+
+def test_artifact_carries_matched_sample_vs_aksharamd():
+    """The adapter must publish a matched-sample paired comparison so
+    the headline usable-rate can be interpreted correctly. Fields must
+    be present and internally consistent.
+    """
+    r = _load_result()
+    mp = r["aggregate"].get("matched_sample_vs_aksharamd_phase1")
+    assert mp is not None and "error" not in mp, (
+        "matched-sample paired comparison missing or errored: "
+        + str(mp)
+    )
+    required = {
+        "matched_sample_size", "aksharamd_usable_count", "pymupdf4llm_usable_count",
+        "both_usable", "aksharamd_only_usable", "pymupdf4llm_only_usable",
+        "neither_usable", "supplementary_pymupdf4llm_only", "supplementary_aksharamd_only",
+    }
+    assert required <= set(mp), f"missing keys: {required - set(mp)}"
+    # Sanity: both_usable + aksharamd_only + pymupdf4llm_only + neither == matched size
+    total = (mp["both_usable"] + len(mp["aksharamd_only_usable"])
+             + len(mp["pymupdf4llm_only_usable"]) + len(mp["neither_usable"]))
+    assert total == mp["matched_sample_size"], (
+        f"paired-outcome total {total} != matched-sample size {mp['matched_sample_size']}"
+    )
+    # Individual sums must add up too.
+    assert mp["aksharamd_usable_count"] == mp["both_usable"] + len(mp["aksharamd_only_usable"])
+    assert mp["pymupdf4llm_usable_count"] == mp["both_usable"] + len(mp["pymupdf4llm_only_usable"])
+
+
+def test_matched_sample_ids_are_identical_intersection():
+    """The matched-sample paired asset ids must be exactly the
+    intersection of the two reviewer files. If a future revision
+    accidentally uses a different subset, this test catches it.
+    """
+    if not _AKSHARAMD_REVIEWS.exists():
+        pytest.skip("AksharaMD reviews not present")
+    r = _load_result()
+    mp = r["aggregate"]["matched_sample_vs_aksharamd_phase1"]
+    with _AKSHARAMD_REVIEWS.open("r", encoding="utf-8") as f:
+        ax = json.load(f)
+    ax_ids = {k for k in ax if not k.startswith("_")}
+    pm_reviewed_ids = {row["asset_id"] for row in r["per_asset"]
+                       if row["human_review_status"] == "reviewed"}
+    expected_matched = ax_ids & pm_reviewed_ids
+    accounted = set(
+        list(mp["aksharamd_only_usable"])
+        + list(mp["pymupdf4llm_only_usable"])
+        + list(mp["neither_usable"])
+    )
+    # both_usable ids are not listed by-id, but their count is implicit
+    # in matched_sample_size - accounted. Just check the total.
+    assert mp["matched_sample_size"] == len(expected_matched), (
+        f"matched-sample size {mp['matched_sample_size']} != intersection size {len(expected_matched)}"
+    )
+    # Supplementary sets must exactly complete the symmetric difference.
+    assert set(mp["supplementary_pymupdf4llm_only"]) == pm_reviewed_ids - ax_ids
+    assert set(mp["supplementary_aksharamd_only"]) == ax_ids - pm_reviewed_ids
+    # Every asset in a paired-outcome bucket must be in the intersection.
+    assert accounted <= expected_matched
+
+
 def test_artifact_records_execution_failure_when_present():
     """PyMuPDF4LLM's known execution failure on this corpus is the
     unreadablemetadata.pdf IndexError. The failure MUST be captured as

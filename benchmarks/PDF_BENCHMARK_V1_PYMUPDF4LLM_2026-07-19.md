@@ -24,6 +24,13 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - **Do not compare directly to AksharaMD numbers on the same corpus without noting the evaluation-semantics differences above.** Two adapters can legitimately report different `content_extracted` counts on the same input if the definitions differ. This report keeps definitions as close to Phase 1 as tool-neutrality permits, but the substitutions above are not exact equivalents.
 - **No competitor ranking here.** Phase 3 will combine adapters after each is independently reviewed and stable.
 
+## Interpretation guardrails
+
+- **`meaningful_content` and `structurally_usable` are benchmark-rule classifications** — deterministic tool-neutral gates that read Markdown output. They are NOT substitutes for human judgment; they are the automated screen that the human review then refines.
+- **AksharaMD readiness scores and warning codes are NOT applied to PyMuPDF4LLM.** PyMuPDF4LLM does not compute them.
+- **Human-usable rate is a sample rate.** 29 files were reviewed. See § Matched human-review parity for the paired comparison against AksharaMD Phase 1.
+- **No cross-parser winner declaration.** Slice-level differences are reported; universal rankings are deferred to Phase 3.
+
 ## Headline metrics
 
 | Metric | Value |
@@ -35,9 +42,89 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 | `structurally_usable_rate` | 14 / 45 (31.1 %) |
 | Near-empty-equivalent files | 18 |
 | Low-density-equivalent files | 11 |
-| Runtime p50 / p95 (s) | 0.249 / 0.757 |
+| Runtime p50 / p95 (s) | 0.191 / 0.586 |
 | Deterministic rate | None |
-| Human-usable rate (sample) | 12 / 29 (41.4 %) |
+| Human-usable rate (sample) | 13 / 29 (44.8 %) |
+
+## Matched human-review parity
+
+AksharaMD Phase 1 reviewed 29 asset ids; PyMuPDF4LLM reviewed 29. The intersection is **28** asset ids. The AksharaMD sample referred to `public/015-arabic/arabic.pdf` (a stale label; no such file exists in the frozen manifest), and the PyMuPDF4LLM sample used `public/015-arabic/habibi.pdf` (the real Arabic asset). Both symmetric-difference ids are preserved below as supplementary reviews.
+
+| Metric | Value |
+|---|---:|
+| Matched sample size | **28** |
+| AksharaMD usable count (matched) | 17 |
+| PyMuPDF4LLM usable count (matched) | 13 |
+| Both usable | 11 |
+| AksharaMD only usable | 6 |
+| PyMuPDF4LLM only usable | 2 |
+| Neither usable | 9 |
+
+**AksharaMD-only usable assets:**
+
+- `parsebench/japanese_case`
+- `parsebench/letter3`
+- `parsebench/myctophidae`
+- `public/010-pdflatex-forms/pdflatex-forms.pdf`
+- `public/012-libreoffice-form/libreoffice-form.pdf`
+- `public/017-unreadable-meta-data/unreadablemetadata.pdf`
+
+**PyMuPDF4LLM-only usable assets:**
+
+- `parsebench/3colpres`
+- `parsebench/elpais`
+
+**Supplementary reviews (in PyMuPDF4LLM sample, NOT AksharaMD's):**
+
+- `public/015-arabic/habibi.pdf`
+
+**Supplementary reviews (in AksharaMD sample, NOT PyMuPDF4LLM's):**
+
+- `public/015-arabic/arabic.pdf`
+
+## Runtime-boundary parity
+
+Reported `runtime_seconds` for each parser reflects **one primary parse** per asset. The two adapters do not use identical process boundaries, so the raw numbers are not directly comparable at the millisecond level.
+
+| Included in runtime | AksharaMD (Phase 1) | PyMuPDF4LLM (this adapter) |
+|---|:---:|:---:|
+| Process startup (Python interpreter fork) | **yes** — CLI subprocess | no — in-process call |
+| Import + package loading | **yes** — each invocation | no — imported once, reused |
+| PDF parsing | yes | yes |
+| OCR (when invoked) | yes (Marker vision extra active) | no — PyMuPDF4LLM has no OCR |
+| Markdown generation | yes | yes |
+| Output serialisation to disk | yes — `document.md` written | no — string returned in memory |
+| Checksum verification | no | no |
+| Deterministic second execution | no (recorded separately) | no (recorded separately) |
+
+**Consequence.** AksharaMD's runtime necessarily includes per-invocation subprocess startup + package-load overhead (roughly a few hundred milliseconds on this machine, plus disk I/O), while PyMuPDF4LLM's runtime measures just the library call. The AksharaMD Phase 1 report shows `p50 = 2.57 s / p95 = 36.36 s`; the earlier session-note baseline of `p50 = 6.9 s / p95 = 30.9 s` came from an earlier harness pass that included a checksum-verification pre-flight per asset — the current Phase-1 harness does the verification once up-front, so per-asset timings do not include it. Neither figure is stale, but they were produced under different pre-flight strategies. This report uses the current Phase-1 numbers (`2.57 / 36.36`) because those are what live in the merged JSON.
+
+**Do not read the median-runtime ratio as a millisecond-level speed claim.** PyMuPDF4LLM is substantially faster in this run, and its process boundary is genuinely lighter; the exact ratio is not a benchmarkable quantity across adapters with different boundaries. Phase 3 will discuss timing in terms of user-visible latency categories rather than raw multiples.
+
+Determinism-check overhead is measured separately: enabling the recompile-and-diff pass roughly doubles the reported per-asset runtime; this adapter defaults to `--no-deterministic-check` for the same reason AksharaMD Phase 1 did.
+
+## Character encoding — correction
+
+**The Spanish accents on `parsebench/elpais` are correctly preserved by PyMuPDF4LLM.** Round-trip check:
+
+- Raw PyMuPDF text on page 1 contains `EL PAÍS` at UTF-8 bytes `b'EL PA\xc3\x8dS'` (`Í` = U+00CD).
+- `pymupdf4llm.to_markdown` output contains the same `EL PAÍS` bytes.
+- The `SÁBADO` date header round-trips as UTF-8 `b'S\xc3\x81BADO'` (`Á` = U+00C1) in both surfaces.
+
+An earlier note in this branch (before this revision) reported `PA?S` — that was a Windows terminal-rendering artefact when `sys.stdout` fell back to cp1252 during ad-hoc debugging, NOT a PyMuPDF4LLM defect. Every UTF-8 byte in the input round-trips through the machine-readable JSON and through the on-disk report unchanged. The revised `parsebench/elpais` human-review verdict is `usable_with_minor_defects` — the minor defect is missing whitespace at column boundaries (e.g., `EL PAÍSlos`), not character corruption.
+
+## Execution failure — reproducibility check
+
+`public/017-unreadable-meta-data/unreadablemetadata.pdf` — PyMuPDF4LLM raises during document parsing:
+
+- **Exception:** `IndexError: range object index out of range`
+- **Where:** `pymupdf4llm/helpers/document_layout.py:1050`, at the guard `page_filter[-1] >= mydoc.page_count`.
+- **Plain PyMuPDF behaviour:** `fitz.open()` succeeds but `doc.page_count == 0`; `doc[0].get_text()` also raises `IndexError`. The PDF advertises metadata but exposes no pages to PyMuPDF.
+- **Deterministic:** yes — reproduced on two consecutive invocations.
+- **Timing:** failure occurs BEFORE Markdown conversion, during layout parsing.
+- **AksharaMD comparison:** the AksharaMD compiler parses this same file and emits a small usable output; the difference is upstream in PyMuPDF4LLM's assumption that at least one page is present.
+
+**No document-specific workaround was added to the adapter.** The failure is captured verbatim in the per-asset record's `exception` field so downstream consumers can filter it explicitly.
 
 ## Per-slice results
 
@@ -47,7 +134,7 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - execution_success: 13 (100.0%)
 - meaningful_content: 1 (7.7%)
 - structurally_usable: 0 (0.0%)
-- runtime p50/p95 (s): 0.213 / 0.445
+- runtime p50/p95 (s): 0.17 / 0.324
 - tokens p50: 0
 - near-empty: 9, low-density: 10
 - human-reviewed: 13 · usable-rate: 0.1538
@@ -58,7 +145,7 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - execution_success: 2 (100.0%)
 - meaningful_content: 0 (0.0%)
 - structurally_usable: 0 (0.0%)
-- runtime p50/p95 (s): 0.212 / 0.215
+- runtime p50/p95 (s): 0.147 / 0.159
 - tokens p50: 19
 - near-empty: 1, low-density: 0
 - human-reviewed: 2 · usable-rate: 0.0
@@ -69,10 +156,10 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - execution_success: 7 (100.0%)
 - meaningful_content: 7 (100.0%)
 - structurally_usable: 7 (100.0%)
-- runtime p50/p95 (s): 0.308 / 0.609
+- runtime p50/p95 (s): 0.263 / 0.459
 - tokens p50: 1009
 - near-empty: 0, low-density: 0
-- human-reviewed: 7 · usable-rate: 0.8571
+- human-reviewed: 7 · usable-rate: 1.0
 
 ### multilingual
 
@@ -80,7 +167,7 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - execution_success: 4 (100.0%)
 - meaningful_content: 1 (25.0%)
 - structurally_usable: 1 (25.0%)
-- runtime p50/p95 (s): 0.25 / 0.458
+- runtime p50/p95 (s): 0.206 / 0.344
 - tokens p50: 7
 - near-empty: 3, low-density: 0
 - human-reviewed: 2 · usable-rate: 0.5
@@ -91,7 +178,7 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 - execution_success: 18 (94.7%)
 - meaningful_content: 13 (68.4%)
 - structurally_usable: 6 (31.6%)
-- runtime p50/p95 (s): 0.311 / 20.314
+- runtime p50/p95 (s): 0.229 / 14.677
 - tokens p50: 271
 - near-empty: 5, low-density: 1
 - human-reviewed: 5 · usable-rate: 0.6
@@ -102,14 +189,14 @@ All other definitions are identical to AksharaMD Phase 1: `execution_success` (f
 
 - n = 12
 - execution / content / structural: 12 / 9 / 9
-- runtime p50/p95 (s): 0.306 / 0.471
+- runtime p50/p95 (s): 0.258 / 0.403
 - near-empty: 3, low-density: 3
 
 ### public
 
 - n = 33
 - execution / content / structural: 32 / 13 / 5
-- runtime p50/p95 (s): 0.229 / 9.509
+- runtime p50/p95 (s): 0.168 / 6.769
 - near-empty: 15, low-density: 8
 
 ## Image-only audit
@@ -182,7 +269,7 @@ Reviewed: 29 files. Same asset ids as AksharaMD Phase 1 where available (see § 
 | `parsebench/3colpres` | multicolumn | usable_with_minor_defects | 4188 chars; extracts magazine headline + body sections. Column order reads plausibly on inspection; some fragmentation but not the interleaved sentence-splicing seen in AksharaMD's |
 | `parsebench/battery` | multicolumn | usable | 2551 chars; safety-warning content extracted with lettered list preserved (a/b/c bullets); heading '## CAUSE BATTERY EXPLOSION' rendered correctly. |
 | `parsebench/eastbaytimes` | multicolumn | usable | Single-column news article extracted cleanly; byline + body preserved. |
-| `parsebench/elpais` | multicolumn | materially_damaged | 4036 chars but Spanish accents are garbled: 'EL PA?S' instead of 'EL PAÍS'. Also 'S?BADO', 'A?o' — character encoding failure on Latin-1 supplement. Reading order plausible on insp |
+| `parsebench/elpais` | multicolumn | usable_with_minor_defects | 4036 chars; Spanish accents (Í, Á, Ó, Ñ, ú) are PRESERVED as proper UTF-8 in the raw Markdown ('EL PAÍS', 'SÁBADO' round-trip correctly). Earlier 'PA?S' report was a Windows termin |
 | `parsebench/ikea3` | native-text | materially_damaged | 5285 chars but content appears interleaved between columns similar to AksharaMD: 'Ideas Styles Shop at IKEA Here we have gathered lots of Creating a certain style in Here we have g |
 | `parsebench/japanese_case` | image-only | unusable | **0 chars extracted** — no OCR; Japanese magazine image produces empty output. AksharaMD Marker delivered 991 chars of Japanese. |
 | `parsebench/letter3` | image-only | unusable | **0 chars extracted** — PyMuPDF4LLM has no OCR; image-only UK Home Office letter produces empty output. AksharaMD Marker OCR delivered 2353 chars on this asset. |

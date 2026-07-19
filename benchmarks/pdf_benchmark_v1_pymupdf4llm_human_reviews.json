@@ -6,8 +6,8 @@
     "evidence": "4188 chars; extracts magazine headline + body sections. Column order reads plausibly on inspection; some fragmentation but not the interleaved sentence-splicing seen in AksharaMD's output."
   },
   "parsebench/elpais": {
-    "usability": "materially_damaged",
-    "evidence": "4036 chars but Spanish accents are garbled: 'EL PA?S' instead of 'EL PAÍS'. Also 'S?BADO', 'A?o' — character encoding failure on Latin-1 supplement. Reading order plausible on inspection."
+    "usability": "usable_with_minor_defects",
+    "evidence": "4036 chars; Spanish accents (Í, Á, Ó, Ñ, ú) are PRESERVED as proper UTF-8 in the raw Markdown ('EL PAÍS', 'SÁBADO' round-trip correctly). Earlier 'PA?S' report was a Windows terminal-rendering artefact when the test print used the cp1252 codepage — NOT a PyMuPDF4LLM defect. Body text extracts; some spacing between words is lost at column boundaries ('EL PAÍSlos mayoresprese')."
   },
   "parsebench/simple2": {
     "usability": "usable",

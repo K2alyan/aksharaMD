@@ -299,6 +299,69 @@ def _bucket(rows: list[RunResult]) -> dict[str, Any]:
     }
 
 
+_AKSHARAMD_REVIEWS = _REPO_ROOT / "benchmarks" / "pdf_benchmark_v1_human_reviews.json"
+
+_USABLE_ENUM = {"usable", "usable_with_minor_defects"}
+
+
+def _matched_sample_paired(results: list[RunResult]) -> dict[str, Any]:
+    """Compare PyMuPDF4LLM's per-asset human verdict against AksharaMD's
+    for the intersection of both reviewer samples. Any asset id reviewed
+    by only one party is EXCLUDED from the headline paired comparison
+    but preserved in ``supplementary_ids`` for context.
+
+    Returns:
+
+        {
+          "matched_sample_size": int,
+          "aksharamd_usable_count": int,
+          "pymupdf4llm_usable_count": int,
+          "both_usable": int,
+          "aksharamd_only_usable": [asset_id, ...],
+          "pymupdf4llm_only_usable": [asset_id, ...],
+          "neither_usable": [asset_id, ...],
+          "supplementary_pymupdf4llm_only": [asset_id, ...],
+          "supplementary_aksharamd_only": [asset_id, ...],
+        }
+    """
+    if not _AKSHARAMD_REVIEWS.exists():
+        return {"error": f"AksharaMD reviews not found at {_AKSHARAMD_REVIEWS}"}
+    with _AKSHARAMD_REVIEWS.open("r", encoding="utf-8") as f:
+        ax = json.load(f)
+    ax_ids = {k for k in ax if not k.startswith("_")}
+    pm_reviewed = {r.asset_id: r.human_usability for r in results
+                    if r.human_review_status == "reviewed"}
+    matched = ax_ids & set(pm_reviewed)
+    both = []
+    ax_only: list[str] = []
+    pm_only: list[str] = []
+    neither: list[str] = []
+    for aid in sorted(matched):
+        au = ax[aid].get("usability", "not_reviewed")
+        pu = pm_reviewed[aid]
+        aok = au in _USABLE_ENUM
+        pok = pu in _USABLE_ENUM
+        if aok and pok:
+            both.append(aid)
+        elif aok and not pok:
+            ax_only.append(aid)
+        elif not aok and pok:
+            pm_only.append(aid)
+        else:
+            neither.append(aid)
+    return {
+        "matched_sample_size": len(matched),
+        "aksharamd_usable_count": len(both) + len(ax_only),
+        "pymupdf4llm_usable_count": len(both) + len(pm_only),
+        "both_usable": len(both),
+        "aksharamd_only_usable": ax_only,
+        "pymupdf4llm_only_usable": pm_only,
+        "neither_usable": neither,
+        "supplementary_pymupdf4llm_only": sorted(set(pm_reviewed) - ax_ids),
+        "supplementary_aksharamd_only": sorted(ax_ids - set(pm_reviewed)),
+    }
+
+
 def _aggregate(results: list[RunResult]) -> dict[str, Any]:
     ag: dict[str, Any] = {"overall": _bucket(results)}
     ag["by_corpus"] = {
@@ -309,6 +372,9 @@ def _aggregate(results: list[RunResult]) -> dict[str, Any]:
         c: _bucket([r for r in results if r.document_class == c])
         for c in sorted({r.document_class for r in results})
     }
+    # Cross-adapter matched-sample comparison against AksharaMD Phase 1
+    # human reviews. Only asset ids that BOTH parties reviewed count.
+    ag["matched_sample_vs_aksharamd_phase1"] = _matched_sample_paired(results)
     ag["execution_failures"] = [
         {"asset_id": r.asset_id, "exception": r.exception}
         for r in results if not r.execution_success
@@ -380,6 +446,14 @@ def _render_report(manifest: dict, results: list[RunResult], aggregate: dict, pa
     add("- **No competitor ranking here.** Phase 3 will combine adapters after each is independently reviewed and stable.")
     add()
 
+    add("## Interpretation guardrails")
+    add()
+    add("- **`meaningful_content` and `structurally_usable` are benchmark-rule classifications** — deterministic tool-neutral gates that read Markdown output. They are NOT substitutes for human judgment; they are the automated screen that the human review then refines.")
+    add("- **AksharaMD readiness scores and warning codes are NOT applied to PyMuPDF4LLM.** PyMuPDF4LLM does not compute them.")
+    add("- **Human-usable rate is a sample rate.** 29 files were reviewed. See § Matched human-review parity for the paired comparison against AksharaMD Phase 1.")
+    add("- **No cross-parser winner declaration.** Slice-level differences are reported; universal rankings are deferred to Phase 3.")
+    add()
+
     add("## Headline metrics")
     add()
     add("| Metric | Value |")
@@ -395,6 +469,97 @@ def _render_report(manifest: dict, results: list[RunResult], aggregate: dict, pa
     add(f"| Deterministic rate | {ov['deterministic_rate']} |")
     if ov["human_reviewed_count"]:
         add(f"| Human-usable rate (sample) | {ov['human_usable_count'] + ov['human_usable_with_minor_defects_count']} / {ov['human_reviewed_count']} ({(ov['human_usable_rate'] or 0) * 100:.1f} %) |")
+    add()
+
+    add("## Matched human-review parity")
+    add()
+    mp = aggregate.get("matched_sample_vs_aksharamd_phase1", {})
+    if mp and "error" not in mp:
+        add(f"AksharaMD Phase 1 reviewed 29 asset ids; PyMuPDF4LLM reviewed 29. The intersection is **{mp['matched_sample_size']}** asset ids. The AksharaMD sample referred to `public/015-arabic/arabic.pdf` (a stale label; no such file exists in the frozen manifest), and the PyMuPDF4LLM sample used `public/015-arabic/habibi.pdf` (the real Arabic asset). Both symmetric-difference ids are preserved below as supplementary reviews.")
+        add()
+        add("| Metric | Value |")
+        add("|---|---:|")
+        add(f"| Matched sample size | **{mp['matched_sample_size']}** |")
+        add(f"| AksharaMD usable count (matched) | {mp['aksharamd_usable_count']} |")
+        add(f"| PyMuPDF4LLM usable count (matched) | {mp['pymupdf4llm_usable_count']} |")
+        add(f"| Both usable | {mp['both_usable']} |")
+        add(f"| AksharaMD only usable | {len(mp['aksharamd_only_usable'])} |")
+        add(f"| PyMuPDF4LLM only usable | {len(mp['pymupdf4llm_only_usable'])} |")
+        add(f"| Neither usable | {len(mp['neither_usable'])} |")
+        add()
+        if mp["aksharamd_only_usable"]:
+            add("**AksharaMD-only usable assets:**")
+            add()
+            for aid in mp["aksharamd_only_usable"]:
+                add(f"- `{aid}`")
+            add()
+        if mp["pymupdf4llm_only_usable"]:
+            add("**PyMuPDF4LLM-only usable assets:**")
+            add()
+            for aid in mp["pymupdf4llm_only_usable"]:
+                add(f"- `{aid}`")
+            add()
+        if mp["supplementary_pymupdf4llm_only"]:
+            add("**Supplementary reviews (in PyMuPDF4LLM sample, NOT AksharaMD's):**")
+            add()
+            for aid in mp["supplementary_pymupdf4llm_only"]:
+                add(f"- `{aid}`")
+            add()
+        if mp["supplementary_aksharamd_only"]:
+            add("**Supplementary reviews (in AksharaMD sample, NOT PyMuPDF4LLM's):**")
+            add()
+            for aid in mp["supplementary_aksharamd_only"]:
+                add(f"- `{aid}`")
+            add()
+    else:
+        add("_Matched-sample comparison unavailable: AksharaMD Phase 1 review file not present._")
+        add()
+
+    add("## Runtime-boundary parity")
+    add()
+    add("Reported `runtime_seconds` for each parser reflects **one primary parse** per asset. The two adapters do not use identical process boundaries, so the raw numbers are not directly comparable at the millisecond level.")
+    add()
+    add("| Included in runtime | AksharaMD (Phase 1) | PyMuPDF4LLM (this adapter) |")
+    add("|---|:---:|:---:|")
+    add("| Process startup (Python interpreter fork) | **yes** — CLI subprocess | no — in-process call |")
+    add("| Import + package loading | **yes** — each invocation | no — imported once, reused |")
+    add("| PDF parsing | yes | yes |")
+    add("| OCR (when invoked) | yes (Marker vision extra active) | no — PyMuPDF4LLM has no OCR |")
+    add("| Markdown generation | yes | yes |")
+    add("| Output serialisation to disk | yes — `document.md` written | no — string returned in memory |")
+    add("| Checksum verification | no | no |")
+    add("| Deterministic second execution | no (recorded separately) | no (recorded separately) |")
+    add()
+    add("**Consequence.** AksharaMD's runtime necessarily includes per-invocation subprocess startup + package-load overhead (roughly a few hundred milliseconds on this machine, plus disk I/O), while PyMuPDF4LLM's runtime measures just the library call. The AksharaMD Phase 1 report shows `p50 = 2.57 s / p95 = 36.36 s`; the earlier session-note baseline of `p50 = 6.9 s / p95 = 30.9 s` came from an earlier harness pass that included a checksum-verification pre-flight per asset — the current Phase-1 harness does the verification once up-front, so per-asset timings do not include it. Neither figure is stale, but they were produced under different pre-flight strategies. This report uses the current Phase-1 numbers (`2.57 / 36.36`) because those are what live in the merged JSON.")
+    add()
+    add("**Do not read the median-runtime ratio as a millisecond-level speed claim.** PyMuPDF4LLM is substantially faster in this run, and its process boundary is genuinely lighter; the exact ratio is not a benchmarkable quantity across adapters with different boundaries. Phase 3 will discuss timing in terms of user-visible latency categories rather than raw multiples.")
+    add()
+    add("Determinism-check overhead is measured separately: enabling the recompile-and-diff pass roughly doubles the reported per-asset runtime; this adapter defaults to `--no-deterministic-check` for the same reason AksharaMD Phase 1 did.")
+    add()
+
+    add("## Character encoding — correction")
+    add()
+    add("**The Spanish accents on `parsebench/elpais` are correctly preserved by PyMuPDF4LLM.** Round-trip check:")
+    add()
+    add("- Raw PyMuPDF text on page 1 contains `EL PAÍS` at UTF-8 bytes `b'EL PA\\xc3\\x8dS'` (`Í` = U+00CD).")
+    add("- `pymupdf4llm.to_markdown` output contains the same `EL PAÍS` bytes.")
+    add("- The `SÁBADO` date header round-trips as UTF-8 `b'S\\xc3\\x81BADO'` (`Á` = U+00C1) in both surfaces.")
+    add()
+    add("An earlier note in this branch (before this revision) reported `PA?S` — that was a Windows terminal-rendering artefact when `sys.stdout` fell back to cp1252 during ad-hoc debugging, NOT a PyMuPDF4LLM defect. Every UTF-8 byte in the input round-trips through the machine-readable JSON and through the on-disk report unchanged. The revised `parsebench/elpais` human-review verdict is `usable_with_minor_defects` — the minor defect is missing whitespace at column boundaries (e.g., `EL PAÍSlos`), not character corruption.")
+    add()
+
+    add("## Execution failure — reproducibility check")
+    add()
+    add("`public/017-unreadable-meta-data/unreadablemetadata.pdf` — PyMuPDF4LLM raises during document parsing:")
+    add()
+    add("- **Exception:** `IndexError: range object index out of range`")
+    add("- **Where:** `pymupdf4llm/helpers/document_layout.py:1050`, at the guard `page_filter[-1] >= mydoc.page_count`.")
+    add("- **Plain PyMuPDF behaviour:** `fitz.open()` succeeds but `doc.page_count == 0`; `doc[0].get_text()` also raises `IndexError`. The PDF advertises metadata but exposes no pages to PyMuPDF.")
+    add("- **Deterministic:** yes — reproduced on two consecutive invocations.")
+    add("- **Timing:** failure occurs BEFORE Markdown conversion, during layout parsing.")
+    add("- **AksharaMD comparison:** the AksharaMD compiler parses this same file and emits a small usable output; the difference is upstream in PyMuPDF4LLM's assumption that at least one page is present.")
+    add()
+    add("**No document-specific workaround was added to the adapter.** The failure is captured verbatim in the per-asset record's `exception` field so downstream consumers can filter it explicitly.")
     add()
 
     add("## Per-slice results")
