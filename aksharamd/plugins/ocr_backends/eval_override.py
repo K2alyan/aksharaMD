@@ -1,11 +1,11 @@
-"""Module-local eval override for trust-remote-code loading (A1c).
+"""Module-local eval override for third-party model loaders (A1c).
 
 Baidu's ``modeling_unlimitedocr.py`` calls ``eval()`` in 7 places on
 model-generated text (see
-``docs/security/unlimited_ocr_static_review_d549bb9d.md``). With
-``trust_remote_code=True`` these calls execute in our process on
-strings the model produced — a code-injection surface via
-hallucinated or attacker-crafted output.
+``docs/security/unlimited_ocr_static_review_d549bb9d.md``). When the
+Transformers loader is invoked with remote-code trust enabled, those
+calls execute in our process on strings the model produced — a
+code-injection surface via hallucinated or attacker-crafted output.
 
 This module provides ``install_module_local_eval_override`` which:
 
