@@ -254,30 +254,37 @@ def test_fast_verify_refuses_on_weights_size_drift(setup):
 
 def test_fast_verify_refuses_when_weights_replaced_with_same_size_and_mtime(setup):
     """Detect a replacement that preserves size AND mtime but changes
-    the underlying file identity (POSIX inode swap). On filesystems
-    where identity is unavailable, size+mtime is the fallback (which
-    would allow this exact case) — that's called out in the module
-    docstring as a known tamper limit.
+    the underlying file identity (POSIX inode swap).
+
+    This check is filesystem-dependent by design (see module docstring
+    on tamper limits). On Windows and on POSIX filesystems that reuse
+    inodes quickly (tmpfs, some overlayfs setups common in CI
+    containers), the inode of a freshly unlinked-and-recreated file
+    may match the old one — defeating the drift signal without any
+    bug on our side. In those environments the test skips.
     """
     manifest, manifest_path, cache_root, snap = setup
     full = full_verify_and_write_receipt(manifest, manifest_path, cache_root)
     assert full.ok
     p = snap / "weights.safetensors"
-    old_mtime_ns = p.stat().st_mtime_ns
-    # Replace via unlink+create — new inode on POSIX. Restore mtime.
+    old_stat = p.stat()
+    old_mtime_ns = old_stat.st_mtime_ns
+    old_ino = getattr(old_stat, "st_ino", 0)
+    if platform.system() == "Windows" or not old_ino:
+        pytest.skip("inode identity unavailable on this platform/filesystem")
     original = p.read_bytes()
     p.unlink()
-    p.write_bytes(original)  # same content, but new file identity
+    p.write_bytes(original)
     os.utime(p, ns=(old_mtime_ns, old_mtime_ns))
+    new_ino = p.stat().st_ino
+    if new_ino == old_ino:
+        pytest.skip(
+            "filesystem reused the inode after unlink+recreate — identity "
+            "signal cannot distinguish this replacement (documented tamper limit)"
+        )
     fast = fast_verify(manifest, manifest_path, cache_root)
-    if platform.system() == "Windows":
-        # Windows: inode is often unavailable; we accept the fast path
-        # for now. Full verify is required for cryptographic guarantee.
-        # Test does NOT assert refusal here.
-        pass
-    else:
-        assert not fast.ok
-        assert "identity drifted" in fast.note or "identity" in fast.note
+    assert not fast.ok
+    assert "identity" in fast.note
 
 
 def test_fast_verify_refuses_when_verification_impl_version_bumps(setup, monkeypatch):
