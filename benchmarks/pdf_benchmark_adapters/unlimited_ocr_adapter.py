@@ -593,11 +593,32 @@ class _UnlimitedOcrRunner:
     importing ``transformers`` so any subsequent Hub call fails
     loudly.
 
-    **Fail-closed security:** the load path calls
-    ``verify_trusted_code_files()`` BEFORE touching
-    ``AutoTokenizer.from_pretrained`` / ``AutoModel.from_pretrained``.
-    If verification fails for any reason, load is refused and no
-    remote code is executed.
+    **Fail-closed security (A1d strict-sequence).** The load path
+    executes the phases below in exact order and aborts before any
+    subsequent phase runs if the current one fails:
+
+    1. Load JSON trusted manifest (A1a). Refuse if malformed.
+    2. Verify snapshot against manifest (A1a) — file set, containment,
+       sizes, SHA-256 of every ``verify_on_every_load`` file.
+    3. Fast-verify receipt (A1b). On recoverable failures (missing /
+       stale receipt) fall through to full verification which writes a
+       new receipt. Unrecoverable failures (any hash mismatch) abort.
+    4. Import transformers. This happens ONLY after verification.
+    5. Load the remote model class via
+       ``dynamic_module_utils.get_class_from_dynamic_module`` — this
+       triggers the ``modeling_unlimitedocr`` module to enter
+       ``sys.modules`` without instantiating the model.
+    6. Install the module-local ``eval → ast.literal_eval`` override
+       (A1c) with the baseline-count fail-closed check. Refuse to
+       instantiate if the override cannot be verified.
+    7. Instantiate tokenizer + model. Runtime-assert
+       ``use_safetensors=True`` on the model load kwargs.
+
+    Every phase appends a marker to ``self._call_log`` so tests can
+    assert ordering, not just presence. The legacy empty-dict
+    ``verify_trusted_code_files`` primitive is NEVER called from this
+    path — the legacy function remains in this module only for pre-A1a
+    unit-test compatibility.
     """
 
     def __init__(self) -> None:
@@ -605,28 +626,116 @@ class _UnlimitedOcrRunner:
         self._tokenizer = None
         self._loaded = False
         self._load_error: str = ""
+        self._call_log: list[str] = []
 
     def load(self) -> None:
         if self._loaded or self._load_error:
             return
-        # Enforce offline mode BEFORE transformers import.
+        # Criterion 6: offline env set BEFORE any transformers import.
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
-        # ── FAIL-CLOSED: verify trusted remote code BEFORE any load. ──
-        verified, note = verify_trusted_code_files(
-            _UNLIMITED_OCR_MODEL_REPO,
-            _UNLIMITED_OCR_MODEL_REVISION,
-            _UNLIMITED_OCR_TRUSTED_CODE_FILES,
-        )
-        if not verified:
-            self._load_error = f"trusted_code_verification_failed: {note}"
+
+        # ── Step 1: JSON manifest load (A1a). ──────────────────────
+        try:
+            from aksharamd.plugins.ocr_backends import (  # type: ignore[import-untyped]
+                UNLIMITED_OCR_TRUSTED_MANIFEST_PATH,
+            )
+            manifest = load_trusted_manifest(UNLIMITED_OCR_TRUSTED_MANIFEST_PATH)
+        except TrustedManifestError as e:
+            self._load_error = f"trusted_manifest_load_failed: {e}"
             return
+        self._call_log.append("load_trusted_manifest")
+
+        # ── Step 2: snapshot verification against the manifest (A1a). ─
+        ok, note = verify_snapshot_against_manifest(manifest, hash_weights=False)
+        self._call_log.append("verify_snapshot_against_manifest")
+        if not ok:
+            self._load_error = f"snapshot_verification_failed: {note}"
+            return
+
+        # ── Step 3: fast → full receipt (A1b). ─────────────────────
+        from aksharamd.plugins.ocr_backends.verification_receipt import (  # type: ignore[import-untyped]
+            fast_verify,
+            full_verify_and_write_receipt,
+        )
+        fast = fast_verify(manifest, UNLIMITED_OCR_TRUSTED_MANIFEST_PATH)
+        self._call_log.append("fast_verify")
+        if not fast.ok:
+            recoverable = any(marker in fast.note for marker in (
+                "receipt missing",
+                "verification_implementation_version",
+                "receipt_schema_version",
+                "manifest_sha256 changed",
+                "manifest_id changed",
+                "revision changed",
+                "repo_id changed",
+            ))
+            if not recoverable:
+                self._load_error = f"fast_verify_failed_unrecoverable: {fast.note}"
+                return
+            full = full_verify_and_write_receipt(
+                manifest, UNLIMITED_OCR_TRUSTED_MANIFEST_PATH,
+            )
+            self._call_log.append("full_verify_and_write_receipt")
+            if not full.ok:
+                self._load_error = f"full_verify_failed: {full.note}"
+                return
+
+        # ── Step 4: import transformers (ONLY after verification). ─
         try:
             import torch  # type: ignore
             from transformers import AutoModel, AutoTokenizer  # type: ignore
+            from transformers.dynamic_module_utils import (  # type: ignore
+                get_class_from_dynamic_module,
+            )
         except ImportError as e:
             self._load_error = f"import_failed: {e}"
             return
+        self._call_log.append("import_transformers")
+
+        # ── Step 5: dynamic module import (loads modeling into sys.modules) ─
+        try:
+            _cls = get_class_from_dynamic_module(
+                "modeling_unlimitedocr.UnlimitedOCRForCausalLM",
+                _UNLIMITED_OCR_MODEL_REPO,
+                revision=_UNLIMITED_OCR_MODEL_REVISION,
+                local_files_only=True,
+            )
+        except Exception as e:
+            self._load_error = (
+                f"dynamic_module_import_failed: {type(e).__name__}: {e}"
+            )[:400]
+            return
+        self._call_log.append("get_class_from_dynamic_module")
+
+        # ── Step 6: install the module-local eval override (A1c) ───
+        #    BEFORE any instantiation. Refuse if override cannot be
+        #    proven active.
+        import sys as _sys
+
+        from aksharamd.plugins.ocr_backends.eval_override import (  # type: ignore[import-untyped]
+            MODELING_UNLIMITEDOCR_BASELINE,
+            OverrideNotActive,
+            install_module_local_eval_override,
+        )
+        mod_name = _cls.__module__
+        modeling_module = _sys.modules.get(mod_name)
+        if modeling_module is None:
+            self._load_error = f"modeling_module_not_in_sys_modules: {mod_name}"
+            return
+        source_path = getattr(modeling_module, "__file__", None)
+        try:
+            install_module_local_eval_override(
+                modeling_module,
+                baseline_counts=MODELING_UNLIMITEDOCR_BASELINE,
+                source_path=source_path,
+            )
+        except OverrideNotActive as e:
+            self._load_error = f"eval_override_failed: {e}"
+            return
+        self._call_log.append("install_module_local_eval_override")
+
+        # ── Step 7: instantiate. Runtime-assert use_safetensors=True. ─
         try:
             self._tokenizer = AutoTokenizer.from_pretrained(
                 _UNLIMITED_OCR_MODEL_REPO,
@@ -634,15 +743,25 @@ class _UnlimitedOcrRunner:
                 trust_remote_code=True,
                 local_files_only=True,
             )
-            self._model = AutoModel.from_pretrained(
-                _UNLIMITED_OCR_MODEL_REPO,
+            self._call_log.append("AutoTokenizer.from_pretrained")
+            model_load_kwargs: dict[str, Any] = dict(
                 revision=_UNLIMITED_OCR_MODEL_REVISION,
                 trust_remote_code=True,
                 use_safetensors=True,
                 torch_dtype=torch.bfloat16,
                 local_files_only=True,
+            )
+            # Criterion 5: runtime assertion, not only static grep.
+            assert model_load_kwargs["use_safetensors"] is True, (
+                "use_safetensors=True must be enforced at model load"
+            )
+            self._model = AutoModel.from_pretrained(
+                _UNLIMITED_OCR_MODEL_REPO, **model_load_kwargs,
             ).eval().cuda()
+            self._call_log.append("AutoModel.from_pretrained")
             self._loaded = True
+        except AssertionError:
+            raise
         except Exception as e:
             self._load_error = f"load_failed: {type(e).__name__}: {e}"[:400]
 

@@ -231,11 +231,15 @@ def test_verify_trusted_code_files_accepts_matching_snapshot(
 
 
 def test_verify_trusted_code_files_load_path_refuses_without_config(monkeypatch):
-    """The `_UnlimitedOcrRunner.load()` path must call
-    `verify_trusted_code_files` BEFORE any `transformers` import and
-    refuse if verification fails. With the current module state
-    (revision=None or trusted={}), load must set `_load_error` without
-    ever touching transformers.
+    """The `_UnlimitedOcrRunner.load()` path must refuse BEFORE any
+    ``transformers`` import when verification cannot succeed. After
+    A1d the load path uses ``verify_snapshot_against_manifest`` +
+    ``fast_verify`` rather than the legacy inline-dict primitive, so
+    the fail-closed refusal message is one of
+    ``trusted_manifest_load_failed`` / ``snapshot_verification_failed``
+    (post-A1d) or ``trusted_code_verification_failed`` (legacy). The
+    essential invariant tested here is that load() refuses without
+    touching transformers, not the specific refusal message.
     """
     from benchmarks.pdf_benchmark_adapters import unlimited_ocr_adapter as mod
     # Sabotage: make transformers import raise loudly if reached.
@@ -243,9 +247,11 @@ def test_verify_trusted_code_files_load_path_refuses_without_config(monkeypatch)
     runner = mod._UnlimitedOcrRunner()
     runner.load()
     assert runner._loaded is False
-    assert runner._load_error.startswith("trusted_code_verification_failed:"), (
-        f"expected fail-closed refusal note, got: {runner._load_error!r}"
-    )
+    assert any(runner._load_error.startswith(prefix) for prefix in (
+        "trusted_manifest_load_failed:",
+        "snapshot_verification_failed:",
+        "trusted_code_verification_failed:",
+    )), f"expected fail-closed refusal, got: {runner._load_error!r}"
 
 
 def test_model_cache_check_returns_false_when_no_revision(tmp_path: Path, monkeypatch):
