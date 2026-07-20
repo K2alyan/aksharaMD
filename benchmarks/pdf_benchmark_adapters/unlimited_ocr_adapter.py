@@ -96,14 +96,23 @@ _MANIFEST = _REPO_ROOT / "benchmarks" / "pdf_benchmark_v1_manifest.json"
 
 # ── Pinned model reference ──────────────────────────────────────────────
 
-# The reviewer MUST verify this SHA against
-# https://huggingface.co/baidu/Unlimited-OCR/commits before enabling
-# real inference. If the value here is "main" or another mutable
-# reference the adapter refuses to load.
+# Pinned model reference. Approved by reviewer 2026-07-20 after A0
+# download + static security review at this revision. See:
+#   docs/adr/ocr_backend_execution_plan.md  (Phase A0 / A1a)
+#   docs/security/unlimited_ocr_static_review_d549bb9d.md
 _UNLIMITED_OCR_MODEL_REPO = "baidu/Unlimited-OCR"
-_UNLIMITED_OCR_MODEL_REVISION: str | None = None  # e.g. "abcdef01..."
-# Custom model code files whose SHA-256 should be verified after
-# download. Populated during the model-install step (see ADR).
+_UNLIMITED_OCR_MODEL_REVISION: str | None = "d549bb9d6a055dbe291408916d66acc2cd5920f6"
+
+# Trusted-code manifest is now a committed JSON file — the single
+# source of truth for what belongs in the model snapshot at the
+# pinned revision. See:
+#   aksharamd/plugins/ocr_backends/unlimited_ocr_trusted_manifest.json
+_UNLIMITED_OCR_TRUSTED_MANIFEST_SUPPORTED_SCHEMA = 1
+
+# Legacy inline dict — retained ONLY for the low-level
+# ``verify_trusted_code_files`` primitive which pre-existing unit tests
+# call directly with an in-memory hash table. Production callers use
+# ``verify_snapshot_against_manifest`` with the JSON manifest.
 _UNLIMITED_OCR_TRUSTED_CODE_FILES: dict[str, str] = {}
 
 
@@ -340,6 +349,237 @@ def verify_trusted_code_files(
                 "remove the file"
             )
     return True, f"verified {len(trusted)} trusted-code files in snapshot {snap.name}"
+
+
+# ── A1a: manifest-based verification ────────────────────────────────────
+
+
+class TrustedManifestError(Exception):
+    """Raised when the trusted manifest JSON is malformed or unloadable."""
+
+
+def load_trusted_manifest(path: Path | None = None) -> dict:
+    """Load and validate the runtime trusted manifest JSON.
+
+    ``path`` defaults to the committed manifest under
+    ``aksharamd.plugins.ocr_backends``. Never returns a partially
+    validated dict — raises ``TrustedManifestError`` on any structural
+    problem.
+    """
+    if path is None:
+        from aksharamd.plugins.ocr_backends import (  # type: ignore[import-untyped]
+            UNLIMITED_OCR_TRUSTED_MANIFEST_PATH,
+        )
+        path = UNLIMITED_OCR_TRUSTED_MANIFEST_PATH
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise TrustedManifestError(f"manifest missing: {path}") from e
+    except json.JSONDecodeError as e:
+        raise TrustedManifestError(f"manifest not valid JSON: {e}") from e
+    for req in ("manifest_schema_version", "manifest_id", "repo_id", "revision", "files"):
+        if req not in raw:
+            raise TrustedManifestError(f"manifest missing required field: {req!r}")
+    if raw["manifest_schema_version"] != _UNLIMITED_OCR_TRUSTED_MANIFEST_SUPPORTED_SCHEMA:
+        raise TrustedManifestError(
+            f"manifest_schema_version={raw['manifest_schema_version']!r} not supported "
+            f"(expected {_UNLIMITED_OCR_TRUSTED_MANIFEST_SUPPORTED_SCHEMA})"
+        )
+    rev = raw["revision"]
+    if not isinstance(rev, str) or len(rev) != 40 or not all(c in "0123456789abcdef" for c in rev):
+        raise TrustedManifestError(f"manifest revision not a 40-char lowercase hex SHA: {rev!r}")
+    files = raw["files"]
+    if not isinstance(files, dict) or not files:
+        raise TrustedManifestError("manifest 'files' must be a non-empty dict")
+    for rel, meta in files.items():
+        for k in ("sha256", "size_bytes", "class", "required_for_runtime", "verify_on_every_load"):
+            if k not in meta:
+                raise TrustedManifestError(f"manifest file {rel!r} missing field {k!r}")
+    return raw
+
+
+# Loader-relevant JSON files at the A1a-approved revision. Anything at
+# the snapshot root NOT in either the manifest or this set is a
+# security anomaly and refused.
+_KNOWN_LOADER_JSON = {
+    "config.json",
+    "model.safetensors.index.json",
+    "processor_config.json",
+    "special_tokens_map.json",
+    "tokenizer.json",
+    "tokenizer_config.json",
+}
+
+# Executable extensions — any snapshot file with these NOT in the
+# manifest is refused. .whl handled specially (quarantined under wheel/).
+_EXECUTABLE_EXTS = {".py", ".pyd", ".so", ".dll", ".sh", ".bat", ".cmd", ".exe"}
+
+# HF cache metadata / documentation assets — never affect verification.
+_IGNORED_METADATA_EXTS = {
+    ".md", ".gif", ".jpg", ".jpeg", ".png", ".pdf", ".gitattributes", ".txt", ".rst",
+}
+
+
+def _classify_snapshot_file(rel: str, manifest_files: set[str]) -> str:
+    """Return one of ``known`` | ``refuse_executable`` | ``refuse_json`` |
+    ``warn_unknown`` | ``ignore_metadata``.
+
+    ``rel`` is the path relative to the snapshot root, using forward
+    slashes.
+    """
+    if rel in manifest_files:
+        return "known"
+    name = Path(rel).name.lower()
+    ext = ("." + name.rsplit(".", 1)[1]) if "." in name else ""
+    if ext in _EXECUTABLE_EXTS:
+        return "refuse_executable"
+    if ext == ".json":
+        return "refuse_json"
+    if ext in _IGNORED_METADATA_EXTS or name.startswith("license"):
+        return "ignore_metadata"
+    return "warn_unknown"
+
+
+def _canonical_containment_check(
+    file_path: Path,
+    cache_root: Path,
+) -> tuple[bool, str]:
+    """Check that ``file_path`` strictly resolves to a regular file
+    inside ``cache_root``. Symlinks whose raw text contains ``..`` are
+    fine as long as the canonical resolution stays inside.
+    """
+    try:
+        resolved = file_path.resolve(strict=True)
+    except FileNotFoundError:
+        return False, f"broken symlink or missing file: {file_path}"
+    except OSError as e:
+        return False, f"symlink resolution failed for {file_path}: {e}"
+    if not resolved.is_file():
+        return False, f"resolved path is not a regular file: {resolved}"
+    try:
+        cache_root_r = cache_root.resolve(strict=True)
+    except OSError as e:
+        return False, f"cache root not resolvable: {cache_root} ({e})"
+    try:
+        resolved.relative_to(cache_root_r)
+    except ValueError:
+        return False, f"resolved target escapes cache root: {resolved} not under {cache_root_r}"
+    return True, ""
+
+
+def verify_snapshot_against_manifest(
+    manifest: dict,
+    snapshot_root: Path | None = None,
+    *,
+    hash_weights: bool = True,
+) -> tuple[bool, str]:
+    """Fail-closed verification of a locally cached HuggingFace snapshot
+    against a runtime trusted manifest (A1a).
+
+    Refuses on any of:
+
+    - Snapshot missing or not at the manifest's pinned revision.
+    - A manifest file missing from the snapshot.
+    - SHA-256 mismatch for any file with ``verify_on_every_load: true``
+      (or any file including weights when ``hash_weights=True``).
+    - Size mismatch for any manifest file (catches partial download).
+    - Extra executable file (``.py``, ``.pyd``, ``.so``, ``.dll``,
+      ``.sh``, ``.bat``, ``.cmd``, ``.exe``) in the snapshot root not
+      in the manifest.
+    - Extra JSON file at the snapshot root not in the manifest.
+    - Any file whose canonical resolution escapes the model cache root.
+    - Any broken symlink.
+
+    Returns ``(ok, note)``. Never raises for expected failure modes.
+    """
+    repo = manifest["repo_id"]
+    revision = manifest["revision"]
+    manifest_files = set(manifest["files"].keys())
+
+    if snapshot_root is None:
+        cache_root = Path(
+            os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface" / "hub"
+        )
+        model_dir = cache_root / f"models--{repo.replace('/', '--')}"
+        snapshots = model_dir / "snapshots"
+        if not snapshots.exists():
+            return False, f"no snapshots directory: {snapshots}"
+        snap: Path | None = None
+        for c in snapshots.iterdir():
+            if c.is_dir() and c.name == revision:
+                snap = c
+                break
+        if snap is None:
+            return False, f"pinned revision {revision[:12]}... not present in local snapshots"
+        model_cache_root = model_dir
+    else:
+        snap = snapshot_root
+        parent = snap.parent
+        model_cache_root = parent.parent if parent.name == "snapshots" else snap
+
+    # Every manifest file must exist, pass canonical containment,
+    # match its recorded size, and (per verify_on_every_load / hash_weights) SHA.
+    for rel, meta in manifest["files"].items():
+        p = snap / rel
+        if not p.exists():
+            return False, f"manifest file missing from snapshot: {rel}"
+        ok, note = _canonical_containment_check(p, model_cache_root)
+        if not ok:
+            # If snapshot_root was supplied for testing and the file is
+            # a regular file directly under the snap tree (no HF layout),
+            # accept it as the containment root falls back to `snap`.
+            try:
+                p.resolve(strict=True).relative_to(snap.resolve(strict=True))
+            except (ValueError, OSError):
+                return False, note
+        if p.stat().st_size != meta["size_bytes"]:
+            return False, (
+                f"size mismatch on {rel}: expected {meta['size_bytes']}, got {p.stat().st_size}"
+            )
+        should_hash = bool(meta.get("verify_on_every_load", False)) or (
+            hash_weights and meta.get("class") == "weights"
+        )
+        if should_hash:
+            actual = sha256_file(p)
+            if actual != meta["sha256"]:
+                return False, (
+                    f"SHA-256 mismatch on {rel}: expected {meta['sha256'][:12]}..., "
+                    f"got {actual[:12]}..."
+                )
+
+    # Exact-set validation on snapshot root. Executable or JSON files
+    # not in the manifest are refused. Metadata/docs are ignored.
+    # Subdirectories (e.g. wheel/) are tolerated with the same executable
+    # refusal, except the intentionally quarantined .whl.
+    for p in snap.iterdir():
+        if p.is_dir():
+            for sp in p.rglob("*"):
+                if not sp.is_file():
+                    continue
+                rel = str(sp.relative_to(snap)).replace("\\", "/")
+                cls = _classify_snapshot_file(rel, manifest_files)
+                if cls == "refuse_executable":
+                    # wheel/*.whl at the acquisition-inventory level is expected.
+                    if p.name == "wheel" and rel.endswith(".whl"):
+                        continue
+                    return False, f"unreviewed executable in snapshot subdir: {rel}"
+                if cls == "refuse_json":
+                    return False, f"unreviewed JSON in snapshot subdir: {rel}"
+            continue
+        rel = p.name
+        cls = _classify_snapshot_file(rel, manifest_files)
+        if cls == "refuse_executable":
+            return False, f"unreviewed executable in snapshot: {rel}"
+        if cls == "refuse_json":
+            return False, f"unreviewed JSON in snapshot (loader-relevant surface): {rel}"
+
+    return True, (
+        f"verified {len(manifest['files'])} runtime files at revision "
+        f"{revision[:12]}... (manifest_id={manifest['manifest_id']})"
+    )
+
+
+# ── (Existing) low-level primitive kept for pre-A1a unit tests ─────────
 
 
 class _UnlimitedOcrRunner:
