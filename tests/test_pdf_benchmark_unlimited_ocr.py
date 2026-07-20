@@ -385,10 +385,7 @@ def _stub_page_render(monkeypatch, mod) -> None:
 def _stub_torch_no_cuda(monkeypatch, mod) -> None:
     """Force `torch.cuda.is_available()` False so we skip the peak-mem
     branch without needing a real CUDA runtime."""
-    try:
-        import torch  # type: ignore
-    except ImportError:
-        pytest.skip("torch not installed; cannot exercise infer_pdf")
+    torch = pytest.importorskip("torch")
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
 
 

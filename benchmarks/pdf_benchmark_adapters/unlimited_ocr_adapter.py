@@ -93,7 +93,6 @@ from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST = _REPO_ROOT / "benchmarks" / "pdf_benchmark_v1_manifest.json"
-_AKSHARAMD_REVIEWS = _REPO_ROOT / "benchmarks" / "pdf_benchmark_v1_human_reviews.json"
 
 # ── Pinned model reference ──────────────────────────────────────────────
 
