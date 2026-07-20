@@ -272,6 +272,77 @@ def _pdf_to_page_images(pdf: Path, out_dir: Path, dpi: int = 300) -> list[Path]:
     return paths
 
 
+def verify_trusted_code_files(
+    repo: str,
+    revision: str | None,
+    trusted: dict[str, str],
+) -> tuple[bool, str]:
+    """Fail-closed verification of the custom Python files inside the
+    pinned model snapshot.
+
+    Because ``trust_remote_code=True`` is required by Unlimited-OCR's
+    official loading path, EVERY ``.py`` file in the model repo that
+    will be executed at load time must be pinned to a known SHA-256.
+
+    Refusal conditions (any one → refuse):
+
+    - ``revision`` is ``None`` (would allow a mutable branch reference)
+    - ``trusted`` is empty (no hash table to compare against)
+    - the pinned snapshot directory is missing from the local cache
+    - any file listed in ``trusted`` is missing from the snapshot
+    - any file's actual SHA-256 differs from the pinned value
+    - an EXTRA ``.py`` file appears in the snapshot that is not in
+      the trusted table (would mean an unreviewed file could execute)
+
+    Returns ``(ok, note)``. When ``ok`` is False, ``note`` explains
+    exactly which condition failed. Never raises.
+    """
+    if revision is None:
+        return False, "revision unset — mutable branch references are refused"
+    if not trusted:
+        return False, (
+            "trusted-code hash table is empty; refuse to load remote code "
+            "without an approved SHA-256 for every custom .py file"
+        )
+    try:
+        from huggingface_hub import snapshot_download  # noqa: F401  # type: ignore[import-untyped]
+    except ImportError:
+        return False, "huggingface_hub not installed; cannot locate model snapshot"
+    cache_root = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface" / "hub")
+    repo_dir = cache_root / f"models--{repo.replace('/', '--')}"
+    snapshots = repo_dir / "snapshots"
+    if not snapshots.exists():
+        return False, f"no snapshots directory in model cache: {snapshots}"
+    snap: Path | None = None
+    for c in snapshots.iterdir():
+        if c.is_dir() and (c.name == revision or c.name.startswith(revision[:12])):
+            snap = c
+            break
+    if snap is None:
+        return False, f"pinned revision {revision[:12]}... not present in local snapshots"
+    # Every listed file must exist and match.
+    for rel, expected_sha in trusted.items():
+        p = snap / rel
+        if not p.exists():
+            return False, f"trusted file missing from snapshot: {rel}"
+        actual = sha256_file(p)
+        if actual != expected_sha:
+            return False, (
+                f"SHA-256 mismatch on {rel}: expected {expected_sha[:12]}..., got {actual[:12]}..."
+            )
+    # No EXTRA .py files may appear that aren't in the trusted table.
+    trusted_set = set(trusted)
+    for py in snap.rglob("*.py"):
+        rel = str(py.relative_to(snap)).replace("\\", "/")
+        if rel not in trusted_set:
+            return False, (
+                f"untrusted custom code file present in snapshot: {rel} — "
+                "add its SHA-256 to _UNLIMITED_OCR_TRUSTED_CODE_FILES after review, or "
+                "remove the file"
+            )
+    return True, f"verified {len(trusted)} trusted-code files in snapshot {snap.name}"
+
+
 class _UnlimitedOcrRunner:
     """Lazy-loaded singleton wrapping the Unlimited-OCR model.
 
@@ -282,6 +353,12 @@ class _UnlimitedOcrRunner:
     Sets ``HF_HUB_OFFLINE=1`` / ``TRANSFORMERS_OFFLINE=1`` before
     importing ``transformers`` so any subsequent Hub call fails
     loudly.
+
+    **Fail-closed security:** the load path calls
+    ``verify_trusted_code_files()`` BEFORE touching
+    ``AutoTokenizer.from_pretrained`` / ``AutoModel.from_pretrained``.
+    If verification fails for any reason, load is refused and no
+    remote code is executed.
     """
 
     def __init__(self) -> None:
@@ -296,17 +373,20 @@ class _UnlimitedOcrRunner:
         # Enforce offline mode BEFORE transformers import.
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        # ── FAIL-CLOSED: verify trusted remote code BEFORE any load. ──
+        verified, note = verify_trusted_code_files(
+            _UNLIMITED_OCR_MODEL_REPO,
+            _UNLIMITED_OCR_MODEL_REVISION,
+            _UNLIMITED_OCR_TRUSTED_CODE_FILES,
+        )
+        if not verified:
+            self._load_error = f"trusted_code_verification_failed: {note}"
+            return
         try:
             import torch  # type: ignore
             from transformers import AutoModel, AutoTokenizer  # type: ignore
         except ImportError as e:
             self._load_error = f"import_failed: {e}"
-            return
-        if _UNLIMITED_OCR_MODEL_REVISION is None:
-            self._load_error = (
-                "no pinned revision (see _UNLIMITED_OCR_MODEL_REVISION); "
-                "refuse to load with a mutable branch reference"
-            )
             return
         try:
             self._tokenizer = AutoTokenizer.from_pretrained(
@@ -328,49 +408,64 @@ class _UnlimitedOcrRunner:
             self._load_error = f"load_failed: {type(e).__name__}: {e}"[:400]
 
     def infer_pdf(self, pdf: Path, workdir: Path, max_length: int = 32768) -> tuple[str, str, dict[str, Any]]:
-        """Return (text, exception_or_empty, tool_signals)."""
+        """Return ``(text, exception_or_empty, tool_signals)``.
+
+        Per-asset scratch (rendered PNGs + model output) lives in a
+        ``TemporaryDirectory`` that is removed after this call returns —
+        success OR exception. This prevents multi-gigabyte accumulation
+        on long documents (300-DPI PNGs × N pages).
+        """
         if not self._loaded:
             self.load()
         if not self._loaded:
             return "", self._load_error, {}
         try:
             import torch  # type: ignore
-            page_dir = workdir / f"{pdf.stem}_pages"
-            page_dir.mkdir(parents=True, exist_ok=True)
-            image_paths = _pdf_to_page_images(pdf, page_dir, dpi=300)
-            out_dir = workdir / f"{pdf.stem}_out"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            # Reset peak-memory counter around the call so we get a
-            # per-asset reading.
-            if torch.cuda.is_available():
-                torch.cuda.reset_peak_memory_stats(0)
-            assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
-            result = self._model.infer_multi(
-                self._tokenizer,
-                prompt="<image>Multi page parsing.",
-                image_files=[str(p) for p in image_paths],
-                output_path=str(out_dir),
-                image_size=1024,
-                max_length=max_length,
-                no_repeat_ngram_size=35,
-                ngram_window=1024,
-                save_results=True,
-            )
-            # infer_multi writes a Markdown file into out_dir; read it.
-            md_files = sorted(out_dir.glob("*.md"))
-            text = "\n\n".join(p.read_text(encoding="utf-8", errors="replace") for p in md_files)
-            if not text and isinstance(result, str):
-                text = result
-            peak_mib: int | None = None
-            if torch.cuda.is_available():
-                peak_mib = int(torch.cuda.max_memory_allocated(0) // (1024 * 1024))
-            return text, "", {
-                "page_count": len(image_paths),
-                "peak_gpu_memory_mib": peak_mib,
-                "output_files_written": len(md_files),
-            }
-        except Exception as e:
-            return "", f"infer_failed: {type(e).__name__}: {e}"[:400], {}
+        except ImportError as e:
+            return "", f"torch_import_failed: {e}", {}
+        # TemporaryDirectory context guarantees cleanup on both the
+        # success and exception paths.
+        with tempfile.TemporaryDirectory(prefix=f"unlimited_ocr_{pdf.stem}_",
+                                          dir=str(workdir)) as scratch_str:
+            scratch = Path(scratch_str)
+            try:
+                page_dir = scratch / "pages"
+                page_dir.mkdir(parents=True, exist_ok=True)
+                image_paths = _pdf_to_page_images(pdf, page_dir, dpi=300)
+                # Fresh output directory — never reused between the
+                # primary parse and any deterministic recompile.
+                out_dir = scratch / "out"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                if torch.cuda.is_available():
+                    torch.cuda.reset_peak_memory_stats(0)
+                assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
+                result = self._model.infer_multi(
+                    self._tokenizer,
+                    prompt="<image>Multi page parsing.",
+                    image_files=[str(p) for p in image_paths],
+                    output_path=str(out_dir),
+                    image_size=1024,
+                    max_length=max_length,
+                    no_repeat_ngram_size=35,
+                    ngram_window=1024,
+                    save_results=True,
+                )
+                # infer_multi writes a Markdown file into out_dir; read
+                # BEFORE the temp dir is torn down.
+                md_files = sorted(out_dir.glob("*.md"))
+                text = "\n\n".join(p.read_text(encoding="utf-8", errors="replace") for p in md_files)
+                if not text and isinstance(result, str):
+                    text = result
+                peak_mib: int | None = None
+                if torch.cuda.is_available():
+                    peak_mib = int(torch.cuda.max_memory_allocated(0) // (1024 * 1024))
+                return text, "", {
+                    "page_count": len(image_paths),
+                    "peak_gpu_memory_mib": peak_mib,
+                    "output_files_written": len(md_files),
+                }
+            except Exception as e:
+                return "", f"infer_failed: {type(e).__name__}: {e}"[:400], {}
 
 
 _RUNNER = _UnlimitedOcrRunner()
@@ -528,6 +623,9 @@ def run_one(
 # ── Aggregation (subset — full report focuses on execution modes) ──────
 
 
+_NOT_EXECUTED_MODES = {"dry_run", "model_not_cached", "no_gpu", "deps_missing"}
+
+
 def _bucket(rows: list[RunResult]) -> dict[str, Any]:
     n = len(rows)
     exec_ok = sum(1 for r in rows if r.execution_success)
@@ -540,8 +638,20 @@ def _bucket(rows: list[RunResult]) -> dict[str, Any]:
     modes: dict[str, int] = {}
     for r in rows:
         modes[r.execution_mode] = modes.get(r.execution_mode, 0) + 1
+    # Distinguish "did not attempt inference" (dry-run / no-model /
+    # no-gpu / deps-missing) from "attempted inference and failed"
+    # (real_inference with execution_success=False). The dry-run
+    # artifact should NOT be read as 45 execution failures.
+    not_executed = sum(1 for r in rows if r.execution_mode in _NOT_EXECUTED_MODES)
+    real_attempts = n - not_executed
+    real_failures = sum(1 for r in rows
+                        if r.execution_mode == "real_inference" and not r.execution_success)
     return {
         "n": n,
+        "not_executed_count": not_executed,
+        "not_executed_rate": round(not_executed / n, 4) if n else 0.0,
+        "real_inference_attempts": real_attempts,
+        "real_inference_failures": real_failures,
         "execution_success_count": exec_ok,
         "execution_success_rate": round(exec_ok / n, 4) if n else 0.0,
         "content_extracted_count": content,
@@ -675,18 +785,20 @@ def _run(
 
     tool_version = gpu.get("torch_version", "unknown")
 
-    workdir = Path(tempfile.mkdtemp(prefix="unlimited_ocr_bench_"))
-
     results: list[RunResult] = []
-    for a in sorted(assets, key=lambda a: a["asset_id"]):
-        print(f"running {a['asset_id']} [{mode}]", file=sys.stderr)
-        results.append(run_one(
-            a,
-            execution_mode=mode,
-            workdir=workdir,
-            do_deterministic_check=do_deterministic_check,
-            human_reviews=human_reviews,
-        ))
+    # TemporaryDirectory context so the benchmark scratch space is
+    # removed after every run — regardless of exceptions.
+    with tempfile.TemporaryDirectory(prefix="unlimited_ocr_bench_") as workdir_str:
+        workdir = Path(workdir_str)
+        for a in sorted(assets, key=lambda a: a["asset_id"]):
+            print(f"running {a['asset_id']} [{mode}]", file=sys.stderr)
+            results.append(run_one(
+                a,
+                execution_mode=mode,
+                workdir=workdir,
+                do_deterministic_check=do_deterministic_check,
+                human_reviews=human_reviews,
+            ))
 
     aggregate = _aggregate(results)
     executed_mode_summary = aggregate["overall"]["execution_mode_counts"]

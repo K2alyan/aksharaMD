@@ -5,7 +5,7 @@
   "adapter_target_revision": null,
   "manifest_source": "pdf_benchmark_v1_manifest.json",
   "manifest_commit_under_evaluation": "cb44f02a35c1bfbfe59b6507b122d79f890d24c0",
-  "run_started_at": "2026-07-20T05:50:39Z",
+  "run_started_at": "2026-07-20T15:07:38Z",
   "python_version": "3.12.2",
   "platform": "Windows-11-10.0.26200-SP0",
   "gpu_report": {
@@ -53,6 +53,10 @@
   "aggregate": {
     "overall": {
       "n": 45,
+      "not_executed_count": 45,
+      "not_executed_rate": 1.0,
+      "real_inference_attempts": 0,
+      "real_inference_failures": 0,
       "execution_success_count": 0,
       "execution_success_rate": 0.0,
       "content_extracted_count": 0,
@@ -72,6 +76,10 @@
     "by_document_class": {
       "image-only": {
         "n": 13,
+        "not_executed_count": 13,
+        "not_executed_rate": 1.0,
+        "real_inference_attempts": 0,
+        "real_inference_failures": 0,
         "execution_success_count": 0,
         "execution_success_rate": 0.0,
         "content_extracted_count": 0,
@@ -90,6 +98,10 @@
       },
       "malformed": {
         "n": 2,
+        "not_executed_count": 2,
+        "not_executed_rate": 1.0,
+        "real_inference_attempts": 0,
+        "real_inference_failures": 0,
         "execution_success_count": 0,
         "execution_success_rate": 0.0,
         "content_extracted_count": 0,
@@ -108,6 +120,10 @@
       },
       "multicolumn": {
         "n": 7,
+        "not_executed_count": 7,
+        "not_executed_rate": 1.0,
+        "real_inference_attempts": 0,
+        "real_inference_failures": 0,
         "execution_success_count": 0,
         "execution_success_rate": 0.0,
         "content_extracted_count": 0,
@@ -126,6 +142,10 @@
       },
       "multilingual": {
         "n": 4,
+        "not_executed_count": 4,
+        "not_executed_rate": 1.0,
+        "real_inference_attempts": 0,
+        "real_inference_failures": 0,
         "execution_success_count": 0,
         "execution_success_rate": 0.0,
         "content_extracted_count": 0,
@@ -144,6 +164,10 @@
       },
       "native-text": {
         "n": 19,
+        "not_executed_count": 19,
+        "not_executed_rate": 1.0,
+        "real_inference_attempts": 0,
+        "real_inference_failures": 0,
         "execution_success_count": 0,
         "execution_success_rate": 0.0,
         "content_extracted_count": 0,

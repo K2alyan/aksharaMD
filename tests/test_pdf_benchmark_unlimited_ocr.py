@@ -11,6 +11,7 @@ No AksharaMD production code is imported.
 from __future__ import annotations
 
 import json
+import sys as _sys
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ from benchmarks.pdf_benchmark_adapters.unlimited_ocr_adapter import (  # type: i
     _image_placeholder_ratio,
     _repeat_content_ratio,
     sha256_file,
+    verify_trusted_code_files,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +83,168 @@ def test_revision_is_pinned_sha_or_none():
     assert len(rev) == 40
     assert all(c in "0123456789abcdef" for c in rev), (
         f"revision must be a 40-char lowercase hex SHA; got {rev!r}"
+    )
+
+
+# ── verify_trusted_code_files fail-closed paths ─────────────────────────
+
+
+_DUMMY_REV = "a" * 40
+
+
+def _hub_available() -> bool:
+    try:
+        import huggingface_hub  # type: ignore  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _seed_snapshot(root: Path, repo: str, revision: str) -> Path:
+    """Create a fake HF cache snapshot skeleton and return the snapshot
+    directory. Mirrors the on-disk layout used by huggingface_hub."""
+    snap_root = root / f"models--{repo.replace('/', '--')}" / "snapshots" / revision
+    snap_root.mkdir(parents=True)
+    return snap_root
+
+
+def test_verify_trusted_code_files_refuses_when_revision_unset():
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO, revision=None, trusted={"modeling.py": "0" * 64},
+    )
+    assert ok is False
+    assert "revision unset" in note
+
+
+def test_verify_trusted_code_files_refuses_when_trusted_table_empty():
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV, trusted={},
+    )
+    assert ok is False
+    assert "hash table is empty" in note
+
+
+def test_verify_trusted_code_files_refuses_when_snapshot_missing(
+    tmp_path: Path, monkeypatch
+):
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO,
+        revision=_DUMMY_REV,
+        trusted={"modeling.py": "0" * 64},
+    )
+    assert ok is False
+    assert "no snapshots directory" in note
+
+
+def test_verify_trusted_code_files_refuses_when_revision_not_cached(
+    tmp_path: Path, monkeypatch
+):
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    # Create a snapshots dir but for a DIFFERENT revision.
+    _seed_snapshot(tmp_path, _UNLIMITED_OCR_MODEL_REPO, revision="b" * 40)
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO,
+        revision=_DUMMY_REV,
+        trusted={"modeling.py": "0" * 64},
+    )
+    assert ok is False
+    assert "not present in local snapshots" in note
+
+
+def test_verify_trusted_code_files_refuses_when_expected_file_missing(
+    tmp_path: Path, monkeypatch
+):
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    _seed_snapshot(tmp_path, _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV)
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO,
+        revision=_DUMMY_REV,
+        trusted={"modeling.py": "0" * 64},
+    )
+    assert ok is False
+    assert "trusted file missing" in note
+
+
+def test_verify_trusted_code_files_refuses_on_hash_mismatch(
+    tmp_path: Path, monkeypatch
+):
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    snap = _seed_snapshot(tmp_path, _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV)
+    (snap / "modeling.py").write_bytes(b"print('hi')\n")
+    # Deliberately wrong SHA.
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO,
+        revision=_DUMMY_REV,
+        trusted={"modeling.py": "0" * 64},
+    )
+    assert ok is False
+    assert "SHA-256 mismatch" in note
+
+
+def test_verify_trusted_code_files_refuses_extra_untrusted_py(
+    tmp_path: Path, monkeypatch
+):
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    snap = _seed_snapshot(tmp_path, _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV)
+    approved = snap / "modeling.py"
+    approved.write_bytes(b"print('hi')\n")
+    # Extra untrusted file (not in the trusted table)
+    (snap / "backdoor.py").write_bytes(b"print('bad')\n")
+    trusted = {"modeling.py": sha256_file(approved)}
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV, trusted=trusted,
+    )
+    assert ok is False
+    assert "untrusted custom code file" in note
+    assert "backdoor.py" in note
+
+
+def test_verify_trusted_code_files_accepts_matching_snapshot(
+    tmp_path: Path, monkeypatch
+):
+    """Sunny-day path: every trusted file present with matching hash,
+    no extra .py files."""
+    if not _hub_available():
+        pytest.skip("huggingface_hub not installed; short-circuits earlier")
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    snap = _seed_snapshot(tmp_path, _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV)
+    modeling = snap / "modeling.py"
+    modeling.write_bytes(b"print('ok')\n")
+    (snap / "config.json").write_text('{"ok": true}', encoding="utf-8")  # not .py
+    trusted = {"modeling.py": sha256_file(modeling)}
+    ok, note = verify_trusted_code_files(
+        _UNLIMITED_OCR_MODEL_REPO, revision=_DUMMY_REV, trusted=trusted,
+    )
+    assert ok is True
+    assert "verified 1 trusted-code files" in note
+
+
+def test_verify_trusted_code_files_load_path_refuses_without_config(monkeypatch):
+    """The `_UnlimitedOcrRunner.load()` path must call
+    `verify_trusted_code_files` BEFORE any `transformers` import and
+    refuse if verification fails. With the current module state
+    (revision=None or trusted={}), load must set `_load_error` without
+    ever touching transformers.
+    """
+    from benchmarks.pdf_benchmark_adapters import unlimited_ocr_adapter as mod
+    # Sabotage: make transformers import raise loudly if reached.
+    monkeypatch.setitem(_sys.modules, "transformers", None)
+    runner = mod._UnlimitedOcrRunner()
+    runner.load()
+    assert runner._loaded is False
+    assert runner._load_error.startswith("trusted_code_verification_failed:"), (
+        f"expected fail-closed refusal note, got: {runner._load_error!r}"
     )
 
 
@@ -172,6 +336,121 @@ def test_decide_execution_mode_deps_missing_takes_precedence():
             gpu={"cuda_available": True, "bf16_supported": True},
         )
         assert mode == "deps_missing"
+
+
+# ── TemporaryDirectory cleanup invariants ──────────────────────────────
+
+
+class _FakeTokenizer:
+    pass
+
+
+class _FakeModel:
+    """Minimal model stub. Records what output_path it was called with
+    and either writes a fake markdown file (success) or raises."""
+
+    def __init__(self, *, raise_on_infer: bool = False) -> None:
+        self.raise_on_infer = raise_on_infer
+        self.last_output_path: str | None = None
+
+    def infer_multi(self, tokenizer, prompt, image_files, output_path, **kwargs):
+        self.last_output_path = output_path
+        if self.raise_on_infer:
+            raise RuntimeError("simulated inference failure")
+        out = Path(output_path)
+        (out / "page_0001.md").write_text("# fake output\n", encoding="utf-8")
+        return "# fake output\n"
+
+
+def _preloaded_runner(*, raise_on_infer: bool):
+    """Return an `_UnlimitedOcrRunner` skipping the real load path with
+    fake model + tokenizer plugged in."""
+    from benchmarks.pdf_benchmark_adapters import unlimited_ocr_adapter as mod
+    runner = mod._UnlimitedOcrRunner()
+    runner._tokenizer = _FakeTokenizer()  # type: ignore[assignment]
+    runner._model = _FakeModel(raise_on_infer=raise_on_infer)  # type: ignore[assignment]
+    runner._loaded = True
+    return runner, mod
+
+
+def _stub_page_render(monkeypatch, mod) -> None:
+    """Bypass PyMuPDF — write a stub PNG per page dir call."""
+    def _fake(pdf, out_dir, dpi=300):  # noqa: ARG001
+        p = Path(out_dir) / "page_0001.png"
+        p.write_bytes(b"\x89PNG\r\n\x1a\n")
+        return [p]
+    monkeypatch.setattr(mod, "_pdf_to_page_images", _fake)
+
+
+def _stub_torch_no_cuda(monkeypatch, mod) -> None:
+    """Force `torch.cuda.is_available()` False so we skip the peak-mem
+    branch without needing a real CUDA runtime."""
+    try:
+        import torch  # type: ignore
+    except ImportError:
+        pytest.skip("torch not installed; cannot exercise infer_pdf")
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+
+
+def _count_scratch_dirs(workdir: Path, pdf_stem: str) -> int:
+    return sum(
+        1 for p in workdir.iterdir()
+        if p.is_dir() and p.name.startswith(f"unlimited_ocr_{pdf_stem}_")
+    )
+
+
+def test_infer_pdf_cleans_scratch_on_success(tmp_path: Path, monkeypatch):
+    runner, mod = _preloaded_runner(raise_on_infer=False)
+    _stub_page_render(monkeypatch, mod)
+    _stub_torch_no_cuda(monkeypatch, mod)
+    pdf = tmp_path / "sample.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%stub\n")
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    text, exc, sig = runner.infer_pdf(pdf, workdir)
+    assert exc == "", f"expected success, got exception: {exc!r}"
+    assert "fake output" in text
+    assert _count_scratch_dirs(workdir, "sample") == 0, (
+        "scratch TemporaryDirectory was not cleaned after a successful run"
+    )
+
+
+def test_infer_pdf_cleans_scratch_on_exception(tmp_path: Path, monkeypatch):
+    runner, mod = _preloaded_runner(raise_on_infer=True)
+    _stub_page_render(monkeypatch, mod)
+    _stub_torch_no_cuda(monkeypatch, mod)
+    pdf = tmp_path / "boom.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%stub\n")
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    text, exc, sig = runner.infer_pdf(pdf, workdir)
+    assert text == ""
+    assert exc.startswith("infer_failed:"), f"unexpected exception path: {exc!r}"
+    assert _count_scratch_dirs(workdir, "boom") == 0, (
+        "scratch TemporaryDirectory was not cleaned after an inference exception"
+    )
+
+
+def test_infer_pdf_uses_fresh_output_dir_per_call(tmp_path: Path, monkeypatch):
+    """Deterministic recompile must not read the previous run's output.
+    Two sequential calls should point the model at distinct output_path
+    values (fresh TemporaryDirectory per call)."""
+    runner, mod = _preloaded_runner(raise_on_infer=False)
+    _stub_page_render(monkeypatch, mod)
+    _stub_torch_no_cuda(monkeypatch, mod)
+    pdf = tmp_path / "twice.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%stub\n")
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+    runner.infer_pdf(pdf, workdir)
+    first = runner._model.last_output_path
+    runner.infer_pdf(pdf, workdir)
+    second = runner._model.last_output_path
+    assert first is not None and second is not None
+    assert first != second, (
+        "deterministic recompile reused the previous output_path; "
+        "the second call could read the first call's markdown"
+    )
 
 
 # ── RunResult factory ───────────────────────────────────────────────────
@@ -427,8 +706,27 @@ def test_adr_present():
         "use_safetensors=True",
         "HF_HUB_OFFLINE",
         "aksharamd[unlimited-ocr]",
-        "aksharamd[marker]",
+        "aksharamd[vision]",
         "No cloud OCR",
         "pinned revision",
+        "verify_trusted_code_files",
     ]:
         assert phrase in body, f"ADR must document {phrase!r}"
+
+
+def test_adr_does_not_reference_nonexistent_marker_extra():
+    """The `aksharamd[marker]` extra does NOT exist in pyproject.toml;
+    referencing it in install instructions would send users to a broken
+    install command. If a future rename adds a `marker` alias, remove
+    this test.
+    """
+    adr = _REPO_ROOT / "docs" / "adr" / "ocr_backend_strategy.md"
+    if not adr.exists():
+        pytest.skip("ADR missing")
+    body = adr.read_text(encoding="utf-8")
+    # `pip install "aksharamd[marker]"` in any code block would be a
+    # broken install command. The current-state install instructions
+    # must reference `aksharamd[vision]`.
+    assert 'pip install "aksharamd[marker]"' not in body, (
+        "ADR references nonexistent aksharamd[marker] extra — use aksharamd[vision]"
+    )

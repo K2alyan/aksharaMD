@@ -23,10 +23,10 @@ Baidu released **Unlimited-OCR** on 2026-06-22 as a competitor to DeepSeek-OCR �
 Adopt a **tiered local-only strategy** with two mutually-exclusive optional extras:
 
 - **`aksharamd`** — base install. Lightweight text-layer path only. No heavy backend.
-- **`aksharamd[unlimited-ocr]`** — preferred high-fidelity backend when the user has an NVIDIA GPU with ≥ 8 GB VRAM and BF16 support.
-- **`aksharamd[marker]`** — alternative high-fidelity backend for users who prefer Marker or cannot run Unlimited-OCR.
+- **`aksharamd[unlimited-ocr]`** — candidate high-fidelity backend for users with an NVIDIA GPU with BF16 support. The exact minimum VRAM has not yet been measured; see § Risks. The 8 GB / 12 GB figures elsewhere in this document are aspirational until confirmed by real inference.
+- **`aksharamd[vision]`** — the current Marker-backed high-fidelity extra. Remains the only installable heavy backend that has been exercised in production. (No `aksharamd[marker]` alias exists today; adding one is a possible future rename tracked as a follow-up, not part of this PR.)
 
-**Users install ONE heavy backend, not both.** A developer-only extra `aksharamd[ocr-benchmark]` (out of scope for this PR) may combine both for internal comparison work.
+**Users install ONE heavy backend, not both.** A developer-only extra `aksharamd[ocr-benchmark]` is shipped in this PR (pulls both `vision` and `unlimited-ocr`) strictly for internal comparison work; end-user documentation should not surface it. Whether to keep it as a public optional extra or move it to a `[dependency-groups]` entry is deferred to the follow-up benchmark PR, once we know if any non-developer needs it.
 
 The `--ocr-backend {auto,marker,unlimited_ocr,none}` CLI flag (Phase 5 in the prompt) selects the backend explicitly; `auto` picks the installed optional backend and errors clearly when neither is present.
 
@@ -76,8 +76,8 @@ The `auto` selection rule is designed conservatively:
    ```
    No local high-fidelity OCR backend is installed. This PDF requires
    OCR (image-only page detected). Install one of:
-     pip install "aksharamd[unlimited-ocr]"    # preferred on NVIDIA GPU
-     pip install "aksharamd[marker]"           # CPU-friendly alternative
+     pip install "aksharamd[unlimited-ocr]"    # candidate on NVIDIA GPU (needs measurement)
+     pip install "aksharamd[vision]"           # Marker-backed alternative (CPU-friendly)
    ```
 
 Never automatically fall to the *other* heavy backend if it's not installed. Never automatically download a model during parsing.
@@ -89,7 +89,7 @@ The `trust_remote_code=True` requirement is a real risk surface. Every Unlimited
 - Pin an exact model revision (`revision=<40-char SHA>` on `AutoModel.from_pretrained` / `AutoTokenizer.from_pretrained`). A mutable branch reference is refused.
 - Use `use_safetensors=True` — refuse pickle-based weights.
 - Set `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` BEFORE `transformers` is imported. Every load call uses `local_files_only=True`.
-- Verify SHA-256 of every downloaded custom Python file in the model repo against a table of hashes pinned in `unlimited_ocr_adapter._UNLIMITED_OCR_TRUSTED_CODE_FILES`. Load fails if any file's hash differs.
+- Call `verify_trusted_code_files()` **before** any `transformers` import completes. This function is fail-closed: it refuses to load if the revision is unset, if `_UNLIMITED_OCR_TRUSTED_CODE_FILES` is empty, if the snapshot directory for the pinned revision is not on disk, if any file listed in the trusted table is missing or has a different SHA-256, or if the snapshot contains any additional custom `.py` file the trusted table does not cover.
 - Never send document text / images / filenames / metadata over the network. The adapter runs after offline enforcement is active; a network attempt inside inference is expected to fail loudly.
 
 A **local-only verification test** (Phase 15 of the prompt) fails if inference attempts an outbound connection. Implementation: monkey-patch `urllib.request.urlopen` and `requests.request` during inference to raise; assert no exception is caught silently.
@@ -109,7 +109,7 @@ Because Unlimited-OCR weights are ~14 GB, package installation is decoupled from
 4. `aksharamd models verify unlimited-ocr` — re-hashes custom code, checks revision matches pinned.
 5. `aksharamd models remove unlimited-ocr` — removes weights from cache.
 
-**Minimum viable in this PR:** the adapter itself will refuse to run real inference if the model is not cached under the pinned revision. The user's manual download command is documented below. A follow-up PR wires the `aksharamd models install/status/verify/remove` subcommands into `aksharamd/cli.py`.
+**Minimum viable in this PR:** the adapter itself will refuse to run real inference if the model is not cached under the pinned revision **and** its custom `.py` files do not match the trusted SHA-256 table. Each `infer_pdf` invocation renders its pages into a fresh `TemporaryDirectory` (auto-cleaned even on exception) so a deterministic recompile never reads output from a previous run. The user's manual download command is documented below. A follow-up PR wires the `aksharamd models install/status/verify/remove` subcommands into `aksharamd/cli.py`.
 
 ### Reproducible manual install (until CLI ships)
 
@@ -160,7 +160,7 @@ Once the model is installed, run the paired comparison:
   - Deterministic or sufficiently stable output.
   - Fully local inference (verified by the network-block test).
 
-If Unlimited-OCR's advantage is small, unreliable, or resource-intensive, **prefer Marker**. A hardware-based split ("Unlimited-OCR preferred for NVIDIA GPUs with ≥ 8 GB VRAM and BF16; Marker preferred for CPU or lower-resource systems") is acceptable and encouraged if the evidence supports it.
+If Unlimited-OCR's advantage is small, unreliable, or resource-intensive, **prefer Marker**. A hardware-based split ("Unlimited-OCR preferred for NVIDIA GPUs with BF16 and ≥ N GB VRAM measured in the benchmark run; Marker preferred for CPU or lower-resource systems") is acceptable and encouraged if the evidence supports it. The concrete VRAM threshold N is filled in only from measured data.
 
 ## What this PR includes
 
@@ -189,13 +189,13 @@ If Unlimited-OCR's advantage is small, unreliable, or resource-intensive, **pref
 4. **`feat(cli): --ocr-backend flag`** — adds explicit backend selection to the CLI and Python API.
 5. **`docs(ocr): finalise ADR with empirical decision`** — updates this ADR from "proposed" to "accepted" with the concrete decision (Unlimited-OCR preferred, Marker preferred, or hardware-split).
 
-Only after the follow-up sequence lands does the end-user installation model change; until then, `aksharamd[vision]` continues to point at Marker as it does today.
+Only after the follow-up sequence lands does the end-user installation model change; until then, `aksharamd[vision]` continues to point at Marker as it does today. There is no `aksharamd[marker]` alias; any rename from `vision` to `marker` is a separate follow-up decision, not implied by this ADR.
 
 ## Risks
 
 - **Model revision drift.** If Baidu updates the `main` branch, users who copy old install commands could pull unpinned weights. Mitigated by requiring a pinned revision at load time.
 - **`trust_remote_code` supply-chain.** Mitigated by pinning revision + SHA-256-hashing the custom code files.
-- **12 GB VRAM ceiling.** The RTX 3060 test machine has exactly 12 GB. If Unlimited-OCR's default batch strategy exceeds this, users on 8 GB GPUs will not be able to run it. The benchmark will measure peak GPU memory and set the minimum-VRAM requirement based on empirical observation.
+- **VRAM requirement is unknown.** The RTX 3060 test machine has 12 GB. Whether Unlimited-OCR fits in 8 GB, needs the full 12 GB, or exceeds it has NOT been measured because real inference has not yet been executed. The benchmark PR will measure peak GPU memory and set the minimum-VRAM requirement based on empirical observation; until then no specific VRAM figure should be published as a hardware recommendation.
 - **Package version mismatch.** The Unlimited-OCR README pins `torch==2.10.0`, `transformers==4.57.1`; the reference environment for the benchmark uses `torch==2.12.1+cu126`, `transformers==4.57.6`. Both are within compatible ranges for the `AutoModel` loading path, but if inference produces unexpected results the version diff is the first thing to investigate.
 - **Pillow version.** Reference environment has Pillow 10.4.0; Unlimited-OCR pins 12.1.1. Not upgrading Pillow globally because it would break other packages in the environment. Flagged as a compatibility risk.
 

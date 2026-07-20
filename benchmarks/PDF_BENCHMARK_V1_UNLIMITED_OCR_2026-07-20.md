@@ -1,4 +1,4 @@
-# PDF Benchmark v1 — Unlimited-OCR adapter (2026-07-19)
+# PDF Benchmark v1 — Unlimited-OCR adapter (2026-07-20)
 
 **Tool:** Baidu Unlimited-OCR (HuggingFace `baidu/Unlimited-OCR`)
 **Pinned revision:** `NOT SET — adapter refuses to load`
