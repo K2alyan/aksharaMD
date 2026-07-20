@@ -85,6 +85,34 @@ vision = [
     # Track: github.com/VikParuchuri/marker/issues (transformers 5.x support)
     "transformers>=4.45.2,<5.0.0",
 ]
+# ─── unlimited-ocr ────────────────────────────────────────────────────
+# Baidu's Unlimited-OCR (HuggingFace baidu/Unlimited-OCR) is an
+# optional local-only vision-LLM OCR backend for NVIDIA GPUs with BF16.
+# Deliberately MUTUALLY EXCLUSIVE with `vision` (marker) in the user
+# installation model — pick one heavy backend. Both may coexist in
+# development environments for benchmark comparison (see
+# `ocr-benchmark` below); end users should install one.
+# Weights (~14 GB) are NOT bundled. Users trigger the download via a
+# separate command (see `docs/adr/ocr_backend_strategy.md` for the
+# reproducible install recipe).
+# Version pins follow Baidu's tested reference environment as
+# permissively as compatibility allows; upper bounds prevent surprise
+# breaking changes.
+unlimited-ocr = [
+    "torch>=2.10.0,<3",
+    "transformers>=4.57.0,<5.0.0",
+    "einops>=0.8",
+    "addict>=2.4",
+    "easydict>=1.13",
+    "huggingface-hub>=0.24",
+    "pymupdf>=1.24",
+]
+# Development-only extra for internal benchmark comparison — combines
+# both heavy backends. NOT for end users; documented as an internal
+# convenience only.
+ocr-benchmark = [
+    "aksharamd[vision,unlimited-ocr]",
+]
 math = [
     "pix2tex>=0.1.1",
 ]
