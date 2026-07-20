@@ -1,0 +1,140 @@
+{
+  "environment": {
+    "python": "3.12.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "nvidia_driver": "595.95",
+    "torch": "2.12.1+cu126",
+    "cuda": "12.6",
+    "gpu_name": "NVIDIA GeForce RTX 3060",
+    "gpu_vram_gib": 12.0,
+    "bf16_supported": true
+  },
+  "predeclared_assets": [
+    "parsebench/japanese_case",
+    "parsebench/2colmercedes",
+    "public/019-grayscale-image/grayscale-image.pdf"
+  ],
+  "vram_safe_ceiling_mib": 11264,
+  "output_absolute_ceiling_bytes": 500000,
+  "hallucination_multiplier": 3,
+  "load": {
+    "elapsed_seconds": 19.39,
+    "rss_before_mib": 511,
+    "rss_after_mib": 904,
+    "call_log": [
+      "load_trusted_manifest",
+      "verify_snapshot_against_manifest",
+      "fast_verify",
+      "import_transformers",
+      "get_class_from_dynamic_module",
+      "install_module_local_eval_override",
+      "AutoTokenizer.from_pretrained",
+      "AutoModel.from_pretrained"
+    ],
+    "loaded": true,
+    "load_error": "",
+    "peak_allocated_mib_load": 6456,
+    "peak_reserved_mib_load": 6490
+  },
+  "per_asset": [
+    {
+      "asset_id": "parsebench/japanese_case",
+      "document_class": "image-only",
+      "pdf_path": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\japanese_case.pdf",
+      "hidden_text_layer_chars": 0,
+      "runtime_seconds": 583.85,
+      "peak_allocated_mib": 6928,
+      "peak_reserved_mib": 7088,
+      "rss_before_mib": 926,
+      "rss_after_mib": 1988,
+      "output_chars": 17250,
+      "exception": "",
+      "runner_call_log": [
+        "load_trusted_manifest",
+        "verify_snapshot_against_manifest",
+        "fast_verify",
+        "import_transformers",
+        "get_class_from_dynamic_module",
+        "install_module_local_eval_override",
+        "AutoTokenizer.from_pretrained",
+        "AutoModel.from_pretrained"
+      ],
+      "processed_without_restart": true,
+      "tool_signals": {
+        "page_count": 1,
+        "peak_gpu_memory_mib": 6928,
+        "output_files_written": 1
+      },
+      "status": "PASS"
+    },
+    {
+      "asset_id": "parsebench/2colmercedes",
+      "document_class": "multicolumn",
+      "pdf_path": "C:\\Users\\kalya\\AppData\\Local\\aksharamd\\parsebench\\2805a1d940f95a203e0ae4b88be9934f7765b3fc\\2colmercedes.pdf",
+      "hidden_text_layer_chars": 3761,
+      "runtime_seconds": 34.18,
+      "peak_allocated_mib": 6928,
+      "peak_reserved_mib": 7076,
+      "rss_before_mib": 1988,
+      "rss_after_mib": 2013,
+      "output_chars": 3689,
+      "exception": "",
+      "runner_call_log": [
+        "load_trusted_manifest",
+        "verify_snapshot_against_manifest",
+        "fast_verify",
+        "import_transformers",
+        "get_class_from_dynamic_module",
+        "install_module_local_eval_override",
+        "AutoTokenizer.from_pretrained",
+        "AutoModel.from_pretrained"
+      ],
+      "processed_without_restart": true,
+      "tool_signals": {
+        "page_count": 1,
+        "peak_gpu_memory_mib": 6928,
+        "output_files_written": 1
+      },
+      "status": "PASS"
+    },
+    {
+      "asset_id": "public/019-grayscale-image/grayscale-image.pdf",
+      "document_class": "image-only",
+      "pdf_path": "C:\\Users\\kalya\\Omnimark\\benchmarks\\.public_corpus\\pdf\\019-grayscale-image\\grayscale-image.pdf",
+      "hidden_text_layer_chars": 0,
+      "runtime_seconds": 2.43,
+      "peak_allocated_mib": 6928,
+      "peak_reserved_mib": 7076,
+      "rss_before_mib": 2013,
+      "rss_after_mib": 2019,
+      "output_chars": 84,
+      "exception": "",
+      "runner_call_log": [
+        "load_trusted_manifest",
+        "verify_snapshot_against_manifest",
+        "fast_verify",
+        "import_transformers",
+        "get_class_from_dynamic_module",
+        "install_module_local_eval_override",
+        "AutoTokenizer.from_pretrained",
+        "AutoModel.from_pretrained"
+      ],
+      "processed_without_restart": true,
+      "tool_signals": {
+        "page_count": 1,
+        "peak_gpu_memory_mib": 6928,
+        "output_files_written": 1
+      },
+      "status": "PASS"
+    }
+  ],
+  "outcome": {
+    "status": "PASS",
+    "stop_condition": null,
+    "stop_reason": null
+  },
+  "model_residency": {
+    "single_runner_instance": true,
+    "assets_processed": 3
+  }
+}
