@@ -86,19 +86,41 @@ def test_revision_is_pinned_sha_or_none():
 
 def test_model_cache_check_returns_false_when_no_revision(tmp_path: Path, monkeypatch):
     """Without a pinned revision, the cache check must refuse to
-    report the model as ready.
+    report the model as ready. The refusal note may differ depending
+    on whether huggingface_hub is installed:
+    - if hub is installed: "no pinned revision"
+    - if hub is missing (base install without unlimited-ocr extra):
+      "huggingface_hub not installed"
+    Either is an acceptable refusal.
     """
     from benchmarks.pdf_benchmark_adapters import unlimited_ocr_adapter as mod
-    # Force revision=None regardless of the module-level state.
     cached, note = mod._model_cached_locally(mod._UNLIMITED_OCR_MODEL_REPO, None)
     assert cached is False
-    assert "no pinned revision" in note.lower()
+    note_lower = note.lower()
+    assert (
+        "no pinned revision" in note_lower
+        or "huggingface_hub not installed" in note_lower
+    ), f"unexpected refusal note: {note!r}"
 
 
 # ── Mode-decision logic ─────────────────────────────────────────────────
 
 
+def _deps_present() -> bool:
+    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_adapter import (  # type: ignore
+        _pinned_deps_present,
+    )
+    ok, _ = _pinned_deps_present()
+    return ok
+
+
 def test_decide_execution_mode_dry_run_wins_over_gpu():
+    """If unlimited-ocr deps are missing, the guard short-circuits to
+    'deps_missing' before checking the dry_run flag — that's the safe
+    default. This test only meaningfully runs when the deps ARE present.
+    """
+    if not _deps_present():
+        pytest.skip("unlimited-ocr deps missing; deps_missing short-circuits")
     mode, note = _decide_execution_mode(
         forced_real=False, forced_dry_run=True,
         gpu={"cuda_available": True, "bf16_supported": True},
@@ -107,6 +129,8 @@ def test_decide_execution_mode_dry_run_wins_over_gpu():
 
 
 def test_decide_execution_mode_no_gpu_refuses_real():
+    if not _deps_present():
+        pytest.skip("unlimited-ocr deps missing; deps_missing short-circuits")
     mode, note = _decide_execution_mode(
         forced_real=True, forced_dry_run=False,
         gpu={"cuda_available": False},
@@ -115,6 +139,8 @@ def test_decide_execution_mode_no_gpu_refuses_real():
 
 
 def test_decide_execution_mode_no_bf16_refuses_real():
+    if not _deps_present():
+        pytest.skip("unlimited-ocr deps missing; deps_missing short-circuits")
     mode, note = _decide_execution_mode(
         forced_real=True, forced_dry_run=False,
         gpu={"cuda_available": True, "bf16_supported": False},
@@ -124,13 +150,28 @@ def test_decide_execution_mode_no_bf16_refuses_real():
 
 def test_decide_execution_mode_model_not_cached_when_no_revision():
     """With a valid GPU + BF16 but no pinned revision, mode should be
-    'model_not_cached' — never silently defaults to real inference."""
+    'model_not_cached' — never silently defaults to real inference.
+    If deps are missing, deps_missing short-circuits (also safe)."""
     mode, note = _decide_execution_mode(
         forced_real=False, forced_dry_run=False,
         gpu={"cuda_available": True, "bf16_supported": True},
     )
-    # Revision default is None in this PR; cache check returns False.
     assert mode in {"model_not_cached", "deps_missing"}
+
+
+def test_decide_execution_mode_deps_missing_takes_precedence():
+    """The deps-missing short-circuit is a safety invariant: without
+    the pinned runtime deps we MUST NOT attempt real inference,
+    regardless of every other input. Verify by asserting deps-missing
+    dominates when deps are actually missing."""
+    if _deps_present():
+        pytest.skip("unlimited-ocr deps present; this test verifies the missing-deps guard")
+    for forced_real, forced_dry_run in ((False, False), (True, False), (False, True)):
+        mode, _ = _decide_execution_mode(
+            forced_real=forced_real, forced_dry_run=forced_dry_run,
+            gpu={"cuda_available": True, "bf16_supported": True},
+        )
+        assert mode == "deps_missing"
 
 
 # ── RunResult factory ───────────────────────────────────────────────────
