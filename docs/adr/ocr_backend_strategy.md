@@ -16,7 +16,7 @@ AksharaMD has three tiers of PDF extraction:
 
 The Phase 1 benchmark (PR #69, `main = 581069d`) established that **image-only PDFs are the largest quality gap**: AksharaMD with Marker recovers 4 / 13 image-only files (31 %) vs 1 / 13 for PyMuPDF4LLM and MarkItDown (no OCR). Marker is the single feature that drives AksharaMD's differentiation on this slice.
 
-Baidu released **Unlimited-OCR** on 2026-06-22 as a competitor to DeepSeek-OCR — a document-parsing VLM under the Apache-2.0 license with weights on HuggingFace (`baidu/Unlimited-OCR`, arXiv:2606.23050). Marketed as "one-shot long-horizon parsing." If it materially outperforms Marker on image-only + tabular + multilingual PDFs, we should offer it as the preferred optional high-fidelity backend.
+Baidu released **Unlimited-OCR** on 2026-06-22 as a competitor to DeepSeek-OCR — a document-parsing VLM under the **MIT license** (confirmed by the `LICENSE` file in the initial commit and by the HuggingFace model card metadata `card_data.license: mit`) with weights on HuggingFace (`baidu/Unlimited-OCR`, arXiv:2606.23050). Marketed as "one-shot long-horizon parsing." If it materially outperforms Marker on image-only + tabular + multilingual PDFs, we should offer it as the preferred optional high-fidelity backend.
 
 ## Decision (proposed)
 
