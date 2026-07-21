@@ -180,6 +180,29 @@ def test_resolve_cache_miss_falls_back_to_formula(tmp_path):
     assert portable["cache_hit"] is False
 
 
+def test_resolve_cache_hit_shrinks_below_known_failure(tmp_path):
+    """Reviewer's concern: if size 16 succeeded once and later failed,
+    the next run must not start at 16. The portable resolver must
+    pass smallest_known_failed_size through to the cache helper."""
+    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+        record_failure,
+    )
+    p = tmp_path / "cache.json"
+    fp = _fp()
+    key = build_cache_key(fp)
+    record_success(p, key, fingerprint=fp,
+                   successful_chunk_size=16, peak_reserved_mib=8000, now_iso="t1")
+    record_failure(p, key, fingerprint=fp, failed_chunk_size=16, now_iso="t2")
+    # Even on a system with plenty of VRAM, we must NOT try 16 again.
+    probe = {"free_vram_bytes": _gib(74.0)}
+    size, portable = _resolve_initial_size(
+        probe=probe, fingerprint=fp, cache_path=p, env_override=None,
+    )
+    assert size == 8  # halved from the failed size
+    assert portable["resolution_source"] == "cache"
+    assert portable["resolution_reason"] == "cache_hit_shrunk_by_known_failure"
+
+
 def test_resolve_records_formula_estimate_even_on_cache_hit(tmp_path):
     """We always record what the formula WOULD HAVE said, for audit."""
     p = tmp_path / "cache.json"

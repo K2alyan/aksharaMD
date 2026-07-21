@@ -189,32 +189,62 @@ def choose_initial_size_from_cache_hit(
     per_page_memory_estimate_mib: int,
     min_size: int,
     max_size: int,
+    smallest_known_failed_size: int | None = None,
 ) -> tuple[int, str]:
     """Given a cache hit for the current fingerprint, decide whether
-    the cached size is still safe against currently-free VRAM.
+    the cached size is still safe against currently-free VRAM AND
+    against any subsequent failed size for this fingerprint.
 
-    Returns ``(chunk_size, reason)`` where ``reason`` is one of:
+    Reasons returned in ``(chunk_size, reason)``:
         - ``"cache_hit_within_current_vram"``
         - ``"cache_hit_shrunk_by_current_vram"``
-        - ``"cache_hit_ignored_no_vram_read"``  — we cannot verify
+        - ``"cache_hit_shrunk_by_known_failure"``  — a failure at or
+          below the cached success has been recorded since. The cached
+          success is stale; start below the failure.
+        - ``"cache_hit_ignored_no_vram_read"``  — no live VRAM read
+          available, cache trusted verbatim.
 
-    The formula for the current-VRAM guard is the SAME as
+    A ``smallest_known_failed_size`` at or below ``cached_size`` means
+    the last recorded success was invalidated by a later failure at
+    the same or smaller size (memory pressure, thermal event, driver
+    variance, model checkpoint hiccup). In that case we start BELOW
+    the failed size (half of it, matching PR 2's reduction policy)
+    rather than blindly re-using the stale success.
+
+    The formula for the live-VRAM guard is the SAME as
     ``_estimate_initial_chunk_size``'s vram-based branch, kept in sync
     here to avoid a circular import.
     """
     cached_size = max(min_size, min(max_size, int(cached_size)))
+    reason = ""
+
+    # Guard against a failure recorded at or below the cached success.
+    if (
+        smallest_known_failed_size is not None
+        and int(smallest_known_failed_size) > 0
+        and int(smallest_known_failed_size) <= cached_size
+    ):
+        # Halve from the failed size (PR 2 reduction policy).
+        cached_size = max(min_size, int(smallest_known_failed_size) // 2)
+        reason = "cache_hit_shrunk_by_known_failure"
+
     if free_vram_bytes is None or free_vram_bytes <= 0:
-        # No live read → trust the cache since we have no other data.
-        return cached_size, "cache_hit_ignored_no_vram_read"
+        # No live read → trust whatever cache/failure logic produced.
+        return cached_size, reason or "cache_hit_ignored_no_vram_read"
+
     per_page_bytes = per_page_memory_estimate_mib * 1024 * 1024
     if per_page_bytes <= 0:
-        return cached_size, "cache_hit_ignored_no_vram_read"
+        return cached_size, reason or "cache_hit_ignored_no_vram_read"
+
     usable_bytes = int(free_vram_bytes * safety_factor)
     live_estimate = usable_bytes // per_page_bytes
     live_estimate = max(min_size, min(max_size, int(live_estimate)))
+
     if live_estimate >= cached_size:
-        return cached_size, "cache_hit_within_current_vram"
-    # Someone else is using the GPU — shrink to what fits now.
+        # Live VRAM is not the tighter bound. Keep whatever we had
+        # (either the raw cache or the failure-shrunk value).
+        return cached_size, reason or "cache_hit_within_current_vram"
+    # Live VRAM tightens further.
     return live_estimate, "cache_hit_shrunk_by_current_vram"
 
 

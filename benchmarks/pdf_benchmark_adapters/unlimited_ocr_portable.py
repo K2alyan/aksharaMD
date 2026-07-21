@@ -186,6 +186,7 @@ def _resolve_initial_size(
                 per_page_memory_estimate_mib=_DEFAULT_PER_PAGE_MEMORY_MIB,
                 min_size=_MIN_CHUNK_SIZE,
                 max_size=_MAX_CHUNK_SIZE,
+                smallest_known_failed_size=hit.get("smallest_known_failed_size"),
             )
             portable["resolution_source"] = "cache"
             portable["resolution_reason"] = reason

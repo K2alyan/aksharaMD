@@ -118,6 +118,17 @@ def _run_one(cache_path: Path, asset_id: str, pdf: Path, run_index: int, workdir
             if p in covered:
                 duplicated.append(p)
             covered.add(p)
+
+    # Single-shot success path: the runner's ``_infer_single_chunk``
+    # emits a signals dict WITHOUT a "chunks" key (the adaptive
+    # chunking loop is skipped because the whole doc fits in one
+    # call). If the overall run succeeded and we saw no chunk-level
+    # data, treat the whole page range as covered — the small-doc
+    # path processes every page atomically.
+    if not exc and not chunks:
+        single_shot_page_count = worker_signals.get("page_count")
+        if isinstance(single_shot_page_count, int) and single_shot_page_count > 0:
+            covered = set(range(single_shot_page_count))
     missing = sorted(set(range(total_pages_pdf)) - covered)
 
     row = {

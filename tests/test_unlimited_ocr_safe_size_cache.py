@@ -245,6 +245,99 @@ def test_cache_hit_clamped_to_max():
     assert chosen == 40
 
 
+# ── smallest_known_failed_size shrinks a stale cached success ───────────
+
+
+def test_cache_hit_shrunk_by_known_failure_at_same_size():
+    """Reviewer's canonical case: cache says 16 succeeded, but a
+    later failure was recorded at size 16. Do NOT start at 16 — halve
+    from the failed size."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=16, free_vram_bytes=_gib(74.0),
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=16,
+    )
+    assert chosen == 8  # 16 // 2
+    assert reason == "cache_hit_shrunk_by_known_failure"
+
+
+def test_cache_hit_shrunk_by_known_failure_at_smaller_size():
+    """Failed smaller than cached success — halve from the failed."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=16, free_vram_bytes=_gib(74.0),
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=8,
+    )
+    assert chosen == 4
+    assert reason == "cache_hit_shrunk_by_known_failure"
+
+
+def test_cache_hit_ignores_failed_size_above_cached_success():
+    """If cached success is 8 and only larger sizes have failed (e.g.
+    40 failed), the cached 8 is not stale and should be used."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=8, free_vram_bytes=_gib(74.0),
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=40,
+    )
+    assert chosen == 8
+    assert reason == "cache_hit_within_current_vram"
+
+
+def test_cache_hit_failure_shrink_never_below_min():
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=1, free_vram_bytes=_gib(74.0),
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=1,
+    )
+    assert chosen == 1  # 1 // 2 = 0, clamped to min_size = 1
+    assert reason == "cache_hit_shrunk_by_known_failure"
+
+
+def test_cache_hit_failure_shrink_combined_with_vram_shrink():
+    """Failure shrinks to 4 (from failed=8). Live VRAM would allow
+    only 2. Live-VRAM further tightens to 2."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=16, free_vram_bytes=1 * 1024 * 1024 * 1024,  # 1 GiB free
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=8,
+    )
+    # Failure shrink: 16 -> 4. Live-VRAM: floor((1 GiB * 0.6) / 500 MiB) = 1.
+    # Live wins because it's tighter.
+    assert chosen == 1
+    assert reason == "cache_hit_shrunk_by_current_vram"
+
+
+def test_cache_hit_no_failure_uses_vram_check_only():
+    """smallest_known_failed_size=None → behaves exactly as before
+    the fix (backwards compatible)."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=6, free_vram_bytes=_gib(5.5),
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=None,
+    )
+    assert chosen == 6
+    assert reason == "cache_hit_within_current_vram"
+
+
+def test_cache_hit_failure_shrink_with_no_vram_read():
+    """Failure shrink applied even when live VRAM cannot be read."""
+    chosen, reason = choose_initial_size_from_cache_hit(
+        cached_size=16, free_vram_bytes=None,
+        safety_factor=0.60, per_page_memory_estimate_mib=500,
+        min_size=1, max_size=40,
+        smallest_known_failed_size=16,
+    )
+    assert chosen == 8
+    assert reason == "cache_hit_shrunk_by_known_failure"
+
+
 # ── record_success / record_failure ────────────────────────────────────
 
 
