@@ -1,50 +1,48 @@
-# PDF Benchmark v1 — Unlimited-OCR adapter (2026-07-20)
+# PDF Benchmark v1 — Unlimited-OCR (first pass, 2026-07-20)
 
-**Tool:** Baidu Unlimited-OCR (HuggingFace `baidu/Unlimited-OCR`)
-**Pinned revision:** `NOT SET — adapter refuses to load`
-**Commit under evaluation:** `cb44f02a35c1bfbfe59b6507b122d79f890d24c0`
-**Python:** 3.12.2 · **Platform:** Windows-11-10.0.26200-SP0
+**Assets attempted:** 45  ·  **PASS:** 42  ·  **FAIL:** 3
+**Timeouts:** 0  ·  **OOM:** 2  ·  **Other exceptions:** 1
+**Hallucination flags:** 3
 
-**No AksharaMD production code changes.** `SCORING_POLICY_VERSION` remains `"1.0"`.
+## Runtime (per document, from the reporting-revision plan update)
 
-## Environment feasibility
+- Median elapsed: 13.16 s
+- p95 elapsed: 299.55 s
+- Median s/page: 8.38
+- p95 s/page: 74.888
 
-- torch: 2.12.1+cu126
-- CUDA available: True
-- Device: NVIDIA GeForce RTX 3060 (12.0 GB VRAM)
-- Compute capability: 8.6
-- BF16 supported: True
+## Per document class
 
-## Execution mode summary
+| Class | n | PASS | Runtime p50 (s) | Runtime p95 (s) | s/page p50 | s/page p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| image-only | 13 | 13 | 3.23 | 62.36 | 3.19 | 62.36 |
+| malformed | 2 | 2 | 3.34 | 7.07 | 3.34 | 7.07 |
+| multicolumn | 7 | 7 | 35.36 | 93.3 | 31.1 | 58.81 |
+| multilingual | 4 | 4 | 6.15 | 54.41 | 1.538 | 54.41 |
+| native-text | 19 | 16 | 13.16 | 299.55 | 7.68 | 74.888 |
 
-- `dry_run`: 45
+## Slowest five assets
 
-If `real_inference` is not present, the benchmark did NOT run the model on any file. Real inference requires: pinned revision configured, model downloaded to the local HuggingFace cache, NVIDIA GPU with BF16 support. See the ADR (`docs/adr/ocr_backend_strategy.md`) for the download procedure.
+| Asset | Class | Pages | Elapsed (s) | s/page | Peak reserved MiB | Status |
+|---|---|---:|---:|---:|---:|---|
+| `public/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf` | native-text | 4 | 1048.05 | 262.012 | 7668 | PASS |
+| `parsebench/japanese_case` | image-only | 1 | 507.96 | 507.96 | 7076 | PASS |
+| `public/004-pdflatex-4-pages/pdflatex-4-pages.pdf` | native-text | 4 | 299.55 | 74.888 | 7666 | PASS |
+| `public/026-latex-multicolumn/multicolumn.pdf` | multicolumn | 3 | 93.3 | 31.1 | 7522 | PASS |
+| `public/006-pdflatex-outline/pdflatex-outline.pdf` | native-text | 4 | 73.63 | 18.407 | 7666 | PASS |
 
-## Headline metrics
+## Failures
 
-| Metric | Value |
-|---|---:|
-| Files evaluated | 45 |
-| `execution_success_rate` | 0 / 45 (0.0 %) |
-| `meaningful_content_rate` | 0 / 45 (0.0 %) |
-| `structurally_usable_rate` | 0 / 45 (0.0 %) |
+| Asset | Category | Elapsed (s) | Runner healthy after | Exception |
+|---|---|---:|:-:|---|
+| `public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf` | oom | 65.25 | yes | infer_failed: OutOfMemoryError: CUDA out of memory. Tried to allocate 19.01 GiB. GPU 0 has a total c |
+| `public/009-pdflatex-geotopo/GeoTopo.pdf` | oom | 58.97 | yes | infer_failed: OutOfMemoryError: CUDA out of memory. Tried to allocate 19.01 GiB. GPU 0 has a total c |
+| `public/017-unreadable-meta-data/unreadablemetadata.pdf` | other_exception | 0.01 | yes | infer_failed: AssertionError: image_files must be a non-empty list for multi-image inference! |
 
-## Interpretation — evidence pending
+## Cold load
 
-This report was generated in `dry_run` / `model_not_cached` / `no_gpu` / `deps_missing` mode. The adapter, tests, and benchmark harness are in place, but real inference against the 45-asset corpus requires the ~14 GB `baidu/Unlimited-OCR` model download.
-
-The paired human review vs. AksharaMD Phase 1 and vs. the other three adapters is deferred until real inference has run against every eligible asset.
-
-## Constraints observed
-
-- No AksharaMD parser / validator / scoring / warning-penalty / packaging / model code changed.
-- `SCORING_POLICY_VERSION` remains `"1.0"`.
-- Same 45-asset frozen manifest as AksharaMD Phase 1 and all other adapters.
-- Same checksum-verified ParseBench cache.
-- Offline enforcement: `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` set before `transformers` import.
-- `use_safetensors=True` — refuses pickle-based weights.
-- `trust_remote_code=True` gated on a PINNED revision — no mutable branch reference accepted.
-- Model download NOT performed by this adapter.
-- Per-file errors preserved; single failures do not abort the run.
-- No cross-parser ranking or winner declaration.
+- **elapsed_seconds:** 18.53
+- **rss_before_mib:** 512
+- **rss_after_mib:** 906
+- **peak_allocated_mib_load:** 6456
+- **peak_reserved_mib_load:** 6490

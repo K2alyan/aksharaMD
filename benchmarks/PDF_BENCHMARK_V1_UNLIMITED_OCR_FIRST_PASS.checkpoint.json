@@ -1,40 +1,5 @@
 {
-  "harness_version": "a2_first_pass_harness.py@2026-07-20",
-  "adapter_target": "unlimited-ocr",
-  "adapter_target_repo": "baidu/Unlimited-OCR",
-  "adapter_target_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
-  "pass_index": 1,
-  "started_at": "2026-07-20T23:21:54Z",
-  "finished_at": "2026-07-21T00:09:30Z",
-  "environment": {
-    "python": "3.12.2",
-    "platform": "Windows-11-10.0.26200-SP0",
-    "nvidia_driver": "595.95",
-    "torch": "2.12.1+cu126",
-    "cuda": "12.6",
-    "gpu_name": "NVIDIA GeForce RTX 3060",
-    "gpu_vram_gib": 12.0,
-    "bf16_supported": true
-  },
-  "load": {
-    "elapsed_seconds": 18.53,
-    "rss_before_mib": 512,
-    "rss_after_mib": 906,
-    "peak_allocated_mib_load": 6456,
-    "peak_reserved_mib_load": 6490,
-    "call_log": [
-      "load_trusted_manifest",
-      "verify_snapshot_against_manifest",
-      "fast_verify",
-      "import_transformers",
-      "get_class_from_dynamic_module",
-      "install_module_local_eval_override",
-      "AutoTokenizer.from_pretrained",
-      "AutoModel.from_pretrained"
-    ]
-  },
-  "timeout_s": 1200,
-  "per_asset": [
+  "rows": [
     {
       "asset_id": "parsebench/2colmercedes",
       "corpus_source": "parsebench",
@@ -1194,88 +1159,37 @@
       "timeout_hit": false
     }
   ],
-  "aggregate": {
-    "overall": {
-      "n": 45,
-      "pass_count": 42,
-      "fail_count": 3,
-      "timeout_count": 0,
-      "oom_count": 2,
-      "other_exception_count": 1,
-      "hallucination_count": 3,
-      "runtime_p50": 13.16,
-      "runtime_p95": 299.55,
-      "s_per_page_p50": 8.38,
-      "s_per_page_p95": 74.888
+  "pass_index": 1,
+  "started_at": "2026-07-20T23:21:54Z",
+  "meta": {
+    "harness_version": "a2_first_pass_harness.py@2026-07-20",
+    "timeout_s": 1200,
+    "environment": {
+      "python": "3.12.2",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "nvidia_driver": "595.95",
+      "torch": "2.12.1+cu126",
+      "cuda": "12.6",
+      "gpu_name": "NVIDIA GeForce RTX 3060",
+      "gpu_vram_gib": 12.0,
+      "bf16_supported": true
     },
-    "by_class": {
-      "image-only": {
-        "n": 13,
-        "pass_count": 13,
-        "fail_count": 0,
-        "timeout_count": 0,
-        "oom_count": 0,
-        "other_exception_count": 0,
-        "hallucination_count": 2,
-        "runtime_p50": 3.23,
-        "runtime_p95": 62.36,
-        "s_per_page_p50": 3.19,
-        "s_per_page_p95": 62.36
-      },
-      "malformed": {
-        "n": 2,
-        "pass_count": 2,
-        "fail_count": 0,
-        "timeout_count": 0,
-        "oom_count": 0,
-        "other_exception_count": 0,
-        "hallucination_count": 0,
-        "runtime_p50": 3.34,
-        "runtime_p95": 7.07,
-        "s_per_page_p50": 3.34,
-        "s_per_page_p95": 7.07
-      },
-      "multicolumn": {
-        "n": 7,
-        "pass_count": 7,
-        "fail_count": 0,
-        "timeout_count": 0,
-        "oom_count": 0,
-        "other_exception_count": 0,
-        "hallucination_count": 0,
-        "runtime_p50": 35.36,
-        "runtime_p95": 93.3,
-        "s_per_page_p50": 31.1,
-        "s_per_page_p95": 58.81
-      },
-      "multilingual": {
-        "n": 4,
-        "pass_count": 4,
-        "fail_count": 0,
-        "timeout_count": 0,
-        "oom_count": 0,
-        "other_exception_count": 0,
-        "hallucination_count": 0,
-        "runtime_p50": 6.15,
-        "runtime_p95": 54.41,
-        "s_per_page_p50": 1.538,
-        "s_per_page_p95": 54.41
-      },
-      "native-text": {
-        "n": 19,
-        "pass_count": 16,
-        "fail_count": 3,
-        "timeout_count": 0,
-        "oom_count": 2,
-        "other_exception_count": 1,
-        "hallucination_count": 1,
-        "runtime_p50": 13.16,
-        "runtime_p95": 299.55,
-        "s_per_page_p50": 7.68,
-        "s_per_page_p95": 74.888
-      }
+    "load": {
+      "elapsed_seconds": 18.53,
+      "rss_before_mib": 512,
+      "rss_after_mib": 906,
+      "peak_allocated_mib_load": 6456,
+      "peak_reserved_mib_load": 6490,
+      "call_log": [
+        "load_trusted_manifest",
+        "verify_snapshot_against_manifest",
+        "fast_verify",
+        "import_transformers",
+        "get_class_from_dynamic_module",
+        "install_module_local_eval_override",
+        "AutoTokenizer.from_pretrained",
+        "AutoModel.from_pretrained"
+      ]
     }
-  },
-  "runner_healthy_at_end": true,
-  "stopped_early_due_to_health_probe_failure": false
+  }
 }
