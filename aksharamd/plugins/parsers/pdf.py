@@ -1514,6 +1514,127 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     return None
 
 
+def _apply_alternate_ocr_backend(
+    *,
+    ctx,
+    pdf_path,
+    ocr_source_pages: list[int],
+    raw_pages: list,
+    all_blocks: list,
+) -> None:
+    """PR 94c: dispatch OCR-required pages through an alternate backend.
+
+    Runs the backend identified by ``ctx.ocr_backend`` on the given
+    0-based ``ocr_source_pages``, then inserts the aggregated Markdown
+    into ``all_blocks`` at the position of the FIRST OCR-required
+    source page. Emits per-page W_OCR_PAGE_FAILED warnings for any
+    ``is_ok=False`` results without discarding the successful blocks
+    that were already assembled for the digital pages.
+
+    The aggregated-batch convention (documented in
+    ``unlimited_ocr_backend.py``): ``results[0].markdown`` carries the
+    full merged Markdown covering ALL requested source pages; later
+    results carry empty markdown with the same ``meta`` mapping. The
+    dispatch inserts the Markdown EXACTLY ONCE.
+
+    Markdown-to-block conversion is deliberately minimal (one PARAGRAPH
+    block per non-empty line). A richer converter would need a full
+    markdown parser and is out of scope for this PR — the reviewer
+    accepted the minimal split.
+    """
+    from ..ocr_backends import OcrPageRequest, get_backend
+
+    try:
+        backend = get_backend(ctx.ocr_backend)
+    except ValueError as exc:
+        ctx.warn(
+            "W_OCR_BACKEND_UNKNOWN",
+            f"Unknown OCR backend {ctx.ocr_backend!r}: {exc}",
+        )
+        return
+
+    request = OcrPageRequest(
+        pdf_path=pdf_path,
+        page_indices=list(ocr_source_pages),
+        dpi=_OCR_DPI,
+    )
+    try:
+        results = backend.process(request)
+    except Exception as exc:
+        logger.debug("Alternate OCR backend raised", exc_info=True)
+        ctx.warn(
+            "W_OCR_BACKEND_FAILED",
+            f"OCR backend {ctx.ocr_backend!r} raised: "
+            f"{type(exc).__name__}: {exc}",
+        )
+        return
+
+    # Surface any per-page failures via ctx.warn but keep going so the
+    # digital pages already assembled into all_blocks are not discarded.
+    aggregated_markdown = ""
+    first_source_page = ocr_source_pages[0]
+    for res in results:
+        if res.is_ok:
+            # The aggregated-batch convention places the full Markdown on
+            # the first result. Later results carry empty markdown.
+            if res.markdown and not aggregated_markdown:
+                aggregated_markdown = res.markdown
+        else:
+            failure = res.failure
+            kind = failure.kind if failure else "other"
+            msg = failure.message if failure else ""
+            # Prefer source-page-number reporting: page_index on the
+            # result is already the source page (0-based) per the
+            # backend's aggregated-batch documentation.
+            ctx.warn(
+                "W_OCR_PAGE_FAILED",
+                f"OCR failed on source page {res.page_index}: {kind}: {msg}",
+            )
+
+    if not aggregated_markdown:
+        return
+
+    new_blocks = _markdown_to_paragraph_blocks(
+        aggregated_markdown, page_num=first_source_page + 1,
+    )
+    if not new_blocks:
+        return
+
+    # Locate the insertion index: the position of the first block that
+    # belongs to the first OCR-required source page. If no such block
+    # exists in all_blocks (empty page), append at the end.
+    insert_at = len(all_blocks)
+    target_page_num = first_source_page + 1  # 1-based
+    for i, blk in enumerate(all_blocks):
+        if blk.page == target_page_num:
+            insert_at = i
+            break
+    for offset, nb in enumerate(new_blocks):
+        all_blocks.insert(insert_at + offset, nb)
+
+
+def _markdown_to_paragraph_blocks(markdown: str, page_num: int) -> list[Block]:
+    """Minimal markdown-to-block conversion (PR 94c).
+
+    One PARAGRAPH block per non-empty line. Confidence is AMBIGUOUS
+    because the content came from an OCR pipeline, matching the
+    Tesseract path's confidence marking.
+    """
+    out: list[Block] = []
+    for line in (markdown or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        out.append(Block(
+            type=BlockType.PARAGRAPH,
+            content=stripped,
+            page=page_num,
+            index=0,
+            confidence=ExtractionConfidence.AMBIGUOUS,
+        ))
+    return out
+
+
 def _apply_page_ocr(png_bytes: bytes, page_num: int, blocks: list[Block]) -> None:
     """Run Tesseract on a rasterized page and append heading/paragraph blocks."""
     try:
@@ -1541,10 +1662,16 @@ def _process_raw_page(
     removable: set[str],
     median: float,
     has_toc: bool = False,
+    skip_page_ocr: bool = False,
 ) -> tuple[int, list[Block], list[Asset], dict]:
     """
     Pure Python processing of one page's extracted data.
     No PyMuPDF calls — safe to run in a thread pool.
+
+    ``skip_page_ocr`` (PR 94c): when True, the full-page and embedded-image
+    Tesseract OCR calls at the end of this function are skipped. Used when
+    an alternate OCR backend (e.g. ``unlimited_ocr``) will handle
+    OCR-required pages downstream in a single aggregated batch.
     """
     blocks: list[Block] = []
 
@@ -1726,7 +1853,7 @@ def _process_raw_page(
     for _, tb in sorted(pending_tables, key=lambda x: x[0]):
         blocks.append(tb)
 
-    if raw.ocr_pixmap is not None:
+    if raw.ocr_pixmap is not None and not skip_page_ocr:
         if _ocr_available():
             _apply_page_ocr(raw.ocr_pixmap, raw.page_num, blocks)
         else:
@@ -1736,7 +1863,7 @@ def _process_raw_page(
                 confidence=ExtractionConfidence.AMBIGUOUS,
             ))
 
-    if raw.embedded_image_bytes:
+    if raw.embedded_image_bytes and not skip_page_ocr:
         if _ocr_available():
             for img_bytes in raw.embedded_image_bytes:
                 _apply_page_ocr(img_bytes, raw.page_num, blocks)
@@ -2405,6 +2532,24 @@ class PDFParser(ParserPlugin):
         has_toc = len(toc) >= 3
         pdf_classification, pdf_stats = _classify_pdf(raw_pages)
 
+        # PR 94c: when a non-default OCR backend is selected, the per-page
+        # Tesseract call inside _process_raw_page is skipped so the
+        # alternate backend can process OCR-required pages in a single
+        # aggregated batch after Phase 4. Default ("tesseract") preserves
+        # existing behaviour byte-for-byte.
+        _ocr_backend_name = getattr(ctx, "ocr_backend", "tesseract")
+        use_alternate_ocr_backend = _ocr_backend_name != "tesseract"
+        # Semantic gates for later phases. Naming these explicitly makes
+        # each phase's dependence on the OCR-backend choice auditable
+        # (a plain boolean like `use_alternate_ocr_backend` invited confusion).
+        # PR 94c reviewer decision: explicit --ocr-backend unlimited_ocr
+        # must suppress Phase 5's Marker vision pass on OCR-handled
+        # pages — otherwise Marker would silently reinterpret the
+        # aggregated Markdown the user explicitly asked UOC to produce,
+        # violating the "no silent override" rule.
+        skip_marker_vision = use_alternate_ocr_backend
+        use_marker_phase = not skip_marker_vision
+
         # Phase 3: Parallel processing — pure Python, no shared state
         results: dict[int, tuple[list[Block], list[Asset]]] = {}
         column_info_by_page: dict[int, dict] = {}
@@ -2413,7 +2558,9 @@ class PDFParser(ParserPlugin):
         if workers > 1 and page_count > 4:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = {
-                    pool.submit(_process_raw_page, raw, removable, median, has_toc): raw.page_num
+                    pool.submit(
+                        _process_raw_page, raw, removable, median, has_toc, use_alternate_ocr_backend,
+                    ): raw.page_num
                     for raw in raw_pages
                 }
                 for future in as_completed(futures):
@@ -2422,7 +2569,9 @@ class PDFParser(ParserPlugin):
                     column_info_by_page[page_num] = col_info
         else:
             for raw in raw_pages:
-                page_num, blocks, assets, col_info = _process_raw_page(raw, removable, median, has_toc)
+                page_num, blocks, assets, col_info = _process_raw_page(
+                    raw, removable, median, has_toc, use_alternate_ocr_backend,
+                )
                 results[page_num] = (blocks, assets)
                 column_info_by_page[page_num] = col_info
 
@@ -2437,6 +2586,32 @@ class PDFParser(ParserPlugin):
                 all_blocks.append(block.model_copy(update={"index": idx}))
                 idx += 1
             all_assets.extend(assets)
+
+        # Phase 4b (PR 94c): Alternate OCR backend dispatch.
+        # When ctx.ocr_backend != "tesseract" AND at least one page needs
+        # OCR, route those pages through the selected backend as a single
+        # aggregated batch. The Tesseract path was already skipped in
+        # Phase 3 via ``skip_page_ocr=True``, so nothing has been emitted
+        # for these pages yet. Merge the aggregated Markdown once, at the
+        # position of the FIRST OCR-required page's blocks.
+        if use_alternate_ocr_backend:
+            _ocr_source_pages = [
+                raw.page_num - 1  # 0-based indices for the backend request
+                for raw in raw_pages
+                if raw.ocr_pixmap is not None
+            ]
+            if _ocr_source_pages:
+                _apply_alternate_ocr_backend(
+                    ctx=ctx,
+                    pdf_path=path,
+                    ocr_source_pages=_ocr_source_pages,
+                    raw_pages=raw_pages,
+                    all_blocks=all_blocks,
+                )
+                # Re-assign block indices after possible insertion.
+                for i, blk in enumerate(all_blocks):
+                    all_blocks[i] = blk.model_copy(update={"index": i})
+                idx = len(all_blocks)
 
         # Collect rejected table candidates from all raw pages into document metadata.
         # Keyed by page number (int) so validators can look up by page.
@@ -2454,10 +2629,16 @@ class PDFParser(ParserPlugin):
             all_blocks[i] = blk.model_copy(update={"index": i})
         idx = len(all_blocks)
 
-        # Phase 5: Vision enhancement — re-extract image-only pages with Marker
+        # Phase 5: Vision enhancement — re-extract image-only pages with Marker.
+        # PR 94c reviewer decision: this is NOT a fallback path. It is an
+        # existing later processing phase that would silently reinterpret
+        # OCR-handled pages when an explicit alternate backend has been
+        # selected. Suppressing it via ``use_marker_phase`` is intentional,
+        # not scope creep — it preserves the semantic of explicit
+        # ``--ocr-backend unlimited_ocr``.
         vision_pages = 0
         ocr_hallucination = False
-        if _marker_available():
+        if _marker_available() and use_marker_phase:
             image_page_count = sum(1 for r in raw_pages if r.ocr_pixmap is not None)
             if image_page_count and ctx.progress:
                 if not _MARKER_LOAD_ATTEMPTED:

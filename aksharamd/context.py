@@ -53,6 +53,13 @@ class CompilationContext:
     # heuristics (calibration/evaluation only).
     kv_profile: object | None = field(default=None)
 
+    # OCR backend selection (PR 94c). "tesseract" (the default) preserves
+    # the historical per-page Tesseract path exactly. "unlimited_ocr"
+    # routes OCR-required pages through the UnlimitedOcrBackend after an
+    # availability check succeeds. No "auto" selection — the compiler
+    # never silently falls back between backends.
+    ocr_backend: str = "tesseract"
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:
