@@ -990,8 +990,11 @@ class _UnlimitedOcrRunner:
                 # Backfill peak GPU memory across chunks so downstream
                 # consumers see a summary metric like the single-call
                 # path did.
-                allocs = [c.get("peak_vram_allocated_mib") for c in chunks
-                          if c["status"] == "PASS" and c.get("peak_vram_allocated_mib") is not None]
+                allocs: list[int] = [
+                    int(v) for c in chunks
+                    if c["status"] == "PASS"
+                    and (v := c.get("peak_vram_allocated_mib")) is not None
+                ]
                 signals["peak_gpu_memory_mib"] = max(allocs) if allocs else None
                 signals["output_files_written"] = sum(
                     (c.get("output_files_written") or 0) for c in chunks

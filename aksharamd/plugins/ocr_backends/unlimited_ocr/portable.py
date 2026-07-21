@@ -243,7 +243,12 @@ def infer_pdf_portable(
     tests and for callers who deliberately want no state on disk.
     """
     if torch_mod is None:
-        import torch as torch_mod  # noqa: WPS433 — deliberate lazy import
+        # Deliberate lazy import so ``import aksharamd`` never pulls
+        # torch into ``sys.modules``. Assigned via a separate binding
+        # to avoid mypy's ``import X as <existing-name>`` redefinition
+        # warning.
+        import torch as _torch_lazy  # noqa: WPS433
+        torch_mod = _torch_lazy
     probe = _torch_hardware_probe(torch_mod)
     fingerprint = _build_fingerprint(probe)
     initial_size, portable_signals = _resolve_initial_size(
