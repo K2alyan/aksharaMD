@@ -33,6 +33,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
   writes machine-readable and Markdown receipts covering per-run
   initial / final chunk sizes, restart counts, VRAM peaks, runtime,
   determinism, and full acceptance criteria.
+  - **Note on the earlier "OOM" failure signature.** During
+    development, four runs on this harness failed at ~30 s each with
+    an exit code my classifier labeled `non_oom_failure`. The root
+    cause was Windows `MAX_PATH` (260 chars), NOT CUDA memory:
+    the nested tmpdir chain overflowed once the OCR model appended
+    its own per-chunk output subdirectories, producing
+    `FileNotFoundError [WinError 206]`. This is documented so the
+    benchmark history is not misread as "the sizing formula OOMed."
+    The fix in this PR shortens every path segment we control
+    (harness sub-workdir, orchestrator tmp+attempt, adapter scratch,
+    adapter chunk-out). A future hardening step is for the
+    production worker to deliberately root its scratch at a short
+    Windows path (e.g. `C:\ocr\`) rather than trust the OS's
+    deeply-nested default temp directory.
+  - **Reliability, not speed.** Each 117-page GeoTopo run took
+    roughly 69–80 minutes on a 12 GB RTX 3060 at the
+    conservatively-chosen chunk size of 5 pages. This PR solves the
+    correctness/reliability gap that was blocking large-document
+    OCR; it does NOT solve the runtime. Speed remains an open
+    performance limitation, tracked separately.
 
 ### Added
 
