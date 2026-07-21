@@ -1,0 +1,29 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+Some weights of UnlimitedOCRForCausalLM were not initialized from the model checkpoint at baidu/Unlimited-OCR and are newly initialized: ['model.vision_model.embeddings.position_ids']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+cold load: 20.63s alloc=6456 MiB reserved=6490 MiB
+[public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf run 1] ...
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+  -> FAIL pages=0/117 peak_reserved=27102 MiB retries=1 runtime=73.52s sha=e3b0c44298fc
+[public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf run 2] ...
+Traceback (most recent call last):
+  File "C:\Users\kalya\omnimark\benchmarks\a2_geotopo_chunking_regression.py", line 320, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\kalya\omnimark\benchmarks\a2_geotopo_chunking_regression.py", line 200, in main
+    row = _run_one(runner, asset, torch, workdir, run_idx)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kalya\omnimark\benchmarks\a2_geotopo_chunking_regression.py", line 95, in _run_one
+    _reset_cuda_stats(torch)
+  File "C:\Users\kalya\omnimark\benchmarks\a2_geotopo_chunking_regression.py", line 75, in _reset_cuda_stats
+    torch.cuda.empty_cache()
+  File "C:\Users\kalya\AppData\Local\Programs\Python\Python312\Lib\site-packages\torch\cuda\memory.py", line 227, in empty_cache
+    torch._C._cuda_emptyCache()
+torch.AcceleratorError: CUDA error: out of memory
+Search for `cudaErrorMemoryAllocation' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+

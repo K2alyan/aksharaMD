@@ -10,12 +10,17 @@ from __future__ import annotations
 
 from benchmarks.pdf_benchmark_adapters.unlimited_ocr_adapter import (  # type: ignore
     _CHUNK_REDUCTION_SEQUENCE,
-    _PREFERRED_CHUNK_SIZE,
+    _DEFAULT_PER_PAGE_MEMORY_MIB,
+    _DEFAULT_SAFETY_FACTOR,
+    _MAX_CHUNK_SIZE,
+    _MIN_CHUNK_SIZE,
+    _estimate_initial_chunk_size,
     _initial_chunk_ranges,
     _is_cuda_oom,
     _next_smaller_chunk_size,
     _OOMSignal,
     _process_chunks_with_reduction,
+    _query_free_vram_bytes,
     _split_range_at,
 )
 
@@ -70,7 +75,8 @@ def test_split_range_at_smaller_size():
 
 def test_reduction_sequence_shape():
     assert _CHUNK_REDUCTION_SEQUENCE == (40, 20, 10, 5, 2, 1)
-    assert _PREFERRED_CHUNK_SIZE == 40
+    assert _MAX_CHUNK_SIZE == 40
+    assert _MIN_CHUNK_SIZE == 1
 
 
 def test_next_smaller_chunk_size():
@@ -366,3 +372,270 @@ def test_oom_at_size_40_records_retry_count_correctly():
     assert chunks[0]["status"] == "OOM_RETRY"
     assert chunks[0]["retry_count"] == 0
     assert all(c["retry_count"] == 1 for c in chunks[1:])
+
+
+# ── Hardware-aware initial chunk sizing ─────────────────────────────────
+
+
+def _gib(n: float) -> int:
+    return int(n * 1024 * 1024 * 1024)
+
+
+def test_estimate_defaults_are_stable():
+    """Guard the named constants so a silent value drift is caught."""
+    assert _DEFAULT_SAFETY_FACTOR == 0.60
+    assert _DEFAULT_PER_PAGE_MEMORY_MIB == 500
+    assert _MAX_CHUNK_SIZE == 40
+    assert _MIN_CHUNK_SIZE == 1
+
+
+def test_estimate_6gib_gpu_after_model_load():
+    """6 GiB GPU minus a ~5 GiB model reservation leaves ~1 GiB free.
+    At the 500 MiB/page default with 0.60 safety factor, that resolves
+    to (1024 * 0.60) / 500 ≈ 1 page."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(1.0))
+    assert size == 1
+    assert signals["source"] == "vram-based"
+    assert signals["free_vram_bytes"] == _gib(1.0)
+
+
+def test_estimate_8gib_gpu_after_model_load():
+    """8 GiB GPU minus model ≈ 2 GiB free → (2048 * 0.60) / 500 ≈ 2 pages."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(2.0))
+    assert size == 2
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_12gib_gpu_after_model_load():
+    """12 GiB GPU (RTX 3060) minus model ≈ 5.5 GiB free →
+    (5632 * 0.60) / 500 ≈ 6 pages. This matches the observed RTX 3060
+    behaviour where the 40-page attempt reserved ~27 GiB (2.25× the
+    physical device)."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(5.5))
+    assert size == 6
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_24gib_gpu_after_model_load():
+    """24 GiB GPU (RTX 4090) minus model ≈ 17 GiB free →
+    (17408 * 0.60) / 500 ≈ 20 pages."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(17.0))
+    assert size == 20
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_80gib_gpu_clamps_to_max():
+    """80 GiB GPU (H100) minus model ≈ 74 GiB free →
+    raw estimate = (74*1024 * 0.60) / 500 ≈ 90, clamped to _MAX_CHUNK_SIZE."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(74.0))
+    assert size == _MAX_CHUNK_SIZE == 40
+    assert signals["source"] == "vram-based"
+    assert signals["raw_estimate"] >= _MAX_CHUNK_SIZE
+    assert signals["clamped_to"] == _MAX_CHUNK_SIZE
+
+
+def test_estimate_low_free_vram_from_other_apps_clamps_to_min():
+    """Even on a 24 GiB card, if only 300 MiB is currently free (browser,
+    another notebook, etc.), the estimate must not pretend the card is
+    empty."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=300 * 1024 * 1024,
+    )
+    assert size == _MIN_CHUNK_SIZE == 1
+    assert signals["source"] == "vram-based"
+    assert signals["raw_estimate"] == 0
+    assert signals["clamped_to"] == 1
+
+
+def test_estimate_cpu_only_returns_min_size():
+    """No GPU / driver refused → return the safest size and a
+    diagnostic source string, not a made-up number."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=None)
+    assert size == _MIN_CHUNK_SIZE == 1
+    assert signals["source"] == "cpu-or-unknown-vram-fallback"
+
+
+def test_estimate_zero_free_vram_returns_min_size():
+    """Zero-byte free reading should be treated the same as unknown."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=0)
+    assert size == _MIN_CHUNK_SIZE == 1
+    assert signals["source"] == "cpu-or-unknown-vram-fallback"
+
+
+def test_estimate_env_override_beats_vram_estimate():
+    """Env override applies even when VRAM would produce a larger or
+    smaller number. Operator judgment > formula."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(74.0),
+        env_override="12",
+    )
+    assert size == 12
+    assert signals["source"] == "env"
+    assert signals["env_override_applied"] is True
+
+
+def test_estimate_env_override_clamped_to_max():
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(74.0),
+        env_override="9999",
+    )
+    assert size == _MAX_CHUNK_SIZE == 40
+    assert signals["source"] == "env"
+    assert signals["clamped_to"] == 40
+
+
+def test_estimate_env_override_invalid_falls_back_to_vram():
+    """A garbage env var must not override a good VRAM estimate."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(17.0),
+        env_override="not-a-number",
+    )
+    assert size == 20  # VRAM-based
+    assert signals["source"] == "vram-based"
+    assert signals["env_override_applied"] is False
+
+
+def test_estimate_env_override_zero_falls_back_to_vram():
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(17.0),
+        env_override="0",
+    )
+    assert size == 20
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_env_override_negative_falls_back_to_vram():
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(17.0),
+        env_override="-5",
+    )
+    assert size == 20
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_env_override_empty_string_falls_back_to_vram():
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(17.0),
+        env_override="",
+    )
+    assert size == 20
+    assert signals["source"] == "vram-based"
+
+
+def test_estimate_env_override_on_cpu_still_wins_when_valid():
+    """If the operator explicitly sets an override, respect it even
+    when we have no VRAM read (e.g. test fixture with a fake torch)."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=None,
+        env_override="8",
+    )
+    assert size == 8
+    assert signals["source"] == "env"
+
+
+def test_estimate_pixel_heavy_pages_get_smaller_size():
+    """A caller who knows the document renders at high DPI (heavy pages)
+    should be able to override per_page_memory_estimate_mib upward and
+    receive a smaller chunk size in return."""
+    small_pages, _ = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(10.0),
+        per_page_memory_estimate_mib=200,
+    )
+    heavy_pages, _ = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(10.0),
+        per_page_memory_estimate_mib=1000,
+    )
+    assert small_pages > heavy_pages, (
+        f"raising per-page cost must shrink the chunk, "
+        f"got small={small_pages} heavy={heavy_pages}"
+    )
+
+
+def test_estimate_invalid_per_page_estimate_returns_min_size():
+    """Guard against a caller passing 0 or a negative estimate — do not
+    divide by zero, do not produce a giant number."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(10.0),
+        per_page_memory_estimate_mib=0,
+    )
+    assert size == _MIN_CHUNK_SIZE == 1
+    assert signals["source"] == "invalid-per-page-estimate-fallback"
+
+
+def test_estimate_safety_factor_effect():
+    """A lower safety_factor should produce a smaller (safer) chunk."""
+    conservative, _ = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(10.0), safety_factor=0.30,
+    )
+    aggressive, _ = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(10.0), safety_factor=0.90,
+    )
+    assert aggressive > conservative
+
+
+def test_estimate_min_max_bounds_can_be_overridden():
+    """Callers can pass tighter bounds — e.g. to force a size of 1
+    while probing, or to allow larger sizes in an internal test."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(74.0),
+        max_size=64,
+    )
+    assert size == 64
+    assert signals["max_size"] == 64
+
+
+def test_estimate_signals_are_json_serializable():
+    """Downstream tooling logs signals as JSON — no numpy/torch types
+    should sneak in."""
+    import json
+    _, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(12.0))
+    json.dumps(signals)  # must not raise
+
+
+def test_query_free_vram_returns_none_when_cuda_unavailable():
+    """The thin wrapper never raises. torch stub returns
+    cuda.is_available() = False → we get None back."""
+    class _StubCuda:
+        @staticmethod
+        def is_available():
+            return False
+
+    class _StubTorch:
+        cuda = _StubCuda
+
+    assert _query_free_vram_bytes(_StubTorch) is None
+
+
+def test_query_free_vram_returns_none_when_mem_get_info_raises():
+    """Older torch or a hostile driver — mem_get_info may raise. The
+    wrapper must swallow and return None so the sizing function goes
+    to its fallback path."""
+    class _StubCuda:
+        @staticmethod
+        def is_available():
+            return True
+
+        @staticmethod
+        def mem_get_info(_device):
+            raise RuntimeError("driver said no")
+
+    class _StubTorch:
+        cuda = _StubCuda
+
+    assert _query_free_vram_bytes(_StubTorch) is None
+
+
+def test_query_free_vram_returns_int_bytes_on_normal_path():
+    class _StubCuda:
+        @staticmethod
+        def is_available():
+            return True
+
+        @staticmethod
+        def mem_get_info(_device):
+            return (8 * 1024**3, 12 * 1024**3)
+
+    class _StubTorch:
+        cuda = _StubCuda
+
+    assert _query_free_vram_bytes(_StubTorch) == 8 * 1024**3
