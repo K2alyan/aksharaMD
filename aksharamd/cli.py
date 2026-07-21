@@ -457,6 +457,16 @@ def main():
     default="adaptive", show_default=True,
     help="Package representation strategy. Requires --package.",
 )
+@click.option(
+    "--ocr-backend", "ocr_backend",
+    type=click.Choice(["tesseract", "unlimited_ocr"], case_sensitive=False),
+    default="tesseract", show_default=True,
+    help=(
+        "OCR backend for pages classified as needing OCR. "
+        "'unlimited_ocr' requires a CUDA-capable NVIDIA GPU with bfloat16 "
+        "support, sufficient VRAM, and the model installed locally."
+    ),
+)
 def compile(
     source: str,
     output: str,
@@ -470,6 +480,7 @@ def compile(
     safe_mode: bool,
     run_package: bool,
     package_mode: str,
+    ocr_backend: str,
 ):
     """Compile a document or URL into AI-optimized Markdown, JSON, and chunks."""
     import json as _json
@@ -479,10 +490,42 @@ def compile(
     # --json implies quiet (suppress all Rich output)
     _suppress_rich = quiet or output_json
 
+    # ── OCR backend availability probe ────────────────────────────────────
+    # PR 94c: fail-early when a non-default backend is explicitly selected
+    # but is not available on this machine. NO silent fallback — the user
+    # asked for a specific backend and deserves an actionable error if the
+    # environment cannot satisfy the request. The default value
+    # ("tesseract") skips this probe to preserve current behaviour: any
+    # Tesseract-availability issues are still handled per-page by the
+    # existing _ocr_available()/OCR_UNAVAILABLE_MSG path in pdf.py.
+    _ocr_backend_normalized = (ocr_backend or "tesseract").lower()
+    if _ocr_backend_normalized != "tesseract":
+        from aksharamd.plugins.ocr_backends import get_backend as _get_backend
+        try:
+            _probe_backend = _get_backend(_ocr_backend_normalized)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        _avail = _probe_backend.availability()
+        if not _avail.is_available:
+            msg = (
+                f"OCR backend {_ocr_backend_normalized!r} unavailable: "
+                f"{_avail.reason}"
+            )
+            if not _avail.hardware_compatible:
+                msg += "  (Hardware requirements not met.)"
+            elif not _avail.model_installed:
+                msg += "  (Backend components not installed.)"
+            raise click.ClickException(msg)
+
     file_output = str(Path(output) / _output_stem(source))
     try:
-        compiler = Compiler(output_dir=file_output, chunk_size=chunk_size, chunk_overlap=chunk_overlap,
-                            safe_mode=safe_mode)
+        compiler = Compiler(
+            output_dir=file_output,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            safe_mode=safe_mode,
+            ocr_backend=_ocr_backend_normalized,
+        )
     except ValueError as exc:
         if output_json:
             import json as _json

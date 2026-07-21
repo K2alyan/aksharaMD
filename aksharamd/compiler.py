@@ -427,6 +427,7 @@ class Compiler:
         chunk_size: int = 512,
         chunk_overlap: int = 0,
         safe_mode: bool = False,
+        ocr_backend: str = "tesseract",
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {chunk_size}")
@@ -440,6 +441,11 @@ class Compiler:
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self.safe_mode = safe_mode
+        # PR 94c: OCR backend selection. Default preserves current per-page
+        # Tesseract path exactly; other values route OCR-required pages
+        # through the alternate backend in pdf.py after CLI availability
+        # check succeeds.
+        self.ocr_backend = ocr_backend
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -842,7 +848,12 @@ class Compiler:
             return ctx, stage_timings, t0
 
         try:
-            ctx = CompilationContext(source=source, output_dir=self.output_dir, safe_mode=self.safe_mode)
+            ctx = CompilationContext(
+                source=source,
+                output_dir=self.output_dir,
+                safe_mode=self.safe_mode,
+                ocr_backend=self.ocr_backend,
+            )
             ctx.progress = on_stage  # parsers can call ctx.progress() for fine-grained events
 
             def timed(name: str) -> _StageTimer:
