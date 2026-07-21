@@ -389,62 +389,88 @@ def test_estimate_defaults_are_stable():
     assert _MIN_CHUNK_SIZE == 1
 
 
-def test_estimate_6gib_gpu_after_model_load():
-    """6 GiB GPU minus a ~5 GiB model reservation leaves ~1 GiB free.
-    At the 500 MiB/page default with 0.60 safety factor, that resolves
-    to (1024 * 0.60) / 500 ≈ 1 page."""
-    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(1.0))
+# Inputs to the sizing formula are WHOLE-DEVICE free VRAM before the
+# model is loaded. The formula subtracts the model footprint
+# (~6.5 GiB by default) before applying the safety factor. Tests below
+# use realistic whole-device readings for cards of various sizes.
+
+
+def test_estimate_6gib_card_almost_full_free():
+    """6 GiB card with nothing else on it → ~5.5 GiB free. Subtract
+    the ~6.5 GiB model footprint → 0 available for pages → min_size."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(5.5))
+    assert size == _MIN_CHUNK_SIZE == 1
+    assert signals["source"] == "vram-based"
+    assert signals["available_for_pages_mib"] == 0
+
+
+def test_estimate_8gib_card_full_free():
+    """8 GiB card, ~7.5 GiB free. Subtract 6500 MiB → ~1180 MiB
+    available. * 0.60 = 708 MiB / 500 MiB per page = 1."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(7.5))
     assert size == 1
     assert signals["source"] == "vram-based"
-    assert signals["free_vram_bytes"] == _gib(1.0)
+    assert signals["available_for_pages_mib"] > 0
 
 
-def test_estimate_8gib_gpu_after_model_load():
-    """8 GiB GPU minus model ≈ 2 GiB free → (2048 * 0.60) / 500 ≈ 2 pages."""
-    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(2.0))
-    assert size == 2
-    assert signals["source"] == "vram-based"
-
-
-def test_estimate_12gib_gpu_after_model_load():
-    """12 GiB GPU (RTX 3060) minus model ≈ 5.5 GiB free →
-    (5632 * 0.60) / 500 ≈ 6 pages. This matches the observed RTX 3060
-    behaviour where the 40-page attempt reserved ~27 GiB (2.25× the
-    physical device)."""
-    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(5.5))
+def test_estimate_12gib_card_almost_full_free():
+    """12 GiB RTX 3060, ~11.7 GiB whole-device free (nothing loaded).
+    Subtract 6500 MiB → ~5480 MiB. * 0.60 = 3288 MiB / 500 = 6 pages.
+    This is the reviewer's canonical case."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(11.7))
     assert size == 6
     assert signals["source"] == "vram-based"
 
 
-def test_estimate_24gib_gpu_after_model_load():
-    """24 GiB GPU (RTX 4090) minus model ≈ 17 GiB free →
-    (17408 * 0.60) / 500 ≈ 20 pages."""
-    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(17.0))
-    assert size == 20
+def test_estimate_24gib_card_almost_full_free():
+    """24 GiB RTX 4090, ~22 GiB free. Subtract 6500 → ~16028 MiB.
+    * 0.60 = ~9616 MiB / 500 = 19 pages."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(22.0))
+    assert size == 19
     assert signals["source"] == "vram-based"
 
 
-def test_estimate_80gib_gpu_clamps_to_max():
-    """80 GiB GPU (H100) minus model ≈ 74 GiB free →
-    raw estimate = (74*1024 * 0.60) / 500 ≈ 90, clamped to _MAX_CHUNK_SIZE."""
-    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(74.0))
+def test_estimate_80gib_card_clamps_to_max():
+    """80 GiB H100, ~78 GiB free. Formula would produce a large
+    number; must clamp to _MAX_CHUNK_SIZE."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(78.0))
     assert size == _MAX_CHUNK_SIZE == 40
     assert signals["source"] == "vram-based"
     assert signals["raw_estimate"] >= _MAX_CHUNK_SIZE
     assert signals["clamped_to"] == _MAX_CHUNK_SIZE
 
 
-def test_estimate_low_free_vram_from_other_apps_clamps_to_min():
-    """Even on a 24 GiB card, if only 300 MiB is currently free (browser,
-    another notebook, etc.), the estimate must not pretend the card is
-    empty."""
-    size, signals = _estimate_initial_chunk_size(
-        free_vram_bytes=300 * 1024 * 1024,
-    )
+def test_estimate_12gib_card_but_only_1gib_free():
+    """12 GiB card with something else eating 10 GiB — model can't
+    even load, let alone infer. Return min_size and let the caller
+    (or the child, on its own OOM) decide what to do."""
+    size, signals = _estimate_initial_chunk_size(free_vram_bytes=_gib(1.0))
     assert size == _MIN_CHUNK_SIZE == 1
     assert signals["source"] == "vram-based"
-    assert signals["raw_estimate"] == 0
-    assert signals["clamped_to"] == 1
+    assert signals["available_for_pages_mib"] == 0
+
+
+def test_estimate_model_footprint_override_lower():
+    """Callers with a lighter model can override the footprint to
+    unlock more pages on the same card."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(11.7),
+        model_footprint_estimate_mib=2000,  # hypothetical smaller model
+    )
+    # Available = 11980 - 2000 = 9980 MiB. * 0.60 = 5988 / 500 = 11.
+    assert size == 11
+    assert signals["model_footprint_estimate_mib"] == 2000
+
+
+def test_estimate_model_footprint_override_higher():
+    """A heavier model reduces available memory."""
+    size, signals = _estimate_initial_chunk_size(
+        free_vram_bytes=_gib(11.7),
+        model_footprint_estimate_mib=10000,  # hypothetical larger model
+    )
+    # Available = 11980 - 10000 = 1980 MiB. * 0.60 = 1188 / 500 = 2.
+    assert size == 2
+    assert signals["model_footprint_estimate_mib"] == 10000
 
 
 def test_estimate_cpu_only_returns_min_size():
@@ -490,7 +516,7 @@ def test_estimate_env_override_invalid_falls_back_to_vram():
         free_vram_bytes=_gib(17.0),
         env_override="not-a-number",
     )
-    assert size == 20  # VRAM-based
+    assert size == 13  # VRAM-based, model-footprint-aware
     assert signals["source"] == "vram-based"
     assert signals["env_override_applied"] is False
 
@@ -500,7 +526,7 @@ def test_estimate_env_override_zero_falls_back_to_vram():
         free_vram_bytes=_gib(17.0),
         env_override="0",
     )
-    assert size == 20
+    assert size == 13
     assert signals["source"] == "vram-based"
 
 
@@ -509,7 +535,7 @@ def test_estimate_env_override_negative_falls_back_to_vram():
         free_vram_bytes=_gib(17.0),
         env_override="-5",
     )
-    assert size == 20
+    assert size == 13
     assert signals["source"] == "vram-based"
 
 
@@ -518,7 +544,7 @@ def test_estimate_env_override_empty_string_falls_back_to_vram():
         free_vram_bytes=_gib(17.0),
         env_override="",
     )
-    assert size == 20
+    assert size == 13
     assert signals["source"] == "vram-based"
 
 

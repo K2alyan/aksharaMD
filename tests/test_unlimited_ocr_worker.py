@@ -56,3 +56,30 @@ def test_classifier_is_case_insensitive():
     assert _classify_exception_message(
         "INFER_FAILED: OUTOFMEMORYERROR"
     ) == EXIT_CUDA_OOM
+
+
+def test_single_page_oom_is_terminal_non_oom_exit():
+    """Fix 3: single_page_oom means we already tried size 1 and even
+    that OOM'd. Halving further makes no sense; a fresh subprocess
+    at size 1 would OOM too. Return non-OOM so the parent does NOT
+    spawn another worker."""
+    assert _classify_exception_message(
+        "chunked_infer_failed: single_page_oom"
+    ) == EXIT_NON_OOM_INFER_FAILURE
+
+
+def test_chunked_infer_failed_cuda_unhealthy_still_retryable():
+    """Regression: cuda_context_unhealthy inside chunked_infer_failed
+    remains an OOM exit that triggers a fresh-worker restart."""
+    assert _classify_exception_message(
+        "chunked_infer_failed: cuda_context_unhealthy_after_oom"
+    ) == EXIT_CUDA_CONTEXT_UNHEALTHY
+
+
+def test_chunked_infer_failed_unknown_reason_is_not_auto_oom():
+    """Fix 3: an unknown chunked_infer_failed reason must NOT be
+    silently treated as OOM. Return non-OOM so the parent bails
+    cleanly rather than entering a misleading retry loop."""
+    assert _classify_exception_message(
+        "chunked_infer_failed: some_reason_we_never_heard_of"
+    ) == EXIT_NON_OOM_INFER_FAILURE

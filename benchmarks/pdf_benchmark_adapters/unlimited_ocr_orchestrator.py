@@ -174,6 +174,23 @@ def _read_worker_text(path: Path) -> str:
         return ""
 
 
+def _read_log_tail(log_path: Path, cap_bytes: int = 4096) -> str:
+    """Read up to the last ``cap_bytes`` of the worker log so callers
+    can inspect the failure without needing filesystem access to the
+    temp directory. Never raises."""
+    try:
+        with open(log_path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            if size <= cap_bytes:
+                f.seek(0)
+                return f.read().decode("utf-8", errors="replace")
+            f.seek(-cap_bytes, 2)
+            return f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
 def _classify_outcome(exit_code: int, timed_out: bool) -> str:
     if timed_out:
         return "timeout"
@@ -244,7 +261,10 @@ def run_infer_pdf_isolated(
     python = python_executable or sys.executable
 
     workdir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="ocr_orchestrator_", dir=str(workdir)) as tmp_str:
+    # Short tmpdir prefix — every directory layer under the parent
+    # workdir costs path budget on Windows (MAX_PATH 260). See
+    # benchmarks/a2_geotopo_portable_validation.py for the rationale.
+    with tempfile.TemporaryDirectory(prefix="orch_", dir=str(workdir)) as tmp_str:
         tmp = Path(tmp_str)
         attempts: list[dict[str, Any]] = []
         current_size = initial_chunk_size
@@ -261,7 +281,10 @@ def run_infer_pdf_isolated(
         current_final_size = initial_chunk_size
 
         for attempt_index in range(1, max_restarts + 2):
-            attempt_dir = tmp / f"attempt_{attempt_index:02d}_size_{current_size:04d}"
+            # Shortened from "attempt_NN_size_NNNN" to "a<N>s<N>"
+            # to save Windows MAX_PATH budget. Concrete values
+            # remain in each attempt row's ``chunk_size`` field.
+            attempt_dir = tmp / f"a{attempt_index}s{current_size}"
             attempt_dir.mkdir(parents=True, exist_ok=True)
             out_text = attempt_dir / "output.md"
             out_json = attempt_dir / "output.json"
@@ -285,6 +308,20 @@ def run_infer_pdf_isolated(
 
             outcome = _classify_outcome(wr.exit_code, wr.timed_out)
             worker_json = _read_worker_json(out_json)
+
+            # Precompute retryability + next size so the row is
+            # self-describing without needing to correlate with the
+            # subsequent loop iteration. Only ``oom_retry`` is
+            # retryable, and only if we have retries left AND a
+            # smaller size to try.
+            retryable = False
+            next_chunk_size_row: int | None = None
+            if outcome == "oom_retry" and attempt_index <= max_restarts:
+                candidate = _next_chunk_size(current_size)
+                if candidate is not None:
+                    retryable = True
+                    next_chunk_size_row = candidate
+
             attempts.append({
                 "attempt": attempt_index,
                 "chunk_size": current_size,
@@ -295,14 +332,17 @@ def run_infer_pdf_isolated(
                 "log_path": str(log_path),
                 "output_json_path": str(out_json),
                 "output_text_path": str(out_text),
-                # Named ``worker_reported_stage`` to reflect the
-                # narrowed worker contract — the worker now emits a
-                # coarse category label ("adapter_import_failed",
-                # "runner_load_failed", "pdf_not_found",
-                # "infer_pdf_raised", etc.), not a raw exception
-                # message. The full diagnostic text lives in the
-                # captured worker log at ``log_path``.
+                # Coarse category label emitted by the worker's
+                # narrow JSON contract; deliberately not a raw
+                # exception message. Full diagnostic text is in
+                # the captured worker log at ``log_path`` and its
+                # last ~4 KB is duplicated below.
                 "worker_reported_stage": worker_json.get("failure_stage"),
+                # Reviewer's Fix 4 diagnostics — enough to explain
+                # what happened without inspecting tmpdir files.
+                "retryable": retryable,
+                "next_chunk_size": next_chunk_size_row,
+                "worker_stdout_tail": _read_log_tail(log_path),
             })
             current_final_size = current_size
 
@@ -315,23 +355,21 @@ def run_infer_pdf_isolated(
                 break
 
             if outcome == "oom_retry":
-                if attempt_index > max_restarts:
-                    # We just consumed the last permitted attempt. No
-                    # further restart happens — do NOT increment
-                    # restart_count for this terminal OOM.
-                    final_exception = (
-                        "isolated_infer_failed: max_restarts_reached_at_size_"
-                        f"{current_size}"
-                    )
+                if not retryable:
+                    # Either we consumed the last permitted attempt or
+                    # we cannot halve further (already at size 1).
+                    # Both are terminal. Do NOT increment restart_count.
+                    if attempt_index > max_restarts:
+                        final_exception = (
+                            "isolated_infer_failed: max_restarts_reached_at_size_"
+                            f"{current_size}"
+                        )
+                    else:
+                        final_exception = "isolated_infer_failed: single_page_oom"
                     break
-                next_size = _next_chunk_size(current_size)
-                if next_size is None:
-                    # Already at size 1 — the model itself will not fit
-                    # even one page's activations on this GPU. No smaller
-                    # size to try; do NOT count as a restart either.
-                    final_exception = "isolated_infer_failed: single_page_oom"
-                    break
-                current_size = next_size
+                # Retryable: next_chunk_size_row is non-None by definition.
+                assert next_chunk_size_row is not None  # nosec B101 — invariant
+                current_size = next_chunk_size_row
                 restart_count += 1  # About to spawn a fresh child.
                 continue
 
