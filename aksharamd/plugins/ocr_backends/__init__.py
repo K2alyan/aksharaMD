@@ -15,7 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._protocol import (
+    BACKEND_AVAILABILITY_DETAIL_KEYS,
     BackendAvailability,
+    BackendAvailabilityDetails,
     BackendCapabilities,
     OcrBackend,
     OcrFailure,
@@ -30,7 +32,9 @@ UNLIMITED_OCR_TRUSTED_MANIFEST_PATH = _PKG_DIR / "unlimited_ocr_trusted_manifest
 UNLIMITED_OCR_ACQUISITION_INVENTORY_PATH = _PKG_DIR / "unlimited_ocr_acquisition_inventory.json"
 
 __all__ = [
+    "BACKEND_AVAILABILITY_DETAIL_KEYS",
     "BackendAvailability",
+    "BackendAvailabilityDetails",
     "BackendCapabilities",
     "OcrBackend",
     "OcrFailure",

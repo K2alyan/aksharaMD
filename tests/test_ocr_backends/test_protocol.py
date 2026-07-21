@@ -24,6 +24,7 @@ def test_backend_availability_equality_and_asdict():
         "hardware_compatible": True,
         "model_installed": True,
         "runnable_now": True,
+        "details": None,
     }
 
 
