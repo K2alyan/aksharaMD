@@ -1,0 +1,408 @@
+{
+  "harness_version": "a2_geotopo_portable_validation.py@2026-07-20",
+  "environment": {
+    "python": "3.12.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "nvidia_driver": "595.95",
+    "torch": "2.12.1+cu126",
+    "cuda": "12.6",
+    "gpu_name": "NVIDIA GeForce RTX 3060",
+    "gpu_vram_gib": 12.0
+  },
+  "vram_safe_ceiling_mib": 11264,
+  "target_assets": [
+    "public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+    "public/009-pdflatex-geotopo/GeoTopo.pdf"
+  ],
+  "runs": [
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+      "run_index": 1,
+      "pdf_path": "C:\\Users\\kalya\\Omnimark\\benchmarks\\.public_corpus\\pdf\\009-pdflatex-geotopo\\GeoTopo-komprimiert.pdf",
+      "total_pages_pdf": 117,
+      "completion_status": "PASS",
+      "exception": "",
+      "portable_signals": {
+        "fingerprint": {
+          "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+          "total_vram_gib_bucket": 12,
+          "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+          "precision": "bf16",
+          "torch_version": "2.12.1+cu126",
+          "cuda_version": "12.6",
+          "render_policy_version": "render_v1_dpi300_png_rgb",
+          "chunking_policy_version": "chunk_v1_halving"
+        },
+        "cache_path": "C:\\Users\\kalya\\AppData\\Local\\Temp\\geo_d0uqxgdr\\cache.json",
+        "cache_key": "c36aa80c477016c00581311720f82e4a",
+        "cache_hit": false,
+        "cache_record_snapshot": null,
+        "resolution_source": "formula",
+        "resolution_reason": "vram-based",
+        "formula_estimate": {
+          "chunk_size": 5,
+          "signals": {
+            "source": "vram-based",
+            "free_vram_bytes": 11801722880,
+            "safety_factor": 0.6,
+            "per_page_memory_estimate_mib": 500,
+            "model_footprint_estimate_mib": 6500,
+            "min_size": 1,
+            "max_size": 40,
+            "env_override_raw": null,
+            "env_override_applied": false,
+            "free_vram_mib": 11255,
+            "available_for_pages_mib": 4755,
+            "usable_mib": 2853,
+            "raw_estimate": 5,
+            "clamped_to": 5
+          }
+        }
+      },
+      "initial_chunk_size": 5,
+      "resolution_source": "formula",
+      "resolution_reason": "vram-based",
+      "attempts_summary": [
+        {
+          "chunk_size": 5,
+          "outcome": "success",
+          "wall_seconds": 4815.25
+        }
+      ],
+      "restart_count": 0,
+      "final_chunk_size_used": 5,
+      "pages_returned_count": 117,
+      "missing_page_numbers": [],
+      "duplicated_page_numbers": [],
+      "peak_gpu_memory_mib": 7606,
+      "total_wall_seconds": 4815.41,
+      "output_char_count": 215996,
+      "output_sha256": "5be3e298fce3d85d98df213d5f2a9cecbdd73f95fb78863409317ad044568479",
+      "last_attempt_exit_code": 0,
+      "last_attempt_outcome": "success",
+      "last_attempt_worker_reported_stage": null,
+      "last_attempt_retryable": false,
+      "last_attempt_next_chunk_size": null,
+      "last_attempt_worker_stdout_tail": "652]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 669]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 670, 296, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 713]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 729]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 277, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 296, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 824, 283, 839]<|/det|>vanishing set, 26\r\n<|det|>text [149, 840, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n<PAGE><|det|>page_number [149, 28, 178, 39]<|/det|>114\r\n<|det|>header [752, 27, 906, 40]<|/det|>Stichwortverzeichnis\r\n<|det|>text [148, 68, 380, 99]<|/det|>topologischer, 2\r\nzusammenh\u00e4ngender, 11\r\n<|det|>text [149, 101, 250, 116]<|/det|>Realisierung\r\n<|det|>text [149, 117, 316, 132]<|/det|>geometrische, 34\r\n<|det|>text [149, 133, 266, 147]<|/det|>Retraktion, 47\r\n<|det|>text [149, 160, 220, 174]<|/det|>Satz von\r\n<|det|>text [149, 176, 318, 190]<|/det|>Gau\u00df-Bonnet, 98\r\n<|det|>text [149, 192, 290, 206]<|/det|>Scheitelwinkel, 86\r\n<|det|>text [149, 208, 218, 222]<|/det|>Seite, 34\r\n<|det|>text [149, 224, 321, 239]<|/det|>Sierpi\u0144skiraum, 3, 22\r\n<|det|>text [149, 241, 245, 256]<|/det|>Simplex, 34\r\n<|det|>text [149, 257, 324, 272]<|/det|>Simplizialkomplex, 34\r\n<|det|>text [149, 273, 300, 288]<|/det|>Simplizialkomplexe\r\n<|det|>text [149, 289, 323, 304]<|/det|>fl\u00e4chengleiche, 74\r\n<|det|>text [149, 305, 207, 319]<|/det|>Sph\u00e4re\r\n<|det|>text [149, 322, 280, 336]<|/det|>exotische, 29\r\n<|det|>text [149, 338, 323, 353]<|/det|>Standard-Simplex, 34\r\n<|det|>text [149, 354, 316, 369]<|/det|>Standardtopologie, 2\r\n<|det|>text [149, 370, 270, 385]<|/det|>sternf\u00f6rmig, 48\r\n<|det|>text [149, 386, 272, 401]<|/det|>Stetigkeit, 9\u201311\r\n<|det|>text [149, 402, 237, 416]<|/det|>Strecke, 65\r\n<|det|>text [149, 418, 221, 432]<|/det|>Struktur\r\n<|det|>text [182, 434, 338, 449]<|/det|>differenzierbare, 29\r\n<|det|>text [149, 450, 243, 464]<|/det|>Subbasis, 3\r\n<|det|>text [149, 478, 370, 493]<|/det|>Tangentialebene, 89, 89\u201390\r\n<|det|>text [149, 494, 245, 508]<|/det|>Teilraum, 4\r\n<|det|>text [149, 510, 313, 525]<|/det|>Teilraumtopologie, 4\r\n<|det|>text [149, 526, 270, 541]<|/det|>Teilsimplex, 34\r\n<|det|>text [149, 542, 227, 557]<|/det|>Topologie\r\n<|det|>text [182, 558, 288, 572]<|/det|>diskrete, 2, 6\r\n<|det|>text [182, 574, 293, 588]<|/det|>euklidische, 2\r\n<|det|>text [182, 590, 264, 604]<|/det|>feinste, 11\r\n<|det|>text [182, 606, 261, 620]<|/det|>triviale, 2\r\n<|det|>text [182, 622, 319, 636]<|/det|>Zariski, 2, 12, 15\r\n<|det|>text [149, 638, 331, 653]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 670]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 671, 297, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 714]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 730]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 280, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 297, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 823, 283, 838]<|/det|>vanishing set, 26\r\n<|det|>text [149, 839, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n\r\n===============save results:===============\r\n\rimage_page_0: 0it [00:00, ?it/s]\rimage_page_0: 0it [00:00, ?it/s]\r\n\rother_page_0:   0%|          | 0/94 [00:00<?, ?it/s]\rother_page_0: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 94/94 [00:00<00:00, 94593.23it/s]\r\n\rimage_page_1: 0it [00:00, ?it/s]\rimage_page_1: 0it [00:00, ?it/s]\r\n\rother_page_1:   0%|          | 0/48 [00:00<?, ?it/s]\rother_page_1: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 48/48 [00:00<00:00, 47946.32it/s]\r\n"
+    },
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+      "run_index": 2,
+      "pdf_path": "C:\\Users\\kalya\\Omnimark\\benchmarks\\.public_corpus\\pdf\\009-pdflatex-geotopo\\GeoTopo-komprimiert.pdf",
+      "total_pages_pdf": 117,
+      "completion_status": "PASS",
+      "exception": "",
+      "portable_signals": {
+        "fingerprint": {
+          "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+          "total_vram_gib_bucket": 12,
+          "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+          "precision": "bf16",
+          "torch_version": "2.12.1+cu126",
+          "cuda_version": "12.6",
+          "render_policy_version": "render_v1_dpi300_png_rgb",
+          "chunking_policy_version": "chunk_v1_halving"
+        },
+        "cache_path": "C:\\Users\\kalya\\AppData\\Local\\Temp\\geo_d0uqxgdr\\cache.json",
+        "cache_key": "c36aa80c477016c00581311720f82e4a",
+        "cache_hit": true,
+        "cache_record_snapshot": {
+          "fingerprint": {
+            "chunking_policy_version": "chunk_v1_halving",
+            "cuda_version": "12.6",
+            "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+            "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+            "precision": "bf16",
+            "render_policy_version": "render_v1_dpi300_png_rgb",
+            "torch_version": "2.12.1+cu126",
+            "total_vram_gib_bucket": 12
+          },
+          "largest_known_successful_size": 5,
+          "notes": [],
+          "peak_reserved_mib_observed": 7606,
+          "schema_version": "1",
+          "smallest_known_failed_size": null,
+          "successful_chunk_size": 5,
+          "updated_at": "2026-07-21T09:20:55+00:00"
+        },
+        "resolution_source": "cache",
+        "resolution_reason": "cache_hit_within_current_vram",
+        "formula_estimate": {
+          "chunk_size": 5,
+          "signals": {
+            "source": "vram-based",
+            "free_vram_bytes": 11801722880,
+            "safety_factor": 0.6,
+            "per_page_memory_estimate_mib": 500,
+            "model_footprint_estimate_mib": 6500,
+            "min_size": 1,
+            "max_size": 40,
+            "env_override_raw": null,
+            "env_override_applied": false,
+            "free_vram_mib": 11255,
+            "available_for_pages_mib": 4755,
+            "usable_mib": 2853,
+            "raw_estimate": 5,
+            "clamped_to": 5
+          }
+        }
+      },
+      "initial_chunk_size": 5,
+      "resolution_source": "cache",
+      "resolution_reason": "cache_hit_within_current_vram",
+      "attempts_summary": [
+        {
+          "chunk_size": 5,
+          "outcome": "success",
+          "wall_seconds": 4308.79
+        }
+      ],
+      "restart_count": 0,
+      "final_chunk_size_used": 5,
+      "pages_returned_count": 117,
+      "missing_page_numbers": [],
+      "duplicated_page_numbers": [],
+      "peak_gpu_memory_mib": 7606,
+      "total_wall_seconds": 4308.92,
+      "output_char_count": 215996,
+      "output_sha256": "5be3e298fce3d85d98df213d5f2a9cecbdd73f95fb78863409317ad044568479",
+      "last_attempt_exit_code": 0,
+      "last_attempt_outcome": "success",
+      "last_attempt_worker_reported_stage": null,
+      "last_attempt_retryable": false,
+      "last_attempt_next_chunk_size": null,
+      "last_attempt_worker_stdout_tail": ">text [149, 638, 330, 652]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 669]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 670, 296, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 713]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 729]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 277, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 296, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 824, 283, 839]<|/det|>vanishing set, 26\r\n<|det|>text [149, 840, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n<PAGE><|det|>page_number [149, 28, 178, 39]<|/det|>114\r\n<|det|>header [752, 27, 906, 40]<|/det|>Stichwortverzeichnis\r\n<|det|>text [148, 68, 380, 99]<|/det|>topologischer, 2\r\nzusammenh\u00e4ngender, 11\r\n<|det|>text [149, 101, 250, 116]<|/det|>Realisierung\r\n<|det|>text [149, 117, 316, 132]<|/det|>geometrische, 34\r\n<|det|>text [149, 133, 266, 147]<|/det|>Retraktion, 47\r\n<|det|>text [149, 160, 220, 174]<|/det|>Satz von\r\n<|det|>text [149, 176, 318, 190]<|/det|>Gau\u00df-Bonnet, 98\r\n<|det|>text [149, 192, 290, 206]<|/det|>Scheitelwinkel, 86\r\n<|det|>text [149, 208, 218, 222]<|/det|>Seite, 34\r\n<|det|>text [149, 224, 321, 239]<|/det|>Sierpi\u0144skiraum, 3, 22\r\n<|det|>text [149, 241, 245, 256]<|/det|>Simplex, 34\r\n<|det|>text [149, 257, 324, 272]<|/det|>Simplizialkomplex, 34\r\n<|det|>text [149, 273, 300, 288]<|/det|>Simplizialkomplexe\r\n<|det|>text [149, 289, 323, 304]<|/det|>fl\u00e4chengleiche, 74\r\n<|det|>text [149, 305, 207, 319]<|/det|>Sph\u00e4re\r\n<|det|>text [149, 322, 280, 336]<|/det|>exotische, 29\r\n<|det|>text [149, 338, 323, 353]<|/det|>Standard-Simplex, 34\r\n<|det|>text [149, 354, 316, 369]<|/det|>Standardtopologie, 2\r\n<|det|>text [149, 370, 270, 385]<|/det|>sternf\u00f6rmig, 48\r\n<|det|>text [149, 386, 272, 401]<|/det|>Stetigkeit, 9\u201311\r\n<|det|>text [149, 402, 237, 416]<|/det|>Strecke, 65\r\n<|det|>text [149, 418, 221, 432]<|/det|>Struktur\r\n<|det|>text [182, 434, 338, 449]<|/det|>differenzierbare, 29\r\n<|det|>text [149, 450, 243, 464]<|/det|>Subbasis, 3\r\n<|det|>text [149, 478, 370, 493]<|/det|>Tangentialebene, 89, 89\u201390\r\n<|det|>text [149, 494, 245, 508]<|/det|>Teilraum, 4\r\n<|det|>text [149, 510, 313, 525]<|/det|>Teilraumtopologie, 4\r\n<|det|>text [149, 526, 270, 541]<|/det|>Teilsimplex, 34\r\n<|det|>text [149, 542, 227, 557]<|/det|>Topologie\r\n<|det|>text [182, 558, 288, 572]<|/det|>diskrete, 2, 6\r\n<|det|>text [182, 574, 293, 588]<|/det|>euklidische, 2\r\n<|det|>text [182, 590, 264, 604]<|/det|>feinste, 11\r\n<|det|>text [182, 606, 261, 620]<|/det|>triviale, 2\r\n<|det|>text [182, 622, 319, 636]<|/det|>Zariski, 2, 12, 15\r\n<|det|>text [149, 638, 331, 653]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 670]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 671, 297, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 714]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 730]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 280, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 297, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 823, 283, 838]<|/det|>vanishing set, 26\r\n<|det|>text [149, 839, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n\r\n===============save results:===============\r\n\rimage_page_0: 0it [00:00, ?it/s]\rimage_page_0: 0it [00:00, ?it/s]\r\n\rother_page_0:   0%|          | 0/94 [00:00<?, ?it/s]\rother_page_0: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 94/94 [00:00<?, ?it/s]\r\n\rimage_page_1: 0it [00:00, ?it/s]\rimage_page_1: 0it [00:00, ?it/s]\r\n\rother_page_1:   0%|          | 0/48 [00:00<?, ?it/s]\rother_page_1: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 48/48 [00:00<?, ?it/s]\r\n"
+    },
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo.pdf",
+      "run_index": 1,
+      "pdf_path": "C:\\Users\\kalya\\Omnimark\\benchmarks\\.public_corpus\\pdf\\009-pdflatex-geotopo\\GeoTopo.pdf",
+      "total_pages_pdf": 117,
+      "completion_status": "PASS",
+      "exception": "",
+      "portable_signals": {
+        "fingerprint": {
+          "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+          "total_vram_gib_bucket": 12,
+          "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+          "precision": "bf16",
+          "torch_version": "2.12.1+cu126",
+          "cuda_version": "12.6",
+          "render_policy_version": "render_v1_dpi300_png_rgb",
+          "chunking_policy_version": "chunk_v1_halving"
+        },
+        "cache_path": "C:\\Users\\kalya\\AppData\\Local\\Temp\\geo_d0uqxgdr\\cache.json",
+        "cache_key": "c36aa80c477016c00581311720f82e4a",
+        "cache_hit": true,
+        "cache_record_snapshot": {
+          "fingerprint": {
+            "chunking_policy_version": "chunk_v1_halving",
+            "cuda_version": "12.6",
+            "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+            "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+            "precision": "bf16",
+            "render_policy_version": "render_v1_dpi300_png_rgb",
+            "torch_version": "2.12.1+cu126",
+            "total_vram_gib_bucket": 12
+          },
+          "largest_known_successful_size": 5,
+          "notes": [],
+          "peak_reserved_mib_observed": 7606,
+          "schema_version": "1",
+          "smallest_known_failed_size": null,
+          "successful_chunk_size": 5,
+          "updated_at": "2026-07-21T10:32:44+00:00"
+        },
+        "resolution_source": "cache",
+        "resolution_reason": "cache_hit_within_current_vram",
+        "formula_estimate": {
+          "chunk_size": 5,
+          "signals": {
+            "source": "vram-based",
+            "free_vram_bytes": 11801722880,
+            "safety_factor": 0.6,
+            "per_page_memory_estimate_mib": 500,
+            "model_footprint_estimate_mib": 6500,
+            "min_size": 1,
+            "max_size": 40,
+            "env_override_raw": null,
+            "env_override_applied": false,
+            "free_vram_mib": 11255,
+            "available_for_pages_mib": 4755,
+            "usable_mib": 2853,
+            "raw_estimate": 5,
+            "clamped_to": 5
+          }
+        }
+      },
+      "initial_chunk_size": 5,
+      "resolution_source": "cache",
+      "resolution_reason": "cache_hit_within_current_vram",
+      "attempts_summary": [
+        {
+          "chunk_size": 5,
+          "outcome": "success",
+          "wall_seconds": 4195.61
+        }
+      ],
+      "restart_count": 0,
+      "final_chunk_size_used": 5,
+      "pages_returned_count": 117,
+      "missing_page_numbers": [],
+      "duplicated_page_numbers": [],
+      "peak_gpu_memory_mib": 7606,
+      "total_wall_seconds": 4195.71,
+      "output_char_count": 214684,
+      "output_sha256": "fa47e4a25970e4fcf2b1946bd267b232ba7ec7912531b1f906fee012ffc9acc0",
+      "last_attempt_exit_code": 0,
+      "last_attempt_outcome": "success",
+      "last_attempt_worker_reported_stage": null,
+      "last_attempt_retryable": false,
+      "last_attempt_next_chunk_size": null,
+      "last_attempt_worker_stdout_tail": ">text [149, 638, 330, 652]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 669]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 670, 296, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 713]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 729]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 277, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 296, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 824, 283, 839]<|/det|>vanishing set, 26\r\n<|det|>text [149, 840, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n<PAGE><|det|>page_number [149, 28, 178, 39]<|/det|>114\r\n<|det|>header [752, 27, 906, 40]<|/det|>Stichwortverzeichnis\r\n<|det|>text [148, 68, 380, 99]<|/det|>topologischer, 2\r\nzusammenh\u00e4ngender, 11\r\n<|det|>text [149, 101, 250, 116]<|/det|>Realisierung\r\n<|det|>text [149, 117, 316, 132]<|/det|>geometrische, 34\r\n<|det|>text [149, 133, 266, 147]<|/det|>Retraktion, 47\r\n<|det|>text [149, 160, 220, 174]<|/det|>Satz von\r\n<|det|>text [149, 176, 318, 190]<|/det|>Gau\u00df-Bonnet, 98\r\n<|det|>text [149, 192, 290, 206]<|/det|>Scheitelwinkel, 86\r\n<|det|>text [149, 208, 218, 222]<|/det|>Seite, 34\r\n<|det|>text [149, 224, 321, 239]<|/det|>Sierpi\u0144skiraum, 3, 22\r\n<|det|>text [149, 241, 245, 256]<|/det|>Simplex, 34\r\n<|det|>text [149, 257, 324, 272]<|/det|>Simplizialkomplex, 34\r\n<|det|>text [149, 273, 300, 288]<|/det|>Simplizialkomplexe\r\n<|det|>text [149, 289, 323, 304]<|/det|>fl\u00e4chengleiche, 74\r\n<|det|>text [149, 305, 207, 319]<|/det|>Sph\u00e4re\r\n<|det|>text [149, 322, 280, 336]<|/det|>exotische, 29\r\n<|det|>text [149, 338, 323, 353]<|/det|>Standard-Simplex, 34\r\n<|det|>text [149, 354, 316, 369]<|/det|>Standardtopologie, 2\r\n<|det|>text [149, 370, 270, 385]<|/det|>sternf\u00f6rmig, 48\r\n<|det|>text [149, 386, 272, 401]<|/det|>Stetigkeit, 9\u201311\r\n<|det|>text [149, 402, 237, 416]<|/det|>Strecke, 65\r\n<|det|>text [149, 418, 221, 432]<|/det|>Struktur\r\n<|det|>text [182, 434, 338, 449]<|/det|>differenzierbare, 29\r\n<|det|>text [149, 450, 243, 464]<|/det|>Subbasis, 3\r\n<|det|>text [149, 478, 370, 493]<|/det|>Tangentialebene, 89, 89\u201390\r\n<|det|>text [149, 494, 245, 508]<|/det|>Teilraum, 4\r\n<|det|>text [149, 510, 313, 525]<|/det|>Teilraumtopologie, 4\r\n<|det|>text [149, 526, 270, 541]<|/det|>Teilsimplex, 34\r\n<|det|>text [149, 542, 227, 557]<|/det|>Topologie\r\n<|det|>text [182, 558, 288, 572]<|/det|>diskrete, 2, 6\r\n<|det|>text [182, 574, 293, 588]<|/det|>euklidische, 2\r\n<|det|>text [182, 590, 264, 604]<|/det|>feinste, 11\r\n<|det|>text [182, 606, 261, 620]<|/det|>triviale, 2\r\n<|det|>text [182, 622, 319, 636]<|/det|>Zariski, 2, 12, 15\r\n<|det|>text [149, 638, 331, 653]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 670]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 671, 297, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 714]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 730]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 280, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 297, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 823, 283, 838]<|/det|>vanishing set, 26\r\n<|det|>text [149, 839, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n\r\n===============save results:===============\r\n\rimage_page_0: 0it [00:00, ?it/s]\rimage_page_0: 0it [00:00, ?it/s]\r\n\rother_page_0:   0%|          | 0/94 [00:00<?, ?it/s]\rother_page_0: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 94/94 [00:00<?, ?it/s]\r\n\rimage_page_1: 0it [00:00, ?it/s]\rimage_page_1: 0it [00:00, ?it/s]\r\n\rother_page_1:   0%|          | 0/48 [00:00<?, ?it/s]\rother_page_1: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 48/48 [00:00<?, ?it/s]\r\n"
+    },
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo.pdf",
+      "run_index": 2,
+      "pdf_path": "C:\\Users\\kalya\\Omnimark\\benchmarks\\.public_corpus\\pdf\\009-pdflatex-geotopo\\GeoTopo.pdf",
+      "total_pages_pdf": 117,
+      "completion_status": "PASS",
+      "exception": "",
+      "portable_signals": {
+        "fingerprint": {
+          "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+          "total_vram_gib_bucket": 12,
+          "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+          "precision": "bf16",
+          "torch_version": "2.12.1+cu126",
+          "cuda_version": "12.6",
+          "render_policy_version": "render_v1_dpi300_png_rgb",
+          "chunking_policy_version": "chunk_v1_halving"
+        },
+        "cache_path": "C:\\Users\\kalya\\AppData\\Local\\Temp\\geo_d0uqxgdr\\cache.json",
+        "cache_key": "c36aa80c477016c00581311720f82e4a",
+        "cache_hit": true,
+        "cache_record_snapshot": {
+          "fingerprint": {
+            "chunking_policy_version": "chunk_v1_halving",
+            "cuda_version": "12.6",
+            "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+            "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+            "precision": "bf16",
+            "render_policy_version": "render_v1_dpi300_png_rgb",
+            "torch_version": "2.12.1+cu126",
+            "total_vram_gib_bucket": 12
+          },
+          "largest_known_successful_size": 5,
+          "notes": [],
+          "peak_reserved_mib_observed": 7606,
+          "schema_version": "1",
+          "smallest_known_failed_size": null,
+          "successful_chunk_size": 5,
+          "updated_at": "2026-07-21T11:42:40+00:00"
+        },
+        "resolution_source": "cache",
+        "resolution_reason": "cache_hit_within_current_vram",
+        "formula_estimate": {
+          "chunk_size": 5,
+          "signals": {
+            "source": "vram-based",
+            "free_vram_bytes": 11801722880,
+            "safety_factor": 0.6,
+            "per_page_memory_estimate_mib": 500,
+            "model_footprint_estimate_mib": 6500,
+            "min_size": 1,
+            "max_size": 40,
+            "env_override_raw": null,
+            "env_override_applied": false,
+            "free_vram_mib": 11255,
+            "available_for_pages_mib": 4755,
+            "usable_mib": 2853,
+            "raw_estimate": 5,
+            "clamped_to": 5
+          }
+        }
+      },
+      "initial_chunk_size": 5,
+      "resolution_source": "cache",
+      "resolution_reason": "cache_hit_within_current_vram",
+      "attempts_summary": [
+        {
+          "chunk_size": 5,
+          "outcome": "success",
+          "wall_seconds": 4149.03
+        }
+      ],
+      "restart_count": 0,
+      "final_chunk_size_used": 5,
+      "pages_returned_count": 117,
+      "missing_page_numbers": [],
+      "duplicated_page_numbers": [],
+      "peak_gpu_memory_mib": 7606,
+      "total_wall_seconds": 4149.16,
+      "output_char_count": 214684,
+      "output_sha256": "fa47e4a25970e4fcf2b1946bd267b232ba7ec7912531b1f906fee012ffc9acc0",
+      "last_attempt_exit_code": 0,
+      "last_attempt_outcome": "success",
+      "last_attempt_worker_reported_stage": null,
+      "last_attempt_retryable": false,
+      "last_attempt_next_chunk_size": null,
+      "last_attempt_worker_stdout_tail": ">text [149, 638, 330, 652]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 669]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 670, 296, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 713]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 729]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 277, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 296, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 824, 283, 839]<|/det|>vanishing set, 26\r\n<|det|>text [149, 840, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n<PAGE><|det|>page_number [149, 28, 178, 39]<|/det|>114\r\n<|det|>header [752, 27, 906, 40]<|/det|>Stichwortverzeichnis\r\n<|det|>text [148, 68, 380, 99]<|/det|>topologischer, 2\r\nzusammenh\u00e4ngender, 11\r\n<|det|>text [149, 101, 250, 116]<|/det|>Realisierung\r\n<|det|>text [149, 117, 316, 132]<|/det|>geometrische, 34\r\n<|det|>text [149, 133, 266, 147]<|/det|>Retraktion, 47\r\n<|det|>text [149, 160, 220, 174]<|/det|>Satz von\r\n<|det|>text [149, 176, 318, 190]<|/det|>Gau\u00df-Bonnet, 98\r\n<|det|>text [149, 192, 290, 206]<|/det|>Scheitelwinkel, 86\r\n<|det|>text [149, 208, 218, 222]<|/det|>Seite, 34\r\n<|det|>text [149, 224, 321, 239]<|/det|>Sierpi\u0144skiraum, 3, 22\r\n<|det|>text [149, 241, 245, 256]<|/det|>Simplex, 34\r\n<|det|>text [149, 257, 324, 272]<|/det|>Simplizialkomplex, 34\r\n<|det|>text [149, 273, 300, 288]<|/det|>Simplizialkomplexe\r\n<|det|>text [149, 289, 323, 304]<|/det|>fl\u00e4chengleiche, 74\r\n<|det|>text [149, 305, 207, 319]<|/det|>Sph\u00e4re\r\n<|det|>text [149, 322, 280, 336]<|/det|>exotische, 29\r\n<|det|>text [149, 338, 323, 353]<|/det|>Standard-Simplex, 34\r\n<|det|>text [149, 354, 316, 369]<|/det|>Standardtopologie, 2\r\n<|det|>text [149, 370, 270, 385]<|/det|>sternf\u00f6rmig, 48\r\n<|det|>text [149, 386, 272, 401]<|/det|>Stetigkeit, 9\u201311\r\n<|det|>text [149, 402, 237, 416]<|/det|>Strecke, 65\r\n<|det|>text [149, 418, 221, 432]<|/det|>Struktur\r\n<|det|>text [182, 434, 338, 449]<|/det|>differenzierbare, 29\r\n<|det|>text [149, 450, 243, 464]<|/det|>Subbasis, 3\r\n<|det|>text [149, 478, 370, 493]<|/det|>Tangentialebene, 89, 89\u201390\r\n<|det|>text [149, 494, 245, 508]<|/det|>Teilraum, 4\r\n<|det|>text [149, 510, 313, 525]<|/det|>Teilraumtopologie, 4\r\n<|det|>text [149, 526, 270, 541]<|/det|>Teilsimplex, 34\r\n<|det|>text [149, 542, 227, 557]<|/det|>Topologie\r\n<|det|>text [182, 558, 288, 572]<|/det|>diskrete, 2, 6\r\n<|det|>text [182, 574, 293, 588]<|/det|>euklidische, 2\r\n<|det|>text [182, 590, 264, 604]<|/det|>feinste, 11\r\n<|det|>text [182, 606, 261, 620]<|/det|>triviale, 2\r\n<|det|>text [182, 622, 319, 636]<|/det|>Zariski, 2, 12, 15\r\n<|det|>text [149, 638, 331, 653]<|/det|>Torus, iii, 5, 38, 51, 93\r\n<|det|>text [149, 654, 411, 670]<|/det|>Total Unzusammenh\u00e4ngend, 100\r\n<|det|>text [149, 671, 297, 686]<|/det|>Triangulierung, 38\r\n<|det|>text [149, 697, 285, 714]<|/det|>\u00dcberdeckung, 14\r\n<|det|>text [149, 714, 475, 730]<|/det|>\u00dcbergangsfunktion, siehe Kartenwechsel\r\n<|det|>text [149, 730, 345, 746]<|/det|>\u00dcberlagerung, 51, 51\u201360\r\n<|det|>text [182, 747, 280, 762]<|/det|>regul\u00e4re, 59\r\n<|det|>text [182, 763, 297, 777]<|/det|>universelle, 57\r\n<|det|>text [149, 779, 254, 794]<|/det|>Umgebung, 3\r\n<|det|>text [149, 796, 312, 811]<|/det|>Umgebungsbasis, 58\r\n<|det|>text [149, 823, 283, 838]<|/det|>vanishing set, 26\r\n<|det|>text [149, 839, 437, 855]<|/det|>Vektorprodukt, siehe Kreuzprodukt\r\n<|det|>text [149, 856, 270, 871]<|/det|>Verklebung, 26\r\n\r\n===============save results:===============\r\n\rimage_page_0: 0it [00:00, ?it/s]\rimage_page_0: 0it [00:00, ?it/s]\r\n\rother_page_0:   0%|          | 0/94 [00:00<?, ?it/s]\rother_page_0: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 94/94 [00:00<?, ?it/s]\r\n\rimage_page_1: 0it [00:00, ?it/s]\rimage_page_1: 0it [00:00, ?it/s]\r\n\rother_page_1:   0%|          | 0/48 [00:00<?, ?it/s]\rother_page_1: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 48/48 [00:00<?, ?it/s]\r\n"
+    }
+  ],
+  "determinism_per_asset": [
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
+      "run1_status": "PASS",
+      "run2_status": "PASS",
+      "run1_pages": 117,
+      "run2_pages": 117,
+      "run1_output_sha256": "5be3e298fce3d85d98df213d5f2a9cecbdd73f95fb78863409317ad044568479",
+      "run2_output_sha256": "5be3e298fce3d85d98df213d5f2a9cecbdd73f95fb78863409317ad044568479",
+      "output_sha256_match": true,
+      "output_char_count_match": true
+    },
+    {
+      "asset_id": "public/009-pdflatex-geotopo/GeoTopo.pdf",
+      "run1_status": "PASS",
+      "run2_status": "PASS",
+      "run1_pages": 117,
+      "run2_pages": 117,
+      "run1_output_sha256": "fa47e4a25970e4fcf2b1946bd267b232ba7ec7912531b1f906fee012ffc9acc0",
+      "run2_output_sha256": "fa47e4a25970e4fcf2b1946bd267b232ba7ec7912531b1f906fee012ffc9acc0",
+      "output_sha256_match": true,
+      "output_char_count_match": true
+    }
+  ],
+  "cache_snapshot_at_end": {
+    "records": {
+      "c36aa80c477016c00581311720f82e4a": {
+        "fingerprint": {
+          "chunking_policy_version": "chunk_v1_halving",
+          "cuda_version": "12.6",
+          "gpu_identity": "GPU-611809cc-6938-ae25-c062-ff138f846e55",
+          "model_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+          "precision": "bf16",
+          "render_policy_version": "render_v1_dpi300_png_rgb",
+          "torch_version": "2.12.1+cu126",
+          "total_vram_gib_bucket": 12
+        },
+        "largest_known_successful_size": 5,
+        "notes": [],
+        "peak_reserved_mib_observed": 7606,
+        "schema_version": "1",
+        "smallest_known_failed_size": null,
+        "successful_chunk_size": 5,
+        "updated_at": "2026-07-21T12:51:49+00:00"
+      }
+    },
+    "schema_version": "1"
+  },
+  "acceptance": {
+    "all_runs_complete": true,
+    "all_pages_returned_exactly_once": true,
+    "no_missing_pages": true,
+    "peak_gpu_memory_below_safe_ceiling": true,
+    "output_sha256_matches_across_pairs": true
+  }
+}

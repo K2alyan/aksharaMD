@@ -178,6 +178,12 @@ def _run_one(cache_path: Path, asset_id: str, pdf: Path, run_index: int, workdir
               f"retryable={row['last_attempt_retryable']} "
               f"next_size={row['last_attempt_next_chunk_size']}",
               flush=True)
+        tail = row.get('last_attempt_worker_stdout_tail') or ''
+        if tail:
+            print("     --- worker stdout tail (last ~4 KB) ---", flush=True)
+            for line in tail.splitlines()[-40:]:
+                print(f"     | {line}", flush=True)
+            print("     --- end tail ---", flush=True)
     return row
 
 
@@ -202,14 +208,21 @@ def main() -> int:
     }
     targets = _load_pdf_paths()
 
-    with tempfile.TemporaryDirectory(prefix="geotopo_portable_") as workdir_str:
+    # Keep the tmpdir tree SHALLOW and SHORT. On Windows the effective
+    # path limit is 260 characters (MAX_PATH), and every layer down
+    # from here — orchestrator's per-attempt dir, worker's per-doc
+    # dir, model's per-chunk output dir — adds ~20 characters. Long
+    # asset-id-derived directory names blow the budget on Windows,
+    # producing WinError 206 well before any real OOM.
+    with tempfile.TemporaryDirectory(prefix="geo_") as workdir_str:
         workdir = Path(workdir_str)
-        cache_path = workdir / "safe_size_cache.json"
+        cache_path = workdir / "cache.json"
 
         runs: list[dict[str, Any]] = []
-        for asset_id, pdf in targets:
+        for asset_index, (asset_id, pdf) in enumerate(targets):
             for run_idx in (1, 2):
-                sub_workdir = workdir / f"{asset_id.replace('/', '__')}_run{run_idx}"
+                # Short unique subdir: a0_r1 / a0_r2 / a1_r1 / a1_r2.
+                sub_workdir = workdir / f"a{asset_index}_r{run_idx}"
                 sub_workdir.mkdir(parents=True, exist_ok=True)
                 runs.append(_run_one(cache_path, asset_id, pdf, run_idx, sub_workdir))
 

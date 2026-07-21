@@ -928,7 +928,10 @@ class _UnlimitedOcrRunner:
             import torch  # type: ignore
         except ImportError as e:
             return "", f"torch_import_failed: {e}", {}
-        with tempfile.TemporaryDirectory(prefix=f"unlimited_ocr_{pdf.stem}_",
+        # Short prefix ("ocr_") to preserve Windows MAX_PATH budget.
+        # Long pdf-stem-derived prefixes routinely put per-chunk paths
+        # over 260 chars once the model appends its own subdirectories.
+        with tempfile.TemporaryDirectory(prefix="ocr_",
                                           dir=str(workdir)) as scratch_str:
             scratch = Path(scratch_str)
             try:
@@ -957,7 +960,10 @@ class _UnlimitedOcrRunner:
                 def _inference_fn(
                     page_start: int, page_end: int, chunk_index: int, chunk_size: int,
                 ) -> tuple[str, dict[str, Any]]:
-                    chunk_out = out_dir / f"chunk_{chunk_index:04d}_p{page_start:04d}_{page_end:04d}"
+                    # Short chunk-dir name ("cNN") — the same Windows
+                    # MAX_PATH concern as elsewhere. Concrete page
+                    # range is preserved in the returned chunk row.
+                    chunk_out = out_dir / f"c{chunk_index:02d}"
                     return self._infer_chunk(
                         image_paths, page_start, page_end, chunk_out, max_length, torch,
                     )

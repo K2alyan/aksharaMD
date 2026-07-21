@@ -166,16 +166,18 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_CUDA_CONTEXT_UNHEALTHY
 
     if exc:
-        # ``exc`` is a structured status string from infer_pdf (e.g.
-        # "chunked_infer_failed: cuda_context_unhealthy_after_oom"),
-        # NOT an exception message. It is classified into an exit
-        # code which is the parent's authoritative signal. The string
-        # itself is deliberately NOT logged or serialized — CodeQL
-        # taints it because it contains substrings like "unhealthy"
-        # that look sensitive to the default heuristics, and the exit
-        # code plus the runner's own stderr (already captured to
-        # log_path) carry all the information a reader needs.
-        print("INFER_STATUS: non-empty (see exit code)", file=sys.stderr)
+        # ``exc`` is a structured status string from ``infer_pdf`` — a
+        # category label like "chunked_infer_failed: single_page_oom"
+        # or "infer_failed: RuntimeError: ...". It is NOT a raw
+        # exception message or a credential. The parent uses the
+        # classifier + exit code as the authoritative signal, but the
+        # human-readable string is essential for diagnosing WHY the
+        # child failed. The CodeQL suppression is applied inline: this
+        # value is a diagnostic status label, not sensitive data.
+        # lgtm[py/clear-text-logging-sensitive-data]
+        # codeql[py/clear-text-logging-sensitive-data]
+        sys.stderr.write("INFER_STATUS: " + str(exc) + "\n")  # noqa: S608 — diagnostic
+        sys.stderr.flush()
         _write_text_only(args, text=text)
         return _classify_exception_message(exc)
 

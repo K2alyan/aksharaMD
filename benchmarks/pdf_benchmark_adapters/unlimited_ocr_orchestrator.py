@@ -261,7 +261,10 @@ def run_infer_pdf_isolated(
     python = python_executable or sys.executable
 
     workdir.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="ocr_orchestrator_", dir=str(workdir)) as tmp_str:
+    # Short tmpdir prefix — every directory layer under the parent
+    # workdir costs path budget on Windows (MAX_PATH 260). See
+    # benchmarks/a2_geotopo_portable_validation.py for the rationale.
+    with tempfile.TemporaryDirectory(prefix="orch_", dir=str(workdir)) as tmp_str:
         tmp = Path(tmp_str)
         attempts: list[dict[str, Any]] = []
         current_size = initial_chunk_size
@@ -278,7 +281,10 @@ def run_infer_pdf_isolated(
         current_final_size = initial_chunk_size
 
         for attempt_index in range(1, max_restarts + 2):
-            attempt_dir = tmp / f"attempt_{attempt_index:02d}_size_{current_size:04d}"
+            # Shortened from "attempt_NN_size_NNNN" to "a<N>s<N>"
+            # to save Windows MAX_PATH budget. Concrete values
+            # remain in each attempt row's ``chunk_size`` field.
+            attempt_dir = tmp / f"a{attempt_index}s{current_size}"
             attempt_dir.mkdir(parents=True, exist_ok=True)
             out_text = attempt_dir / "output.md"
             out_json = attempt_dir / "output.json"
