@@ -5,6 +5,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Added
+
+- **Unlimited-OCR subprocess-isolated inference orchestrator**
+  (`benchmarks/pdf_benchmark_adapters/unlimited_ocr_worker.py`,
+  `unlimited_ocr_orchestrator.py`).
+  Second of three PRs in the portable large-document strategy. Each
+  document runs inside a disposable child process; on any CUDA-OOM
+  signal from the child the parent halves the chunk size
+  (`next = max(1, current // 2)`) and spawns a fresh child. Repeat
+  until success, `max_restarts` exhaustion, or a one-page OOM. A
+  poisoned CUDA context in one document cannot leak into the parent
+  or into later documents.
+  - Worker exit codes are the child ↔ parent contract:
+    0 success; 10 cuda-context-unhealthy (retry smaller); 11 cuda-OOM
+    (retry smaller); 20 non-OOM inference failure (do not retry);
+    30 infrastructure error (do not retry).
+  - Orchestrator returns the same `(text, exception_or_empty, signals)`
+    shape as `_UnlimitedOcrRunner.infer_pdf`; signals include the
+    initial chunk size, per-attempt exit code + wall time + outcome +
+    log path, restart count, final chunk size used, and worker-emitted
+    signals from the successful attempt.
+  - No behavioural change to the in-process reduction sequence
+    (`40 → 20 → …`). It still runs inside the child and catches OOMs
+    when it can. The orchestrator only kicks in when an OOM escapes
+    the child.
+
 ### Changed
 
 - **Unlimited-OCR initial chunk size is now hardware-aware**
