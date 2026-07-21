@@ -1,17 +1,17 @@
 """OCR backend registry.
 
-Foundation-only registry (PR 94a). One entry: ``tesseract``. The
-``unlimited_ocr`` entry lands in PR 94b; ``auto`` and any policy-
-based selection is deliberately absent until doctor and rollout
-work has landed.
+Two entries as of PR 94b: ``tesseract`` (default) and
+``unlimited_ocr`` (opt-in). ``auto`` and any policy-based selection
+remain deliberately absent — that belongs with doctor + rollout
+policy in a later PR.
 
-Callers pass an explicit backend name (later wired to the CLI in
-PR 94c). Unknown names raise ``ValueError`` with the known list.
+Callers pass an explicit backend name (wired to the CLI in PR 94c).
+Unknown names raise ``ValueError`` with the known list.
 
 The registry stores factory callables, not instances, so backend
 construction can be delayed until the caller actually needs it. Each
-factory returns a fresh instance; backends themselves may be lazy
-about their heavy dependencies.
+factory returns a fresh instance; backends themselves are lazy about
+their heavy dependencies.
 """
 from __future__ import annotations
 
@@ -25,8 +25,14 @@ def _make_tesseract() -> OcrBackend:
     return TesseractBackend()
 
 
+def _make_unlimited_ocr() -> OcrBackend:
+    from .unlimited_ocr_backend import UnlimitedOcrBackend
+    return UnlimitedOcrBackend()
+
+
 _REGISTRY: dict[str, Callable[[], OcrBackend]] = {
     "tesseract": _make_tesseract,
+    "unlimited_ocr": _make_unlimited_ocr,
 }
 
 

@@ -109,6 +109,11 @@ class OcrPageResult:
     ``is_ok=False`` means the page failed and ``failure`` describes why.
     Callers must not silently drop such pages — the compile flow is
     expected to surface a per-page warning.
+
+    ``meta`` is a free-form dict of backend-specific per-page metadata.
+    Backends that batch output (e.g. UnlimitedOcrBackend's aggregated-
+    markdown convention) use it to describe the aggregation to a
+    dispatch layer without changing the primary shape.
     """
 
     page_index: int
@@ -116,6 +121,7 @@ class OcrPageResult:
     blocks: list[Any] = field(default_factory=list)
     is_ok: bool = True
     failure: OcrFailure | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable
