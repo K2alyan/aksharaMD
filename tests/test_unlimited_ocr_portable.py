@@ -100,7 +100,7 @@ def _fp() -> SoftwareFingerprint:
 
 
 def test_resolve_no_cache_falls_back_to_formula(tmp_path):
-    probe = {"free_vram_bytes": _gib(5.5)}
+    probe = {"free_vram_bytes": _gib(11.7)}
     size, portable = _resolve_initial_size(
         probe=probe, fingerprint=_fp(),
         cache_path=None, env_override=None,
@@ -114,7 +114,7 @@ def test_resolve_env_override_beats_cache(tmp_path):
     fp = _fp()
     record_success(p, build_cache_key(fp), fingerprint=fp,
                    successful_chunk_size=16, peak_reserved_mib=7000, now_iso="t")
-    probe = {"free_vram_bytes": _gib(5.5)}
+    probe = {"free_vram_bytes": _gib(11.7)}
     size, portable = _resolve_initial_size(
         probe=probe, fingerprint=fp, cache_path=p, env_override="10",
     )
@@ -128,7 +128,7 @@ def test_resolve_cache_hit_within_current_vram(tmp_path):
     fp = _fp()
     record_success(p, build_cache_key(fp), fingerprint=fp,
                    successful_chunk_size=6, peak_reserved_mib=7000, now_iso="t")
-    probe = {"free_vram_bytes": _gib(5.5)}
+    probe = {"free_vram_bytes": _gib(11.7)}
     size, portable = _resolve_initial_size(
         probe=probe, fingerprint=fp, cache_path=p, env_override=None,
     )
@@ -156,7 +156,7 @@ def test_resolve_cache_hit_shrunk_by_current_vram(tmp_path):
 def test_resolve_corrupt_cache_falls_back_to_formula(tmp_path):
     p = tmp_path / "cache.json"
     p.write_text("not json", encoding="utf-8")
-    probe = {"free_vram_bytes": _gib(5.5)}
+    probe = {"free_vram_bytes": _gib(11.7)}
     size, portable = _resolve_initial_size(
         probe=probe, fingerprint=_fp(), cache_path=p, env_override=None,
     )
@@ -171,13 +171,57 @@ def test_resolve_cache_miss_falls_back_to_formula(tmp_path):
     record_success(p, build_cache_key(fp_a), fingerprint=fp_a,
                    successful_chunk_size=20, peak_reserved_mib=7000, now_iso="t")
     # Look up with the other fingerprint — cache misses.
-    probe = {"free_vram_bytes": _gib(5.5)}
+    probe = {"free_vram_bytes": _gib(11.7)}
     size, portable = _resolve_initial_size(
         probe=probe, fingerprint=fp_b, cache_path=p, env_override=None,
     )
     assert size == 6
     assert portable["resolution_source"] == "formula"
     assert portable["cache_hit"] is False
+
+
+def test_resolve_failure_only_bounds_formula_by_half_failure(tmp_path):
+    """Fix 2: no successful record yet, but a known failure at size N.
+    The next initial size must be bounded by max(1, N // 2), and
+    also not exceed what the formula would independently compute.
+    """
+    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+        record_failure,
+    )
+    p = tmp_path / "cache.json"
+    fp = _fp()
+    key = build_cache_key(fp)
+    # No success — only failure at size 13.
+    record_failure(p, key, fingerprint=fp, failed_chunk_size=13, now_iso="t")
+    # 11.7 GiB free → formula picks 6.
+    probe = {"free_vram_bytes": _gib(11.7)}
+    size, portable = _resolve_initial_size(
+        probe=probe, fingerprint=fp, cache_path=p, env_override=None,
+    )
+    # min(formula=6, max(1, 13//2)=6) → 6.
+    assert size == 6
+    assert portable["resolution_source"] == "formula_bounded_by_known_failure"
+    assert portable["cache_hit"] is True
+
+
+def test_resolve_failure_only_bounds_below_formula(tmp_path):
+    """When the failure-half bound is TIGHTER than the formula, use
+    the tighter bound."""
+    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+        record_failure,
+    )
+    p = tmp_path / "cache.json"
+    fp = _fp()
+    key = build_cache_key(fp)
+    # Failure at 4 → bound = max(1, 4//2) = 2.
+    record_failure(p, key, fingerprint=fp, failed_chunk_size=4, now_iso="t")
+    # 22 GiB free → formula picks 19.
+    probe = {"free_vram_bytes": _gib(22.0)}
+    size, portable = _resolve_initial_size(
+        probe=probe, fingerprint=fp, cache_path=p, env_override=None,
+    )
+    assert size == 2  # tighter bound wins
+    assert portable["resolution_source"] == "formula_bounded_by_known_failure"
 
 
 def test_resolve_cache_hit_shrinks_below_known_failure(tmp_path):
@@ -237,7 +281,7 @@ def test_portable_success_writes_success_cache(tmp_path):
     text, exc, signals = infer_pdf_portable(
         pdf, tmp_path / "workdir",
         cache_path=cache,
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch,
     )
     assert exc == ""
@@ -268,7 +312,7 @@ def test_portable_failure_does_not_record_success(tmp_path):
     text, exc, signals = infer_pdf_portable(
         pdf, tmp_path / "workdir",
         cache_path=cache,
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch,
     )
     assert text == ""
@@ -291,7 +335,7 @@ def test_portable_cache_hit_used_on_second_run(tmp_path):
     infer_pdf_portable(
         pdf, tmp_path / "workdir1",
         cache_path=cache,
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch1,
     )
     # Second run: cache says 6 → orchestrator called with 6, not the
@@ -304,7 +348,7 @@ def test_portable_cache_hit_used_on_second_run(tmp_path):
     _, _, signals = infer_pdf_portable(
         pdf, tmp_path / "workdir2",
         cache_path=cache,
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch2,
     )
     assert signals["portable_signals"]["resolution_source"] == "cache"
@@ -320,7 +364,7 @@ def test_portable_no_cache_path_disables_persistence(tmp_path):
     _, exc, signals = infer_pdf_portable(
         pdf, tmp_path / "workdir",
         cache_path=None,
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch,
     )
     assert exc == ""
@@ -339,7 +383,7 @@ def test_portable_signals_are_json_serializable(tmp_path):
     _, _, signals = infer_pdf_portable(
         pdf, tmp_path / "workdir",
         cache_path=tmp_path / "cache.json",
-        torch_mod=_fake_torch(free_bytes=_gib(5.5), total_bytes=_gib(12.0)),
+        torch_mod=_fake_torch(free_bytes=_gib(11.7), total_bytes=_gib(12.0)),
         orchestrator_fn=orch,
     )
     json.dumps(signals)  # must not raise

@@ -571,6 +571,89 @@ def test_verify_7_truncation_handles_missing_log(tmp_path):
     _truncate_log_if_over_cap(missing, cap_bytes=1024)  # must not raise
 
 
+def test_diagnostic_fix4_retryable_true_on_oom_with_headroom(tmp_path):
+    """Fix 4: an OOM attempt that will be retried carries
+    retryable=True and next_chunk_size = halved value."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {},
+         "log": "traceback goes here"},
+        {"exit_code": EXIT_OK, "text": "done",
+         "json": {"signals": {}, "output_char_count": 4, "output_sha256": "x"}},
+    ])
+    _, _, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=40,
+        worker_runner=fake,
+    )
+    first = signals["attempts"][0]
+    assert first["retryable"] is True
+    assert first["next_chunk_size"] == 20  # 40 // 2
+    assert "traceback" in first["worker_stdout_tail"]
+
+
+def test_diagnostic_fix4_retryable_false_on_last_permitted_oom(tmp_path):
+    """The terminal OOM (max_restarts exhausted) carries retryable=False."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+    ])
+    _, _, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=40, max_restarts=2,
+        worker_runner=fake,
+    )
+    last = signals["attempts"][-1]
+    assert last["retryable"] is False
+    assert last["next_chunk_size"] is None
+
+
+def test_diagnostic_fix4_retryable_false_on_single_page_oom(tmp_path):
+    """Reaching size 1 and failing: retryable=False, next=None."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([{"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}}] * 4)
+    _, _, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=4, max_restarts=6,
+        worker_runner=fake,
+    )
+    # 4 -> 2 -> 1 -> None. Last attempt at size 1.
+    last = signals["attempts"][-1]
+    assert last["chunk_size"] == 1
+    assert last["retryable"] is False
+    assert last["next_chunk_size"] is None
+
+
+def test_diagnostic_fix4_retryable_false_on_non_oom(tmp_path):
+    """Non-OOM failure: retryable=False regardless of retries remaining."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_NON_OOM_INFER_FAILURE, "text": "", "json": {}},
+    ])
+    _, _, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8, max_restarts=5,
+        worker_runner=fake,
+    )
+    assert signals["attempts"][0]["retryable"] is False
+    assert signals["attempts"][0]["next_chunk_size"] is None
+
+
+def test_diagnostic_fix4_worker_stdout_tail_captured(tmp_path):
+    """The last ~4 KB of the worker log is duplicated into the attempt
+    row so callers can see it without accessing the tmpdir."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_OK, "text": "ok",
+         "json": {"signals": {}, "output_char_count": 2, "output_sha256": "z"},
+         "log": "worker startup line 1\nworker startup line 2\ninference done"},
+    ])
+    _, _, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8,
+        worker_runner=fake,
+    )
+    tail = signals["attempts"][0]["worker_stdout_tail"]
+    assert "worker startup" in tail or "inference done" in tail
+
+
 def test_verify_7_orchestrator_invokes_truncation(tmp_path, monkeypatch):
     """Verify the orchestrator actually CALLS the truncation function
     with the correct cap, once per attempt."""

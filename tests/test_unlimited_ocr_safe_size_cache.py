@@ -165,8 +165,17 @@ def test_look_up_returns_record_when_present():
     assert look_up(records, "key1") == records["key1"]
 
 
-def test_look_up_ignores_record_without_successful_chunk_size():
-    records = {"key1": {"only_failure_data": True}}
+def test_look_up_returns_record_with_only_failure_data():
+    """Fix 2: a failure-only record must be visible so the resolver
+    can bound the formula estimate below the known failure."""
+    records = {"key1": {"smallest_known_failed_size": 13, "successful_chunk_size": 0}}
+    result = look_up(records, "key1")
+    assert result is not None
+    assert result["smallest_known_failed_size"] == 13
+
+
+def test_look_up_ignores_empty_record():
+    records = {"key1": {"unrelated": "value"}}
     assert look_up(records, "key1") is None
 
 

@@ -172,11 +172,21 @@ def save_cache_atomic(cache_path: Path, records: dict[str, dict[str, Any]]) -> N
 
 
 def look_up(records: dict[str, dict[str, Any]], key: str) -> dict[str, Any] | None:
-    """Look up a record by key. Returns None on miss."""
+    """Look up a record by key. Returns None on miss.
+
+    Returns the record when EITHER a successful size or a known failed
+    size is recorded. Callers can inspect the returned dict to decide
+    which path to take:
+      - ``successful_chunk_size > 0`` → cache-hit sizing path
+      - ``successful_chunk_size == 0`` and ``smallest_known_failed_size`` set →
+        formula bounded by the known failure
+    """
     record = records.get(key)
     if not isinstance(record, dict):
         return None
-    if "successful_chunk_size" not in record:
+    has_success = int(record.get("successful_chunk_size") or 0) > 0
+    has_failure = record.get("smallest_known_failed_size") is not None
+    if not has_success and not has_failure:
         return None
     return record
 

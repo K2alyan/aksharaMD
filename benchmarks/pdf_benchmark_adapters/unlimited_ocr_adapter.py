@@ -1037,6 +1037,32 @@ underestimation grows it (risks OOM). It is NOT a portable production
 constant. Callers with better information (e.g. pixel-aware sizing
 derived from render DPI) should override."""
 
+_DEFAULT_MODEL_FOOTPRINT_ESTIMATE_MIB = 6500
+"""Approximate steady-state VRAM held by the loaded Unlimited-OCR
+model itself (weights + KV cache overhead) at the pinned revision
+``d549bb9d6a055dbe291408916d66acc2cd5920f6`` and bf16 precision.
+
+This value is intentionally VERSIONED alongside the model revision
+and precision in _UNLIMITED_OCR_MODEL_REVISION / _INFERENCE_PRECISION.
+Any change to those inputs (finetune, precision swap, tokenizer
+change that alters embedding footprint, etc.) invalidates this
+estimate. The safe-size cache key already includes both axes, so
+old cache records will not survive a bump here.
+
+Why subtracting matters
+-----------------------
+Free VRAM measured in the parent process BEFORE any child spawns
+still contains the model's ~6.5 GB slot because the model has not
+been loaded yet. If we do NOT subtract it, the initial chunk-size
+estimate is dominated by memory that will be spoken for the moment
+the child begins inference — and the very first chunk OOMs.
+
+Observed on 12 GB RTX 3060: parent probes ~11.7 GiB free, without
+subtraction the formula picks 13, child loads model, tries 13-page
+chunk = ~13 GB attempted against ~5.2 GiB actually free = immediate
+OOM. Subtracting gives available_for_pages = ~5.2 GiB → estimate
+of 6, which fits with headroom."""
+
 _MIN_CHUNK_SIZE = 1
 _MAX_CHUNK_SIZE = 40
 
@@ -1048,25 +1074,38 @@ def _estimate_initial_chunk_size(
     *,
     safety_factor: float = _DEFAULT_SAFETY_FACTOR,
     per_page_memory_estimate_mib: int = _DEFAULT_PER_PAGE_MEMORY_MIB,
+    model_footprint_estimate_mib: int = _DEFAULT_MODEL_FOOTPRINT_ESTIMATE_MIB,
     min_size: int = _MIN_CHUNK_SIZE,
     max_size: int = _MAX_CHUNK_SIZE,
     env_override: str | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Pure function. Return ``(initial_chunk_size, signals)``.
 
-    The size is an *initial estimate*, not a guarantee that the model
-    will fit. Survival still depends on the per-page memory cost the
-    caller assumes matching the actual document.
+    ``free_vram_bytes`` is the WHOLE-DEVICE free VRAM at the moment
+    of measurement, typically read in the PARENT process before any
+    child has loaded the model. It is NOT what's left after model
+    load — that's why we subtract ``model_footprint_estimate_mib``.
 
-    ``env_override`` takes precedence when it parses to a positive int;
-    it is clamped to ``[min_size, max_size]``. It exists so operators
-    can force a known-good value for a specific site without touching
-    code or having to run calibration.
+    Formula:
+        available_for_pages = max(0, free_vram - model_footprint)
+        usable              = available_for_pages * safety_factor
+        raw                 = usable // per_page_memory
+        chunk_size          = clamp(raw, [min_size, max_size])
 
-    ``free_vram_bytes = None`` (or non-positive) means the caller has
-    no VRAM to give us — CPU-only, driver refused, unsupported GPU.
-    In that case the safest possible size (``min_size``) is returned
-    and the caller decides whether to proceed at all.
+    The size is an *initial estimate*, not a guarantee. Survival still
+    depends on the per-page cost estimate matching the actual document.
+
+    ``env_override`` takes precedence when it parses to a positive int
+    and is clamped to ``[min_size, max_size]``. Operators can force
+    a known-good value for a specific site.
+
+    ``free_vram_bytes = None`` (or non-positive) means CPU-only /
+    driver refused / unsupported GPU. Returns ``min_size`` and lets
+    the caller decide whether to proceed at all.
+
+    ``model_footprint_estimate_mib`` MUST match the model revision +
+    precision the caller intends to run. This is versioned in the
+    safe-size cache key (see ``unlimited_ocr_safe_size_cache``).
 
     ``signals`` records how the estimate was derived so downstream
     diagnostics can explain what happened.
@@ -1076,6 +1115,7 @@ def _estimate_initial_chunk_size(
         "free_vram_bytes": free_vram_bytes,
         "safety_factor": safety_factor,
         "per_page_memory_estimate_mib": per_page_memory_estimate_mib,
+        "model_footprint_estimate_mib": model_footprint_estimate_mib,
         "min_size": min_size,
         "max_size": max_size,
         "env_override_raw": env_override,
@@ -1107,11 +1147,26 @@ def _estimate_initial_chunk_size(
         signals["clamped_to"] = min_size
         return min_size, signals
 
-    usable_bytes = int(free_vram_bytes * safety_factor)
-    raw_estimate = usable_bytes // per_page_bytes
+    # Reserve the model footprint BEFORE handing memory out to pages.
+    free_mib = free_vram_bytes // (1024 * 1024)
+    available_for_pages_mib = max(0, int(free_mib) - int(model_footprint_estimate_mib))
+    signals["free_vram_mib"] = int(free_mib)
+    signals["available_for_pages_mib"] = int(available_for_pages_mib)
+
+    if available_for_pages_mib <= 0:
+        # Card too small (or too busy) to hold the model plus even
+        # one safety-factored page.
+        signals["source"] = "vram-based"
+        signals["usable_mib"] = 0
+        signals["raw_estimate"] = 0
+        signals["clamped_to"] = min_size
+        return min_size, signals
+
+    usable_mib = int(available_for_pages_mib * safety_factor)
+    raw_estimate = usable_mib // per_page_memory_estimate_mib
     clamped = max(min_size, min(max_size, int(raw_estimate)))
     signals["source"] = "vram-based"
-    signals["usable_bytes"] = usable_bytes
+    signals["usable_mib"] = usable_mib
     signals["raw_estimate"] = int(raw_estimate)
     signals["clamped_to"] = clamped
     return clamped, signals

@@ -61,12 +61,35 @@ def _classify_exception_message(exc: str) -> int:
     ``infer_pdf`` never raises — it returns a string like
     ``"chunked_infer_failed: cuda_context_unhealthy_after_oom"`` or
     ``"infer_failed: OutOfMemoryError: ..."``.  Callers examine this
-    string to decide whether a retry is warranted.
+    string to decide whether a retry in a fresh worker is warranted.
+
+    Classification policy (reviewer's Fix 3):
+
+    * ``single_page_oom`` is TERMINAL. Halving further makes no sense
+      — we are already at chunk size 1 and the model cannot fit even
+      one page's activations. Return non-OOM so the parent does NOT
+      spawn another worker.
+    * ``cuda_context_unhealthy`` or an evidenced CUDA OOM
+      (``OutOfMemoryError``, "cuda out of memory", torch 2.12+'s
+      ``AcceleratorError``) → RETRYABLE. Return the corresponding
+      OOM exit code so the parent halves and spawns a fresh worker.
+    * Any other ``chunked_infer_failed`` / ``infer_failed`` reason
+      is DELIBERATELY NOT auto-classified as OOM. Without positive
+      evidence, treat as a non-OOM failure so the parent bails
+      cleanly rather than entering a misleading retry loop.
     """
     lower = (exc or "").lower()
+    # Terminal case first: single-page OOM is not something a smaller
+    # subprocess-halved size can fix.
+    if "single_page_oom" in lower:
+        return EXIT_NON_OOM_INFER_FAILURE
     if "cuda_context_unhealthy" in lower:
         return EXIT_CUDA_CONTEXT_UNHEALTHY
-    if "outofmemoryerror" in lower or "cuda out of memory" in lower or "cuda oom" in lower:
+    if (
+        "outofmemoryerror" in lower
+        or "cuda out of memory" in lower
+        or "cuda oom" in lower
+    ):
         return EXIT_CUDA_OOM
     if "acceleratorerror" in lower:
         # torch 2.12+ wraps CUDA OOM as AcceleratorError.

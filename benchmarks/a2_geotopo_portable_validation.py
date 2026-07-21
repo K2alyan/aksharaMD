@@ -159,10 +159,25 @@ def _run_one(cache_path: Path, asset_id: str, pdf: Path, run_index: int, workdir
         "output_char_count": len(text or ""),
         "output_sha256": _sha256_text(text or ""),
     }
+    last_attempt = attempts[-1] if attempts else {}
+    row["last_attempt_exit_code"] = last_attempt.get("exit_code")
+    row["last_attempt_outcome"] = last_attempt.get("outcome")
+    row["last_attempt_worker_reported_stage"] = last_attempt.get("worker_reported_stage")
+    row["last_attempt_retryable"] = last_attempt.get("retryable")
+    row["last_attempt_next_chunk_size"] = last_attempt.get("next_chunk_size")
+    row["last_attempt_worker_stdout_tail"] = last_attempt.get("worker_stdout_tail")
+
     print(f"  -> {row['completion_status']} pages={row['pages_returned_count']}/{row['total_pages_pdf']} "
           f"initial={row['initial_chunk_size']} final={row['final_chunk_size_used']} "
           f"restarts={row['restart_count']} wall={wall}s sha={row['output_sha256'][:12]}",
           flush=True)
+    if row['completion_status'] == 'FAIL':
+        print(f"     last attempt: exit={row['last_attempt_exit_code']} "
+              f"outcome={row['last_attempt_outcome']} "
+              f"stage={row['last_attempt_worker_reported_stage']} "
+              f"retryable={row['last_attempt_retryable']} "
+              f"next_size={row['last_attempt_next_chunk_size']}",
+              flush=True)
     return row
 
 

@@ -176,7 +176,7 @@ def _resolve_initial_size(
         portable["cache_key"] = cache_key
         records = load_cache(cache_path)
         hit = look_up(records, cache_key)
-        if hit is not None and hit.get("successful_chunk_size", 0) > 0:
+        if hit is not None and int(hit.get("successful_chunk_size") or 0) > 0:
             portable["cache_hit"] = True
             portable["cache_record_snapshot"] = hit
             chosen, reason = choose_initial_size_from_cache_hit(
@@ -190,6 +190,22 @@ def _resolve_initial_size(
             )
             portable["resolution_source"] = "cache"
             portable["resolution_reason"] = reason
+            return chosen, portable
+        if hit is not None and hit.get("smallest_known_failed_size") is not None:
+            # No confirmed success yet, but we know a size that failed.
+            # Bound the formula estimate from above by half the failed
+            # size — reviewer's rule: initial_size = min(formula_size,
+            # max(1, smallest_known_failed_size // 2)).
+            portable["cache_hit"] = True
+            portable["cache_record_snapshot"] = hit
+            failed = int(hit["smallest_known_failed_size"])
+            upper_bound = max(_MIN_CHUNK_SIZE, failed // 2)
+            chosen = min(formula_size, upper_bound)
+            chosen = max(_MIN_CHUNK_SIZE, min(_MAX_CHUNK_SIZE, chosen))
+            portable["resolution_source"] = "formula_bounded_by_known_failure"
+            portable["resolution_reason"] = (
+                f"formula_size={formula_size}_bounded_by_failure_half={upper_bound}"
+            )
             return chosen, portable
 
     portable["resolution_source"] = "formula"
