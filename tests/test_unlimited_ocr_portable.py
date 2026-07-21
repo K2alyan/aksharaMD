@@ -10,16 +10,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_portable import (  # type: ignore
-    _extract_peak_reserved_mib,
-    _resolve_initial_size,
-    infer_pdf_portable,
-)
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+from aksharamd.plugins.ocr_backends.unlimited_ocr.cache import (  # type: ignore
     SoftwareFingerprint,
     build_cache_key,
     load_cache,
     record_success,
+)
+from aksharamd.plugins.ocr_backends.unlimited_ocr.portable import (  # type: ignore
+    _extract_peak_reserved_mib,
+    _resolve_initial_size,
+    infer_pdf_portable,
 )
 
 
@@ -185,7 +185,7 @@ def test_resolve_failure_only_bounds_formula_by_half_failure(tmp_path):
     The next initial size must be bounded by max(1, N // 2), and
     also not exceed what the formula would independently compute.
     """
-    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.cache import (  # type: ignore
         record_failure,
     )
     p = tmp_path / "cache.json"
@@ -207,7 +207,7 @@ def test_resolve_failure_only_bounds_formula_by_half_failure(tmp_path):
 def test_resolve_failure_only_bounds_below_formula(tmp_path):
     """When the failure-half bound is TIGHTER than the formula, use
     the tighter bound."""
-    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.cache import (  # type: ignore
         record_failure,
     )
     p = tmp_path / "cache.json"
@@ -228,7 +228,7 @@ def test_resolve_cache_hit_shrinks_below_known_failure(tmp_path):
     """Reviewer's concern: if size 16 succeeded once and later failed,
     the next run must not start at 16. The portable resolver must
     pass smallest_known_failed_size through to the cache helper."""
-    from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.cache import (  # type: ignore
         record_failure,
     )
     p = tmp_path / "cache.json"

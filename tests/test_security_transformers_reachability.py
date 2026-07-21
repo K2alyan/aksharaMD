@@ -12,6 +12,30 @@ import re
 
 PROD_ROOT = pathlib.Path(__file__).resolve().parents[1] / "aksharamd"
 
+# Unlimited-OCR is the only production code path allowed to construct
+# transformers loaders with ``trust_remote_code=True``. That path uses:
+#
+#   * a pinned model revision (see ``_UNLIMITED_OCR_MODEL_REVISION`` in
+#     ``aksharamd/plugins/ocr_backends/unlimited_ocr/adapter.py``),
+#   * a byte-level trusted-code manifest (``unlimited_ocr_trusted_
+#     manifest.json``) verified before load,
+#   * an audited module-local eval override in ``eval_override.py``,
+#   * a full static review documented in
+#     ``docs/security/unlimited_ocr_static_review_d549bb9d.md``.
+#
+# Any NEW production code that reaches these patterns is a regression
+# that must fail this test. If a legitimate second consumer appears,
+# add it to this allowlist explicitly and expand the reachability
+# review in SECURITY.md — do not silently widen the scope.
+_ALLOWED_PATHS: frozenset[str] = frozenset({
+    # Unlimited-OCR pinned model loader.
+    "plugins/ocr_backends/unlimited_ocr/adapter.py",
+    # Module-local eval override for the pinned model's remote-code
+    # execution surface. Its whole purpose is to sit inside the
+    # ``trust_remote_code=True`` code path with a minimal, audited scope.
+    "plugins/ocr_backends/eval_override.py",
+})
+
 # Regexes that would reach the LightGlue vulnerability if combined with an
 # attacker-controlled model repository ID.  Each pattern targets the
 # executable form (keyword-argument or method call) rather than the bare
@@ -30,6 +54,7 @@ def _iter_prod_source() -> list[pathlib.Path]:
     return [
         p for p in PROD_ROOT.rglob("*.py")
         if "__pycache__" not in p.parts
+        and p.relative_to(PROD_ROOT).as_posix() not in _ALLOWED_PATHS
     ]
 
 

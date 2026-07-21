@@ -8,7 +8,7 @@ Also spot-checks the chunk range helpers and the OOM classifier.
 """
 from __future__ import annotations
 
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_adapter import (  # type: ignore
+from aksharamd.plugins.ocr_backends.unlimited_ocr.adapter import (  # type: ignore
     _CHUNK_REDUCTION_SEQUENCE,
     _DEFAULT_PER_PAGE_MEMORY_MIB,
     _DEFAULT_SAFETY_FACTOR,

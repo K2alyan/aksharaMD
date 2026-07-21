@@ -5,7 +5,7 @@ integration only. The classifier is pure and cheap; test it here.
 """
 from __future__ import annotations
 
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_worker import (  # type: ignore
+from aksharamd.plugins.ocr_backends.unlimited_ocr.worker import (  # type: ignore
     EXIT_CUDA_CONTEXT_UNHEALTHY,
     EXIT_CUDA_OOM,
     EXIT_NON_OOM_INFER_FAILURE,

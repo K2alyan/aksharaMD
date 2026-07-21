@@ -137,16 +137,21 @@ The following Dependabot vulnerability alerts are present in the lockfile but **
 
 **Vulnerable code path:** `transformers.models.lightglue.configuration_lightglue.LightGlueConfig` reads `trust_remote_code` from the untrusted `config.json` of the target model repository and forwards it to `AutoConfig.from_pretrained()` for the sub-model configs. As a result, an attacker who controls the model repository can execute arbitrary Python code even when the caller passes `trust_remote_code=False`.
 
-**Practical exposure in AksharaMD: none.** Evidence-based reachability review 2026-07-17:
+**Practical exposure in AksharaMD: none.** Evidence-based reachability review 2026-07-17, refreshed 2026-07-21 for the Unlimited-OCR production relocation (PR 93):
 
-- `aksharamd/` production source has **0** references to `LightGlue`, `AutoModel`, `AutoConfig`, or `trust_remote_code`.
+- `aksharamd/` production source references `LightGlue`, `AutoModel`, `AutoConfig`, or `trust_remote_code` in exactly TWO files, both allowlisted in `tests/test_security_transformers_reachability.py::_ALLOWED_PATHS`:
+  - `aksharamd/plugins/ocr_backends/unlimited_ocr/adapter.py` — Unlimited-OCR pinned model loader.
+  - `aksharamd/plugins/ocr_backends/eval_override.py` — audited module-local eval override for that specific model's remote-code surface.
+- Both are gated by a byte-level trust manifest (`unlimited_ocr_trusted_manifest.json`) verified against the pinned revision `d549bb9d6a055dbe291408916d66acc2cd5920f6` of `baidu/Unlimited-OCR` before any load. The model repo id is a hardcoded constant; **no user input reaches the model-id argument**.
+- Full static review of the trusted code lives at `docs/security/unlimited_ocr_static_review_d549bb9d.md`. The eval-override sandbox restricts what the remote code may do, and is unit-tested in `tests/test_unlimited_ocr_eval_override.py`.
+- Unlimited-OCR is NOT wired into the default compile flow (PR 94 will add explicit opt-in `--ocr-backend unlimited_ocr` selection). Base installs do not import `torch` or `transformers` at package load — enforced by `tests/test_unlimited_ocr_no_heavy_import.py`.
 - `marker-pdf 1.10.2` (installed) has 0 references across 130 `.py` files.
 - `surya-ocr 0.17.1` (installed) has 0 references across 87 `.py` files.
-- The only production entry into marker is `marker.models.create_model_dict()` called with **no arguments**; every downstream checkpoint is a hardcoded Surya-package constant. No user input reaches any `from_pretrained` call anywhere in the pipeline.
+- The only marker entry point is `marker.models.create_model_dict()` called with **no arguments**; every downstream checkpoint is a hardcoded Surya-package constant. No user input reaches any `from_pretrained` call anywhere in the marker pipeline.
 - Dynamic verification: instantiating marker's full model dict loads 40 `transformers.*` submodules; **zero** are `lightglue.*`.
-- The single `trust_remote_code=True` in the tree lives in `benchmarks/docvqa_eval.py:124` for HuggingFace **Datasets** (not `transformers`), targets a well-known dataset, and is annotated `# nosec B615`.
+- The `trust_remote_code=True` in `benchmarks/docvqa_eval.py:124` is for HuggingFace **Datasets** (not `transformers`), targets a well-known dataset, and is annotated `# nosec B615`.
 
-Effective severity for AksharaMD: **informational**. The vulnerable code is present on disk in a transitive dependency but no code path in this repository reaches it under any supported configuration or CLI flow.
+Effective severity for AksharaMD: **informational**. The vulnerable code is present on disk in a transitive dependency but no code path in this repository reaches it with any attacker-controllable model repository id. The two allowlisted production references target a pinned, byte-verified, statically-reviewed model whose repository id is a compile-time constant.
 
 **Do not silence:** Do not attempt to hide this alert with a `pyproject.toml` version-range trick or an ignore rule for CVE-2026-5241 specifically. Either would mask a future transitive bump that could unlock the vulnerable path. The `>=5.0.0` ignore rule in `.github/dependabot.yml` is a different, coarse block on incompatible major-version bumps and remains appropriate.
 

@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_orchestrator import (  # type: ignore
+from aksharamd.plugins.ocr_backends.unlimited_ocr.orchestrator import (  # type: ignore
     EXIT_CUDA_CONTEXT_UNHEALTHY,
     EXIT_CUDA_OOM,
     EXIT_INFRASTRUCTURE,
@@ -662,7 +662,7 @@ def test_verify_7_orchestrator_invokes_truncation(tmp_path, monkeypatch):
     def _spy(log_path, cap_bytes):
         calls.append((str(log_path), cap_bytes))
 
-    import benchmarks.pdf_benchmark_adapters.unlimited_ocr_orchestrator as orch
+    import aksharamd.plugins.ocr_backends.unlimited_ocr.orchestrator as orch
     monkeypatch.setattr(orch, "_truncate_log_if_over_cap", _spy)
 
     pdf = _sample_pdf(tmp_path)
