@@ -39,12 +39,19 @@ class TesseractBackend(OcrBackend):
         )
 
     def availability(self) -> BackendAvailability:
+        # Tesseract has no GPU/precision/VRAM requirements, so
+        # ``hardware_compatible`` is unconditionally True. The
+        # pytesseract+binary check populates ``model_installed`` (the
+        # tesseract binary is the "model" for this backend).
         try:
             import pytesseract  # type: ignore
         except ImportError as exc:
             return BackendAvailability(
                 is_available=False,
                 reason=f"pytesseract not importable: {exc}",
+                hardware_compatible=True,
+                model_installed=False,
+                runnable_now=False,
             )
         try:
             pytesseract.get_tesseract_version()
@@ -52,8 +59,16 @@ class TesseractBackend(OcrBackend):
             return BackendAvailability(
                 is_available=False,
                 reason=f"tesseract binary not found: {exc}",
+                hardware_compatible=True,
+                model_installed=False,
+                runnable_now=False,
             )
-        return BackendAvailability(is_available=True)
+        return BackendAvailability(
+            is_available=True,
+            hardware_compatible=True,
+            model_installed=True,
+            runnable_now=True,
+        )
 
     def process(self, request: OcrPageRequest) -> list[OcrPageResult]:
         results: list[OcrPageResult] = []

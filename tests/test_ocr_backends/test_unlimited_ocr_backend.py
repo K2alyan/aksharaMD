@@ -175,6 +175,73 @@ def test_availability_when_hf_hub_missing(tmp_path):
     assert "huggingface_hub" in avail.reason.lower()
 
 
+def test_availability_state_flags_torch_missing():
+    """Torch absent → hardware_compatible=False, model_installed
+    intentionally left True (unknown; not what failed here)."""
+    backend = UnlimitedOcrBackend()
+    _orig = __import__
+
+    def _stub(name, *a, **kw):
+        if name == "torch":
+            raise ImportError("no torch")
+        return _orig(name, *a, **kw)
+
+    with patch("builtins.__import__", side_effect=_stub):
+        avail = backend.availability()
+    assert avail.is_available is False
+    assert avail.hardware_compatible is False
+    assert avail.runnable_now is False
+
+
+def test_availability_state_flags_bf16_unsupported():
+    backend = UnlimitedOcrBackend()
+    with patch.dict(sys.modules, {"torch": _fake_torch(bf16_supported=False)}):
+        avail = backend.availability()
+    assert avail.is_available is False
+    assert avail.hardware_compatible is False
+    assert avail.model_installed is True  # never got that far, no reason to mark False
+    assert avail.runnable_now is False
+
+
+def test_availability_state_flags_model_missing(tmp_path):
+    """Model snapshot absent → hardware_compatible stays True, only
+    model_installed and runnable_now flip. PR 94c can produce the
+    'install the model' message directly."""
+    backend = UnlimitedOcrBackend()
+    fake_manifest = tmp_path / "trusted.json"
+    fake_manifest.write_text("{}", encoding="utf-8")
+    with patch.dict(sys.modules, {
+        "torch": _fake_torch(),
+        "huggingface_hub": _fake_hf_hub(cached=False),
+    }), patch(
+        "aksharamd.plugins.ocr_backends.UNLIMITED_OCR_TRUSTED_MANIFEST_PATH",
+        fake_manifest,
+    ):
+        avail = backend.availability()
+    assert avail.is_available is False
+    assert avail.hardware_compatible is True
+    assert avail.model_installed is False
+    assert avail.runnable_now is False
+
+
+def test_availability_state_flags_all_pass(tmp_path):
+    backend = UnlimitedOcrBackend()
+    fake_manifest = tmp_path / "trusted.json"
+    fake_manifest.write_text("{}", encoding="utf-8")
+    with patch.dict(sys.modules, {
+        "torch": _fake_torch(),
+        "huggingface_hub": _fake_hf_hub(cached=True),
+    }), patch(
+        "aksharamd.plugins.ocr_backends.UNLIMITED_OCR_TRUSTED_MANIFEST_PATH",
+        fake_manifest,
+    ):
+        avail = backend.availability()
+    assert avail.is_available is True
+    assert avail.hardware_compatible is True
+    assert avail.model_installed is True
+    assert avail.runnable_now is True
+
+
 def test_availability_when_all_checks_pass(tmp_path):
     backend = UnlimitedOcrBackend()
     fake_manifest = tmp_path / "trusted.json"

@@ -84,13 +84,17 @@ class UnlimitedOcrBackend(OcrBackend):
     _MIN_VRAM_MIB = 7000
 
     def availability(self) -> BackendAvailability:
-        # Torch importable?
+        # Torch importable? Absent torch is a hardware-stack
+        # incompatibility, not "installed but broken."
         try:
             import torch  # type: ignore
         except ImportError as exc:
             return BackendAvailability(
                 is_available=False,
                 reason=f"torch not importable: {exc}",
+                hardware_compatible=False,
+                model_installed=True,  # can't tell — skip that state
+                runnable_now=False,
             )
         # CUDA reachable? Probe without touching a device — the probe
         # itself must be side-effect-free.
@@ -105,6 +109,8 @@ class UnlimitedOcrBackend(OcrBackend):
             return BackendAvailability(
                 is_available=False,
                 reason="CUDA not available on this device",
+                hardware_compatible=False,
+                runnable_now=False,
             )
         # BF16 supported? The model runs in bfloat16 at the pinned
         # revision. Cards without native bf16 (Turing / Volta / older)
@@ -128,6 +134,8 @@ class UnlimitedOcrBackend(OcrBackend):
                     "pinned revision requires bf16. Turing / Volta / older "
                     "cards are not supported."
                 ),
+                hardware_compatible=False,
+                runnable_now=False,
             )
         # Sufficient VRAM to host the model at all? Read the TOTAL
         # memory (not the free memory) so this is a hardware-capability
@@ -152,6 +160,8 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"{self._MIN_VRAM_MIB} MiB minimum required to host "
                     "the Unlimited-OCR model at its pinned bf16 revision"
                 ),
+                hardware_compatible=False,
+                runnable_now=False,
             )
         # Trust manifest present? The full byte-level verification runs
         # inside infer_pdf_portable at model load; availability() only
@@ -165,6 +175,8 @@ class UnlimitedOcrBackend(OcrBackend):
                     "Unlimited-OCR trusted manifest missing at "
                     f"{UNLIMITED_OCR_TRUSTED_MANIFEST_PATH}"
                 ),
+                model_installed=False,
+                runnable_now=False,
             )
         # Model snapshot cached locally? An "available" backend means
         # `process()` should be able to run without downloading anything
@@ -181,6 +193,8 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"huggingface_hub not importable, cannot verify model "
                     f"snapshot presence: {exc}"
                 ),
+                model_installed=False,
+                runnable_now=False,
             )
         from .unlimited_ocr.adapter import (
             _UNLIMITED_OCR_MODEL_REPO,
@@ -199,8 +213,16 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"revision {_UNLIMITED_OCR_MODEL_REVISION}. "
                     "Install it before selecting this backend."
                 ),
+                model_installed=False,
+                runnable_now=False,
             )
-        return BackendAvailability(is_available=True)
+        # All three predicates hold.
+        return BackendAvailability(
+            is_available=True,
+            hardware_compatible=True,
+            model_installed=True,
+            runnable_now=True,
+        )
 
     def process(self, request: OcrPageRequest) -> list[OcrPageResult]:
         # Empty batch: one-in / one-out contract means an empty
