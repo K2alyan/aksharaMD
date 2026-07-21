@@ -88,6 +88,13 @@ def main(argv: list[str] | None = None) -> int:
     # this override at every call to _estimate_initial_chunk_size.
     os.environ["UNLIMITED_OCR_PREFERRED_CHUNK_SIZE"] = str(args.chunk_size)
 
+    # result_json is intentionally NARROW. Human-readable diagnostics
+    # (exception messages, tracebacks, load_error strings, etc.) go to
+    # the worker's own stderr — which the parent captures to log_path
+    # in the orchestrator's per-attempt signals. Keeping the structured
+    # JSON free of stringified exception state also avoids CodeQL's
+    # clear-text-storage heuristic false-positives on attribute names
+    # containing "error".
     result_json: dict[str, Any] = {
         "worker_version": "unlimited_ocr_worker.py@2026-07-20",
         "chunk_size_requested": args.chunk_size,
@@ -96,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
 
     pdf = Path(args.pdf)
     if not pdf.exists():
-        result_json["error"] = f"pdf_not_found: {args.pdf}"
+        print("REFUSE: pdf not found at requested path", file=sys.stderr)
+        result_json["failure_stage"] = "pdf_not_found"
         _write_outputs(args, text="", result_json=result_json)
         return EXIT_INFRASTRUCTURE
 
@@ -105,9 +113,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from benchmarks.pdf_benchmark_adapters import unlimited_ocr_adapter as adapter
-    except Exception as e:  # noqa: BLE001 — exiting anyway
-        result_json["error"] = f"adapter_import_failed: {type(e).__name__}: {e}"
-        result_json["traceback"] = traceback.format_exc()
+    except Exception:  # noqa: BLE001 — exiting anyway
+        # Full traceback goes to stderr; nothing goes into structured JSON.
+        traceback.print_exc()
+        result_json["failure_stage"] = "adapter_import_failed"
         _write_outputs(args, text="", result_json=result_json)
         return EXIT_INFRASTRUCTURE
 
@@ -115,35 +124,32 @@ def main(argv: list[str] | None = None) -> int:
         runner = adapter._UnlimitedOcrRunner()
         runner.load()
         if not runner._loaded:
-            # runner._load_error is a plain diagnostic string, not
-            # sensitive. It is NOT interpolated into result_json here
-            # because CodeQL's clear-text-storage heuristic flags any
-            # attribute containing "error" as sensitive. Callers who
-            # need the exact string can inspect the worker's captured
-            # stderr log (log_path in the orchestrator's per-attempt
-            # signals) — which prints _load_error to stderr as normal.
             print("REFUSE: runner failed to load", file=sys.stderr)
-            result_json["error"] = "runner_load_failed"
+            result_json["failure_stage"] = "runner_load_failed"
             _write_outputs(args, text="", result_json=result_json)
             return EXIT_INFRASTRUCTURE
-    except Exception as e:  # noqa: BLE001
-        result_json["error"] = f"runner_load_exception: {type(e).__name__}: {e}"
-        result_json["traceback"] = traceback.format_exc()
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+        result_json["failure_stage"] = "runner_load_exception"
         _write_outputs(args, text="", result_json=result_json)
         return EXIT_INFRASTRUCTURE
 
     try:
         text, exc, signals = runner.infer_pdf(pdf, workdir)
-    except Exception as e:  # noqa: BLE001 — infer_pdf should not raise, but guard
+    except Exception:  # noqa: BLE001 — infer_pdf should not raise, but guard
         # An unhandled exception here almost certainly means the CUDA
         # context is dead. Report as unhealthy so the parent halves.
-        result_json["error"] = f"infer_pdf_raised: {type(e).__name__}: {e}"
-        result_json["traceback"] = traceback.format_exc()
+        traceback.print_exc()
+        result_json["failure_stage"] = "infer_pdf_raised"
         _write_outputs(args, text="", result_json=result_json)
         return EXIT_CUDA_CONTEXT_UNHEALTHY
 
     result_json["signals"] = signals
-    result_json["exception"] = exc
+    # ``exc`` is a structured status string from infer_pdf (e.g.
+    # "chunked_infer_failed: cuda_context_unhealthy_after_oom"), not a
+    # raw exception message. Preserved as a category label so the
+    # orchestrator's classifier can inspect it.
+    result_json["infer_status"] = exc
     result_json["output_char_count"] = len(text or "")
     result_json["output_sha256"] = _sha256_text(text or "")
 

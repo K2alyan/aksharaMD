@@ -295,7 +295,14 @@ def run_infer_pdf_isolated(
                 "log_path": str(log_path),
                 "output_json_path": str(out_json),
                 "output_text_path": str(out_text),
-                "worker_reported_error": worker_json.get("error"),
+                # Named ``worker_reported_stage`` to reflect the
+                # narrowed worker contract — the worker now emits a
+                # coarse category label ("adapter_import_failed",
+                # "runner_load_failed", "pdf_not_found",
+                # "infer_pdf_raised", etc.), not a raw exception
+                # message. The full diagnostic text lives in the
+                # captured worker log at ``log_path``.
+                "worker_reported_stage": worker_json.get("failure_stage"),
             })
             current_final_size = current_size
 

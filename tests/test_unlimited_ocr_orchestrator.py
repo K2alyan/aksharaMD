@@ -142,7 +142,7 @@ def test_first_attempt_success(tmp_path):
 def test_one_oom_then_success_halves_size(tmp_path):
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([
-        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {"error": "oom"}},
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {"failure_stage": "oom"}},
         {"exit_code": EXIT_OK, "text": "done",
          "json": {"signals": {"page_count": 10},
                   "output_char_count": 4, "output_sha256": "def"}},
@@ -163,7 +163,7 @@ def test_context_unhealthy_treated_same_as_oom(tmp_path):
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([
         {"exit_code": EXIT_CUDA_CONTEXT_UNHEALTHY, "text": "",
-         "json": {"error": "cuda_context_unhealthy"}},
+         "json": {"failure_stage": "cuda_context_unhealthy"}},
         {"exit_code": EXIT_OK, "text": "ok",
          "json": {"signals": {}, "output_char_count": 2, "output_sha256": "x"}},
     ])
@@ -241,7 +241,7 @@ def test_non_oom_failure_does_not_retry(tmp_path):
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([
         {"exit_code": EXIT_NON_OOM_INFER_FAILURE, "text": "",
-         "json": {"error": "something else"}},
+         "json": {"failure_stage": "something else"}},
         # More scripted steps would raise if consumed — assert they aren't.
         {"exit_code": EXIT_OK, "text": "should never run", "json": {}},
     ])
@@ -259,7 +259,7 @@ def test_infrastructure_error_does_not_retry(tmp_path):
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([
         {"exit_code": EXIT_INFRASTRUCTURE, "text": "",
-         "json": {"error": "import broken"}},
+         "json": {"failure_stage": "import broken"}},
         {"exit_code": EXIT_OK, "text": "unreached", "json": {}},
     ])
     text, exc, signals = run_infer_pdf_isolated(
@@ -334,11 +334,11 @@ def test_total_wall_seconds_accumulates_across_attempts(tmp_path):
     assert signals["total_wall_seconds"] == pytest.approx(195.0)
 
 
-def test_worker_reported_error_captured_in_attempt(tmp_path):
+def test_worker_reported_stage_captured_in_attempt(tmp_path):
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([
         {"exit_code": EXIT_CUDA_OOM, "text": "",
-         "json": {"error": "detailed_oom_message"}},
+         "json": {"failure_stage": "detailed_oom_message"}},
         {"exit_code": EXIT_OK, "text": "y",
          "json": {"signals": {}, "output_char_count": 1, "output_sha256": "y"}},
     ])
@@ -346,7 +346,7 @@ def test_worker_reported_error_captured_in_attempt(tmp_path):
         pdf, tmp_path / "workdir", initial_chunk_size=8,
         worker_runner=fake,
     )
-    assert signals["attempts"][0]["worker_reported_error"] == "detailed_oom_message"
+    assert signals["attempts"][0]["worker_reported_stage"] == "detailed_oom_message"
 
 
 # ── Input validation ────────────────────────────────────────────────────
@@ -481,7 +481,7 @@ def test_verify_5_partial_text_from_failed_worker_never_returned(tmp_path):
         # a document before dying. The parent must ignore this text.
         {"exit_code": EXIT_CUDA_OOM,
          "text": "partial document that should NEVER surface",
-         "json": {"error": "oom"}},
+         "json": {"failure_stage": "oom"}},
         {"exit_code": EXIT_OK, "text": "complete document",
          "json": {"signals": {}, "output_char_count": 18, "output_sha256": "aa"}},
     ])
@@ -502,7 +502,7 @@ def test_verify_5_partial_text_ignored_on_terminal_failure(tmp_path):
     fake = _FakeWorker([
         {"exit_code": EXIT_CUDA_OOM,
          "text": "please do not use this",
-         "json": {"error": "oom"}},
+         "json": {"failure_stage": "oom"}},
     ])
     text, exc, signals = run_infer_pdf_isolated(
         pdf, tmp_path / "workdir", initial_chunk_size=8, max_restarts=0,
