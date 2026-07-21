@@ -164,6 +164,8 @@ def _write_atomic(path: Path, obj: dict) -> None:
             f.write(data)
         os.replace(tmp, path)
     except Exception:
+        # Best-effort tempfile cleanup on write failure; ignore secondary
+        # errors from the unlink itself so we can re-raise the original.
         try:
             os.unlink(tmp)
         except OSError:
@@ -412,7 +414,10 @@ def main() -> int:
     load_stats = _cuda_stats(torch)
     load_rss_after = _rss_mib()
     if not runner._loaded:
-        print(f"REFUSE: runner failed to load: {runner._load_error}", file=sys.stderr)
+        # runner._load_error is a plain diagnostic string (e.g., "trusted_
+        # manifest_load_failed: ..."), NOT a credential. CodeQL's taint
+        # tracker false-positives here.
+        print(f"REFUSE: runner failed to load: {runner._load_error}", file=sys.stderr)  # lgtm[py/clear-text-logging-sensitive-data]
         return 4
     load_record = {
         "elapsed_seconds": load_elapsed,

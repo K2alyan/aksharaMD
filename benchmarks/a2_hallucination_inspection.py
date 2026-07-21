@@ -130,7 +130,8 @@ def main() -> int:
     runner.load()
     load_elapsed = round(time.perf_counter() - load_t0, 2)
     if not runner._loaded:
-        print(f"REFUSE: runner failed: {runner._load_error}", file=sys.stderr)
+        # runner._load_error is a plain diagnostic string, NOT a credential.
+        print(f"REFUSE: runner failed: {runner._load_error}", file=sys.stderr)  # lgtm[py/clear-text-logging-sensitive-data]
         return 3
     print(f"Loaded in {load_elapsed}s", file=sys.stderr)
 
@@ -156,6 +157,8 @@ def main() -> int:
                 with fitz.open(str(pdf)) as doc:
                     hidden = sum(len(page.get_text() or "") for page in doc)
             except Exception:
+                # Hidden-chars is an optional context signal; if PyMuPDF
+                # cannot parse the file, leave it as None and continue.
                 pass
             signals = _repetition_signals(text or "")
             proposed_class, proposed_reason = _classify_manual(text or "", signals, hidden)
