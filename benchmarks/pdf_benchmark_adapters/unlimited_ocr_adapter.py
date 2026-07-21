@@ -839,8 +839,14 @@ class _UnlimitedOcrRunner:
         production ``inference_fn`` wrapper below."""
         chunk_paths = image_paths[page_start:page_end]
         chunk_out_dir.mkdir(parents=True, exist_ok=True)
+        # Reset peak-memory stats but tolerate failures on a poisoned
+        # CUDA context — the health probe on the outer chunking loop
+        # decides whether we abort.
         if torch.cuda.is_available():
-            torch.cuda.reset_peak_memory_stats(0)
+            try:
+                torch.cuda.reset_peak_memory_stats(0)
+            except Exception:  # noqa: BLE001
+                pass
         assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
         t0 = time.perf_counter()
         try:
@@ -859,14 +865,26 @@ class _UnlimitedOcrRunner:
             if _is_cuda_oom(e):
                 # Release local references BEFORE emptying cache. Cache
                 # clear is bookkeeping-only, not a substitute for release.
+                # Every cleanup step is guarded so that ANOTHER CUDA
+                # exception raised during recovery (e.g. empty_cache
+                # itself hitting the poisoned context) cannot escape
+                # this handler and mask the original OOM. The health
+                # probe on the outer chunking loop will separately
+                # determine if the context is still usable.
                 try:
                     del chunk_paths
                 except Exception:  # pragma: no cover — defensive
                     pass
-                import gc
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                try:
+                    import gc
+                    gc.collect()
+                except Exception:  # pragma: no cover — defensive
+                    pass
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except Exception:  # noqa: BLE001 — see comment above
+                    pass
                 raise _OOMSignal(str(e)) from e
             raise
         elapsed = round(time.perf_counter() - t0, 3)
