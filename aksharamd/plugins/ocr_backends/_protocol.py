@@ -43,13 +43,32 @@ OcrFailureKind = Literal[
 class BackendAvailability:
     """Whether a backend is usable right now.
 
-    ``reason`` is empty when ``is_available`` is True. When False,
-    ``reason`` must be a short human-readable string suitable for a
-    CLI error message (e.g. ``"torch not importable"``).
+    Three orthogonal predicates describe the backend's state; the
+    ``is_available`` boolean is their conjunction and remains the
+    primary field callers should branch on.
+
+    * ``hardware_compatible`` — the physical device meets this
+      backend's minimum requirements (CUDA + bf16 + VRAM floor for
+      GPU backends; always True for CPU-only backends like Tesseract).
+    * ``model_installed`` — the artefacts the backend needs to run
+      (model weights, tesseract binary, pinned trust manifest) are
+      present locally. A False here typically means the user needs
+      to install something rather than replace hardware.
+    * ``runnable_now`` — nothing transient is blocking. Reserved for
+      future use (e.g. "another OCR run is holding the GPU"); for
+      now, mirrors ``is_available``.
+
+    Callers that want to render distinct CLI messages ("install the
+    model" vs "unsupported GPU") inspect the three flags directly.
+    ``reason`` records the FIRST failing predicate's actionable text
+    and remains empty when ``is_available`` is True.
     """
 
     is_available: bool
     reason: str = ""
+    hardware_compatible: bool = True
+    model_installed: bool = True
+    runnable_now: bool = True
 
 
 @dataclass
@@ -109,6 +128,11 @@ class OcrPageResult:
     ``is_ok=False`` means the page failed and ``failure`` describes why.
     Callers must not silently drop such pages — the compile flow is
     expected to surface a per-page warning.
+
+    ``meta`` is a free-form dict of backend-specific per-page metadata.
+    Backends that batch output (e.g. UnlimitedOcrBackend's aggregated-
+    markdown convention) use it to describe the aggregation to a
+    dispatch layer without changing the primary shape.
     """
 
     page_index: int
@@ -116,6 +140,7 @@ class OcrPageResult:
     blocks: list[Any] = field(default_factory=list)
     is_ok: bool = True
     failure: OcrFailure | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable

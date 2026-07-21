@@ -18,7 +18,13 @@ def test_backend_availability_equality_and_asdict():
     a = BackendAvailability(is_available=True)
     b = BackendAvailability(is_available=True, reason="")
     assert a == b
-    assert asdict(a) == {"is_available": True, "reason": ""}
+    assert asdict(a) == {
+        "is_available": True,
+        "reason": "",
+        "hardware_compatible": True,
+        "model_installed": True,
+        "runnable_now": True,
+    }
 
 
 def test_backend_availability_reason_on_unavailable():

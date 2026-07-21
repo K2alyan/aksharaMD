@@ -53,6 +53,33 @@ def test_tesseract_availability_when_binary_ok():
         avail = TesseractBackend().availability()
     assert avail.is_available is True
     assert avail.reason == ""
+    # Three-state check: Tesseract has no GPU dependency, so
+    # hardware_compatible is always True. The tesseract binary is
+    # the "model" for this backend.
+    assert avail.hardware_compatible is True
+    assert avail.model_installed is True
+    assert avail.runnable_now is True
+
+
+def test_tesseract_availability_state_flags_when_binary_missing():
+    """When pytesseract is missing, hardware stays compatible (no
+    GPU dependency) — only model_installed flips."""
+    backend = TesseractBackend()
+    fake_import_error = ImportError("No module named 'pytesseract'")
+
+    with patch(
+        "builtins.__import__",
+        side_effect=lambda name, *a, **kw: (
+            (_ for _ in ()).throw(fake_import_error)
+            if name == "pytesseract"
+            else __import__(name, *a, **kw)
+        ),
+    ):
+        avail = backend.availability()
+    assert avail.is_available is False
+    assert avail.hardware_compatible is True
+    assert avail.model_installed is False
+    assert avail.runnable_now is False
 
 
 @pytest.fixture
