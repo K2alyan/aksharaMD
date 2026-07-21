@@ -22,6 +22,25 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
 # ---------------------------------------------------------------------------
+# Stable output-field names used by ``aksharamd doctor --json`` and by the
+# structured availability details below. The names appear in scripts and in
+# support tooling; renames are a breaking change and require a deliberate PR
+# that also updates docs and any consumer.
+# ---------------------------------------------------------------------------
+
+# Every key that appears in ``BackendAvailabilityDetails`` (as an attribute
+# name). Tests assert this frozenset against dataclass fields so silent
+# additions are caught.
+BACKEND_AVAILABILITY_DETAIL_KEYS: frozenset[str] = frozenset({
+    "device_name",
+    "vram_mib_total",
+    "min_vram_mib",
+    "bf16_supported",
+    "model_snapshot_present",
+    "model_snapshot_verified",
+})
+
+# ---------------------------------------------------------------------------
 # Closed enums as Literal aliases. Using ``Literal`` catches misspellings at
 # type-check time (e.g. a future backend claiming ``emits="markdowns"`` or
 # reporting ``kind="oom"``) that a dispatch layer would otherwise silently
@@ -37,6 +56,29 @@ OcrFailureKind = Literal[
     "timeout",
     "other",
 ]
+
+
+@dataclass
+class BackendAvailabilityDetails:
+    """Structured probe outputs for a backend's availability check.
+
+    Each field is optional (defaults to ``None``) so a backend records
+    only the signals it actually observed. GPU-less backends leave
+    everything ``None``; a GPU backend fills each field progressively
+    as the probe advances and stops at the first hard failure.
+
+    Field names are part of the ``doctor --json`` output contract —
+    see ``BACKEND_AVAILABILITY_DETAIL_KEYS`` at module top for the
+    frozen set. Adding a field requires updating that frozenset and
+    a matching test.
+    """
+
+    device_name: str | None = None
+    vram_mib_total: int | None = None
+    min_vram_mib: int | None = None
+    bf16_supported: bool | None = None
+    model_snapshot_present: bool | None = None
+    model_snapshot_verified: bool | None = None
 
 
 @dataclass
@@ -62,6 +104,10 @@ class BackendAvailability:
     model" vs "unsupported GPU") inspect the three flags directly.
     ``reason`` records the FIRST failing predicate's actionable text
     and remains empty when ``is_available`` is True.
+
+    ``details`` (optional) carries probe-specific numbers a diagnostic
+    surface can render — device name, VRAM, BF16 support, model
+    snapshot presence. Backends without such state leave it ``None``.
     """
 
     is_available: bool
@@ -69,6 +115,7 @@ class BackendAvailability:
     hardware_compatible: bool = True
     model_installed: bool = True
     runnable_now: bool = True
+    details: BackendAvailabilityDetails | None = None
 
 
 @dataclass

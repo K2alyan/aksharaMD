@@ -1318,11 +1318,73 @@ def mcp_config(write: bool):
         )
 
 
+def _probe_ocr_backends() -> dict[str, dict]:
+    """Probe every registered OCR backend and return a JSON-friendly
+    map keyed by backend name.
+
+    Each value has ``capabilities`` and ``availability`` sub-dicts
+    matching the frozen ``doctor --json`` schema. All heavy imports
+    stay lazy inside each backend's ``availability()`` — failing
+    imports become structured availability output, not exceptions.
+    """
+    from dataclasses import asdict
+
+    from aksharamd.plugins.ocr_backends import (
+        available_backends,
+        get_backend,
+    )
+
+    out: dict[str, dict] = {}
+    for name in available_backends():
+        try:
+            backend = get_backend(name)
+        except Exception as exc:  # pragma: no cover - defensive
+            out[name] = {
+                "capabilities": None,
+                "availability": {
+                    "is_available": False,
+                    "reason": f"backend registry raised: {type(exc).__name__}: {exc}",
+                    "hardware_compatible": None,
+                    "model_installed": None,
+                    "runnable_now": None,
+                    "details": None,
+                },
+            }
+            continue
+        try:
+            caps = backend.capabilities()
+            caps_out = asdict(caps)
+        except Exception as exc:  # pragma: no cover - defensive
+            caps_out = {"error": f"capabilities() raised: {type(exc).__name__}: {exc}"}
+        try:
+            avail = backend.availability()
+            avail_out = asdict(avail)
+        except Exception as exc:
+            # Reviewer's rule: a backend probe failure becomes
+            # structured availability output, not an exception.
+            avail_out = {
+                "is_available": False,
+                "reason": f"availability() raised: {type(exc).__name__}: {exc}",
+                "hardware_compatible": None,
+                "model_installed": None,
+                "runnable_now": None,
+                "details": None,
+            }
+        out[name] = {"capabilities": caps_out, "availability": avail_out}
+    return out
+
+
 @main.command()
 @click.option("--strict", is_flag=True, default=False,
               help="Exit with code 1 if any optional feature is missing.")
-def doctor(strict: bool):
-    """Check system readiness: Python version, optional features, and supported format count."""
+@click.option("--json", "json_out", is_flag=True, default=False,
+              help="Emit a single deterministic JSON object with python, "
+                   "optional_dependencies, and ocr_backends sections. "
+                   "Suppresses all Rich formatting.")
+def doctor(strict: bool, json_out: bool):
+    """Check system readiness: Python version, optional features, registered
+    OCR backends, and supported format count."""
+    import json
     import sys
 
     from aksharamd import __version__
@@ -1331,6 +1393,50 @@ def doctor(strict: bool):
     py = sys.version_info
     py_str = f"{py.major}.{py.minor}.{py.micro}"
     py_ok = py >= (3, 11)
+
+    # ── Optional features ─────────────────────────────────────────────────────
+    deps = _check_optional_deps()
+    all_ok = all(dep["ok"] for dep in deps)
+
+    # ── OCR backends (registered) ─────────────────────────────────────────────
+    # Registered != runnable. This section reports every backend that ships
+    # with aksharamd and its independent readiness state.
+    backends = _probe_ocr_backends()
+
+    # ── Format coverage summary ───────────────────────────────────────────────
+    import aksharamd.plugins.registry as _reg
+
+    from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
+    n_parsers = len(_reg._parsers)
+
+    if json_out:
+        # Deterministic machine-readable output. No decorative strings,
+        # no ANSI, only booleans / integers / nulls / plain strings.
+        # The schema is stable — see docs.
+        payload = {
+            "python": {
+                "version": py_str,
+                "version_info": [py.major, py.minor, py.micro],
+                "meets_minimum": py_ok,
+                "minimum": "3.11",
+            },
+            "optional_dependencies": {
+                dep["name"]: {
+                    "installed": bool(dep["ok"]),
+                    "purpose": dep["what"],
+                    "install_command": dep["install"],
+                    "note": dep.get("note"),
+                }
+                for dep in deps
+            },
+            "ocr_backends": backends,
+            "registered_format_extensions": n_parsers,
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        if strict and not (all_ok and py_ok):
+            raise SystemExit(1)
+        return
+
     py_status = "[bold green] ok [/]" if py_ok else "[bold red] too old [/]"
     py_note = "" if py_ok else "  [dim]AksharaMD requires Python >=3.11[/]"
 
@@ -1342,16 +1448,12 @@ def doctor(strict: bool):
         )
     )
 
-    # ── Optional features ─────────────────────────────────────────────────────
-    deps = _check_optional_deps()
-
     t = Table(box=box.ROUNDED, show_header=True, header_style="bold cyan", padding=(0, 1))
     t.add_column("Optional Feature", min_width=22)
     t.add_column("Status", justify="center", min_width=13)
     t.add_column("What it enables")
     t.add_column("Install command / URL", min_width=36)
 
-    all_ok = True
     for dep in deps:
         if dep["ok"]:
             status = "[bold green] installed [/]"
@@ -1359,7 +1461,6 @@ def doctor(strict: bool):
         else:
             status = "[bold red]  missing  [/]"
             install_cell = dep["install"]
-            all_ok = False
         note = f"\n  [dim]{dep['note']}[/]" if dep.get("note") and not dep["ok"] else ""
         t.add_row(dep["name"], status, dep["what"], install_cell + note)
 
@@ -1374,11 +1475,58 @@ def doctor(strict: bool):
             "Install only the ones you need — none are required for core usage.[/dim]"
         )
 
-    # ── Format coverage summary ───────────────────────────────────────────────
-    import aksharamd.plugins.registry as _reg
+    # ── OCR Backends (Registered) — Rich rendering ────────────────────────────
+    bt = Table(box=box.ROUNDED, show_header=True, header_style="bold cyan", padding=(0, 1))
+    bt.add_column("Backend", min_width=14)
+    bt.add_column("Runnable now", justify="center", min_width=13)
+    bt.add_column("Hardware", justify="center", min_width=10)
+    bt.add_column("Model", justify="center", min_width=10)
+    bt.add_column("Details / reason")
 
-    from .plugins import parsers as _parsers_pkg  # noqa: F401 — trigger registration
-    n_parsers = len(_reg._parsers)
+    for name, info in backends.items():
+        avail = info["availability"]
+        runnable = avail.get("runnable_now")
+        hw = avail.get("hardware_compatible")
+        mdl = avail.get("model_installed")
+
+        def _mark(v):
+            if v is True:
+                return "[bold green] yes [/]"
+            if v is False:
+                return "[bold red] no [/]"
+            return "[dim] — [/]"
+
+        det = avail.get("details") or {}
+        det_parts: list[str] = []
+        if det.get("device_name"):
+            det_parts.append(f"device={det['device_name']}")
+        if det.get("vram_mib_total") is not None:
+            det_parts.append(f"vram={det['vram_mib_total']}MiB")
+        if det.get("min_vram_mib") is not None:
+            det_parts.append(f"min_vram={det['min_vram_mib']}MiB")
+        if det.get("bf16_supported") is not None:
+            det_parts.append(f"bf16={det['bf16_supported']}")
+        if det.get("model_snapshot_present") is not None:
+            det_parts.append(f"snapshot_present={det['model_snapshot_present']}")
+        if det.get("model_snapshot_verified") is not None:
+            det_parts.append(f"snapshot_verified={det['model_snapshot_verified']}")
+        det_line = ", ".join(det_parts)
+        reason = avail.get("reason") or ""
+        cell = det_line
+        if reason:
+            cell = (cell + "\n  [dim]" + reason + "[/]") if cell else f"[dim]{reason}[/]"
+        if not cell:
+            cell = "[dim]—[/]"
+
+        bt.add_row(name, _mark(runnable), _mark(hw), _mark(mdl), cell)
+
+    console.print(Panel(
+        bt,
+        title="[bold]OCR Backends (Registered)[/]",
+        subtitle="[dim]Registered != runnable. Use --ocr-backend to opt in explicitly.[/]",
+        border_style="blue",
+    ))
+
     console.print(
         f"[dim]Registered format extensions: [bold]{n_parsers}[/bold]  "
         "(run [bold]aksharamd formats[/bold] for the full list)[/dim]"

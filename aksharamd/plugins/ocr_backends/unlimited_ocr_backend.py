@@ -40,6 +40,7 @@ from typing import ClassVar
 
 from ._protocol import (
     BackendAvailability,
+    BackendAvailabilityDetails,
     BackendCapabilities,
     OcrBackend,
     OcrFailure,
@@ -84,6 +85,12 @@ class UnlimitedOcrBackend(OcrBackend):
     _MIN_VRAM_MIB = 7000
 
     def availability(self) -> BackendAvailability:
+        # ``details`` accumulates probe outputs as we advance. Every
+        # failure path attaches the details collected so far so the
+        # diagnostic surface (``aksharamd doctor``) can show partial
+        # state ("hardware OK, model missing") without re-probing.
+        details = BackendAvailabilityDetails(min_vram_mib=self._MIN_VRAM_MIB)
+
         # Torch importable? Absent torch is a hardware-stack
         # incompatibility, not "installed but broken."
         try:
@@ -95,6 +102,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 hardware_compatible=False,
                 model_installed=True,  # can't tell — skip that state
                 runnable_now=False,
+                details=details,
             )
         # CUDA reachable? Probe without touching a device — the probe
         # itself must be side-effect-free.
@@ -104,6 +112,7 @@ class UnlimitedOcrBackend(OcrBackend):
             return BackendAvailability(
                 is_available=False,
                 reason=f"torch.cuda probe raised: {type(exc).__name__}: {exc}",
+                details=details,
             )
         if not has_cuda:
             return BackendAvailability(
@@ -111,6 +120,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 reason="CUDA not available on this device",
                 hardware_compatible=False,
                 runnable_now=False,
+                details=details,
             )
         # BF16 supported? The model runs in bfloat16 at the pinned
         # revision. Cards without native bf16 (Turing / Volta / older)
@@ -125,7 +135,9 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"torch.cuda.is_bf16_supported probe raised: "
                     f"{type(exc).__name__}: {exc}"
                 ),
+                details=details,
             )
+        details.bf16_supported = bf16_ok
         if not bf16_ok:
             return BackendAvailability(
                 is_available=False,
@@ -136,13 +148,15 @@ class UnlimitedOcrBackend(OcrBackend):
                 ),
                 hardware_compatible=False,
                 runnable_now=False,
+                details=details,
             )
         # Sufficient VRAM to host the model at all? Read the TOTAL
         # memory (not the free memory) so this is a hardware-capability
         # check, not a "is another app currently using the GPU"
         # check — the latter belongs to portable's per-run VRAM probe.
         try:
-            total_bytes = int(torch.cuda.get_device_properties(0).total_memory)
+            props = torch.cuda.get_device_properties(0)
+            total_bytes = int(props.total_memory)
         except Exception as exc:  # pragma: no cover - torch-specific error
             return BackendAvailability(
                 is_available=False,
@@ -150,8 +164,15 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"torch.cuda.get_device_properties(0) probe raised: "
                     f"{type(exc).__name__}: {exc}"
                 ),
+                details=details,
             )
+        # ``name`` is present on Properties; guard defensively so a
+        # test stub without it does not crash the whole probe.
+        device_name = getattr(props, "name", None)
+        if device_name is not None:
+            details.device_name = str(device_name)
         total_mib = total_bytes // (1024 * 1024)
+        details.vram_mib_total = int(total_mib)
         if total_mib < self._MIN_VRAM_MIB:
             return BackendAvailability(
                 is_available=False,
@@ -162,13 +183,16 @@ class UnlimitedOcrBackend(OcrBackend):
                 ),
                 hardware_compatible=False,
                 runnable_now=False,
+                details=details,
             )
         # Trust manifest present? The full byte-level verification runs
         # inside infer_pdf_portable at model load; availability() only
         # confirms the packaged artefact is present so the CLI can bail
         # early if an install has been corrupted.
         from . import UNLIMITED_OCR_TRUSTED_MANIFEST_PATH
-        if not UNLIMITED_OCR_TRUSTED_MANIFEST_PATH.exists():
+        manifest_present = UNLIMITED_OCR_TRUSTED_MANIFEST_PATH.exists()
+        details.model_snapshot_verified = manifest_present
+        if not manifest_present:
             return BackendAvailability(
                 is_available=False,
                 reason=(
@@ -177,6 +201,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 ),
                 model_installed=False,
                 runnable_now=False,
+                details=details,
             )
         # Model snapshot cached locally? An "available" backend means
         # `process()` should be able to run without downloading anything
@@ -195,6 +220,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 ),
                 model_installed=False,
                 runnable_now=False,
+                details=details,
             )
         from .unlimited_ocr.adapter import (
             _UNLIMITED_OCR_MODEL_REPO,
@@ -205,7 +231,9 @@ class UnlimitedOcrBackend(OcrBackend):
             filename="config.json",
             revision=_UNLIMITED_OCR_MODEL_REVISION,
         )
-        if cached is None:
+        snapshot_present = cached is not None
+        details.model_snapshot_present = snapshot_present
+        if not snapshot_present:
             return BackendAvailability(
                 is_available=False,
                 reason=(
@@ -215,6 +243,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 ),
                 model_installed=False,
                 runnable_now=False,
+                details=details,
             )
         # All three predicates hold.
         return BackendAvailability(
@@ -222,6 +251,7 @@ class UnlimitedOcrBackend(OcrBackend):
             hardware_compatible=True,
             model_installed=True,
             runnable_now=True,
+            details=details,
         )
 
     def process(self, request: OcrPageRequest) -> list[OcrPageResult]:
