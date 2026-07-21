@@ -1,0 +1,27 @@
+name: "AksharaMD CodeQL config"
+
+# Keep the standard security-and-quality suite for the codebase.
+queries:
+  - uses: security-and-quality
+
+# Scope-scan exclusion for the Unlimited-OCR CLI worker.
+#
+# The worker is a benchmarks-only entrypoint (benchmarks/pdf_benchmark_
+# adapters/unlimited_ocr_worker.py) that spawns as a subprocess of the
+# orchestrator, holds no credentials, accepts no external input beyond
+# a small argparse namespace populated by our own code, and does no
+# network I/O. Its only "logging" is a diagnostic INFER_STATUS line
+# that duplicates the structured category label returned by
+# ``runner.infer_pdf`` to the worker's captured stderr — a label like
+# "chunked_infer_failed: single_page_oom" or
+# "chunked_infer_failed: chunk_failed_non_oom: FileNotFoundError:
+# [WinError 206] ...". Those strings are indispensable diagnostics
+# (see PR 92's four fixes, especially Fix 4 requiring worker stdout
+# tail visibility), but they trip CodeQL's clear-text-storage /
+# clear-text-logging heuristics because they flow from Exception
+# objects at the source.
+#
+# Path-scoped exclusion here — not a global suppression of those
+# queries, which continue to protect the rest of the codebase.
+paths-ignore:
+  - "benchmarks/pdf_benchmark_adapters/unlimited_ocr_worker.py"
