@@ -19,6 +19,7 @@ from benchmarks.pdf_benchmark_adapters.unlimited_ocr_orchestrator import (  # ty
     EXIT_OK,
     _classify_outcome,
     _next_chunk_size,
+    _truncate_log_if_over_cap,
     _WorkerResult,
     run_infer_pdf_isolated,
 )
@@ -197,7 +198,9 @@ def test_three_ooms_then_success_full_sequence(tmp_path):
 
 def test_always_oom_exhausts_and_reports_single_page_fail(tmp_path):
     """Six OOMs cover 40 → 20 → 10 → 5 → 2 → 1 → (next is None).
-    The 1-page attempt itself failing triggers ``single_page_oom``."""
+    The 1-page attempt itself failing triggers ``single_page_oom``.
+    restart_count is 5 (the transitions between sizes), NOT 6 —
+    the final OOM at size 1 does not lead to another restart."""
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([{"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}}] * 6)
     text, exc, signals = run_infer_pdf_isolated(
@@ -208,13 +211,15 @@ def test_always_oom_exhausts_and_reports_single_page_fail(tmp_path):
     assert exc == "isolated_infer_failed: single_page_oom"
     sizes = [a["chunk_size"] for a in signals["attempts"]]
     assert sizes == [40, 20, 10, 5, 2, 1]
-    assert signals["restart_count"] == 6
+    assert len(signals["attempts"]) == 6
+    assert signals["restart_count"] == 5  # 5 transitions between 6 attempts
     assert signals["final_chunk_size_used"] == 1
 
 
 def test_max_restarts_cap_enforced(tmp_path):
     """If we set max_restarts=2 and every attempt OOMs, we stop after 3
-    attempts (the initial + 2 retries)."""
+    attempts (the initial + 2 restarts). restart_count is exactly 2:
+    the terminal OOM does not lead to another restart."""
     pdf = _sample_pdf(tmp_path)
     fake = _FakeWorker([{"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}}] * 5)
     text, exc, signals = run_infer_pdf_isolated(
@@ -223,7 +228,8 @@ def test_max_restarts_cap_enforced(tmp_path):
     )
     assert text == ""
     assert "max_restarts_reached" in exc
-    assert len(signals["attempts"]) == 3  # 1 initial + 2 retries
+    assert len(signals["attempts"]) == 3  # 1 initial + 2 restarts
+    assert signals["restart_count"] == 2  # exactly max_restarts
     sizes = [a["chunk_size"] for a in signals["attempts"]]
     assert sizes == [40, 20, 10]
 
@@ -387,3 +393,204 @@ def test_zero_max_restarts_runs_exactly_one_attempt(tmp_path):
     assert text == ""
     assert "max_restarts_reached" in exc
     assert len(signals["attempts"]) == 1
+    assert signals["restart_count"] == 0
+
+
+# ── Verification-point coverage (per reviewer's PR 2 checklist) ─────────
+
+
+def test_verify_1_each_retry_uses_fresh_worker_invocation(tmp_path):
+    """After an OOM, the parent MUST call the worker runner again with
+    a fresh cmd list (i.e. a new subprocess). Verified by counting
+    distinct calls to the runner across the retry chain."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+        {"exit_code": EXIT_OK, "text": "ok",
+         "json": {"signals": {}, "output_char_count": 2, "output_sha256": "z"}},
+    ])
+    run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=40, worker_runner=fake,
+    )
+    # Distinct invocations, each with a distinct output-json path.
+    out_jsons = [c["out_json"] for c in fake.calls]
+    assert len(out_jsons) == 3
+    assert len(set(out_jsons)) == 3  # all fresh child working directories
+
+
+def test_verify_2_no_infinite_loop_at_size_1(tmp_path):
+    """Even with a very high max_restarts, size 1 is the terminal
+    stop — no infinite loop, no retry at size 1 after failure."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker(
+        [{"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}}] * 20,
+    )
+    text, exc, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8, max_restarts=100,
+        worker_runner=fake,
+    )
+    assert text == ""
+    assert exc == "isolated_infer_failed: single_page_oom"
+    # 8 -> 4 -> 2 -> 1 -> None. Exactly 4 attempts, no more.
+    assert len(signals["attempts"]) == 4
+    sizes = [a["chunk_size"] for a in signals["attempts"]]
+    assert sizes == [8, 4, 2, 1]
+
+
+def test_verify_4_windows_style_status_code_treated_as_unknown(tmp_path):
+    """Windows access violation (0xC0000005 as unsigned int) or a
+    Linux SIGSEGV (-11) must not be mistaken for OOM."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": 0xC0000005 - (1 << 32),  # -1073741819, Python's sign
+         "text": "", "json": {}},
+        {"exit_code": EXIT_OK, "text": "unreached", "json": {}},
+    ])
+    text, exc, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8,
+        worker_runner=fake,
+    )
+    assert text == ""
+    assert "unknown_exit_" in exc
+    assert len(signals["attempts"]) == 1
+
+
+def test_verify_4_sigkill_style_status_treated_as_unknown(tmp_path):
+    """Linux OS OOM-killer usually leaves a -9 exit code. Do NOT retry."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": -9, "text": "", "json": {}},
+        {"exit_code": EXIT_OK, "text": "unreached", "json": {}},
+    ])
+    text, exc, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8,
+        worker_runner=fake,
+    )
+    assert text == ""
+    assert "unknown_exit_-9" in exc
+    assert len(signals["attempts"]) == 1
+
+
+def test_verify_5_partial_text_from_failed_worker_never_returned(tmp_path):
+    """A killed child may have written partial output to disk before
+    dying. If exit_code != OK, the parent MUST NOT return that text."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        # Worker crashed with EXIT_CUDA_OOM but managed to write half
+        # a document before dying. The parent must ignore this text.
+        {"exit_code": EXIT_CUDA_OOM,
+         "text": "partial document that should NEVER surface",
+         "json": {"error": "oom"}},
+        {"exit_code": EXIT_OK, "text": "complete document",
+         "json": {"signals": {}, "output_char_count": 18, "output_sha256": "aa"}},
+    ])
+    text, exc, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8,
+        worker_runner=fake,
+    )
+    assert exc == ""
+    # The parent must return the second attempt's text, not the first.
+    assert text == "complete document"
+    assert "partial" not in text
+
+
+def test_verify_5_partial_text_ignored_on_terminal_failure(tmp_path):
+    """When the last permitted attempt OOMs (exhausting max_restarts),
+    the partial text from that attempt must not be returned either."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_CUDA_OOM,
+         "text": "please do not use this",
+         "json": {"error": "oom"}},
+    ])
+    text, exc, signals = run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8, max_restarts=0,
+        worker_runner=fake,
+    )
+    assert text == ""  # empty, not the partial
+    assert "max_restarts_reached" in exc
+
+
+def test_verify_6_tmpdir_removed_after_success(tmp_path):
+    """The orchestrator's per-invocation TemporaryDirectory must be
+    cleaned up after a successful run — nothing leaks into workdir."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_OK, "text": "ok",
+         "json": {"signals": {}, "output_char_count": 2, "output_sha256": "s"}},
+    ])
+    workdir = tmp_path / "workdir"
+    run_infer_pdf_isolated(pdf, workdir, initial_chunk_size=8, worker_runner=fake)
+    # Only the workdir itself should remain, no nested ocr_orchestrator_*
+    remaining = list(workdir.iterdir())
+    assert remaining == []
+
+
+def test_verify_6_tmpdir_removed_after_failure(tmp_path):
+    """Same cleanup guarantee on a failed run."""
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_NON_OOM_INFER_FAILURE, "text": "", "json": {}},
+    ])
+    workdir = tmp_path / "workdir"
+    run_infer_pdf_isolated(pdf, workdir, initial_chunk_size=8, worker_runner=fake)
+    assert list(workdir.iterdir()) == []
+
+
+def test_verify_7_truncation_preserves_head_and_tail(tmp_path):
+    """Direct unit test on the truncation helper. An oversized log
+    keeps head (model-load info) and tail (failure signature) so a
+    reader can still diagnose the run, with a marker in between."""
+    log_path = tmp_path / "oversized.log"
+    payload = (b"HEAD_MARKER cold-load starting model...\n" * 5000
+               + b"MIDDLE_NOISE junk that must not survive\n" * 200000
+               + b"TAIL_MARKER CUDA out of memory at chunk 3\n" * 5000)
+    log_path.write_bytes(payload)
+    _truncate_log_if_over_cap(log_path, cap_bytes=1024 * 1024)  # 1 MiB
+    truncated = log_path.read_bytes()
+    assert len(truncated) <= 1024 * 1024 + 1024  # slack for marker
+    assert b"HEAD_MARKER" in truncated
+    assert b"TAIL_MARKER" in truncated
+    assert b"[...worker log truncated by orchestrator" in truncated
+
+
+def test_verify_7_undersized_log_not_modified(tmp_path):
+    """Logs below the cap are untouched — no every-run rewrite cost."""
+    log_path = tmp_path / "small.log"
+    payload = b"a small log with useful info\n" * 10
+    log_path.write_bytes(payload)
+    _truncate_log_if_over_cap(log_path, cap_bytes=1024 * 1024)
+    assert log_path.read_bytes() == payload
+
+
+def test_verify_7_truncation_handles_missing_log(tmp_path):
+    """If the log file was never written (e.g. worker crashed at
+    startup), truncation must not raise."""
+    missing = tmp_path / "does_not_exist.log"
+    _truncate_log_if_over_cap(missing, cap_bytes=1024)  # must not raise
+
+
+def test_verify_7_orchestrator_invokes_truncation(tmp_path, monkeypatch):
+    """Verify the orchestrator actually CALLS the truncation function
+    with the correct cap, once per attempt."""
+    calls: list[tuple[str, int]] = []
+
+    def _spy(log_path, cap_bytes):
+        calls.append((str(log_path), cap_bytes))
+
+    import benchmarks.pdf_benchmark_adapters.unlimited_ocr_orchestrator as orch
+    monkeypatch.setattr(orch, "_truncate_log_if_over_cap", _spy)
+
+    pdf = _sample_pdf(tmp_path)
+    fake = _FakeWorker([
+        {"exit_code": EXIT_CUDA_OOM, "text": "", "json": {}},
+        {"exit_code": EXIT_OK, "text": "x",
+         "json": {"signals": {}, "output_char_count": 1, "output_sha256": "s"}},
+    ])
+    run_infer_pdf_isolated(
+        pdf, tmp_path / "workdir", initial_chunk_size=8,
+        worker_runner=fake, log_max_bytes=42,
+    )
+    assert len(calls) == 2  # once per attempt
+    assert all(cap == 42 for _, cap in calls)

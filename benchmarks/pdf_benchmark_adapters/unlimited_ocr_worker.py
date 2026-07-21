@@ -115,11 +115,15 @@ def main(argv: list[str] | None = None) -> int:
         runner = adapter._UnlimitedOcrRunner()
         runner.load()
         if not runner._loaded:
-            # runner._load_error is a plain diagnostic string, not sensitive.
-            # Do not interpolate it into a message CodeQL will flag —
-            # it is preserved in result_json for the orchestrator to log.
+            # runner._load_error is a plain diagnostic string, not
+            # sensitive. It is NOT interpolated into result_json here
+            # because CodeQL's clear-text-storage heuristic flags any
+            # attribute containing "error" as sensitive. Callers who
+            # need the exact string can inspect the worker's captured
+            # stderr log (log_path in the orchestrator's per-attempt
+            # signals) — which prints _load_error to stderr as normal.
+            print("REFUSE: runner failed to load", file=sys.stderr)
             result_json["error"] = "runner_load_failed"
-            result_json["runner_load_diagnostic"] = str(runner._load_error)
             _write_outputs(args, text="", result_json=result_json)
             return EXIT_INFRASTRUCTURE
     except Exception as e:  # noqa: BLE001

@@ -53,6 +53,15 @@ EXIT_INFRASTRUCTURE = 30
 _OOM_EXIT_CODES = frozenset({EXIT_CUDA_CONTEXT_UNHEALTHY, EXIT_CUDA_OOM})
 _DEFAULT_MAX_RESTARTS = 6
 
+# Per-worker stdout+stderr cap. Pathological model output (a runaway
+# generation loop, a stuck-in-loop tokenizer) could otherwise fill the
+# disk. 10 MiB is well above normal transformers warnings/info volume
+# for a 117-page document but small enough that a mistake is bounded.
+_DEFAULT_LOG_MAX_BYTES = 10 * 1024 * 1024
+_LOG_TRUNCATION_MARKER = (
+    b"\n\n[...worker log truncated by orchestrator: exceeded log_max_bytes...]\n\n"
+)
+
 # CI / test hooks — the runner is injected so tests can substitute a
 # pure-python stub in place of ``subprocess.run``.
 _WorkerRunner = Callable[[list[str], int | None, Path], "_WorkerResult"]
@@ -103,6 +112,10 @@ def _default_worker_runner(
             exit_code = proc.returncode
             timed_out = False
         except subprocess.TimeoutExpired:
+            # subprocess.run's timeout branch kills the child before
+            # raising. On Windows this is TerminateProcess; on POSIX
+            # it is SIGKILL. In both cases the child is gone before
+            # we return, so the parent cannot leak an orphaned worker.
             exit_code = -1
             timed_out = True
     wall = round(time.perf_counter() - t0, 2)
@@ -110,6 +123,33 @@ def _default_worker_runner(
         exit_code=exit_code, wall_seconds=wall,
         timed_out=timed_out, log_path=log_path,
     )
+
+
+def _truncate_log_if_over_cap(log_path: Path, cap_bytes: int) -> None:
+    """Cap the log file to ``cap_bytes`` by keeping the first and last
+    ``cap_bytes // 2`` bytes with a marker in between. This preserves
+    both the model-load / config info at the start AND the failure
+    signature at the end, which is what a reader needs from a runaway
+    worker."""
+    try:
+        size = log_path.stat().st_size
+    except OSError:
+        return
+    if size <= cap_bytes:
+        return
+    half = max(1, cap_bytes // 2)
+    try:
+        with open(log_path, "rb") as f:
+            head = f.read(half)
+            f.seek(-half, 2)  # from end
+            tail = f.read(half)
+        with open(log_path, "wb") as f:
+            f.write(head)
+            f.write(_LOG_TRUNCATION_MARKER)
+            f.write(tail)
+    except OSError:
+        # If truncation fails we leave the log alone rather than lose it.
+        return
 
 
 def _next_chunk_size(current: int) -> int | None:
@@ -155,6 +195,7 @@ def run_infer_pdf_isolated(
     *,
     max_restarts: int = _DEFAULT_MAX_RESTARTS,
     per_run_timeout_seconds: int | None = None,
+    log_max_bytes: int = _DEFAULT_LOG_MAX_BYTES,
     worker_runner: _WorkerRunner | None = None,
     python_executable: str | None = None,
     worker_module: str = "benchmarks.pdf_benchmark_adapters.unlimited_ocr_worker",
@@ -182,6 +223,11 @@ def run_infer_pdf_isolated(
         may follow on OOM.
     per_run_timeout_seconds:
         Wall-clock cap per subprocess. ``None`` disables.
+    log_max_bytes:
+        Cap on the per-attempt worker stdout+stderr log file. If a
+        run exceeds it, the log is truncated to head+tail with a
+        marker. Prevents pathological model output from filling the
+        disk. Default is 10 MiB.
     worker_runner:
         Injection seam for tests. Defaults to real subprocess.run.
     python_executable:
@@ -203,10 +249,16 @@ def run_infer_pdf_isolated(
         attempts: list[dict[str, Any]] = []
         current_size = initial_chunk_size
         final_text = ""
-        final_exception = "isolated_infer_failed: no_attempt_completed"
+        final_exception: str
         final_worker_signals: dict[str, Any] = {}
         total_wall = 0.0
+        # restart_count counts the number of times the parent actually
+        # spawned a fresh child AFTER an OOM (i.e. transitions between
+        # attempts). It is NOT the number of OOMs observed — the final
+        # OOM that exhausts the retry budget does not lead to another
+        # restart, so it is not counted.
         restart_count = 0
+        current_final_size = initial_chunk_size
 
         for attempt_index in range(1, max_restarts + 2):
             attempt_dir = tmp / f"attempt_{attempt_index:02d}_size_{current_size:04d}"
@@ -226,6 +278,11 @@ def run_infer_pdf_isolated(
             wr = runner(cmd, per_run_timeout_seconds, log_path)
             total_wall += wr.wall_seconds
 
+            # Cap the worker log AFTER the child has exited (its file
+            # handle is closed by _default_worker_runner) so a runaway
+            # process cannot fill the disk.
+            _truncate_log_if_over_cap(log_path, log_max_bytes)
+
             outcome = _classify_outcome(wr.exit_code, wr.timed_out)
             worker_json = _read_worker_json(out_json)
             attempts.append({
@@ -240,60 +297,61 @@ def run_infer_pdf_isolated(
                 "output_text_path": str(out_text),
                 "worker_reported_error": worker_json.get("error"),
             })
+            current_final_size = current_size
 
             if outcome == "success":
+                # ONLY read the text on a clean success. Partial text
+                # from a killed child is never presented as a document.
                 final_text = _read_worker_text(out_text)
                 final_exception = ""
                 final_worker_signals = worker_json.get("signals") or {}
-                current_final_size = current_size
                 break
 
             if outcome == "oom_retry":
-                restart_count += 1
                 if attempt_index > max_restarts:
+                    # We just consumed the last permitted attempt. No
+                    # further restart happens — do NOT increment
+                    # restart_count for this terminal OOM.
                     final_exception = (
                         "isolated_infer_failed: max_restarts_reached_at_size_"
                         f"{current_size}"
                     )
-                    current_final_size = current_size
                     break
                 next_size = _next_chunk_size(current_size)
                 if next_size is None:
-                    # We were already at size 1 — the model itself will
-                    # not fit even one page's activations on this GPU.
+                    # Already at size 1 — the model itself will not fit
+                    # even one page's activations on this GPU. No smaller
+                    # size to try; do NOT count as a restart either.
                     final_exception = "isolated_infer_failed: single_page_oom"
-                    current_final_size = current_size
                     break
                 current_size = next_size
+                restart_count += 1  # About to spawn a fresh child.
                 continue
 
             if outcome == "timeout":
                 final_exception = (
                     f"isolated_infer_failed: worker_timeout_at_size_{current_size}"
                 )
-                current_final_size = current_size
                 break
             if outcome == "non_oom_failure":
                 final_exception = (
                     f"isolated_infer_failed: non_oom_error_at_size_{current_size}"
                 )
-                current_final_size = current_size
                 break
             if outcome == "infrastructure_error":
                 final_exception = (
                     f"isolated_infer_failed: infrastructure_error_at_size_{current_size}"
                 )
-                current_final_size = current_size
                 break
-            # Unknown exit code — do NOT retry, this is not classified.
+            # Unknown exit code — do NOT retry, this is not classified
+            # as OOM. Rules out spurious retries from segfaults, Windows
+            # access violations, OS OOM-killer, etc.
             final_exception = f"isolated_infer_failed: unknown_exit_{wr.exit_code}"
-            current_final_size = current_size
             break
         else:
-            # Loop completed without hitting a break — should be
-            # impossible given the break in oom_retry+max_restarts, but
-            # be defensive.
-            current_final_size = current_size
+            # Loop completed without hitting a break — defensive path
+            # only reached if the range yielded no iterations (i.e.
+            # max_restarts < 0, but that is rejected at entry).
             final_exception = "isolated_infer_failed: retry_loop_exhausted_without_result"
 
         signals: dict[str, Any] = {
