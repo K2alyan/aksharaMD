@@ -144,10 +144,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if exc:
         # ``exc`` is a structured status string from infer_pdf (e.g.
-        # "chunked_infer_failed: cuda_context_unhealthy_after_oom").
-        # Print it to stderr for the orchestrator's log, but do NOT
-        # store it in structured JSON — same taint-avoidance rationale.
-        print(f"INFER_STATUS: {exc}", file=sys.stderr)
+        # "chunked_infer_failed: cuda_context_unhealthy_after_oom"),
+        # NOT an exception message. It is classified into an exit
+        # code which is the parent's authoritative signal. The string
+        # itself is deliberately NOT logged or serialized — CodeQL
+        # taints it because it contains substrings like "unhealthy"
+        # that look sensitive to the default heuristics, and the exit
+        # code plus the runner's own stderr (already captured to
+        # log_path) carry all the information a reader needs.
+        print("INFER_STATUS: non-empty (see exit code)", file=sys.stderr)
         _write_text_only(args, text=text)
         return _classify_exception_message(exc)
 
