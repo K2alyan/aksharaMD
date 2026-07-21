@@ -768,6 +768,124 @@ class _UnlimitedOcrRunner:
         except Exception as e:
             self._load_error = f"load_failed: {type(e).__name__}: {e}"[:400]
 
+    def _health_probe(self, torch) -> bool:
+        """1-element CUDA alloc after an OOM: proves the CUDA context is
+        still usable. Returns False on any exception."""
+        if not torch.cuda.is_available():
+            return False
+        try:
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            x = torch.zeros(1, device="cuda")
+            _ = x.sum().item()
+            del x
+            torch.cuda.empty_cache()
+            return True
+        except Exception:
+            return False
+
+    def _infer_single_chunk(
+        self,
+        image_paths: list[Path],
+        out_dir: Path,
+        max_length: int,
+        torch,
+    ) -> tuple[str, str, dict[str, Any]]:
+        """Original single-call path. Used verbatim for PDFs at or below
+        the preferred chunk size. Preserves the pre-chunking behavior
+        byte-for-byte for small documents."""
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats(0)
+        assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
+        try:
+            result = self._model.infer_multi(
+                self._tokenizer,
+                prompt="<image>Multi page parsing.",
+                image_files=[str(p) for p in image_paths],
+                output_path=str(out_dir),
+                image_size=1024,
+                max_length=max_length,
+                no_repeat_ngram_size=35,
+                ngram_window=1024,
+                save_results=True,
+            )
+        except Exception as e:
+            return "", f"infer_failed: {type(e).__name__}: {e}"[:400], {}
+        md_files = sorted(out_dir.glob("*.md"))
+        text = "\n\n".join(p.read_text(encoding="utf-8", errors="replace") for p in md_files)
+        if not text and isinstance(result, str):
+            text = result
+        peak_mib: int | None = None
+        if torch.cuda.is_available():
+            peak_mib = int(torch.cuda.max_memory_allocated(0) // (1024 * 1024))
+        return text, "", {
+            "page_count": len(image_paths),
+            "peak_gpu_memory_mib": peak_mib,
+            "output_files_written": len(md_files),
+        }
+
+    def _infer_chunk(
+        self,
+        image_paths: list[Path],
+        page_start: int,
+        page_end: int,
+        chunk_out_dir: Path,
+        max_length: int,
+        torch,
+    ) -> tuple[str, dict[str, Any]]:
+        """Run one chunk against the loaded model. Raises ``_OOMSignal``
+        if the model hits CUDA OOM. Called by the chunking loop's
+        production ``inference_fn`` wrapper below."""
+        chunk_paths = image_paths[page_start:page_end]
+        chunk_out_dir.mkdir(parents=True, exist_ok=True)
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats(0)
+        assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
+        t0 = time.perf_counter()
+        try:
+            result = self._model.infer_multi(
+                self._tokenizer,
+                prompt="<image>Multi page parsing.",
+                image_files=[str(p) for p in chunk_paths],
+                output_path=str(chunk_out_dir),
+                image_size=1024,
+                max_length=max_length,
+                no_repeat_ngram_size=35,
+                ngram_window=1024,
+                save_results=True,
+            )
+        except Exception as e:
+            if _is_cuda_oom(e):
+                # Release local references BEFORE emptying cache. Cache
+                # clear is bookkeeping-only, not a substitute for release.
+                try:
+                    del chunk_paths
+                except Exception:  # pragma: no cover — defensive
+                    pass
+                import gc
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                raise _OOMSignal(str(e)) from e
+            raise
+        elapsed = round(time.perf_counter() - t0, 3)
+        md_files = sorted(chunk_out_dir.glob("*.md"))
+        text = "\n\n".join(p.read_text(encoding="utf-8", errors="replace") for p in md_files)
+        if not text and isinstance(result, str):
+            text = result
+        peak_alloc = None
+        peak_reserved = None
+        if torch.cuda.is_available():
+            peak_alloc = int(torch.cuda.max_memory_allocated(0) // (1024 * 1024))
+            peak_reserved = int(torch.cuda.max_memory_reserved(0) // (1024 * 1024))
+        return text, {
+            "runtime_seconds": elapsed,
+            "peak_vram_allocated_mib": peak_alloc,
+            "peak_vram_reserved_mib": peak_reserved,
+            "output_files_written": len(md_files),
+        }
+
     def infer_pdf(self, pdf: Path, workdir: Path, max_length: int = 32768) -> tuple[str, str, dict[str, Any]]:
         """Return ``(text, exception_or_empty, tool_signals)``.
 
@@ -775,6 +893,12 @@ class _UnlimitedOcrRunner:
         ``TemporaryDirectory`` that is removed after this call returns —
         success OR exception. This prevents multi-gigabyte accumulation
         on long documents (300-DPI PNGs × N pages).
+
+        For PDFs with more than ``_PREFERRED_CHUNK_SIZE`` pages the
+        adaptive chunking loop processes pages in sequential batches,
+        halving the batch size (via the fixed reduction sequence
+        ``40 → 20 → 10 → 5 → 2 → 1``) on CUDA OOM. See
+        ``_process_chunks_with_reduction`` for the pure algorithm.
         """
         if not self._loaded:
             self.load()
@@ -784,8 +908,6 @@ class _UnlimitedOcrRunner:
             import torch  # type: ignore
         except ImportError as e:
             return "", f"torch_import_failed: {e}", {}
-        # TemporaryDirectory context guarantees cleanup on both the
-        # success and exception paths.
         with tempfile.TemporaryDirectory(prefix=f"unlimited_ocr_{pdf.stem}_",
                                           dir=str(workdir)) as scratch_str:
             scratch = Path(scratch_str)
@@ -793,40 +915,246 @@ class _UnlimitedOcrRunner:
                 page_dir = scratch / "pages"
                 page_dir.mkdir(parents=True, exist_ok=True)
                 image_paths = _pdf_to_page_images(pdf, page_dir, dpi=300)
-                # Fresh output directory — never reused between the
-                # primary parse and any deterministic recompile.
                 out_dir = scratch / "out"
                 out_dir.mkdir(parents=True, exist_ok=True)
-                if torch.cuda.is_available():
-                    torch.cuda.reset_peak_memory_stats(0)
-                assert self._model is not None and self._tokenizer is not None  # nosec B101 - narrows mypy Optional
-                result = self._model.infer_multi(
-                    self._tokenizer,
-                    prompt="<image>Multi page parsing.",
-                    image_files=[str(p) for p in image_paths],
-                    output_path=str(out_dir),
-                    image_size=1024,
-                    max_length=max_length,
-                    no_repeat_ngram_size=35,
-                    ngram_window=1024,
-                    save_results=True,
+                total = len(image_paths)
+                if total <= _PREFERRED_CHUNK_SIZE:
+                    # Preserve pre-chunking behavior byte-for-byte for
+                    # small documents.
+                    return self._infer_single_chunk(
+                        image_paths, out_dir, max_length, torch,
+                    )
+                # Large PDF: adaptive chunking.
+                def _inference_fn(
+                    page_start: int, page_end: int, chunk_index: int, chunk_size: int,
+                ) -> tuple[str, dict[str, Any]]:
+                    chunk_out = out_dir / f"chunk_{chunk_index:04d}_p{page_start:04d}_{page_end:04d}"
+                    return self._infer_chunk(
+                        image_paths, page_start, page_end, chunk_out, max_length, torch,
+                    )
+
+                def _health() -> bool:
+                    return self._health_probe(torch)
+
+                merged_text, err, chunks = _process_chunks_with_reduction(
+                    total_pages=total,
+                    inference_fn=_inference_fn,
+                    health_probe=_health,
+                    preferred_size=_PREFERRED_CHUNK_SIZE,
                 )
-                # infer_multi writes a Markdown file into out_dir; read
-                # BEFORE the temp dir is torn down.
-                md_files = sorted(out_dir.glob("*.md"))
-                text = "\n\n".join(p.read_text(encoding="utf-8", errors="replace") for p in md_files)
-                if not text and isinstance(result, str):
-                    text = result
-                peak_mib: int | None = None
-                if torch.cuda.is_available():
-                    peak_mib = int(torch.cuda.max_memory_allocated(0) // (1024 * 1024))
-                return text, "", {
-                    "page_count": len(image_paths),
-                    "peak_gpu_memory_mib": peak_mib,
-                    "output_files_written": len(md_files),
+                signals: dict[str, Any] = {
+                    "page_count": total,
+                    "chunks": chunks,
+                    "chunk_count_total": len(chunks),
+                    "chunk_count_successful": sum(1 for c in chunks if c["status"] == "PASS"),
+                    "chunk_count_oom_retries": sum(1 for c in chunks if c["status"] == "OOM_RETRY"),
                 }
+                if err:
+                    return "", f"chunked_infer_failed: {err}", signals
+                # Backfill peak GPU memory across chunks so downstream
+                # consumers see a summary metric like the single-call
+                # path did.
+                allocs = [c.get("peak_vram_allocated_mib") for c in chunks
+                          if c["status"] == "PASS" and c.get("peak_vram_allocated_mib") is not None]
+                signals["peak_gpu_memory_mib"] = max(allocs) if allocs else None
+                signals["output_files_written"] = sum(
+                    (c.get("output_files_written") or 0) for c in chunks
+                )
+                return merged_text, "", signals
             except Exception as e:
                 return "", f"infer_failed: {type(e).__name__}: {e}"[:400], {}
+
+
+# ── Adaptive chunking (large-document OOM mitigation) ─────────────────
+#
+# Baidu's ``infer_multi()`` API renders and processes the full page
+# array in one call. On the RTX 3060 (12 GB VRAM), a 117-page PDF
+# causes the model to request ~19 GB before OOM. Adaptive chunking
+# processes pages in sequential batches of at most PREFERRED_CHUNK_SIZE
+# and halves the batch size (via a fixed reduction sequence) on OOM,
+# preserving page order, page numbering, and single-model residency
+# across chunks.
+#
+# CRITICAL: only one chunk is on the GPU at a time. Never concurrent.
+
+_PREFERRED_CHUNK_SIZE = 40
+_CHUNK_REDUCTION_SEQUENCE: tuple[int, ...] = (40, 20, 10, 5, 2, 1)
+
+
+class _OOMSignal(Exception):
+    """Marker exception the chunking loop uses to trigger a size
+    reduction. Test doubles raise this directly; production code
+    detects real CUDA OOMs and re-raises as this signal for uniform
+    handling."""
+
+
+def _next_smaller_chunk_size(current: int) -> int | None:
+    """Return the next entry BELOW ``current`` in the fixed reduction
+    sequence, or None if already at the minimum (1)."""
+    for size in _CHUNK_REDUCTION_SEQUENCE:
+        if size < current:
+            return size
+    return None
+
+
+def _initial_chunk_ranges(total_pages: int, chunk_size: int) -> list[tuple[int, int]]:
+    """Return page ranges as ``(start, end)`` half-open (0-based).
+    Fewer pages than ``chunk_size`` yields exactly one range."""
+    if total_pages <= 0:
+        return []
+    ranges: list[tuple[int, int]] = []
+    for start in range(0, total_pages, chunk_size):
+        end = min(start + chunk_size, total_pages)
+        ranges.append((start, end))
+    return ranges
+
+
+def _split_range_at(page_start: int, page_end: int, size: int) -> list[tuple[int, int]]:
+    """Split a page range into sub-ranges of at most ``size`` pages,
+    preserving contiguous coverage. Never drops or duplicates pages."""
+    subs: list[tuple[int, int]] = []
+    for s in range(page_start, page_end, size):
+        e = min(s + size, page_end)
+        subs.append((s, e))
+    return subs
+
+
+def _process_chunks_with_reduction(
+    total_pages: int,
+    inference_fn: Any,  # Callable[(page_start, page_end, chunk_index, chunk_size), tuple[str, dict]] raising _OOMSignal
+    health_probe: Any,  # Callable[[], bool]
+    preferred_size: int = _PREFERRED_CHUNK_SIZE,
+) -> tuple[str, str, list[dict[str, Any]]]:
+    """Pure function orchestrating the adaptive chunking loop.
+
+    Testable without CUDA — pass mocked ``inference_fn`` and
+    ``health_probe`` callables.
+
+    Returns ``(merged_text, error_or_empty, chunk_diagnostics)`` where
+    ``merged_text`` is empty on failure and ``chunk_diagnostics`` is
+    the ordered list of per-chunk records (both successful chunks and
+    OOM-retry rows). Page order across chunks is preserved by sorting
+    successful outputs by ``page_start`` before merging.
+    """
+    # Queue of (page_start, page_end, attempted_size, retry_count_so_far)
+    queue: list[tuple[int, int, int, int]] = [
+        (s, e, preferred_size, 0)
+        for (s, e) in _initial_chunk_ranges(total_pages, preferred_size)
+    ]
+    diagnostics: list[dict[str, Any]] = []
+    successful_outputs: dict[int, tuple[int, str]] = {}  # page_start -> (page_end, text)
+    chunk_index = 0
+
+    while queue:
+        page_start, page_end, attempted_size, retries = queue.pop(0)
+        page_count = page_end - page_start
+        try:
+            text, stats = inference_fn(page_start, page_end, chunk_index, attempted_size)
+        except _OOMSignal:
+            diagnostics.append({
+                "chunk_index": chunk_index,
+                "page_start": page_start,
+                "page_end": page_end - 1,
+                "page_count": page_count,
+                "attempted_chunk_size": attempted_size,
+                "effective_chunk_size": page_count,
+                "retry_count": retries,
+                "runtime_seconds": None,
+                "peak_vram_allocated_mib": None,
+                "peak_vram_reserved_mib": None,
+                "status": "OOM_RETRY",
+                "failure_category": "oom",
+            })
+            chunk_index += 1
+            if not health_probe():
+                # Poisoned CUDA context. Do NOT continue.
+                return "", "cuda_context_unhealthy_after_oom", diagnostics
+            next_size = _next_smaller_chunk_size(attempted_size)
+            if next_size is None:
+                # Already at 1 page and still OOMed → unrecoverable.
+                return (
+                    "",
+                    f"unrecoverable_oom_at_min_chunk_at_page_{page_start}",
+                    diagnostics,
+                )
+            # Prepend sub-ranges so we retry the SAME page range first.
+            new_subs = _split_range_at(page_start, page_end, next_size)
+            new_entries = [(s, e, next_size, retries + 1) for (s, e) in new_subs]
+            queue = new_entries + queue
+            continue
+        except Exception as e:  # non-OOM: fail fast per contract
+            diagnostics.append({
+                "chunk_index": chunk_index,
+                "page_start": page_start,
+                "page_end": page_end - 1,
+                "page_count": page_count,
+                "attempted_chunk_size": attempted_size,
+                "effective_chunk_size": page_count,
+                "retry_count": retries,
+                "runtime_seconds": None,
+                "peak_vram_allocated_mib": None,
+                "peak_vram_reserved_mib": None,
+                "status": "FAIL",
+                "failure_category": "non_oom_error",
+                "exception": f"{type(e).__name__}: {e}",
+            })
+            return "", f"chunk_failed_non_oom: {type(e).__name__}: {e}", diagnostics
+        # Success.
+        diagnostics.append({
+            "chunk_index": chunk_index,
+            "page_start": page_start,
+            "page_end": page_end - 1,
+            "page_count": page_count,
+            "attempted_chunk_size": attempted_size,
+            "effective_chunk_size": page_count,
+            "retry_count": retries,
+            "runtime_seconds": stats.get("runtime_seconds"),
+            "peak_vram_allocated_mib": stats.get("peak_vram_allocated_mib"),
+            "peak_vram_reserved_mib": stats.get("peak_vram_reserved_mib"),
+            "status": "PASS",
+            "failure_category": None,
+        })
+        successful_outputs[page_start] = (page_end, text)
+        chunk_index += 1
+
+    # Merge successful outputs in page order. Ensure no missing or
+    # duplicated pages: reconstruct coverage from the successful ranges
+    # and confirm it exactly equals [0, total_pages).
+    coverage = sorted(successful_outputs.keys())
+    covered_pages = 0
+    for start in coverage:
+        end, _ = successful_outputs[start]
+        if start != covered_pages:
+            return (
+                "",
+                f"coverage_gap: expected page {covered_pages}, got range starting at {start}",
+                diagnostics,
+            )
+        covered_pages = end
+    if covered_pages != total_pages:
+        return (
+            "",
+            f"coverage_incomplete: covered {covered_pages}/{total_pages}",
+            diagnostics,
+        )
+    merged = "\n\n".join(
+        successful_outputs[start][1]
+        for start in coverage
+        if successful_outputs[start][1]
+    )
+    return merged, "", diagnostics
+
+
+def _is_cuda_oom(e: BaseException) -> bool:
+    """Detect a CUDA OOM exception without importing torch at module scope."""
+    try:
+        import torch  # type: ignore
+        if isinstance(e, torch.cuda.OutOfMemoryError):
+            return True
+    except Exception:
+        pass
+    msg = str(e).lower()
+    return "out of memory" in msg or "outofmemoryerror" in msg
 
 
 _RUNNER = _UnlimitedOcrRunner()
