@@ -19,7 +19,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Protocol, runtime_checkable
+from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
+
+# ---------------------------------------------------------------------------
+# Closed enums as Literal aliases. Using ``Literal`` catches misspellings at
+# type-check time (e.g. a future backend claiming ``emits="markdowns"`` or
+# reporting ``kind="oom"``) that a dispatch layer would otherwise silently
+# not recognise. Extending either set is a breaking change and must be a
+# deliberate PR that also updates every consumer switch.
+# ---------------------------------------------------------------------------
+
+OcrEmission = Literal["blocks", "markdown"]
+
+OcrFailureKind = Literal[
+    "backend_unavailable",
+    "cuda_oom",
+    "timeout",
+    "other",
+]
 
 
 @dataclass
@@ -49,7 +66,7 @@ class BackendCapabilities:
     supports_layout: bool
     supports_math: bool
     supports_tables: bool
-    emits: str  # "blocks" | "markdown"
+    emits: OcrEmission
 
 
 @dataclass
@@ -76,7 +93,7 @@ class OcrFailure:
     human-readable detail.
     """
 
-    kind: str
+    kind: OcrFailureKind
     message: str = ""
 
 
