@@ -1,0 +1,88 @@
+{
+  "harness_version": "a2_hallucination_inspection.py@2026-07-20",
+  "flagged_assets": [
+    "public/008-reportlab-inline-image/inline-image.pdf",
+    "public/028-image-references-deduplication/wrong-references.pdf",
+    "public/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf"
+  ],
+  "review_method": "re-invoked _UnlimitedOcrRunner.infer_pdf on each asset with production commit + pinned model revision; raw output captured to disk; classifications assigned per reviewer's fixed enum.",
+  "reviewer_classification_enum": [
+    "true_hallucination",
+    "repetition_or_looping",
+    "legitimate_visual_content",
+    "minor_inflation",
+    "automated_rule_false_positive",
+    "unreviewable"
+  ],
+  "results": [
+    {
+      "asset_id": "public/008-reportlab-inline-image/inline-image.pdf",
+      "output_file": "benchmarks/hallucination_inspection_2026-07-20/public_008_reportlab_inline_image_inline_image_pdf.output.md",
+      "elapsed_seconds": 6.49,
+      "hidden_text_layer_chars": 5,
+      "output_chars": 37,
+      "ratio_triggered": 7.4,
+      "reviewer_classification": "automated_rule_false_positive",
+      "reviewer_reason": "Absolute excess (32 chars) covered by a single well-formed markdown image tag; hidden-chars denominator (5) too small for ratio rule to be meaningful.",
+      "counts_against_phase_a_threshold_2": false,
+      "repetition_signals": {
+        "n_lines": 4,
+        "duplicate_lines": 0,
+        "4gram_repetition_ratio": 0.0
+      }
+    },
+    {
+      "asset_id": "public/028-image-references-deduplication/wrong-references.pdf",
+      "output_file": "benchmarks/hallucination_inspection_2026-07-20/public_028_image_references_deduplication_wrong_references_pdf.output.md",
+      "elapsed_seconds": 43.78,
+      "hidden_text_layer_chars": 30,
+      "output_chars": 582,
+      "ratio_triggered": 19.4,
+      "reviewer_classification": "legitimate_visual_content",
+      "reviewer_reason": "Bulk of output is legitimate extraction of file names visible in the PDF (.gitignore, .pre-commit-config.y, .readthedocs.yaml, CHANGELOG.md, CONTRIBUTING.md, CONTRIBUTORS.md, LICENSE, make_release.py, Makefile, pyproject.toml, README.md, .gitmodules). Isolated garbled header tokens (Sv rv edferv vr / Cacasc / Coacac) are minor decoder noise but do not constitute severe hallucination.",
+      "counts_against_phase_a_threshold_2": false,
+      "secondary_finding": "minor_hallucination_watch",
+      "secondary_finding_details": "3 garbled non-English header tokens visible; short and localised; not corrupting semantic content of the document."
+    },
+    {
+      "asset_id": "public/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",
+      "output_file": "benchmarks/hallucination_inspection_2026-07-20/public_027_cropped_rotated_scaled_cropped_rotated_scaled_pdf.output.PARTIAL.md",
+      "output_file_is_partial": true,
+      "output_file_note": "Inspection re-run killed at ~2h wall time after decisive classification evidence; the referenced .PARTIAL.md contains 995 model-emitted lines extracted from the streamed inference output before termination.",
+      "elapsed_seconds_first_pass": 1048.05,
+      "elapsed_seconds_inspection_run_at_kill": 7200,
+      "hidden_text_layer_chars": 416,
+      "output_chars_first_pass": 36940,
+      "output_chars_inspection_partial_at_kill": 74000,
+      "ratio_triggered_first_pass": 88.8,
+      "reviewer_classification": "repetition_or_looping",
+      "reviewer_reason": "Decoder stuck in a loop emitting the LaTeX payload '\\( \\therefore m = \\frac{3}{11} \\)' with only the header bounding-box coordinates varying. 950 of 995 model-emitted lines are structurally identical. Baidu's no_repeat_ngram_size=35 guard is defeated because the varying bbox coordinates make each 35-token window formally distinct.",
+      "counts_against_phase_a_threshold_2": true,
+      "severity": "severe",
+      "additional_finding_runtime_nondeterminism": "Same input under identical config produced 1,048 s runtime on the first pass and >7,200 s on the inspection run (before kill). Runtime nondeterminism is very large in the pathological-loop case. Runtime equality is NOT a valid determinism criterion for the second pass.",
+      "repetition_signals": {
+        "distinct_therefore_m_lines": 950,
+        "total_model_emitted_lines": 995,
+        "duplicate_line_fraction": 0.9548,
+        "most_repeated_payload": "\\( \\therefore m = \\frac{3}{11} \\)"
+      }
+    }
+  ],
+  "summary": {
+    "severe_hallucination_count": 1,
+    "phase_a_threshold_2_result": "FAIL (target: 0, observed: 1)",
+    "threshold_2_offending_asset": "public/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf"
+  },
+  "determinism_criteria_recommendation": {
+    "use_for_determinism": [
+      "output_sha256",
+      "output_char_count",
+      "failure_category"
+    ],
+    "do_not_use_for_determinism": [
+      "runtime_seconds",
+      "peak_vram_reserved"
+    ],
+    "reason": "Documented runtime variance up to 7x for the same input; VRAM peak also varies with decoder path taken."
+  }
+}
