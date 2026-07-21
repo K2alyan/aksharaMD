@@ -912,11 +912,13 @@ class _UnlimitedOcrRunner:
         success OR exception. This prevents multi-gigabyte accumulation
         on long documents (300-DPI PNGs × N pages).
 
-        For PDFs with more than ``_PREFERRED_CHUNK_SIZE`` pages the
-        adaptive chunking loop processes pages in sequential batches,
-        halving the batch size (via the fixed reduction sequence
-        ``40 → 20 → 10 → 5 → 2 → 1``) on CUDA OOM. See
-        ``_process_chunks_with_reduction`` for the pure algorithm.
+        The initial chunk size is derived from currently-free VRAM by
+        ``_estimate_initial_chunk_size`` rather than a hardcoded value.
+        The env var ``UNLIMITED_OCR_PREFERRED_CHUNK_SIZE`` overrides the
+        VRAM-based estimate for testing and expert users. For PDFs with
+        more pages than the initial estimate, ``_process_chunks_with_
+        reduction`` halves the batch size (via the fixed reduction
+        sequence ``40 → 20 → 10 → 5 → 2 → 1``) on CUDA OOM.
         """
         if not self._loaded:
             self.load()
@@ -936,12 +938,21 @@ class _UnlimitedOcrRunner:
                 out_dir = scratch / "out"
                 out_dir.mkdir(parents=True, exist_ok=True)
                 total = len(image_paths)
-                if total <= _PREFERRED_CHUNK_SIZE:
-                    # Preserve pre-chunking behavior byte-for-byte for
-                    # small documents.
-                    return self._infer_single_chunk(
+                # Compute a portable initial chunk size from the driver's
+                # current free-VRAM report. The env var still wins.
+                initial_size, sizing_signals = _estimate_initial_chunk_size(
+                    free_vram_bytes=_query_free_vram_bytes(torch),
+                    env_override=os.environ.get("UNLIMITED_OCR_PREFERRED_CHUNK_SIZE"),
+                )
+                if total <= initial_size:
+                    # Small enough to fit in a single call at the
+                    # estimated size.
+                    result = self._infer_single_chunk(
                         image_paths, out_dir, max_length, torch,
                     )
+                    text, exc, single_signals = result
+                    single_signals["initial_chunk_size_signals"] = sizing_signals
+                    return text, exc, single_signals
                 # Large PDF: adaptive chunking.
                 def _inference_fn(
                     page_start: int, page_end: int, chunk_index: int, chunk_size: int,
@@ -958,7 +969,7 @@ class _UnlimitedOcrRunner:
                     total_pages=total,
                     inference_fn=_inference_fn,
                     health_probe=_health,
-                    preferred_size=_PREFERRED_CHUNK_SIZE,
+                    preferred_size=initial_size,
                 )
                 signals: dict[str, Any] = {
                     "page_count": total,
@@ -966,6 +977,7 @@ class _UnlimitedOcrRunner:
                     "chunk_count_total": len(chunks),
                     "chunk_count_successful": sum(1 for c in chunks if c["status"] == "PASS"),
                     "chunk_count_oom_retries": sum(1 for c in chunks if c["status"] == "OOM_RETRY"),
+                    "initial_chunk_size_signals": sizing_signals,
                 }
                 if err:
                     return "", f"chunked_infer_failed: {err}", signals
@@ -995,8 +1007,133 @@ class _UnlimitedOcrRunner:
 #
 # CRITICAL: only one chunk is on the GPU at a time. Never concurrent.
 
-_PREFERRED_CHUNK_SIZE = 40
+# Hardware-aware initial chunk sizing (PR 1 of 3 in the portable
+# large-document strategy). This block replaces the pre-existing
+# hardcoded preferred chunk size of 40. The number 40 remains only as
+# the upper clamp because the reduction sequence tops out there.
+#
+# The design deliberately produces an *initial estimate*, not a
+# guarantee. Actual survival of a given size on a given GPU depends on
+# the model revision, precision, render DPI, per-page content weight,
+# and how much VRAM the driver is willing to hand out at that instant.
+# Bad guesses are handled by the reduction sequence in PR 2's follow-up
+# subprocess isolation; this PR only makes the first guess portable.
+
+_DEFAULT_SAFETY_FACTOR = 0.60
+"""Fraction of the free-VRAM budget we let the first guess use. 0.60
+leaves 40% headroom for pages that are heavier than the per-page
+estimate (dense math, image-rich scans, higher DPI than expected). A
+higher value is faster but more OOM-prone; the reduction sequence
+still catches the failure but a restart is expensive."""
+
+_DEFAULT_PER_PAGE_MEMORY_MIB = 500
+"""Rough conservative estimate of peak VRAM consumed per rendered page
+during inference (input tensor + activations). The observed 40-page
+attempt on GeoTopo-komprimiert.pdf reserved ~27 GB total, of which
+~6.5 GB was the model — leaving ~515 MiB per page on that document.
+Simpler documents cost far less. This estimate biases toward the
+heavier end because overestimation shrinks the chunk (safe) while
+underestimation grows it (risks OOM). It is NOT a portable production
+constant. Callers with better information (e.g. pixel-aware sizing
+derived from render DPI) should override."""
+
+_MIN_CHUNK_SIZE = 1
+_MAX_CHUNK_SIZE = 40
+
 _CHUNK_REDUCTION_SEQUENCE: tuple[int, ...] = (40, 20, 10, 5, 2, 1)
+
+
+def _estimate_initial_chunk_size(
+    free_vram_bytes: int | None,
+    *,
+    safety_factor: float = _DEFAULT_SAFETY_FACTOR,
+    per_page_memory_estimate_mib: int = _DEFAULT_PER_PAGE_MEMORY_MIB,
+    min_size: int = _MIN_CHUNK_SIZE,
+    max_size: int = _MAX_CHUNK_SIZE,
+    env_override: str | None = None,
+) -> tuple[int, dict[str, Any]]:
+    """Pure function. Return ``(initial_chunk_size, signals)``.
+
+    The size is an *initial estimate*, not a guarantee that the model
+    will fit. Survival still depends on the per-page memory cost the
+    caller assumes matching the actual document.
+
+    ``env_override`` takes precedence when it parses to a positive int;
+    it is clamped to ``[min_size, max_size]``. It exists so operators
+    can force a known-good value for a specific site without touching
+    code or having to run calibration.
+
+    ``free_vram_bytes = None`` (or non-positive) means the caller has
+    no VRAM to give us — CPU-only, driver refused, unsupported GPU.
+    In that case the safest possible size (``min_size``) is returned
+    and the caller decides whether to proceed at all.
+
+    ``signals`` records how the estimate was derived so downstream
+    diagnostics can explain what happened.
+    """
+    signals: dict[str, Any] = {
+        "source": None,
+        "free_vram_bytes": free_vram_bytes,
+        "safety_factor": safety_factor,
+        "per_page_memory_estimate_mib": per_page_memory_estimate_mib,
+        "min_size": min_size,
+        "max_size": max_size,
+        "env_override_raw": env_override,
+        "env_override_applied": False,
+    }
+    if env_override is not None and env_override != "":
+        try:
+            value = int(env_override)
+        except (TypeError, ValueError):
+            value = None
+        if value is not None and value > 0:
+            clamped = max(min_size, min(max_size, value))
+            signals["source"] = "env"
+            signals["env_override_applied"] = True
+            signals["raw_estimate"] = value
+            signals["clamped_to"] = clamped
+            return clamped, signals
+
+    if free_vram_bytes is None or free_vram_bytes <= 0:
+        signals["source"] = "cpu-or-unknown-vram-fallback"
+        signals["raw_estimate"] = min_size
+        signals["clamped_to"] = min_size
+        return min_size, signals
+
+    per_page_bytes = per_page_memory_estimate_mib * 1024 * 1024
+    if per_page_bytes <= 0:
+        signals["source"] = "invalid-per-page-estimate-fallback"
+        signals["raw_estimate"] = min_size
+        signals["clamped_to"] = min_size
+        return min_size, signals
+
+    usable_bytes = int(free_vram_bytes * safety_factor)
+    raw_estimate = usable_bytes // per_page_bytes
+    clamped = max(min_size, min(max_size, int(raw_estimate)))
+    signals["source"] = "vram-based"
+    signals["usable_bytes"] = usable_bytes
+    signals["raw_estimate"] = int(raw_estimate)
+    signals["clamped_to"] = clamped
+    return clamped, signals
+
+
+def _query_free_vram_bytes(torch_mod: Any) -> int | None:
+    """Best-effort read of currently-free VRAM on device 0. Returns
+    ``None`` on any failure (CPU-only, driver error, older torch that
+    lacks ``mem_get_info``, etc.) — pushing the sizing function into
+    its cpu-or-unknown fallback. Never raises."""
+    try:
+        if not torch_mod.cuda.is_available():
+            return None
+    except Exception:  # noqa: BLE001 — probing a hostile external boundary
+        return None
+    try:
+        free_bytes, _total_bytes = torch_mod.cuda.mem_get_info(0)
+        if free_bytes is None:
+            return None
+        return int(free_bytes)
+    except Exception:  # noqa: BLE001 — same
+        return None
 
 
 class _OOMSignal(Exception):
@@ -1041,7 +1178,7 @@ def _process_chunks_with_reduction(
     total_pages: int,
     inference_fn: Any,  # Callable[(page_start, page_end, chunk_index, chunk_size), tuple[str, dict]] raising _OOMSignal
     health_probe: Any,  # Callable[[], bool]
-    preferred_size: int = _PREFERRED_CHUNK_SIZE,
+    preferred_size: int = _MAX_CHUNK_SIZE,
 ) -> tuple[str, str, list[dict[str, Any]]]:
     """Pure function orchestrating the adaptive chunking loop.
 

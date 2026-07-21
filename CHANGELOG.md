@@ -5,6 +5,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Changed
+
+- **Unlimited-OCR initial chunk size is now hardware-aware**
+  (`benchmarks/pdf_benchmark_adapters/unlimited_ocr_adapter.py`).
+  The hardcoded `_PREFERRED_CHUNK_SIZE = 40` is replaced by a pure
+  function `_estimate_initial_chunk_size(free_vram_bytes, ...)` that
+  reads the currently-free VRAM at model-load time and picks a size
+  that fits with a documented safety headroom (default 60% of free
+  VRAM, per-page cost 500 MiB). The env var
+  `UNLIMITED_OCR_PREFERRED_CHUNK_SIZE` overrides the estimate for
+  testing and expert users. The reduction sequence
+  `40 → 20 → 10 → 5 → 2 → 1` still catches OOMs at runtime, but the
+  first attempt now scales with the actual card instead of the RTX
+  3060 the code was originally tuned on.
+  - This is the first of three PRs. Subsequent PRs add subprocess
+    isolation (so a bad first guess cannot poison the CUDA context)
+    and a persistent safe-size cache keyed by GPU + model revision +
+    torch/CUDA + render/chunking policy versions.
+  - The initial estimate is not a guarantee. Pixel-heavy documents
+    (dense math, high-DPI scans) can still exceed the guess; callers
+    can pass a larger `per_page_memory_estimate_mib` to shrink the
+    chunk.
+
 ### Fixed
 
 - **Phantom column boundary from lone centered footer / page number**
