@@ -118,7 +118,7 @@ def main() -> int:
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
-        import torch  # type: ignore
+        import torch  # type: ignore  # noqa: F401  - availability probe
     except ImportError as e:
         print(f"REFUSE: torch not installed: {e}", file=sys.stderr)
         return 2

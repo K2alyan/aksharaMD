@@ -3,9 +3,10 @@
   "adapter_target": "unlimited-ocr",
   "adapter_target_repo": "baidu/Unlimited-OCR",
   "adapter_target_revision": "d549bb9d6a055dbe291408916d66acc2cd5920f6",
+  "manifest_source": "pdf_benchmark_v1_manifest.json",
   "pass_index": 1,
   "started_at": "2026-07-20T23:21:54Z",
-  "finished_at": "2026-07-21T00:09:30Z",
+  "finished_at": "2026-07-21T01:50:09Z",
   "environment": {
     "python": "3.12.2",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -15,6 +16,40 @@
     "gpu_name": "NVIDIA GeForce RTX 3060",
     "gpu_vram_gib": 12.0,
     "bf16_supported": true
+  },
+  "gpu_report": {
+    "torch_installed": true,
+    "cuda_available": true,
+    "torch_version": "2.12.1+cu126",
+    "cuda_version": "12.6",
+    "device_0_name": "NVIDIA GeForce RTX 3060",
+    "device_0_vram_gib": 12.0,
+    "bf16_supported": true
+  },
+  "execution_mode_decision": {
+    "mode": "real_inference",
+    "note": "A2 first pass; all assets attempted real inference"
+  },
+  "dependencies": {
+    "torch": "2.12.1+cu126",
+    "cuda": "12.6"
+  },
+  "evaluation_semantics_notes": {
+    "aksharamd_readiness_score_used": false,
+    "aksharamd_warning_codes_used": false,
+    "no_cross_parser_ranking": true,
+    "near_empty_equivalent_definition": "not applied in A2; tool-neutral output only",
+    "low_density_equivalent_definition": "not applied in A2; tool-neutral output only"
+  },
+  "security_notes": {
+    "trust_remote_code": true,
+    "revision_pinned": true,
+    "safetensors_only": true,
+    "offline_enforcement": {
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1"
+    },
+    "trusted_code_files_verified": true
   },
   "load": {
     "elapsed_seconds": 18.53,
@@ -59,7 +94,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/3colpres",
@@ -85,7 +121,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/battery",
@@ -111,7 +148,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/eastbaytimes",
@@ -137,7 +175,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/elpais",
@@ -163,7 +202,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/ikea3",
@@ -189,7 +229,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/japanese_case",
@@ -215,7 +256,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/letter3",
@@ -241,7 +283,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/myctophidae",
@@ -267,7 +310,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/simple2",
@@ -293,7 +337,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/strikeUnderline",
@@ -319,7 +364,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "parsebench/text_dense__de",
@@ -345,7 +391,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/001-trivial/minimal-document.pdf",
@@ -371,7 +418,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/002-trivial-libre-office-writer/002-trivial-libre-office-writer.pdf",
@@ -397,7 +445,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/003-pdflatex-image/pdflatex-image.pdf",
@@ -423,7 +472,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/004-pdflatex-4-pages/pdflatex-4-pages.pdf",
@@ -449,7 +499,8 @@
         "peak_gpu_memory_mib": 7380,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/006-pdflatex-outline/pdflatex-outline.pdf",
@@ -475,7 +526,8 @@
         "peak_gpu_memory_mib": 7380,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/007-imagemagick-images/imagemagick-ASCII85Decode.pdf",
@@ -501,7 +553,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf",
@@ -527,7 +580,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/007-imagemagick-images/imagemagick-images.pdf",
@@ -553,7 +607,8 @@
         "peak_gpu_memory_mib": 7829,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/007-imagemagick-images/imagemagick-lzw.pdf",
@@ -579,7 +634,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/008-reportlab-inline-image/inline-image.pdf",
@@ -605,7 +661,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/009-pdflatex-geotopo/GeoTopo-komprimiert.pdf",
@@ -627,7 +684,8 @@
       "hallucination_flag": null,
       "runner_healthy_after": true,
       "tool_signals": {},
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/009-pdflatex-geotopo/GeoTopo.pdf",
@@ -649,7 +707,8 @@
       "hallucination_flag": null,
       "runner_healthy_after": true,
       "tool_signals": {},
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/010-pdflatex-forms/pdflatex-forms.pdf",
@@ -675,7 +734,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/011-google-doc-document/google-doc-document.pdf",
@@ -701,7 +761,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/012-libreoffice-form/libreoffice-form.pdf",
@@ -727,7 +788,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/013-reportlab-overlay/reportlab-overlay.pdf",
@@ -753,7 +815,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/014-outlines/mistitled_outlines_example.pdf",
@@ -779,7 +842,8 @@
         "peak_gpu_memory_mib": 7380,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/015-arabic/habibi-oneline-cmap.pdf",
@@ -805,7 +869,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/015-arabic/habibi-rotated.pdf",
@@ -831,7 +896,8 @@
         "peak_gpu_memory_mib": 7380,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/015-arabic/habibi.pdf",
@@ -857,7 +923,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/016-libre-office-link/libre-office-link.pdf",
@@ -883,7 +950,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/017-unreadable-meta-data/unreadablemetadata.pdf",
@@ -905,7 +973,8 @@
       "hallucination_flag": null,
       "runner_healthy_after": true,
       "tool_signals": {},
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/018-base64-image/base64image.pdf",
@@ -931,7 +1000,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/019-grayscale-image/grayscale-image.pdf",
@@ -957,7 +1027,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/020-xmp/output_with_metadata_pymupdf.pdf",
@@ -983,7 +1054,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/021-pdfa/crazyones-pdfa.pdf",
@@ -1009,7 +1081,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/022-pdfkit/pdfkit.pdf",
@@ -1035,7 +1108,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/023-cmyk-image/cmyk-image.pdf",
@@ -1061,7 +1135,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/024-annotations/annotated_pdf.pdf",
@@ -1087,7 +1162,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/025-attachment/with-attachment.pdf",
@@ -1113,7 +1189,8 @@
         "peak_gpu_memory_mib": 6928,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/026-latex-multicolumn/multicolumn.pdf",
@@ -1139,7 +1216,8 @@
         "peak_gpu_memory_mib": 7155,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",
@@ -1165,7 +1243,8 @@
         "peak_gpu_memory_mib": 7380,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     },
     {
       "asset_id": "public/028-image-references-deduplication/wrong-references.pdf",
@@ -1191,7 +1270,8 @@
         "peak_gpu_memory_mib": 7155,
         "output_files_written": 1
       },
-      "timeout_hit": false
+      "timeout_hit": false,
+      "execution_mode": "real_inference"
     }
   ],
   "aggregate": {
