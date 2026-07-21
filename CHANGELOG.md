@@ -5,6 +5,33 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Changed
+
+- **Relocated Unlimited-OCR runtime into the production package**
+  (`aksharamd/plugins/ocr_backends/unlimited_ocr/`). The five runtime
+  modules — `adapter.py`, `orchestrator.py`, `worker.py`, `cache.py`,
+  `portable.py` — moved out of `benchmarks/pdf_benchmark_adapters/`
+  into the production tree so a `pip install aksharamd` wheel includes
+  them. No user-visible compile-flow behavior changed: the runtime is
+  not wired into `aksharamd compile` in this PR.
+  - Backwards-compat shims under
+    `benchmarks/pdf_benchmark_adapters/unlimited_ocr_*.py` re-export
+    everything from the new locations so existing harnesses
+    (`benchmarks/a2_geotopo_portable_validation.py`,
+    `benchmarks/a2_geotopo_chunking_regression.py`, and the internal
+    `a1_5` / `a2_first_pass` / `a2_second_pass` /
+    `a2_hallucination_inspection` / `a1c` / `a1d` scripts) keep
+    working unchanged.
+  - New helpers `default_cache_path`, `is_cache_disabled`,
+    `clear_cache` on the package entrypoint plus env vars
+    `AKSHARAMD_OCR_CACHE_PATH` and `AKSHARAMD_OCR_CACHE_DISABLE` for
+    operators.
+  - Guard test (`tests/test_unlimited_ocr_no_heavy_import.py`)
+    asserts that `import aksharamd` and importing the OCR runtime
+    package do NOT drag `torch` / `transformers` into `sys.modules`.
+    All heavy imports remain lazy, inside functions.
+  - Documented at `docs/ocr/unlimited_ocr_cache.md`.
+
 ### Added
 
 - **Portable Unlimited-OCR entrypoint + safe-size cache**

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from benchmarks.pdf_benchmark_adapters.unlimited_ocr_safe_size_cache import (  # type: ignore
+from aksharamd.plugins.ocr_backends.unlimited_ocr.cache import (  # type: ignore
     SoftwareFingerprint,
     build_cache_key,
     choose_initial_size_from_cache_hit,
