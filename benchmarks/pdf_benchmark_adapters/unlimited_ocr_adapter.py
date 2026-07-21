@@ -745,7 +745,6 @@ class _UnlimitedOcrRunner:
             )
             self._call_log.append("AutoTokenizer.from_pretrained")
             model_load_kwargs: dict[str, Any] = dict(
-                revision=_UNLIMITED_OCR_MODEL_REVISION,
                 trust_remote_code=True,
                 use_safetensors=True,
                 torch_dtype=torch.bfloat16,
@@ -755,8 +754,12 @@ class _UnlimitedOcrRunner:
             assert model_load_kwargs["use_safetensors"] is True, (
                 "use_safetensors=True must be enforced at model load"
             )
+            # revision is passed inline (not via **kwargs) so bandit
+            # B615's static scan can see the pinning.
             self._model = AutoModel.from_pretrained(
-                _UNLIMITED_OCR_MODEL_REPO, **model_load_kwargs,
+                _UNLIMITED_OCR_MODEL_REPO,
+                revision=_UNLIMITED_OCR_MODEL_REVISION,
+                **model_load_kwargs,
             ).eval().cuda()
             self._call_log.append("AutoModel.from_pretrained")
             self._loaded = True
