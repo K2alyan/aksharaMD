@@ -7,6 +7,35 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ### Added
 
+- **Portable Unlimited-OCR entrypoint + safe-size cache**
+  (`benchmarks/pdf_benchmark_adapters/unlimited_ocr_portable.py`,
+  `unlimited_ocr_safe_size_cache.py`). Third and final PR of the
+  portable large-document strategy. Public function
+  `infer_pdf_portable(pdf, workdir, cache_path=...)` stitches together
+  the hardware-aware initial sizing (PR 1), subprocess isolation
+  (PR 2), and a persistent size cache keyed on GPU identity, total
+  VRAM bucket, model revision, precision, torch/CUDA versions, and
+  render/chunking policy versions.
+  - Cache is written ONLY after an entire document completes at a
+    given size. Partial-success values are never persisted.
+  - Cached size is treated as a starting hint, not truth. Every
+    lookup re-checks live free VRAM and shrinks the cached value if
+    another process now holds the VRAM.
+  - Atomic writes via `os.replace`; corrupted or missing cache
+    files fall back to the PR 1 formula without ever crashing.
+  - A separate `smallest_known_failed_size` field records the
+    tightest known upper bound so future runs can start below it.
+  - `largest_known_successful_size` acts as a high-water mark and
+    never regresses on a later smaller success.
+- **GeoTopo focused validation harness**
+  (`benchmarks/a2_geotopo_portable_validation.py`). Runs each of the
+  two 117-page GeoTopo PDFs twice through `infer_pdf_portable` and
+  writes machine-readable and Markdown receipts covering per-run
+  initial / final chunk sizes, restart counts, VRAM peaks, runtime,
+  determinism, and full acceptance criteria.
+
+### Added
+
 - **Unlimited-OCR subprocess-isolated inference orchestrator**
   (`benchmarks/pdf_benchmark_adapters/unlimited_ocr_worker.py`,
   `unlimited_ocr_orchestrator.py`).
