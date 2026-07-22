@@ -210,4 +210,16 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         max_penalty=0,
         formula="0 (informational only)",
     ),
+    "AUTO_OCR_BACKEND_SELECTED": ScoringRule(
+        rule_id="AUTO_OCR_BACKEND_SELECTED",
+        description="Informational: Auto Policy v1 selected an OCR backend",
+        max_penalty=0,
+        formula="0 (informational only)",
+    ),
+    "AUTO_OCR_BACKEND_FALLBACK": ScoringRule(
+        rule_id="AUTO_OCR_BACKEND_FALLBACK",
+        description="Informational: Auto Policy v1 fell back from preferred backend",
+        max_penalty=0,
+        formula="0 (informational only)",
+    ),
 }

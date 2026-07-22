@@ -480,10 +480,10 @@ def test_fidelity_report_preserved_vs_included(tmp_path):
     )
 
 
-# 25. manifest_schema_version_1_3
+# 25. manifest_schema_version_1_3 (bumped to 1.4 in PR 100 for OCR Auto Policy)
 def test_manifest_schema_version_1_3():
     m = Manifest(source="test.pdf")
-    assert m.schema_version == "1.3"
+    assert m.schema_version == "1.4"
 
 
 # ── Milestone C tests ──────────────────────────────────────────────────────────

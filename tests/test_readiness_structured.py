@@ -576,7 +576,8 @@ def test_scoring_policy_version_is_not_schema_version() -> None:
     # The key test: they are independently settable
     m2 = Manifest(source="x.md", scoring_policy_version="99.0")
     assert m2.scoring_policy_version == "99.0"
-    assert m2.schema_version == "1.3"
+    # Bumped 1.3 → 1.4 in PR 100 for the additive OCR Auto Policy fields.
+    assert m2.schema_version == "1.4"
 
 
 # ── 16. to_dict serialization round-trip ──────────────────────────────────────
