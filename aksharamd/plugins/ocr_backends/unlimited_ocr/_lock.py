@@ -198,7 +198,11 @@ def _is_pid_alive_windows(pid: int) -> bool:  # pragma: no cover - Windows-only
         )
         if not handle:
             # ERROR_INVALID_PARAMETER (87) → no such PID.
-            last = ctypes.get_last_error()
+            # ``ctypes.get_last_error`` exists at runtime on every
+            # platform, but typeshed's stubs mark it as Windows-only,
+            # so mypy on Linux flags it as ``attr-defined``. The whole
+            # branch is guarded by ``platform.system() == "Windows"``.
+            last = ctypes.get_last_error()  # type: ignore[attr-defined]
             if last == ERROR_INVALID_PARAMETER:
                 return False
             # Access denied etc. → conservatively treat as alive.
