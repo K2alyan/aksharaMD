@@ -1984,3 +1984,223 @@ def inspect_payload(payload_path: str) -> None:
     if payload.unresolved_element_ids:
         pt.add_row("[yellow]Unresolved[/]", str(len(payload.unresolved_element_ids)))
     console.print(Panel(pt, title="[bold]LLM Payload Summary[/]", border_style="cyan"))
+
+
+# ── Models lifecycle (PR 98) ──────────────────────────────────────────────
+#
+# The four ``aksharamd models`` subcommands cover install / verify / status /
+# remove for the Unlimited-OCR snapshot. All heavy work lives in
+# ``aksharamd.plugins.ocr_backends.unlimited_ocr.models``; the CLI shell only
+# renders, prompts, and maps outcomes to exit codes. NO heavy imports here —
+# ``import aksharamd.cli`` must stay cheap.
+
+
+_KNOWN_MODEL_NAMES = frozenset({"unlimited_ocr"})
+
+
+def _fmt_bytes(n: int | None) -> str:
+    if n is None:
+        return "unknown"
+    if n >= 1024 ** 3:
+        return f"{n / (1024 ** 3):.2f} GiB"
+    if n >= 1024 ** 2:
+        return f"{n / (1024 ** 2):.1f} MiB"
+    if n >= 1024:
+        return f"{n / 1024:.1f} KiB"
+    return f"{n} B"
+
+
+@main.group()
+def models() -> None:
+    """Install, verify, inspect, or remove local OCR models."""
+
+
+def _validate_model_name_or_exit(model_name: str) -> None:
+    """Reject anything except the single supported model with exit 2."""
+    if model_name in _KNOWN_MODEL_NAMES:
+        return
+    # Print a helpful message on stderr and exit with code 2. Using
+    # ClickException keeps behaviour consistent with click's own
+    # usage errors.
+    known = ", ".join(sorted(_KNOWN_MODEL_NAMES))
+    click.echo(
+        f"Error: unknown model {model_name!r}. Known models: {known}.",
+        err=True,
+    )
+    raise SystemExit(2)
+
+
+@models.command("status")
+@click.argument("model_name")
+@click.option("--json", "json_out", is_flag=True, default=False,
+              help="Emit a deterministic JSON object; no ANSI, no Rich.")
+def models_status_cmd(model_name: str, json_out: bool) -> None:
+    """Show installation and verification status for MODEL_NAME."""
+    _validate_model_name_or_exit(model_name)
+    # Lazy import — keeps ``models --help`` free of the lifecycle module.
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.models import (
+        get_model_status,
+        status_to_dict,
+    )
+    status = get_model_status()
+
+    if json_out:
+        import json as _json
+        # sort_keys=True for deterministic output; no Rich, no ANSI.
+        print(_json.dumps(status_to_dict(status), indent=2, sort_keys=True))
+        return
+
+    console.print(Panel(
+        (
+            f"[bold]{status.name}[/]  "
+            f"repo=[cyan]{status.repo_id}[/]  "
+            f"revision=[dim]{status.revision[:12]}[/]"
+        ),
+        border_style="blue",
+    ))
+    t = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+    t.add_column(style="bold")
+    t.add_column()
+    t.add_row("Snapshot present", "yes" if status.snapshot_present else "no")
+    t.add_row("Manifest present", "yes" if status.manifest_present else "no")
+    t.add_row("Byte verified", "yes" if status.byte_verified else "no")
+    hw = (
+        "yes" if status.hardware_compatible is True
+        else "no" if status.hardware_compatible is False
+        else "unknown"
+    )
+    t.add_row("Hardware compatible", hw)
+    t.add_row("Runnable now", "yes" if status.runnable_now else "no")
+    t.add_row(
+        "Expected download size",
+        f"{_fmt_bytes(status.download_size_bytes)} "
+        f"(source: {status.download_size_source})",
+    )
+    if status.snapshot_path:
+        t.add_row("Snapshot path", str(status.snapshot_path))
+    if status.receipt_path:
+        t.add_row("Receipt path", str(status.receipt_path))
+    if status.reason:
+        t.add_row("Reason", status.reason)
+    console.print(t)
+
+
+@models.command("install")
+@click.argument("model_name")
+@click.option("--yes", "-y", is_flag=True, default=False,
+              help="Skip the interactive confirmation prompt.")
+def models_install_cmd(model_name: str, yes: bool) -> None:
+    """Download and byte-verify MODEL_NAME."""
+    _validate_model_name_or_exit(model_name)
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.models import (
+        get_model_info,
+        install_model,
+    )
+
+    info = get_model_info()
+    # Preview panel — always printed regardless of --yes so a user
+    # can review what --yes just committed them to.
+    console.print(Panel(
+        (
+            f"[bold]Install {info.name}[/]\n"
+            f"  Repo:       [cyan]{info.repo_id}[/]\n"
+            f"  Revision:   [dim]{info.revision}[/]\n"
+            f"  Size:       {_fmt_bytes(info.download_size_bytes)} "
+            f"(source: {info.download_size_source})\n"
+            f"  Destination:[dim] {info.snapshot_path or '(HF cache)'}[/]\n\n"
+            f"[dim]{info.license_notice}[/]"
+        ),
+        title="[bold]Model install preview[/]",
+        border_style="cyan",
+    ))
+    if not yes:
+        if not click.confirm(
+            "Proceed with the download?", default=False,
+        ):
+            click.echo("aborted by user", err=True)
+            raise SystemExit(1)
+
+    def _cb(phase: str) -> None:
+        console.print(f"[dim]-> {phase}[/dim]")
+
+    outcome = install_model(assume_yes=yes, progress_callback=_cb)
+    if outcome.exit_code == 0:
+        console.print(f"[green]{outcome.note}[/green]")
+    else:
+        click.echo(f"install failed: {outcome.note}", err=True)
+    raise SystemExit(outcome.exit_code)
+
+
+@models.command("verify")
+@click.argument("model_name")
+@click.option("--json", "json_out", is_flag=True, default=False,
+              help="Emit a deterministic JSON object; no ANSI, no Rich.")
+def models_verify_cmd(model_name: str, json_out: bool) -> None:
+    """Byte-verify the installed snapshot for MODEL_NAME. No network."""
+    _validate_model_name_or_exit(model_name)
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.models import (
+        verify_model,
+        verify_outcome_to_dict,
+    )
+    out = verify_model()
+    if json_out:
+        import json as _json
+        print(_json.dumps(verify_outcome_to_dict(out), indent=2, sort_keys=True))
+    else:
+        if out.ok:
+            console.print(f"[green]{out.note}[/green]")
+            console.print(
+                f"[dim]{len(out.files_hashed)} files hashed; receipt at "
+                f"{out.receipt_path}[/dim]"
+            )
+        else:
+            click.echo(f"verification failed: {out.note}", err=True)
+    raise SystemExit(out.exit_code)
+
+
+@models.command("remove")
+@click.argument("model_name")
+@click.option("--yes", "-y", is_flag=True, default=False,
+              help="Skip the interactive confirmation prompt.")
+@click.option("--clear-runtime-cache", is_flag=True, default=False,
+              help="Also clear the small aksharamd-managed safe-size cache.")
+def models_remove_cmd(
+    model_name: str,
+    yes: bool,
+    clear_runtime_cache: bool,
+) -> None:
+    """Remove the local snapshot for MODEL_NAME."""
+    _validate_model_name_or_exit(model_name)
+    from aksharamd.plugins.ocr_backends.unlimited_ocr.models import (
+        get_model_info,
+        remove_model,
+    )
+
+    info = get_model_info()
+    console.print(Panel(
+        (
+            f"[bold]Remove {info.name}[/]\n"
+            f"  Repo:      [cyan]{info.repo_id}[/]\n"
+            f"  Revision:  [dim]{info.revision}[/]\n"
+            f"  Snapshot:  [dim]{info.snapshot_path or '(not present)'}[/]\n"
+            f"  Runtime cache: "
+            f"{'will be cleared' if clear_runtime_cache else 'kept'}"
+        ),
+        title="[bold]Model remove preview[/]",
+        border_style="yellow",
+    ))
+    if not yes:
+        if not click.confirm(
+            "Proceed with the removal?", default=False,
+        ):
+            click.echo("aborted by user", err=True)
+            raise SystemExit(1)
+
+    outcome = remove_model(clear_runtime_cache=clear_runtime_cache)
+    if outcome.exit_code == 0:
+        console.print(f"[green]{outcome.note}[/green]")
+        if outcome.runtime_cache_cleared:
+            console.print("[dim]runtime cache cleared[/dim]")
+    else:
+        click.echo(f"remove failed: {outcome.note}", err=True)
+    raise SystemExit(outcome.exit_code)
