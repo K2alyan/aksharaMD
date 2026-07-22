@@ -62,6 +62,44 @@ def _fake_hf_hub(cached: bool) -> types.ModuleType:
     return hf
 
 
+def _patch_receipt_valid(monkeypatch, valid: bool = True) -> None:
+    """PR 99: the runnable predicate now additionally requires a
+    verification receipt that matches the pinned revision, manifest,
+    and receipt schema. This helper stubs the receipt check + manifest
+    loader at their import sites inside ``unlimited_ocr_backend`` so
+    tests exercising the tightened invariant do not need a real HF
+    cache or receipt directory.
+    """
+    def _fake_load_trusted_manifest(path=None):  # noqa: ARG001
+        return {
+            "manifest_schema_version": 1,
+            "manifest_id": "fake",
+            "repo_id": "fake/repo",
+            "revision": "0" * 40,
+            "files": {"config.json": {
+                "sha256": "0" * 64,
+                "size_bytes": 1,
+                "class": "config",
+                "required_for_runtime": True,
+                "verify_on_every_load": False,
+            }},
+        }
+
+    reason = "" if valid else "receipt missing"
+
+    def _fake_check(manifest, manifest_path, cache_root=None):  # noqa: ARG001
+        return (valid, "" if valid else reason)
+
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.unlimited_ocr.adapter.load_trusted_manifest",
+        _fake_load_trusted_manifest,
+    )
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.verification_receipt.check_verification_receipt",
+        _fake_check,
+    )
+
+
 # ── Capabilities ────────────────────────────────────────────────────────
 
 
@@ -133,9 +171,11 @@ def test_availability_when_manifest_missing(tmp_path):
 
 
 def test_availability_when_model_snapshot_not_cached(tmp_path):
-    """Fix 2: model weights absent → clear actionable reason so PR 94c
-    can produce a helpful fatal error rather than a mysterious
-    download during compile."""
+    """Fix 2: model weights absent → clear actionable reason plus the
+    exact remediation command so the CLI can surface both without
+    string surgery. Post-PR-99 the reason is the short lifecycle
+    string ``"Model not installed."`` and the remediation is carried
+    on ``recommended_command``."""
     backend = UnlimitedOcrBackend()
     fake_manifest = tmp_path / "trusted.json"
     fake_manifest.write_text("{}", encoding="utf-8")
@@ -148,8 +188,8 @@ def test_availability_when_model_snapshot_not_cached(tmp_path):
     ):
         avail = backend.availability()
     assert avail.is_available is False
-    assert "snapshot" in avail.reason.lower()
-    assert "install" in avail.reason.lower()
+    assert avail.reason == "Model not installed."
+    assert avail.recommended_command == "aksharamd models install unlimited_ocr"
 
 
 def test_availability_when_hf_hub_missing(tmp_path):
@@ -224,10 +264,11 @@ def test_availability_state_flags_model_missing(tmp_path):
     assert avail.runnable_now is False
 
 
-def test_availability_state_flags_all_pass(tmp_path):
+def test_availability_state_flags_all_pass(tmp_path, monkeypatch):
     backend = UnlimitedOcrBackend()
     fake_manifest = tmp_path / "trusted.json"
     fake_manifest.write_text("{}", encoding="utf-8")
+    _patch_receipt_valid(monkeypatch, valid=True)
     with patch.dict(sys.modules, {
         "torch": _fake_torch(),
         "huggingface_hub": _fake_hf_hub(cached=True),
@@ -242,10 +283,11 @@ def test_availability_state_flags_all_pass(tmp_path):
     assert avail.runnable_now is True
 
 
-def test_availability_when_all_checks_pass(tmp_path):
+def test_availability_when_all_checks_pass(tmp_path, monkeypatch):
     backend = UnlimitedOcrBackend()
     fake_manifest = tmp_path / "trusted.json"
     fake_manifest.write_text("{}", encoding="utf-8")
+    _patch_receipt_valid(monkeypatch, valid=True)
     with patch.dict(sys.modules, {
         "torch": _fake_torch(),
         "huggingface_hub": _fake_hf_hub(cached=True),
@@ -258,14 +300,16 @@ def test_availability_when_all_checks_pass(tmp_path):
     assert avail.reason == ""
 
 
-def test_availability_does_not_load_model(tmp_path):
+def test_availability_does_not_load_model(tmp_path, monkeypatch):
     """The probe must not pull ``infer_pdf_portable``, the orchestrator,
     the worker, or the cache module — those all belong to ``process()``.
-    ``adapter`` is imported for the pinned repo id / revision constants,
-    which is intentional and does not itself load the model."""
+    ``adapter`` is imported for the pinned repo id / revision constants
+    AND (post-PR-99) the trusted-manifest loader, which is intentional
+    and does not itself load the model."""
     backend = UnlimitedOcrBackend()
     fake_manifest = tmp_path / "trusted.json"
     fake_manifest.write_text("{}", encoding="utf-8")
+    _patch_receipt_valid(monkeypatch, valid=True)
     with patch.dict(sys.modules, {
         "torch": _fake_torch(),
         "huggingface_hub": _fake_hf_hub(cached=True),

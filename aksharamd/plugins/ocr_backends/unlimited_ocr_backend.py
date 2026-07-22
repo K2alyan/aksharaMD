@@ -103,6 +103,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 model_installed=True,  # can't tell — skip that state
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         # CUDA reachable? Probe without touching a device — the probe
         # itself must be side-effect-free.
@@ -113,6 +114,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 is_available=False,
                 reason=f"torch.cuda probe raised: {type(exc).__name__}: {exc}",
                 details=details,
+                recommended_command=None,
             )
         if not has_cuda:
             return BackendAvailability(
@@ -121,6 +123,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 hardware_compatible=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         # BF16 supported? The model runs in bfloat16 at the pinned
         # revision. Cards without native bf16 (Turing / Volta / older)
@@ -136,6 +139,7 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"{type(exc).__name__}: {exc}"
                 ),
                 details=details,
+                recommended_command=None,
             )
         details.bf16_supported = bf16_ok
         if not bf16_ok:
@@ -149,6 +153,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 hardware_compatible=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         # Sufficient VRAM to host the model at all? Read the TOTAL
         # memory (not the free memory) so this is a hardware-capability
@@ -165,6 +170,7 @@ class UnlimitedOcrBackend(OcrBackend):
                     f"{type(exc).__name__}: {exc}"
                 ),
                 details=details,
+                recommended_command=None,
             )
         # ``name`` is present on Properties; guard defensively so a
         # test stub without it does not crash the whole probe.
@@ -184,14 +190,16 @@ class UnlimitedOcrBackend(OcrBackend):
                 hardware_compatible=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         # Trust manifest present? The full byte-level verification runs
         # inside infer_pdf_portable at model load; availability() only
         # confirms the packaged artefact is present so the CLI can bail
-        # early if an install has been corrupted.
+        # early if an install has been corrupted. A missing manifest
+        # is a re-install-aksharamd case, not a model-command case, so
+        # ``recommended_command`` stays None.
         from . import UNLIMITED_OCR_TRUSTED_MANIFEST_PATH
         manifest_present = UNLIMITED_OCR_TRUSTED_MANIFEST_PATH.exists()
-        details.model_snapshot_verified = manifest_present
         if not manifest_present:
             return BackendAvailability(
                 is_available=False,
@@ -202,6 +210,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 model_installed=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         # Model snapshot cached locally? An "available" backend means
         # `process()` should be able to run without downloading anything
@@ -221,6 +230,7 @@ class UnlimitedOcrBackend(OcrBackend):
                 model_installed=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
         from .unlimited_ocr.adapter import (
             _UNLIMITED_OCR_MODEL_REPO,
@@ -234,24 +244,73 @@ class UnlimitedOcrBackend(OcrBackend):
         snapshot_present = cached is not None
         details.model_snapshot_present = snapshot_present
         if not snapshot_present:
+            # Snapshot absent — model_snapshot_verified stays False,
+            # not None, because we KNOW there's nothing to verify.
+            details.model_snapshot_verified = False
+            return BackendAvailability(
+                is_available=False,
+                reason="Model not installed.",
+                model_installed=False,
+                runnable_now=False,
+                details=details,
+                recommended_command="aksharamd models install unlimited_ocr",
+            )
+        # Snapshot IS cached. Tighten the invariant: runnable_now=True
+        # additionally requires a local verification receipt that matches
+        # the pinned revision, manifest, and receipt schema. A successful
+        # ``aksharamd models install`` writes the receipt at the end of
+        # download (PR 98), so normal-lifecycle users see no added
+        # friction. Manually copied / stale / tampered snapshots fail
+        # early here with a precise remediation instead of failing later
+        # at model-load hashing. Full byte hashing still runs at model
+        # load via ``full_verify_and_write_receipt`` — the receipt is a
+        # fast preflight, not the only trust check.
+        from .unlimited_ocr.adapter import (
+            TrustedManifestError,
+            load_trusted_manifest,
+        )
+        try:
+            manifest = load_trusted_manifest(UNLIMITED_OCR_TRUSTED_MANIFEST_PATH)
+        except TrustedManifestError as exc:
+            # Manifest file exists but is malformed. Treat as "model
+            # not installed" with the existing manifest reason so the
+            # user re-installs aksharamd, not re-runs the model
+            # lifecycle command.
+            details.model_snapshot_verified = False
             return BackendAvailability(
                 is_available=False,
                 reason=(
-                    "Unlimited-OCR model snapshot not cached locally at "
-                    f"revision {_UNLIMITED_OCR_MODEL_REVISION}. "
-                    "Install it before selecting this backend."
+                    "Unlimited-OCR trusted manifest malformed at "
+                    f"{UNLIMITED_OCR_TRUSTED_MANIFEST_PATH}: {exc}"
                 ),
                 model_installed=False,
                 runnable_now=False,
                 details=details,
+                recommended_command=None,
             )
-        # All three predicates hold.
+        from .verification_receipt import check_verification_receipt
+        receipt_ok, _receipt_note = check_verification_receipt(
+            manifest,
+            UNLIMITED_OCR_TRUSTED_MANIFEST_PATH,
+        )
+        details.model_snapshot_verified = receipt_ok
+        if not receipt_ok:
+            return BackendAvailability(
+                is_available=False,
+                reason="Model snapshot is not verified.",
+                model_installed=True,
+                runnable_now=False,
+                details=details,
+                recommended_command="aksharamd models verify unlimited_ocr",
+            )
+        # All predicates hold.
         return BackendAvailability(
             is_available=True,
             hardware_compatible=True,
             model_installed=True,
             runnable_now=True,
             details=details,
+            recommended_command=None,
         )
 
     def process(self, request: OcrPageRequest) -> list[OcrPageResult]:
