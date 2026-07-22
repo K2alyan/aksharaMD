@@ -12,6 +12,7 @@ from .models.validation import Severity, ValidationIssue, ValidationReport
 if TYPE_CHECKING:
     from .packaging.models import DocumentPackagePlan, PackageAssetReference
     from .packaging.payload import LLMPayload
+    from .plugins.ocr_backends.auto_selector import AutoOcrDecision
 
 
 @dataclass
@@ -53,12 +54,22 @@ class CompilationContext:
     # heuristics (calibration/evaluation only).
     kv_profile: object | None = field(default=None)
 
-    # OCR backend selection (PR 94c). "tesseract" (the default) preserves
-    # the historical per-page Tesseract path exactly. "unlimited_ocr"
-    # routes OCR-required pages through the UnlimitedOcrBackend after an
-    # availability check succeeds. No "auto" selection — the compiler
-    # never silently falls back between backends.
+    # OCR backend selection (PR 94c, extended in PR 100). One of:
+    #   * "tesseract" (default) — historical per-page Tesseract path,
+    #     byte-for-byte unchanged.
+    #   * "unlimited_ocr" — routes OCR-required pages through the
+    #     UnlimitedOcrBackend after a hard-fail CLI availability check.
+    #   * "auto" (PR 100) — Auto Policy v1 applies AFTER pdf.py has
+    #     classified pages; picks "unlimited_ocr" when the document
+    #     meets both thresholds and UOC is runnable, otherwise
+    #     "tesseract". A loud (informational) warning fires on
+    #     fallback. Explicit choices never fall back.
     ocr_backend: str = "tesseract"
+
+    # PR 100: populated only when ``ocr_backend == "auto"``. Carries the
+    # structured Auto Policy v1 decision for later manifest
+    # serialization. ``None`` for explicit backend choices.
+    ocr_auto_decision: AutoOcrDecision | None = field(default=None)
 
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)

@@ -540,6 +540,26 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
             maturity=att_maturity,
         ))
 
+    # Informational: AUTO_OCR_BACKEND_SELECTED / AUTO_OCR_BACKEND_FALLBACK
+    # (PR 100, zero penalty). Both surface exactly what the Auto Policy v1
+    # decided and, when applicable, WHY it fell back. Readiness itself is
+    # unaffected — the whole point of ``auto`` is to bridge two working
+    # backends transparently.
+    if warnings_by_code.get("AUTO_OCR_BACKEND_SELECTED", 0):
+        informational.append(DeductionRecord(
+            rule_id="AUTO_OCR_BACKEND_SELECTED",
+            description="Auto Policy v1 selected an OCR backend for this document",
+            penalty=0,
+            maturity="informational",
+        ))
+    if warnings_by_code.get("AUTO_OCR_BACKEND_FALLBACK", 0):
+        informational.append(DeductionRecord(
+            rule_id="AUTO_OCR_BACKEND_FALLBACK",
+            description="Auto Policy v1 fell back from the preferred backend to Tesseract",
+            penalty=0,
+            maturity="informational",
+        ))
+
     # Token efficiency note
     if ctx.original_tokens > 0 and ctx.manifest:
         saved = ctx.original_tokens - ctx.manifest.optimized_tokens

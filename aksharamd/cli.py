@@ -459,12 +459,17 @@ def main():
 )
 @click.option(
     "--ocr-backend", "ocr_backend",
-    type=click.Choice(["tesseract", "unlimited_ocr"], case_sensitive=False),
+    type=click.Choice(["tesseract", "unlimited_ocr", "auto"], case_sensitive=False),
     default="tesseract", show_default=True,
     help=(
         "OCR backend for pages classified as needing OCR. "
         "'unlimited_ocr' requires a CUDA-capable NVIDIA GPU with bfloat16 "
-        "support, sufficient VRAM, and the model installed locally."
+        "support, sufficient VRAM, and the model installed locally. "
+        "'auto' applies Auto Policy v1: pick 'unlimited_ocr' when at "
+        "least 3 pages need OCR AND those pages are at least 30% of the "
+        "document AND unlimited_ocr is runnable; otherwise pick "
+        "'tesseract'. If unlimited_ocr is preferred but not runnable, "
+        "auto falls back to tesseract with an informational warning."
     ),
 )
 def compile(
@@ -498,8 +503,18 @@ def compile(
     # ("tesseract") skips this probe to preserve current behaviour: any
     # Tesseract-availability issues are still handled per-page by the
     # existing _ocr_available()/OCR_UNAVAILABLE_MSG path in pdf.py.
+    #
+    # PR 100: ``auto`` also skips this pre-compile probe. Auto Policy v1
+    # needs page classification data (produced inside pdf.py) before it
+    # can decide between backends, so its runnability check runs later
+    # inside pdf.py using ``select_ocr_backend``. Any fallback there is
+    # loud (an informational warning + manifest fields) but not a hard
+    # CLI error.
     _ocr_backend_normalized = (ocr_backend or "tesseract").lower()
-    if _ocr_backend_normalized != "tesseract":
+    # Only explicit non-default backends get the pre-compile probe.
+    # ``tesseract`` (default) is handled per-page inside pdf.py; ``auto``
+    # is resolved after page classification via ``select_ocr_backend``.
+    if _ocr_backend_normalized == "unlimited_ocr":
         from aksharamd.plugins.ocr_backends import get_backend as _get_backend
         try:
             _probe_backend = _get_backend(_ocr_backend_normalized)

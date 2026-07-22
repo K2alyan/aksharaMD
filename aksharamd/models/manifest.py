@@ -68,4 +68,17 @@ class Manifest(BaseModel):
     aksharamd_version: str = Field(default_factory=_get_version)
     package_mode: str | None = None      # PackageMode value; null when not run in package mode
     planner_version: str | None = None   # null when not run in package mode
-    schema_version: str = "1.3"
+    # PR 100 (Auto Policy v1): OCR backend telemetry.
+    # ``ocr_backend_requested`` is always populated ("tesseract" |
+    # "unlimited_ocr" | "auto"). ``ocr_backend_selected`` is what
+    # actually ran (only "tesseract" | "unlimited_ocr"; "auto" is
+    # resolved before writing). ``ocr_auto_policy_version`` and
+    # ``ocr_auto_decision`` are populated ONLY when the requested
+    # backend was "auto" — a stable audit trail of the Auto Policy
+    # decision. See docs/adr/ocr-auto-policy-v1.md for the field
+    # schema and the ADR that governs the policy.
+    ocr_backend_requested: str | None = None
+    ocr_backend_selected: str | None = None
+    ocr_auto_policy_version: str | None = None
+    ocr_auto_decision: dict | None = None
+    schema_version: str = "1.4"

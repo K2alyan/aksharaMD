@@ -985,6 +985,34 @@ class Compiler:
             vision_available = pdf_meta.get("pdf_vision_available")
             vision_pages = pdf_meta.get("pdf_vision_pages", 0)
 
+            # PR 100: OCR backend telemetry. Always record which backend the
+            # user requested and which one actually ran. For "auto", also
+            # record the structured Auto Policy v1 decision + policy version.
+            _ocr_requested = self.ocr_backend
+            _auto_decision = getattr(ctx, "ocr_auto_decision", None)
+            if _auto_decision is not None:
+                _ocr_selected = _auto_decision.selected_backend
+                _ocr_auto_policy_version = _auto_decision.policy_version
+                _ocr_auto_decision_payload: dict | None = {
+                    "total_pages": _auto_decision.total_pages,
+                    "ocr_required_pages": _auto_decision.ocr_required_pages,
+                    "ocr_required_fraction": _auto_decision.ocr_required_fraction,
+                    "minimum_pages_threshold": _auto_decision.minimum_pages_threshold,
+                    "fraction_threshold": _auto_decision.fraction_threshold,
+                    "preferred_backend": _auto_decision.preferred_backend,
+                    "preferred_backend_runnable": _auto_decision.preferred_backend_runnable,
+                    "fallback_occurred": _auto_decision.fallback_occurred,
+                    "fallback_reason": _auto_decision.fallback_reason,
+                    "recommended_command": _auto_decision.recommended_command,
+                }
+            else:
+                # Explicit request — the selected backend equals the request.
+                # For a digital-only PDF with no OCR needed, this still
+                # records what would have been used, per PR 100 spec.
+                _ocr_selected = _ocr_requested
+                _ocr_auto_policy_version = None
+                _ocr_auto_decision_payload = None
+
             ctx.manifest = Manifest(
                 source=source,
                 file_type=file_type,
@@ -1014,6 +1042,10 @@ class Compiler:
                 warnings=[i.message for i in ctx.validation.warnings],
                 warning_codes=[i.code for i in ctx.validation.warnings],
                 errors=[i.message for i in ctx.validation.errors],
+                ocr_backend_requested=_ocr_requested,
+                ocr_backend_selected=_ocr_selected,
+                ocr_auto_policy_version=_ocr_auto_policy_version,
+                ocr_auto_decision=_ocr_auto_decision_payload,
             )
 
             # 9. Extraction Confidence Score

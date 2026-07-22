@@ -1514,6 +1514,67 @@ def _heading_level(size: float, bold: bool, median: float, text: str, centered: 
     return None
 
 
+def _emit_auto_backend_warnings(ctx, decision) -> None:
+    """PR 100: emit informational warnings for one Auto Policy v1 decision.
+
+    Two codes are used:
+
+    * ``AUTO_OCR_BACKEND_SELECTED`` — always emitted for ``--ocr-backend
+      auto``. Documents which backend the policy picked and the
+      classification counts that drove the choice.
+    * ``AUTO_OCR_BACKEND_FALLBACK`` — emitted ONLY when the preferred
+      backend was ``unlimited_ocr`` but Tesseract had to be used
+      instead. Carries the categorical fallback reason and the exact
+      remediation command from ``BackendAvailability`` when available.
+
+    Both are informational (zero readiness deduction). The
+    corresponding scoring-policy rules with ``max_penalty=0`` live in
+    :mod:`aksharamd.scoring.models` and the mapping to informational
+    DeductionRecords lives in :mod:`aksharamd.scoring.readiness`.
+    """
+    pct_display = decision.ocr_required_fraction
+    ctx.warn(
+        "AUTO_OCR_BACKEND_SELECTED",
+        (
+            f"Auto policy v{decision.policy_version} selected "
+            f"{decision.selected_backend}. "
+            f"{decision.ocr_required_pages} of {decision.total_pages} pages "
+            f"required OCR ({pct_display:.0%})."
+        ),
+        metadata={
+            "policy_version": decision.policy_version,
+            "selected_backend": decision.selected_backend,
+            "preferred_backend": decision.preferred_backend,
+            "total_pages": decision.total_pages,
+            "ocr_required_pages": decision.ocr_required_pages,
+            "ocr_required_fraction": decision.ocr_required_fraction,
+            "warning_maturity": "informational",
+        },
+    )
+
+    if decision.fallback_occurred:
+        remediation = ""
+        if decision.recommended_command:
+            remediation = f" Run: {decision.recommended_command}."
+        ctx.warn(
+            "AUTO_OCR_BACKEND_FALLBACK",
+            (
+                f"Auto policy v{decision.policy_version} preferred "
+                f"{decision.preferred_backend} but selected "
+                f"{decision.selected_backend} because "
+                f"{decision.fallback_reason}.{remediation}"
+            ),
+            metadata={
+                "policy_version": decision.policy_version,
+                "preferred_backend": decision.preferred_backend,
+                "selected_backend": decision.selected_backend,
+                "fallback_reason": decision.fallback_reason,
+                "recommended_command": decision.recommended_command,
+                "warning_maturity": "informational",
+            },
+        )
+
+
 def _apply_alternate_ocr_backend(
     *,
     ctx,
@@ -1521,15 +1582,22 @@ def _apply_alternate_ocr_backend(
     ocr_source_pages: list[int],
     raw_pages: list,
     all_blocks: list,
+    backend_name: str | None = None,
 ) -> None:
     """PR 94c: dispatch OCR-required pages through an alternate backend.
 
-    Runs the backend identified by ``ctx.ocr_backend`` on the given
+    Runs the backend identified by ``backend_name`` (falling back to
+    ``ctx.ocr_backend`` for callers that predate PR 100) on the given
     0-based ``ocr_source_pages``, then inserts the aggregated Markdown
     into ``all_blocks`` at the position of the FIRST OCR-required
     source page. Emits per-page W_OCR_PAGE_FAILED warnings for any
     ``is_ok=False`` results without discarding the successful blocks
     that were already assembled for the digital pages.
+
+    PR 100: when ``ctx.ocr_backend == "auto"``, ``backend_name`` must
+    be the RESOLVED backend the Auto Policy chose (never ``"auto"``);
+    otherwise the registry lookup below would fail because ``auto``
+    isn't a registered backend.
 
     The aggregated-batch convention (documented in
     ``unlimited_ocr_backend.py``): ``results[0].markdown`` carries the
@@ -1544,12 +1612,14 @@ def _apply_alternate_ocr_backend(
     """
     from ..ocr_backends import OcrPageRequest, get_backend
 
+    _resolved_backend_name = backend_name or ctx.ocr_backend
+
     try:
-        backend = get_backend(ctx.ocr_backend)
+        backend = get_backend(_resolved_backend_name)
     except ValueError as exc:
         ctx.warn(
             "W_OCR_BACKEND_UNKNOWN",
-            f"Unknown OCR backend {ctx.ocr_backend!r}: {exc}",
+            f"Unknown OCR backend {_resolved_backend_name!r}: {exc}",
         )
         return
 
@@ -1564,7 +1634,7 @@ def _apply_alternate_ocr_backend(
         logger.debug("Alternate OCR backend raised", exc_info=True)
         ctx.warn(
             "W_OCR_BACKEND_FAILED",
-            f"OCR backend {ctx.ocr_backend!r} raised: "
+            f"OCR backend {_resolved_backend_name!r} raised: "
             f"{type(exc).__name__}: {exc}",
         )
         return
@@ -2537,8 +2607,43 @@ class PDFParser(ParserPlugin):
         # alternate backend can process OCR-required pages in a single
         # aggregated batch after Phase 4. Default ("tesseract") preserves
         # existing behaviour byte-for-byte.
-        _ocr_backend_name = getattr(ctx, "ocr_backend", "tesseract")
-        use_alternate_ocr_backend = _ocr_backend_name != "tesseract"
+        #
+        # PR 100: ``auto`` runs Auto Policy v1 here — AFTER the classifier
+        # has produced ``ocr_pixmap`` labels on each raw page, so we can
+        # count OCR-required pages exactly. The chosen backend becomes
+        # ``_ocr_backend_selected`` and drives every downstream gate.
+        _ocr_backend_requested = getattr(ctx, "ocr_backend", "tesseract")
+        if _ocr_backend_requested == "auto":
+            from ..ocr_backends import get_backend as _get_backend_for_auto
+            from ..ocr_backends.auto_selector import select_ocr_backend
+
+            _auto_total_pages = len(raw_pages)
+            _auto_ocr_required = sum(
+                1 for raw in raw_pages if raw.ocr_pixmap is not None
+            )
+            _uoc_backend = _get_backend_for_auto("unlimited_ocr")
+            _auto_decision = select_ocr_backend(
+                total_pages=_auto_total_pages,
+                ocr_required_pages=_auto_ocr_required,
+                unlimited_ocr_availability=_uoc_backend.availability(),
+            )
+            _ocr_backend_selected: str = _auto_decision.selected_backend
+            # Record the decision on ctx so the compiler can serialize it
+            # into the manifest. The dataclass is frozen so downstream
+            # code cannot corrupt it accidentally.
+            ctx.ocr_auto_decision = _auto_decision
+            # Emit the informational warning(s) — SELECTED plus, when a
+            # fallback happened, FALLBACK.
+            _emit_auto_backend_warnings(ctx, _auto_decision)
+        else:
+            _ocr_backend_selected = _ocr_backend_requested
+            ctx.ocr_auto_decision = None
+
+        # Legacy variable name preserved for the rest of the function —
+        # every gate that used to key off "backend != tesseract" now
+        # keys off the *selected* backend.
+        _ocr_backend_name = _ocr_backend_selected
+        use_alternate_ocr_backend = _ocr_backend_selected == "unlimited_ocr"
         # Semantic gates for later phases. Naming these explicitly makes
         # each phase's dependence on the OCR-backend choice auditable
         # (a plain boolean like `use_alternate_ocr_backend` invited confusion).
@@ -2607,6 +2712,7 @@ class PDFParser(ParserPlugin):
                     ocr_source_pages=_ocr_source_pages,
                     raw_pages=raw_pages,
                     all_blocks=all_blocks,
+                    backend_name=_ocr_backend_selected,
                 )
                 # Re-assign block indices after possible insertion.
                 for i, blk in enumerate(all_blocks):

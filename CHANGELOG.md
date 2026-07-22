@@ -5,6 +5,35 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ## [Unreleased]
 
+### Added
+
+- **`--ocr-backend auto` (Auto Policy v1)** — new value for the
+  `--ocr-backend` option (PR #100). When passed, AksharaMD runs page
+  classification first and then picks between `tesseract` and
+  `unlimited_ocr` per Auto Policy v1: prefer `unlimited_ocr` when at
+  least 3 pages need OCR AND those pages are at least 30% of the
+  document AND `unlimited_ocr` is runnable; otherwise pick
+  `tesseract`. If `unlimited_ocr` is preferred but not runnable, auto
+  falls back to `tesseract` with an informational warning
+  (`AUTO_OCR_BACKEND_FALLBACK`) that carries a categorical reason and
+  the exact remediation command from
+  `BackendAvailability.recommended_command`. Every auto run also
+  emits `AUTO_OCR_BACKEND_SELECTED`. Both warnings are informational
+  (`max_penalty=0`) and never reduce the readiness score. Explicit
+  `--ocr-backend tesseract` and `--ocr-backend unlimited_ocr`
+  behavior is unchanged.
+  - Manifest schema bumped `1.3` → `1.4` for the additive fields
+    `ocr_backend_requested`, `ocr_backend_selected`,
+    `ocr_auto_policy_version`, and `ocr_auto_decision`.
+  - New ADR at `docs/adr/ocr-auto-policy-v1.md` documents the rule,
+    fallback semantics, threshold rationale, and the known
+    limitation that the 3-page floor and 30% threshold are heuristic
+    and await calibration against a labeled benchmark.
+  - Policy version constant `AUTO_POLICY_VERSION = "1"` in
+    `aksharamd/plugins/ocr_backends/auto_selector.py`; any semantic
+    change to the rule requires bumping the version and updating the
+    ADR.
+
 ### Changed
 
 - **Relocated Unlimited-OCR runtime into the production package**
