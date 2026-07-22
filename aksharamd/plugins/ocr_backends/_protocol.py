@@ -108,6 +108,18 @@ class BackendAvailability:
     ``details`` (optional) carries probe-specific numbers a diagnostic
     surface can render — device name, VRAM, BF16 support, model
     snapshot presence. Backends without such state leave it ``None``.
+
+    ``recommended_command`` (optional) names the exact CLI command
+    that would move the backend closer to a runnable state — for
+    example ``"aksharamd models install unlimited_ocr"`` when the
+    model snapshot is missing, or ``"aksharamd models verify
+    unlimited_ocr"`` when the snapshot is present but its
+    verification receipt is absent/stale. It is ``None`` when the
+    remediation is NOT a single command (hardware incompatible;
+    missing third-party pip package; unhandled probe error). This
+    keeps diagnosis (``reason``) and remediation
+    (``recommended_command``) separate so a diagnostic surface can
+    show the two as distinct columns / lines.
     """
 
     is_available: bool
@@ -116,6 +128,7 @@ class BackendAvailability:
     model_installed: bool = True
     runnable_now: bool = True
     details: BackendAvailabilityDetails | None = None
+    recommended_command: str | None = None
 
 
 @dataclass

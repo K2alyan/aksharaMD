@@ -113,6 +113,46 @@ def _fake_hf_hub(cached: bool) -> types.ModuleType:
     return hf
 
 
+def _patch_receipt_valid(monkeypatch, valid: bool = True) -> None:
+    """Patch ``check_verification_receipt`` at its import site inside
+    ``unlimited_ocr_backend`` so the tightened availability invariant
+    (snapshot cached AND receipt matches) can be exercised without a
+    real HF cache or receipt directory.
+
+    Also patches ``load_trusted_manifest`` at the same site to return
+    a minimal, valid-looking manifest dict — the receipt probe only
+    consults keys we control via the fake, and never reads bytes.
+    """
+    def _fake_load_trusted_manifest(path=None):  # noqa: ARG001
+        return {
+            "manifest_schema_version": 1,
+            "manifest_id": "fake",
+            "repo_id": "fake/repo",
+            "revision": "0" * 40,
+            "files": {"config.json": {
+                "sha256": "0" * 64,
+                "size_bytes": 1,
+                "class": "config",
+                "required_for_runtime": True,
+                "verify_on_every_load": False,
+            }},
+        }
+
+    reason = "" if valid else "receipt missing"
+
+    def _fake_check(manifest, manifest_path, cache_root=None):  # noqa: ARG001
+        return (valid, "" if valid else reason)
+
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.unlimited_ocr.adapter.load_trusted_manifest",
+        _fake_load_trusted_manifest,
+    )
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.verification_receipt.check_verification_receipt",
+        _fake_check,
+    )
+
+
 def test_uoc_details_min_vram_recorded_even_when_torch_missing():
     """Even the earliest failure path (torch absent) still carries
     the backend's static minimum-VRAM floor, so ``doctor`` can show
@@ -168,10 +208,13 @@ def test_uoc_details_device_and_vram_recorded_when_vram_too_small():
 
 
 def test_uoc_details_full_when_runnable(monkeypatch):
-    """The happy path — every probe passes — populates every non-null
-    detail field."""
+    """The happy path — every probe passes AND the local verification
+    receipt matches — populates every non-null detail field. Post-PR-99
+    the runnable predicate requires a valid receipt as well as a
+    cached snapshot."""
     monkeypatch.setitem(sys.modules, "torch", _fake_torch())
     monkeypatch.setitem(sys.modules, "huggingface_hub", _fake_hf_hub(cached=True))
+    _patch_receipt_valid(monkeypatch, valid=True)
     avail = UnlimitedOcrBackend().availability()
     assert avail.is_available is True
     assert avail.details is not None
@@ -185,13 +228,14 @@ def test_uoc_details_full_when_runnable(monkeypatch):
 
 def test_uoc_details_snapshot_missing_recorded_as_false(monkeypatch):
     """When the trusted manifest is present but the HF snapshot is not
-    cached, we record ``model_snapshot_verified=True`` (manifest OK)
-    but ``model_snapshot_present=False`` — the doctor surface can
-    then say "install the model" vs "reinstall aksharamd"."""
+    cached, we record ``model_snapshot_present=False`` AND
+    ``model_snapshot_verified=False`` — there is nothing to verify.
+    The doctor surface can then say "install the model" vs
+    "reinstall aksharamd"."""
     monkeypatch.setitem(sys.modules, "torch", _fake_torch())
     monkeypatch.setitem(sys.modules, "huggingface_hub", _fake_hf_hub(cached=False))
     avail = UnlimitedOcrBackend().availability()
     assert avail.is_available is False
     assert avail.details is not None
-    assert avail.details.model_snapshot_verified is True
     assert avail.details.model_snapshot_present is False
+    assert avail.details.model_snapshot_verified is False

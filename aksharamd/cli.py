@@ -515,6 +515,8 @@ def compile(
                 msg += "  (Hardware requirements not met.)"
             elif not _avail.model_installed:
                 msg += "  (Backend components not installed.)"
+            if _avail.recommended_command:
+                msg += f"  Run: {_avail.recommended_command}"
             raise click.ClickException(msg)
 
     file_output = str(Path(output) / _output_stem(source))
@@ -1348,6 +1350,7 @@ def _probe_ocr_backends() -> dict[str, dict]:
                     "model_installed": None,
                     "runnable_now": None,
                     "details": None,
+                    "recommended_command": None,
                 },
             }
             continue
@@ -1369,6 +1372,7 @@ def _probe_ocr_backends() -> dict[str, dict]:
                 "model_installed": None,
                 "runnable_now": None,
                 "details": None,
+                "recommended_command": None,
             }
         out[name] = {"capabilities": caps_out, "availability": avail_out}
     return out
@@ -1482,6 +1486,7 @@ def doctor(strict: bool, json_out: bool):
     bt.add_column("Hardware", justify="center", min_width=10)
     bt.add_column("Model", justify="center", min_width=10)
     bt.add_column("Details / reason")
+    bt.add_column("Recommended", min_width=34)
 
     for name, info in backends.items():
         avail = info["availability"]
@@ -1518,7 +1523,10 @@ def doctor(strict: bool, json_out: bool):
         if not cell:
             cell = "[dim]—[/]"
 
-        bt.add_row(name, _mark(runnable), _mark(hw), _mark(mdl), cell)
+        rec_cmd = avail.get("recommended_command")
+        rec_cell = f"[bold]{rec_cmd}[/]" if rec_cmd else "[dim]—[/]"
+
+        bt.add_row(name, _mark(runnable), _mark(hw), _mark(mdl), cell, rec_cell)
 
     console.print(Panel(
         bt,

@@ -25,6 +25,7 @@ def test_backend_availability_equality_and_asdict():
         "model_installed": True,
         "runnable_now": True,
         "details": None,
+        "recommended_command": None,
     }
 
 

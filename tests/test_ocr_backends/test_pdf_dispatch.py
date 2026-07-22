@@ -351,3 +351,94 @@ def test_marker_phase_still_runs_on_default_tesseract(
         "gate should only fire when the user explicitly picks a "
         "non-default backend"
     )
+
+
+# ── PR 99: tightened availability invariant reaches the CLI ────────────
+#
+# When the snapshot is cached but the local verification receipt is
+# absent or stale, ``UnlimitedOcrBackend.availability()`` returns
+# ``is_available=False`` with ``recommended_command="aksharamd models
+# verify unlimited_ocr"``. The CLI's pre-compile probe (see
+# ``aksharamd.cli.compile``) must reject the request BEFORE any OCR
+# inference happens, with a non-zero exit code and a message pointing
+# at the verify command.
+
+
+def test_snapshot_cached_but_receipt_missing_exits_before_infer(
+    tmp_path, scanned_only_pdf,
+):
+    """The tightened invariant reaches the user surface.
+
+    Setup: snapshot IS cached (would have been runnable under the
+    pre-PR-99 rule) but ``check_verification_receipt`` returns False.
+    Expectations: CLI exit code non-zero, stderr/output carries the
+    exact verify-command remediation, and ``infer_pdf_portable``
+    was never invoked.
+    """
+    from click.testing import CliRunner
+
+    from aksharamd.cli import main
+    from aksharamd.plugins.ocr_backends._protocol import (
+        BackendAvailability,
+        BackendAvailabilityDetails,
+    )
+
+    infer_calls: list[tuple] = []
+
+    def _spy_infer(*args, **kwargs):
+        infer_calls.append((args, kwargs))
+        return "", "", {}
+
+    def _fake_avail():
+        return BackendAvailability(
+            is_available=False,
+            reason="Model snapshot is not verified.",
+            hardware_compatible=True,
+            model_installed=True,
+            runnable_now=False,
+            details=BackendAvailabilityDetails(
+                model_snapshot_present=True,
+                model_snapshot_verified=False,
+            ),
+            recommended_command="aksharamd models verify unlimited_ocr",
+        )
+
+    class _Stub:
+        name = "unlimited_ocr"
+
+        def capabilities(self):  # pragma: no cover - not consulted
+            raise AssertionError("capabilities not consulted by CLI probe")
+
+        def availability(self):
+            return _fake_avail()
+
+        def process(self, request):  # pragma: no cover - not reached
+            raise AssertionError("process must not run when unavailable")
+
+    stub = _Stub()
+    runner = CliRunner()
+    with patch(
+        "aksharamd.plugins.ocr_backends.get_backend", return_value=stub,
+    ), patch(
+        "aksharamd.plugins.ocr_backends.unlimited_ocr.portable.infer_pdf_portable",
+        side_effect=_spy_infer,
+    ):
+        result = runner.invoke(
+            main,
+            ["compile", str(scanned_only_pdf),
+             "-o", str(tmp_path / "out"),
+             "--ocr-backend", "unlimited_ocr"],
+        )
+    assert result.exit_code != 0, (
+        "CLI must reject unavailable UOC before touching the OCR pipeline"
+    )
+    # Click 8 combines stdout+stderr into result.output by default.
+    combined = result.output or ""
+    assert "aksharamd models verify unlimited_ocr" in combined, (
+        "CLI error must include the exact remediation command; got: "
+        f"{combined!r}"
+    )
+    assert infer_calls == [], (
+        "infer_pdf_portable must never be invoked when the backend "
+        "is unavailable"
+    )

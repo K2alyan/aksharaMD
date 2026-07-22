@@ -414,6 +414,65 @@ def fast_verify(
     )
 
 
+def check_verification_receipt(
+    manifest: dict,
+    manifest_path: Path,
+    cache_root: Path | None = None,
+) -> tuple[bool, str]:
+    """Fast receipt-validity probe. NO file hashing — for byte-level
+    integrity call ``full_verify_and_write_receipt``.
+
+    Validates only cheap, receipt-local invariants so it is safe to
+    call from ``availability()`` at CLI startup:
+
+    - receipt file exists at ``receipt_path(manifest, cache_root)``;
+    - receipt is parseable JSON;
+    - receipt's ``receipt_schema_version`` matches
+      ``RECEIPT_SCHEMA_VERSION``;
+    - receipt's ``verification_implementation_version`` matches
+      ``VERIFICATION_IMPLEMENTATION_VERSION``;
+    - receipt's ``manifest_id``, ``manifest_schema_version``,
+      ``revision``, ``repo_id`` all match the current manifest;
+    - receipt's ``manifest_sha256`` matches the current bytes of
+      ``manifest_path``;
+    - receipt's recorded ``snapshot_path`` resolves to the same
+      directory as the pinned snapshot.
+
+    Returns ``(True, "")`` on all-valid, ``(False, "<reason>")`` on
+    any failure. Reuses ``_receipt_matches_manifest`` for the shared
+    version/id/revision comparisons.
+    """
+    rpath = receipt_path(manifest, cache_root)
+    try:
+        receipt = _load_receipt(rpath)
+    except ReceiptError as exc:
+        return False, str(exc)
+    ok, note = _receipt_matches_manifest(receipt, manifest, manifest_path)
+    if not ok:
+        return False, f"receipt invalid: {note}"
+    try:
+        snap = _resolve_snapshot(manifest, cache_root)
+    except ReceiptError as exc:
+        return False, str(exc)
+    recorded = receipt.get("snapshot_path")
+    if not isinstance(recorded, str) or not recorded:
+        return False, "receipt missing recorded snapshot_path"
+    try:
+        recorded_path = Path(recorded).resolve()
+    except OSError as exc:
+        return False, f"recorded snapshot_path not resolvable: {exc}"
+    try:
+        current_snap = snap.resolve()
+    except OSError as exc:
+        return False, f"pinned snapshot not resolvable: {exc}"
+    if recorded_path != current_snap:
+        return False, (
+            "receipt snapshot_path does not match the pinned snapshot "
+            f"(recorded {recorded_path}, expected {current_snap})"
+        )
+    return True, ""
+
+
 def invalidate_receipt(manifest: dict, cache_root: Path | None = None) -> bool:
     """Delete the receipt for the given manifest. Returns True if the
     receipt existed and was removed. Idempotent."""

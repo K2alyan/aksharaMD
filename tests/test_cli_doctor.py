@@ -57,6 +57,44 @@ def _fake_hf_hub(cached: bool) -> types.ModuleType:
     return hf
 
 
+def _patch_receipt_valid(monkeypatch, valid: bool = True) -> None:
+    """PR 99: the runnable predicate now additionally requires a
+    verification receipt that matches the pinned revision, manifest,
+    and receipt schema. Stub the receipt check + manifest loader at
+    their import sites inside ``unlimited_ocr_backend`` so tests
+    exercising the tightened invariant do not need a real HF cache
+    or receipt directory.
+    """
+    def _fake_load_trusted_manifest(path=None):  # noqa: ARG001
+        return {
+            "manifest_schema_version": 1,
+            "manifest_id": "fake",
+            "repo_id": "fake/repo",
+            "revision": "0" * 40,
+            "files": {"config.json": {
+                "sha256": "0" * 64,
+                "size_bytes": 1,
+                "class": "config",
+                "required_for_runtime": True,
+                "verify_on_every_load": False,
+            }},
+        }
+
+    reason = "" if valid else "receipt missing"
+
+    def _fake_check(manifest, manifest_path, cache_root=None):  # noqa: ARG001
+        return (valid, "" if valid else reason)
+
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.unlimited_ocr.adapter.load_trusted_manifest",
+        _fake_load_trusted_manifest,
+    )
+    monkeypatch.setattr(
+        "aksharamd.plugins.ocr_backends.verification_receipt.check_verification_receipt",
+        _fake_check,
+    )
+
+
 # ── Backwards compatibility ────────────────────────────────────────────
 
 
@@ -109,13 +147,14 @@ def test_doctor_json_is_valid_json_and_matches_schema():
         assert "availability" in info
         avail = info["availability"]
         # Availability keys are stable — the three-state flags plus
-        # is_available/reason/details.
+        # is_available/reason/details/recommended_command.
         assert "is_available" in avail
         assert "hardware_compatible" in avail
         assert "model_installed" in avail
         assert "runnable_now" in avail
         assert "reason" in avail
         assert "details" in avail
+        assert "recommended_command" in avail
 
 
 def test_doctor_json_contains_no_ansi_or_rich_markup():
@@ -147,6 +186,8 @@ def test_doctor_json_backend_availability_uses_native_types():
         assert isinstance(avail["reason"], str)
         det = avail["details"]
         assert det is None or isinstance(det, dict)
+        rec = avail["recommended_command"]
+        assert rec is None or isinstance(rec, str)
 
 
 # ── Works with no torch ────────────────────────────────────────────────
@@ -214,12 +255,14 @@ def test_doctor_distinguishes_unsupported_hardware_from_missing_model(monkeypatc
 def test_doctor_runnable_backend_flags_all_true(monkeypatch):
     monkeypatch.setitem(sys.modules, "torch", _fake_torch())
     monkeypatch.setitem(sys.modules, "huggingface_hub", _fake_hf_hub(cached=True))
+    _patch_receipt_valid(monkeypatch, valid=True)
     r = CliRunner().invoke(main, ["doctor", "--json"])
     uoc = json.loads(r.output)["ocr_backends"]["unlimited_ocr"]["availability"]
     assert uoc["is_available"] is True
     assert uoc["hardware_compatible"] is True
     assert uoc["model_installed"] is True
     assert uoc["runnable_now"] is True
+    assert uoc["recommended_command"] is None
     assert uoc["details"]["device_name"] == "NVIDIA GeForce RTX 3060"
     assert uoc["details"]["vram_mib_total"] == 12_288
 
