@@ -154,6 +154,13 @@ def _is_pid_alive_posix(pid: int) -> bool:
     except PermissionError:
         # Process exists, we just do not have permission to signal it.
         return True
+    except OverflowError:
+        # A PID that cannot fit in the platform's ``pid_t`` (Linux is
+        # typically signed int32, so anything above 2**31 - 1 overflows
+        # before the syscall). Such a value is not addressable and
+        # therefore not a live process — treat as "not alive" so a
+        # corrupt or adversarial lock file cannot crash the probe.
+        return False
     except OSError:
         # Conservative: treat unknown OS errors as "alive".
         return True

@@ -84,16 +84,39 @@ def test_stale_lock_broken_and_reacquired(tmp_path: Path) -> None:
 
 def test_stale_lock_from_dead_pid_on_same_host(tmp_path: Path) -> None:
     lock_path = tmp_path / "m.lock"
-    # Use a PID very unlikely to be alive: max unsigned 32-bit minus a
-    # bit. On both POSIX and Windows this yields "no such process".
+    # A PID that fits in a signed int32 (so ``os.kill`` does NOT
+    # OverflowError on Linux where pid_t is 32-bit) but is still well
+    # above Linux's default ``PID_MAX_LIMIT`` (2**22) and Windows'
+    # typical PID space, so the probe reliably reports "no such
+    # process". 2_000_000_000 sits safely below INT32_MAX (2**31 - 1).
     _write_lock_file(lock_path, {
-        "pid": 4_293_000_000,
+        "pid": 2_000_000_000,
         "hostname": platform.node(),
         # Recent so the age heuristic does NOT trigger — only the
         # PID-liveness path.
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "operation": "install",
     })
+    with model_lock(lock_path, operation="install", stale_seconds=900):
+        payload = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert payload["pid"] == os.getpid()
+
+
+def test_stale_lock_from_pid_exceeding_pid_t_is_broken(tmp_path: Path) -> None:
+    """A PID that cannot fit in the platform's ``pid_t`` (Linux
+    typically has a signed 32-bit ``pid_t``, so ``os.kill(4_293_000_000, 0)``
+    raises ``OverflowError``) must be treated as "not alive" — such a
+    value is not addressable and cannot correspond to a live process.
+    Guards against a corrupt or adversarial lock file crashing the
+    liveness probe."""
+    lock_path = tmp_path / "m.lock"
+    _write_lock_file(lock_path, {
+        "pid": 4_293_000_000,  # deliberately above INT32_MAX on Linux
+        "hostname": platform.node(),
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "operation": "install",
+    })
+    # Must NOT raise OverflowError; must break the lock and re-acquire.
     with model_lock(lock_path, operation="install", stale_seconds=900):
         payload = json.loads(lock_path.read_text(encoding="utf-8"))
         assert payload["pid"] == os.getpid()
