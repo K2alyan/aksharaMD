@@ -7,6 +7,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) / [Semantic Ver
 
 ### Added
 
+- **OCR Auto Policy v1 evaluation harness** (PR #101, code-only). New
+  evidence-only calibration harness under
+  `benchmarks/ocr_auto_calibration/` that runs every corpus PDF through
+  three treatments (`tesseract`, `unlimited_ocr`, `auto`), collects
+  per-run metrics, computes layered preference labels
+  (automatic/human/final), and emits JSON + Markdown reports plus a
+  human-review queue. Includes 8 deterministic synthetic profile PDFs
+  (`python -m benchmarks.ocr_auto_calibration.synthetics`), a
+  content-addressable cache keyed on
+  `(document_sha256, treatment, aksharamd_commit, model_revision, harness_schema_version)`,
+  a dry-run mode for CI, and a manual at
+  `docs/OCR_AUTO_CALIBRATION_HARNESS.md`. **No production code
+  changes** and **no Auto Policy v1 threshold change**; empirical
+  results and any subsequent policy calibration ship in later PRs.
+
 - **`--ocr-backend auto` (Auto Policy v1)** — new value for the
   `--ocr-backend` option (PR #100). When passed, AksharaMD runs page
   classification first and then picks between `tesseract` and

@@ -37,6 +37,9 @@ benchmarks/results/*.log
 benchmarks/document_package/results/
 benchmarks/document_package/qa_pilot/runs/
 benchmarks/kv_eval/results/
+benchmarks/ocr_auto_calibration/.cache/
+benchmarks/ocr_auto_calibration/.compile_outputs/
+benchmarks/ocr_auto_calibration/results/
 
 # graphify indexer output — local artefact, do not commit
 graphify-out/
