@@ -118,3 +118,65 @@ def test_list_synthetic_fixtures_populates_stable_identity(
         recipe_portion = entry.stable_identity.removeprefix("synthetic:v1:")
         assert len(recipe_portion) == 64
         assert all(c in "0123456789abcdef" for c in recipe_portion)
+
+
+def test_cache_hit_refreshes_document_sha256_across_regeneration(
+    tmp_path: Path,
+) -> None:
+    """Invariant 5 of the cache-identity contract: on cache hit, the reported
+    document_sha256 tracks the on-disk bytes *now*, not the SHA captured at
+    cache-write time. Without this, warm reports would surface a stale hash
+    after any PyMuPDF regeneration and reviewers would lose byte-provenance.
+    """
+    from benchmarks.ocr_auto_calibration.harness import run_harness
+
+    synth_dir = tmp_path / "synth"
+    cache_dir = tmp_path / ".cache"
+
+    generate_all(out_dir=synth_dir)
+    cold_entries = list_synthetic_fixtures(synth_dir=synth_dir)
+    assert cold_entries, "no synthetic entries in cold enumeration"
+
+    cold_report = run_harness(
+        entries=cold_entries,
+        treatments=("tesseract", "unlimited_ocr", "auto"),
+        dry_run=True,
+        use_cache=True,
+        cache_dir=cache_dir,
+        aksharamd_commit="test",
+        model_revision="test",
+    )
+    cold_sha = {d.document_id: d.tesseract.document_sha256 for d in cold_report.documents}
+    assert all(cold_sha.values()), "cold report missing document_sha256"
+
+    # Delete PDFs (keep .hash + .json so the recipe hash carries through) and
+    # regenerate. PyMuPDF metadata drift produces new bytes; recipe stays put.
+    for pdf in synth_dir.glob("*.pdf"):
+        pdf.unlink()
+    generate_all(out_dir=synth_dir)
+
+    warm_entries = list_synthetic_fixtures(synth_dir=synth_dir)
+    warm_report = run_harness(
+        entries=warm_entries,
+        treatments=("tesseract", "unlimited_ocr", "auto"),
+        dry_run=True,
+        use_cache=True,
+        cache_dir=cache_dir,
+        aksharamd_commit="test",
+        model_revision="test",
+    )
+    warm_sha = {d.document_id: d.tesseract.document_sha256 for d in warm_report.documents}
+
+    assert set(cold_sha) == set(warm_sha)
+    for doc_id in cold_sha:
+        pdf_path = synth_dir / f"{doc_id}.pdf"
+        live_sha = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+        assert cold_sha[doc_id] != warm_sha[doc_id], (
+            f"{doc_id}: SHA identical across regeneration — either byte-drift "
+            f"is not happening or cache path is broken"
+        )
+        assert warm_sha[doc_id] == live_sha, (
+            f"{doc_id}: warm report SHA {warm_sha[doc_id]} does not match "
+            f"current on-disk SHA {live_sha} — cache hit returned stale "
+            f"provenance"
+        )

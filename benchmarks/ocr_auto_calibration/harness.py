@@ -660,6 +660,12 @@ def run_harness(
                 else None
             )
             if cached is not None:
+                # Cache-identity contract: compiler outputs are reused across
+                # byte-drifting regenerations (synthetic fixtures) but the
+                # report must still surface the SHA of the bytes actually on
+                # disk right now, not the SHA at cache-write time.
+                if on_disk_sha:
+                    cached.document_sha256 = on_disk_sha
                 results[treatment] = cached
                 continue
 
