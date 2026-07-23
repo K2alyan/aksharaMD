@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
+from .harness import DEFAULT_COMPILE_OUTPUTS_DIR
 from .preference import (
     MATERIAL_DISAGREEMENT_READINESS_WINDOW,
     NEAR_EMPTY_MARKDOWN_CHARS,
@@ -25,13 +26,69 @@ from .schema import DocumentSummary, RunResult
 Priority = Literal["high", "medium", "low"]
 
 
-def _artifact_paths_for(summary: DocumentSummary, treatment: str) -> dict[str, str]:
-    run = getattr(summary, treatment)
-    return {
-        "input": run.document_path,
-        "markdown": "",  # populated by the harness when it writes MD; empty in cache-only mode
-        "manifest": "",
+def _artifact_paths_for(
+    summary: DocumentSummary,
+    treatment: str,
+    *,
+    out_root: Path,
+) -> dict[str, Any]:
+    """Resolve real paths to the compile artifacts for one treatment.
+
+    Returns a dict with four path fields (``input``, ``output_dir``,
+    ``markdown``, ``manifest``) plus an optional ``error_reasons`` list.
+    Every path is either an absolute string that exists on disk right
+    now or ``None`` accompanied by a reason in ``error_reasons``.
+    Placeholder values (empty strings, non-existent paths) are never
+    emitted — a reviewer following any populated path is guaranteed to
+    reach a real file.
+    """
+    run: RunResult = getattr(summary, treatment)
+    treatment_dir = out_root / summary.document_id / treatment
+    result: dict[str, Any] = {
+        "input": None,
+        "output_dir": None,
+        "markdown": None,
+        "manifest": None,
     }
+    error_reasons: list[str] = []
+
+    # Input PDF
+    if not run.document_path:
+        error_reasons.append("no_document_path_recorded")
+    elif not Path(run.document_path).exists():
+        error_reasons.append("input_pdf_missing_on_disk")
+    else:
+        result["input"] = str(Path(run.document_path).resolve())
+
+    # Treatment output directory + compile-package root discovery
+    if not treatment_dir.exists():
+        error_reasons.append("treatment_output_dir_missing")
+    else:
+        result["output_dir"] = str(treatment_dir.resolve())
+        manifests = sorted(treatment_dir.rglob("manifest.json"))
+        markdowns = sorted(treatment_dir.rglob("document.md"))
+        if not manifests:
+            error_reasons.append("no_manifest_found")
+        elif len(manifests) > 1:
+            error_reasons.append("ambiguous_multiple_manifests")
+        else:
+            result["manifest"] = str(manifests[0].resolve())
+        if not markdowns:
+            error_reasons.append("no_markdown_found")
+        elif len(markdowns) > 1:
+            error_reasons.append("ambiguous_multiple_markdowns")
+        else:
+            result["markdown"] = str(markdowns[0].resolve())
+
+    # Treatment failure surfaces even when artifacts happen to exist —
+    # the queue reader must see that the reported paths belong to a run
+    # that did not complete cleanly.
+    if run.exit_status != 0:
+        error_reasons.append(f"treatment_exited_status_{run.exit_status}")
+
+    if error_reasons:
+        result["error_reasons"] = error_reasons
+    return result
 
 
 def _reasons_and_priority(
@@ -195,8 +252,17 @@ def _structural_winner(a: RunResult, b: RunResult) -> str | None:
     return None
 
 
-def build_review_queue(summaries: list[DocumentSummary]) -> list[dict[str, Any]]:
-    """Emit the queue for a list of DocumentSummary records."""
+def build_review_queue(
+    summaries: list[DocumentSummary],
+    *,
+    out_root: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Emit the queue for a list of DocumentSummary records.
+
+    ``out_root`` defaults to :data:`~.harness.DEFAULT_COMPILE_OUTPUTS_DIR`
+    so path resolution matches the location the harness writes to.
+    """
+    resolved_out_root = out_root or DEFAULT_COMPILE_OUTPUTS_DIR
     queue: list[dict[str, Any]] = []
     for summary in summaries:
         rows, _auto_needed = _reasons_and_priority(summary)
@@ -210,7 +276,9 @@ def build_review_queue(summaries: list[DocumentSummary]) -> list[dict[str, Any]]
                     "doc_id": summary.document_id,
                     "treatment": treatment_name,
                     "reasons": [],
-                    "artifact_paths": _artifact_paths_for(summary, treatment_name),
+                    "artifact_paths": _artifact_paths_for(
+                        summary, treatment_name, out_root=resolved_out_root
+                    ),
                     "priority": priority,
                 },
             )
@@ -229,7 +297,30 @@ def _max_priority(a: Priority, b: Priority) -> Priority:
 
 
 def write_review_queue(queue: list[dict[str, Any]], output_path: Path) -> None:
-    """Persist the queue as JSON at *output_path*."""
+    """Persist the queue as JSON at *output_path*.
+
+    Every populated (non-null) path in ``artifact_paths`` is re-validated
+    against the filesystem just before writing. If a path was resolved
+    but the file has vanished between build and write, we downgrade the
+    field to ``None`` and append a ``vanished_between_resolve_and_write``
+    reason. This keeps the on-disk queue truthful even under concurrent
+    cleanup.
+    """
+    for entry in queue:
+        paths = entry.get("artifact_paths") or {}
+        reasons = list(paths.get("error_reasons", []))
+        for field in ("input", "output_dir", "markdown", "manifest"):
+            value = paths.get(field)
+            if value and not Path(value).exists():
+                paths[field] = None
+                marker = f"vanished_between_resolve_and_write_{field}"
+                if marker not in reasons:
+                    reasons.append(marker)
+        if reasons:
+            paths["error_reasons"] = reasons
+        elif "error_reasons" in paths:
+            del paths["error_reasons"]
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as fh:
         json.dump(queue, fh, indent=2, sort_keys=False)

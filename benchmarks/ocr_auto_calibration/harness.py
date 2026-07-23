@@ -60,6 +60,14 @@ _TIMEOUTS: dict[Treatment, int] = {
 }
 
 
+# ── Shared compile-output convention ─────────────────────────────────
+# Both the harness (writer) and review_queue (path resolver) key off
+# this root. Exposed so downstream modules never re-derive it.
+DEFAULT_COMPILE_OUTPUTS_DIR = (
+    Path(__file__).resolve().parent / ".compile_outputs"
+)
+
+
 # ── Stderr sanitiser ──────────────────────────────────────────────────
 
 _SECRET_PATTERNS = [
@@ -617,7 +625,7 @@ def run_harness(
         if dry_run
         else _machine_metadata()
     )
-    out_root = out_root or (Path(__file__).resolve().parent / ".compile_outputs")
+    out_root = out_root or DEFAULT_COMPILE_OUTPUTS_DIR
     lockfile_path = lockfile or corpus_mod._LOCKFILE_DEFAULT
 
     summaries: list[DocumentSummary] = []

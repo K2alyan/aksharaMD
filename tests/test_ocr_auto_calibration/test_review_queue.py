@@ -1,8 +1,14 @@
 """Review queue emission tests."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from benchmarks.ocr_auto_calibration.preference import build_document_summary
-from benchmarks.ocr_auto_calibration.review_queue import build_review_queue
+from benchmarks.ocr_auto_calibration.review_queue import (
+    build_review_queue,
+    write_review_queue,
+)
 from benchmarks.ocr_auto_calibration.schema import RunKey, RunResult
 
 
@@ -142,7 +148,21 @@ def test_queue_schema_matches_user_spec_shape() -> None:
     row = q[0]
     assert set(row.keys()) == {"doc_id", "treatment", "reasons", "artifact_paths", "priority"}
     assert row["priority"] in ("high", "medium", "low")
-    assert set(row["artifact_paths"].keys()) == {"input", "markdown", "manifest"}
+    # artifact_paths always carries the four resolvable-path fields; the
+    # optional error_reasons list appears when any of them could not be
+    # resolved (missing PDF, missing compile output, non-zero exit).
+    required_path_fields = {"input", "output_dir", "markdown", "manifest"}
+    assert required_path_fields <= set(row["artifact_paths"].keys())
+    extras = set(row["artifact_paths"].keys()) - required_path_fields
+    assert extras <= {"error_reasons"}
+    # Stub _summary() uses /tmp/stub.pdf which does not exist and has no
+    # compile output — so we expect an error_reasons list with at least
+    # the missing-input and missing-output-dir markers, and every path
+    # field should be None (never an empty-string placeholder).
+    for field in required_path_fields:
+        assert row["artifact_paths"][field] is None
+    assert "error_reasons" in row["artifact_paths"]
+    assert row["artifact_paths"]["error_reasons"]
 
 
 def test_clean_run_produces_empty_queue() -> None:
@@ -162,3 +182,137 @@ def test_priority_escalates_when_multiple_reasons_stack() -> None:
     assert row["priority"] == "high"
     assert "repetition_detected" in row["reasons"]
     assert "source_page_provenance_incomplete" in row["reasons"]
+
+
+# ── Artifact-path resolution — success / missing / failed / ambiguous ──
+
+
+def _lay_compile_output(
+    out_root: Path,
+    doc_id: str,
+    treatment: str,
+    *,
+    markdown: bytes = b"# hello\n",
+    manifest: dict | None = None,
+    n_manifests: int = 1,
+) -> Path:
+    """Materialise a plausible compile package at ``out_root/doc_id/treatment/doc_id/``."""
+    pkg = out_root / doc_id / treatment / doc_id
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "document.md").write_bytes(markdown)
+    payload = json.dumps(manifest or {"pages": 3}, indent=2)
+    for i in range(n_manifests):
+        name = "manifest.json" if i == 0 else f"manifest_{i}.json"
+        # Ambiguous case needs the same *filename* twice, in different dirs.
+        target = pkg if i == 0 else (pkg / f"nested_{i}")
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "manifest.json").write_text(payload, encoding="utf-8")
+    return pkg
+
+
+def test_artifact_paths_resolve_on_success(tmp_path: Path) -> None:
+    """When compile output exists on disk, all four fields must resolve to
+    absolute paths that exist, and there must be NO error_reasons list."""
+    pdf = tmp_path / "input.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    out_root = tmp_path / "compile_outputs"
+    _lay_compile_output(out_root, doc_id="doc1", treatment="unlimited_ocr")
+    run = _run("unlimited_ocr", document_path=str(pdf), repetition_flag=True)
+    q = build_review_queue([_summary(unlimited_ocr=run)], out_root=out_root)
+    row = _rows_for(q, "unlimited_ocr")[0]
+    ap = row["artifact_paths"]
+    assert ap["input"] and Path(ap["input"]).exists()
+    assert ap["output_dir"] and Path(ap["output_dir"]).exists()
+    assert ap["markdown"] and Path(ap["markdown"]).exists()
+    assert ap["manifest"] and Path(ap["manifest"]).exists()
+    assert Path(ap["markdown"]).name == "document.md"
+    assert Path(ap["manifest"]).name == "manifest.json"
+    assert "error_reasons" not in ap
+
+
+def test_missing_artifacts_produce_null_paths_with_reasons(tmp_path: Path) -> None:
+    """Treatment dir absent → every path field is None (never ""), and
+    the reasons list must name what could not be resolved."""
+    pdf = tmp_path / "input.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    out_root = tmp_path / "compile_outputs"  # deliberately not created
+    run = _run("unlimited_ocr", document_path=str(pdf), repetition_flag=True)
+    q = build_review_queue([_summary(unlimited_ocr=run)], out_root=out_root)
+    row = _rows_for(q, "unlimited_ocr")[0]
+    ap = row["artifact_paths"]
+    assert ap["input"] and Path(ap["input"]).exists()  # PDF still resolves
+    assert ap["output_dir"] is None
+    assert ap["markdown"] is None
+    assert ap["manifest"] is None
+    # No empty-string placeholder anywhere.
+    for field in ("input", "output_dir", "markdown", "manifest"):
+        assert ap[field] != ""
+    assert "treatment_output_dir_missing" in ap["error_reasons"]
+
+
+def test_failed_treatment_records_exit_status_reason(tmp_path: Path) -> None:
+    """When a treatment exited non-zero, error_reasons must name the exit
+    status even if the compile output happens to be on disk. Reviewers
+    must never mistake a partial/failed run for a clean one."""
+    pdf = tmp_path / "input.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    out_root = tmp_path / "compile_outputs"
+    _lay_compile_output(out_root, doc_id="doc1", treatment="unlimited_ocr")
+    run = _run(
+        "unlimited_ocr",
+        document_path=str(pdf),
+        exit_status=124,
+        error_message="timeout",
+        repetition_flag=False,
+    )
+    # exit_status=0 branch is a clean run; force queue entry via failure
+    q = build_review_queue([_summary(unlimited_ocr=run)], out_root=out_root)
+    row = _rows_for(q, "unlimited_ocr")[0]
+    ap = row["artifact_paths"]
+    assert "treatment_exited_status_124" in ap["error_reasons"]
+    # Paths still resolve — the reviewer needs to inspect whatever was
+    # produced before the failure — but the failure reason is loud.
+    assert ap["input"] and Path(ap["input"]).exists()
+    assert ap["markdown"] and Path(ap["markdown"]).exists()
+
+
+def test_ambiguous_multiple_manifests_flags_the_ambiguity(tmp_path: Path) -> None:
+    pdf = tmp_path / "input.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    out_root = tmp_path / "compile_outputs"
+    _lay_compile_output(
+        out_root, doc_id="doc1", treatment="unlimited_ocr", n_manifests=2
+    )
+    run = _run("unlimited_ocr", document_path=str(pdf), repetition_flag=True)
+    q = build_review_queue([_summary(unlimited_ocr=run)], out_root=out_root)
+    row = _rows_for(q, "unlimited_ocr")[0]
+    ap = row["artifact_paths"]
+    assert ap["manifest"] is None
+    assert "ambiguous_multiple_manifests" in ap["error_reasons"]
+
+
+def test_write_review_queue_revalidates_paths_before_serializing(
+    tmp_path: Path,
+) -> None:
+    """A resolved path that vanishes before write must be downgraded to
+    None with a vanished_between_resolve_and_write_<field> reason."""
+    pdf = tmp_path / "input.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    out_root = tmp_path / "compile_outputs"
+    _lay_compile_output(out_root, doc_id="doc1", treatment="unlimited_ocr")
+    run = _run("unlimited_ocr", document_path=str(pdf), repetition_flag=True)
+    q = build_review_queue([_summary(unlimited_ocr=run)], out_root=out_root)
+
+    # Simulate concurrent cleanup: delete the input PDF between build and write.
+    pdf.unlink()
+
+    out_json = tmp_path / "queue.json"
+    write_review_queue(q, out_json)
+
+    written = json.loads(out_json.read_text(encoding="utf-8"))
+    ap = written[0]["artifact_paths"]
+    assert ap["input"] is None
+    assert "vanished_between_resolve_and_write_input" in ap["error_reasons"]
+    # Markdown + manifest were left untouched, so they should still resolve.
+    assert ap["markdown"] and Path(ap["markdown"]).exists()
+    assert ap["manifest"] and Path(ap["manifest"]).exists()
