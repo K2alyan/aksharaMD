@@ -306,6 +306,7 @@ def _build_run_result(
     treatment: Treatment,
     key: RunKey,
     outcome: _CompileOutcome,
+    on_disk_sha256: str = "",
 ) -> RunResult:
     md = outcome.markdown
     manifest = outcome.manifest
@@ -317,7 +318,7 @@ def _build_run_result(
     return RunResult(
         key=key,
         document_path=str(entry.path) if entry.path else "",
-        document_sha256=entry.sha256 or "",
+        document_sha256=on_disk_sha256 or entry.sha256 or "",
         profile_class=entry.profile_class,
         total_pages=_extract_page_count(manifest),
         ocr_required_pages=int(_decision_field(manifest, "ocr_required_pages") or 0),
@@ -549,12 +550,35 @@ def _machine_metadata() -> dict[str, Any]:
 # ── Public entry point ────────────────────────────────────────────────
 
 
-def _resolve_document_sha(entry: CorpusEntry) -> str:
+def _resolve_cache_identity(entry: CorpusEntry) -> str:
+    """Identity used as the cache key for *entry*.
+
+    Precedence:
+    1. ``stable_identity`` — set for fixtures whose PDF bytes drift across
+       regenerations (synthetics). Keeps cache entries valid as long as the
+       *recipe* is unchanged, regardless of PyMuPDF metadata variance.
+    2. ``sha256`` — pre-recorded (e.g. ParseBench lockfile).
+    3. Live SHA-256 of the on-disk PDF bytes.
+    """
+    if entry.stable_identity:
+        return entry.stable_identity
     if entry.sha256:
         return entry.sha256
     if entry.path and entry.path.exists():
         return _sha256_of_file(entry.path)
     return ""
+
+
+def _resolve_on_disk_sha(entry: CorpusEntry) -> str:
+    """Actual PDF bytes SHA-256, computed fresh, for provenance recording.
+
+    Never substituted from ``stable_identity`` — the two are separate by
+    design: cache identity is what makes two runs equivalent; on-disk SHA
+    is what the reviewer sees in the report.
+    """
+    if entry.path and entry.path.exists():
+        return _sha256_of_file(entry.path)
+    return entry.sha256 or ""
 
 
 def run_harness(
@@ -599,7 +623,8 @@ def run_harness(
     summaries: list[DocumentSummary] = []
     skipped_missing_local_count = 0
     for entry in entries:
-        doc_sha = _resolve_document_sha(entry)
+        cache_identity = _resolve_cache_identity(entry)
+        on_disk_sha = _resolve_on_disk_sha(entry)
         results: dict[Treatment, RunResult] = {}
         # A local optional asset that isn't present on this machine is
         # skipped: we build synthetic marker results (exit_status=64,
@@ -630,8 +655,8 @@ def run_harness(
                 continue
 
             cached = (
-                cache_mod.load(doc_sha, key, cache_dir=cache_dir)
-                if (use_cache and doc_sha)
+                cache_mod.load(cache_identity, key, cache_dir=cache_dir)
+                if (use_cache and cache_identity)
                 else None
             )
             if cached is not None:
@@ -644,7 +669,8 @@ def run_harness(
                 else:
                     outcome = _dry_run_outcome(entry.path, treatment)
                 result = _build_run_result(
-                    entry=entry, treatment=treatment, key=key, outcome=outcome
+                    entry=entry, treatment=treatment, key=key, outcome=outcome,
+                    on_disk_sha256=on_disk_sha,
                 )
             elif not entry.path or not entry.path.exists():
                 result = _missing_document_result(entry, treatment, key)
@@ -654,11 +680,12 @@ def run_harness(
                     entry.path, out_dir, treatment, executor=executor
                 )
                 result = _build_run_result(
-                    entry=entry, treatment=treatment, key=key, outcome=outcome
+                    entry=entry, treatment=treatment, key=key, outcome=outcome,
+                    on_disk_sha256=on_disk_sha,
                 )
 
-            if use_cache and doc_sha:
-                cache_mod.store(doc_sha, result, cache_dir=cache_dir)
+            if use_cache and cache_identity:
+                cache_mod.store(cache_identity, result, cache_dir=cache_dir)
             results[treatment] = result
 
         summary = build_document_summary(
