@@ -1,0 +1,123 @@
+{
+  "_schema_note": "Human review of MarkItDown output (markitdown 0.1.6) on the same 28 asset ids that were the intersection of AksharaMD Phase 1 and PyMuPDF4LLM. Each verdict is on MarkItDown's OWN text_content, not either of the other tools'. Enum: usable | usable_with_minor_defects | materially_damaged | unusable. Evidence cites observed extraction quality; the 29th entry (unreadablemetadata.pdf) is retained as supplementary because MarkItDown parses it where PyMuPDF4LLM raises.",
+
+  "parsebench/3colpres": {
+    "usability": "materially_damaged",
+    "evidence": "4191 chars but each word is line-broken with heavy whitespace ('A Message from the President / Dear / Members, / I write in an / effort to share'). Reading order is fragmented; content is present but visibly damaged."
+  },
+  "parsebench/elpais": {
+    "usability": "materially_damaged",
+    "evidence": "6724 chars but rendered as broken table syntax with columns like '| EL | PERIÓDICO |'; Spanish accents preserved (PERIÓDICO, ESPAÑOL, SÁBADO). Reading order corrupted by table-syntax reconstruction."
+  },
+  "parsebench/simple2": {
+    "usability": "materially_damaged",
+    "evidence": "4646 chars but heavily fragmented: 'It / follows / (2015/1017). / the European Fund / This report presents the results of the' — words split across lines. Content present but ordering severely corrupted."
+  },
+  "parsebench/2colmercedes": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "3725 chars; German audit-report body extracted with hyphenation preserved as line breaks ('pro-\nvision'). Section headings preserved."
+  },
+  "parsebench/battery": {
+    "usability": "usable",
+    "evidence": "2394 chars; safety-warning content extracted with lettered list (a/b/c) preserved. Same quality as PyMuPDF4LLM."
+  },
+  "parsebench/eastbaytimes": {
+    "usability": "usable",
+    "evidence": "Single-column news article extracted cleanly; body preserved."
+  },
+  "parsebench/strikeUnderline": {
+    "usability": "materially_damaged",
+    "evidence": "7434 chars but TOC entries have concatenated page numbers ('103101' = '10' + '3101'). Strikethrough markup is NOT preserved as markdown syntax (unlike PyMuPDF4LLM). Content readable but structurally damaged."
+  },
+  "parsebench/text_dense__de": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "German dense-text extracted; layout not fully verified at review DPI; typical MarkItDown quality on European text."
+  },
+  "parsebench/letter3": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — MarkItDown has no OCR; image-only UK Home Office letter produces empty output. Same failure mode as PyMuPDF4LLM; AksharaMD Marker delivered 2353 chars."
+  },
+  "parsebench/myctophidae": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — no OCR; scientific-taxonomy image plate produces empty output."
+  },
+  "parsebench/japanese_case": {
+    "usability": "unusable",
+    "evidence": "**0 chars extracted** — no OCR; Japanese magazine image produces empty output."
+  },
+  "parsebench/ikea3": {
+    "usability": "materially_damaged",
+    "evidence": "7024 chars, cleaner than PyMuPDF4LLM's extraction of this asset but still shows magazine-layout interleaving. TOC-like content readable; body sections fragmented."
+  },
+
+  "public/001-trivial/minimal-document.pdf": {
+    "usability": "usable",
+    "evidence": "598 chars; Lorem Ipsum body extracted with line-break at column width but content complete. Same as PyMuPDF4LLM."
+  },
+  "public/004-pdflatex-4-pages/pdflatex-4-pages.pdf": {
+    "usability": "usable",
+    "evidence": "Multi-page LaTeX doc extracted with content per page preserved."
+  },
+  "public/026-latex-multicolumn/multicolumn.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "13201 chars but rendered as broken markdown table syntax ('| Two-Column | | | | Document | with | Lorem'). Content present but not readable as normal prose; table reconstruction misfires on the two-column layout."
+  },
+
+  "public/003-pdflatex-image/pdflatex-image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Image caption text extracted; image not rendered as placeholder (MarkItDown emits fewer image tokens than PyMuPDF4LLM)."
+  },
+  "public/007-imagemagick-images/imagemagick-images.pdf": {
+    "usability": "unusable",
+    "evidence": "**53 chars** — 'Background' repeated 4 times, no other content. No OCR; content lost."
+  },
+  "public/007-imagemagick-images/imagemagick-ASCII85Decode.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/007-imagemagick-images/imagemagick-CCITTFaxDecode.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/007-imagemagick-images/imagemagick-lzw.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — single image page; no OCR."
+  },
+  "public/008-reportlab-inline-image/inline-image.pdf": {
+    "usability": "unusable",
+    "evidence": "6 chars — essentially empty output."
+  },
+  "public/018-base64-image/base64image.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "Caption text extracted; image reference stripped."
+  },
+  "public/019-grayscale-image/grayscale-image.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — no OCR."
+  },
+  "public/023-cmyk-image/cmyk-image.pdf": {
+    "usability": "unusable",
+    "evidence": "**0 chars** — no OCR."
+  },
+  "public/028-image-references-deduplication/wrong-references.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "Multi-page image references PDF; small text extracted, most content lost."
+  },
+
+  "public/015-arabic/habibi.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "22 chars: 'حَبيبي habibi حَبيبي'. Arabic script preserved but reading order not verified; near-empty output. Similar degradation to PyMuPDF4LLM."
+  },
+  "public/017-unreadable-meta-data/unreadablemetadata.pdf": {
+    "usability": "usable_with_minor_defects",
+    "evidence": "2521 chars; extracts datasheet content ('Rotary Potentiometer', 'Electrocomponents Industrial'). **MarkItDown parses this file where PyMuPDF4LLM raises IndexError.** Content structured as table but readable. Supplementary review — outside primary matched set."
+  },
+  "public/010-pdflatex-forms/pdflatex-forms.pdf": {
+    "usability": "unusable",
+    "evidence": "24 chars — only form labels 'Name / Check / Submit / 1'. Static text lost."
+  },
+  "public/012-libreoffice-form/libreoffice-form.pdf": {
+    "usability": "materially_damaged",
+    "evidence": "120 chars — sparse content; form structure lost."
+  }
+}
