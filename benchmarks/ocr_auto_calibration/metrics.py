@@ -6,16 +6,11 @@ cached data during report regeneration without re-running the compiler.
 from __future__ import annotations
 
 import re
-from collections import Counter
-from collections.abc import Iterable
 from typing import Any
 
+from aksharamd.plugins.ocr_backends.output_safety import measure_repetition
+
 # ── Repetition detection ──────────────────────────────────────────────
-
-
-def _tokenize(text: str) -> list[str]:
-    """Lower-cased whitespace-delimited word tokens, punctuation stripped."""
-    return re.findall(r"[A-Za-z0-9']+", text.lower())
 
 
 def detect_repetition(
@@ -26,23 +21,17 @@ def detect_repetition(
 ) -> tuple[int, bool]:
     """Return ``(max_repeat_count, exceeds_threshold)`` for the markdown text.
 
-    A sliding window of ``window_words`` tokens counts the most-frequent
-    n-gram; the boolean flag is True when that count exceeds ``max_repeats``.
-    Tuned to catch the UOC hallucination signature (a phrase repeated dozens
-    of times) without flagging naturally recurring headings.
+    Delegates counting to :func:`aksharamd.plugins.ocr_backends
+    .output_safety.measure_repetition` — the runtime detector primitive
+    is the single source of truth. The calibration harness keeps its own
+    more-sensitive ``max_repeats`` threshold (default ``5``) because it
+    flags patterns for human review that fall well below the runtime
+    safety guard's "definitely garbage" bar (Policy v1 uses ``50``).
     """
-    tokens = _tokenize(markdown)
-    if len(tokens) < window_words:
-        return 0, False
-    windows: Iterable[tuple[str, ...]] = (
-        tuple(tokens[i : i + window_words])
-        for i in range(len(tokens) - window_words + 1)
+    m = measure_repetition(markdown, window_words=window_words)
+    return m.max_repeated_ngram_count, bool(
+        m.max_repeated_ngram_count > max_repeats
     )
-    counter = Counter(windows)
-    if not counter:
-        return 0, False
-    _, max_count = counter.most_common(1)[0]
-    return int(max_count), bool(max_count > max_repeats)
 
 
 # ── Structural counts ─────────────────────────────────────────────────
