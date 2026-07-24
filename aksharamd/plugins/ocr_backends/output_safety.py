@@ -26,10 +26,27 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from ._protocol import OcrPageResult
+from ._repetition import RepetitionMeasurement, RepetitionSignal
+
+
+class _RepetitionSignalCarrier(Protocol):
+    """Structural type of a per-page OCR result that this module's
+    inspection helpers consume.
+
+    Kept local because it's an implementation-detail of the safety
+    guard's public helpers, not a shared value type. It intentionally
+    describes only the two fields
+    :func:`collect_affected_pages` and
+    :func:`raise_if_unsafe_uoc_result` need — using a local Protocol
+    avoids importing :class:`~aksharamd.plugins.ocr_backends._protocol.
+    OcrPageResult` here (which would reintroduce the module cycle the
+    :mod:`._repetition` split was created to eliminate).
+    """
+
+    page_index: int
+    repetition_signal: RepetitionSignal | None
 
 # ── Detector primitive ────────────────────────────────────────────────
 
@@ -41,26 +58,6 @@ _PREVIEW_MAX_CHARS = 100
 def _tokenize(text: str) -> list[str]:
     """Lower-cased whitespace-delimited word tokens, punctuation stripped."""
     return re.findall(r"[A-Za-z0-9']+", text.lower())
-
-
-@dataclass(frozen=True)
-class RepetitionMeasurement:
-    """Pure measurement — no policy interpretation.
-
-    ``repeated_ngram_preview`` is bounded to :data:`_PREVIEW_MAX_CHARS`
-    characters and never carries a raw source-text excerpt longer than
-    that. The full n-gram is fingerprinted via ``repeated_ngram_sha256``
-    for reviewers who need to identify duplicates across pages or docs
-    without leaking content.
-    """
-
-    max_repeated_ngram_count: int
-    repeated_ngram_preview: str
-    repeated_ngram_sha256: str
-    repetition_ratio: float
-    evaluated_character_count: int
-    window_words: int
-    detector_version: str
 
 
 def measure_repetition(
@@ -135,23 +132,6 @@ _MIN_EVALUATED_CHARS = 200
 # recurring heading, refrain, or template row. Require the phrase to
 # dominate at least 10% of the sliding windows.
 _MIN_REPETITION_RATIO = 0.10
-
-
-@dataclass(frozen=True)
-class RepetitionSignal:
-    """Output Safety Policy v1 verdict + the underlying measurement.
-
-    All three eligibility conditions must fire together — no single
-    condition alone flags an output as unsafe. ``detected`` is the
-    boolean dispatchers act on.
-    """
-
-    detected: bool
-    measurement: RepetitionMeasurement
-    policy_version: str
-    threshold_max_count: int
-    threshold_min_chars: int
-    threshold_min_ratio: float
 
 
 def evaluate_output_safety(markdown: str) -> RepetitionSignal:
@@ -249,7 +229,7 @@ class UocOutputRepetitionError(RuntimeError):
 
 
 def collect_affected_pages(
-    results: Iterable[OcrPageResult],
+    results: Iterable[_RepetitionSignalCarrier],
 ) -> list[AffectedPage]:
     """Return one :class:`AffectedPage` per result whose signal fired.
 
@@ -276,7 +256,7 @@ def collect_affected_pages(
 
 
 def raise_if_unsafe_uoc_result(
-    results: Iterable[OcrPageResult],
+    results: Iterable[_RepetitionSignalCarrier],
 ) -> None:
     """Raise :class:`UocOutputRepetitionError` if any result trips
     Policy v1; return silently on safe inputs.

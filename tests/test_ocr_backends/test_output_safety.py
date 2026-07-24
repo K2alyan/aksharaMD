@@ -311,6 +311,56 @@ def test_uoc_aggregation_signal_present_even_when_markdown_is_short() -> None:
 # ── Tesseract backend remains untouched ───────────────────────────────
 
 
+def test_protocol_and_output_safety_modules_import_independently() -> None:
+    """Import-order regression pin. Neither
+    :mod:`aksharamd.plugins.ocr_backends._protocol` nor
+    :mod:`aksharamd.plugins.ocr_backends.output_safety` may
+    transitively depend on the other at runtime — the shared value
+    types live in :mod:`aksharamd.plugins.ocr_backends._repetition`.
+    Importing either module first from a fresh interpreter state must
+    not error.
+
+    Runs in a subprocess so the surrounding pytest session's module
+    cache and patched references are not disturbed.
+    """
+    import subprocess
+    import sys
+
+    program = (
+        "import sys\n"
+        "assert 'aksharamd.plugins.ocr_backends._protocol' not in sys.modules\n"
+        "assert 'aksharamd.plugins.ocr_backends.output_safety' not in sys.modules\n"
+        "{first_import}\n"
+        "{second_import}\n"
+        "from aksharamd.plugins.ocr_backends._protocol import OcrPageResult\n"
+        "from aksharamd.plugins.ocr_backends.output_safety import measure_repetition\n"
+        "assert OcrPageResult is not None\n"
+        "assert measure_repetition is not None\n"
+    )
+    orderings = [
+        (
+            "import aksharamd.plugins.ocr_backends._protocol",
+            "import aksharamd.plugins.ocr_backends.output_safety",
+        ),
+        (
+            "import aksharamd.plugins.ocr_backends.output_safety",
+            "import aksharamd.plugins.ocr_backends._protocol",
+        ),
+    ]
+    for first, second in orderings:
+        script = program.format(first_import=first, second_import=second)
+        proc = subprocess.run(  # nosec B603 - controlled Python invocation
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert proc.returncode == 0, (
+            f"import order failed: {first} → {second}\n"
+            f"stdout: {proc.stdout}\nstderr: {proc.stderr}"
+        )
+
+
 def test_tesseract_backend_still_produces_signal_free_results() -> None:
     """Regression pin: Tesseract must not require any change to produce
     an OcrPageResult that satisfies the protocol. Existing backend
