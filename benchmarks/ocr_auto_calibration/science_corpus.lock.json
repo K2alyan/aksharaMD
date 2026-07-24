@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "corpus_name": "scientific-figure-complexity",
+  "milestone": "feat/ocr-layout-complexity-v1 (Auto OCR routing: Layout Complexity v1)",
+  "phase": "A (frozen candidate list, no bytes fetched yet)",
+  "authored_on_commit": "a324d0b4ec60fcaef07ff31ce70df8e58ec87f96",
+  "purpose": [
+    "The existing OCR Auto Policy v1 calibration corpus (PR #101) lacks representative figure-heavy scientific content. Its 21-doc set is heavy on scanned synthetics, single-page ParseBench excerpts, and one local GeoTopo sample; it does not span multi-column arxiv-style preprints with dense figure/table structure.",
+    "This lockfile pins a small, public, reproducibly-fetchable set of scientific PDFs that will be used in Commit 3 (calibration) to test whether the layout-complexity detector separates 'simple digital' from 'structurally complex' correctly on real scientific content.",
+    "No bytes are fetched at this phase. Every ``expected_sha256`` and ``expected_size_bytes`` is null; they will be populated by an authorised fetch step in Commit 3 (mirroring the ParseBench Phase B2 pattern)."
+  ],
+  "redistribution_posture": {
+    "policy": "reference-fetch-only",
+    "reason": "arXiv preprints are publicly fetchable at deterministic URLs but come with per-paper licences that vary (arxiv perpetual licence, CC-BY, CC-BY-NC-SA, etc.). Reference-fetch matches ParseBench's posture and avoids assuming a universal redistribution grant."
+  },
+  "fetch_convention": {
+    "url_template": "https://arxiv.org/pdf/{arxiv_id}{arxiv_version}.pdf",
+    "url_verification": "The arXiv PDF endpoint is deterministic for a pinned (arxiv_id, arxiv_version) tuple. Fetch step MUST verify that the fetched bytes have the sha256 recorded here once populated; a mismatch is an integrity failure and MUST NOT populate the calibration corpus.",
+    "cache_root_hint": "%LOCALAPPDATA%/aksharamd/science_corpus/ or $XDG_CACHE_HOME/aksharamd/science_corpus/"
+  },
+  "assets": [
+    {
+      "id": "attention_1706_03762_v7",
+      "source": "arxiv",
+      "arxiv_id": "1706.03762",
+      "arxiv_version": "v7",
+      "pdf_url": "https://arxiv.org/pdf/1706.03762v7.pdf",
+      "title": "Attention Is All You Need",
+      "expected_page_count_hint": 15,
+      "expected_complexity_class": "multicolumn_moderate_figures",
+      "why_included": "Canonical two-column ML paper. Several small architecture diagrams and multi-cell tables; a control for 'multicolumn with moderate figure density' that should trigger the multi-column and figure-caption signals without producing extreme image-area-ratio numbers.",
+      "redistribution": "reference-fetch-only",
+      "expected_sha256": null,
+      "expected_size_bytes": null,
+      "fetched_at": null
+    },
+    {
+      "id": "resnet_1512_03385_v1",
+      "source": "arxiv",
+      "arxiv_id": "1512.03385",
+      "arxiv_version": "v1",
+      "pdf_url": "https://arxiv.org/pdf/1512.03385v1.pdf",
+      "title": "Deep Residual Learning for Image Recognition",
+      "expected_page_count_hint": 12,
+      "expected_complexity_class": "multicolumn_figure_heavy",
+      "why_included": "Two-column paper with many small figures and results tables. Higher figure density than the Attention paper; tests whether the detector separates 'moderate figures' from 'figure-heavy' when both are multi-column.",
+      "redistribution": "reference-fetch-only",
+      "expected_sha256": null,
+      "expected_size_bytes": null,
+      "fetched_at": null
+    },
+    {
+      "id": "bert_1810_04805_v2",
+      "source": "arxiv",
+      "arxiv_id": "1810.04805",
+      "arxiv_version": "v2",
+      "pdf_url": "https://arxiv.org/pdf/1810.04805v2.pdf",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "expected_page_count_hint": 16,
+      "expected_complexity_class": "multicolumn_table_heavy",
+      "why_included": "Two-column NLP paper dominated by result tables (dozens of tables comparing benchmark scores). Tests the table_count and rejected_table_candidate_count signals in a document where tables — not figures — should drive complexity.",
+      "redistribution": "reference-fetch-only",
+      "expected_sha256": null,
+      "expected_size_bytes": null,
+      "fetched_at": null
+    },
+    {
+      "id": "ddpm_2006_11239_v2",
+      "source": "arxiv",
+      "arxiv_id": "2006.11239",
+      "arxiv_version": "v2",
+      "pdf_url": "https://arxiv.org/pdf/2006.11239v2.pdf",
+      "title": "Denoising Diffusion Probabilistic Models",
+      "expected_page_count_hint": 25,
+      "expected_complexity_class": "multicolumn_math_heavy",
+      "why_included": "Two-column paper with a high density of inline and display equations. Tests the math_bbox_count signal on a real doc where math regions dominate structural complexity, not figures or tables.",
+      "redistribution": "reference-fetch-only",
+      "expected_sha256": null,
+      "expected_size_bytes": null,
+      "fetched_at": null
+    },
+    {
+      "id": "clip_2103_00020_v1",
+      "source": "arxiv",
+      "arxiv_id": "2103.00020",
+      "arxiv_version": "v1",
+      "pdf_url": "https://arxiv.org/pdf/2103.00020v1.pdf",
+      "title": "Learning Transferable Visual Models From Natural Language Supervision",
+      "expected_page_count_hint": 48,
+      "expected_complexity_class": "multicolumn_figure_and_table_dense",
+      "why_included": "Long two-column paper with heavy mixed figure and table density plus appendices. Tests whether the detector remains stable on a substantially longer document than the others (48 pages vs 12-25), and whether appendix pages (often single-column or lighter layout) dilute the document-level signal.",
+      "redistribution": "reference-fetch-only",
+      "expected_sha256": null,
+      "expected_size_bytes": null,
+      "fetched_at": null
+    }
+  ],
+  "not_included_yet": [
+    {
+      "class": "single_column_technical_report",
+      "reason": "Deferred to a later iteration. The corpus above is deliberately arxiv-preprint-focused because that is where 'figure-heavy scientific' concentrates; a single-column control is nice to have but not load-bearing for the initial detector calibration."
+    },
+    {
+      "class": "scanned_scientific_paper",
+      "reason": "Scanned scientific PDFs would exercise the ocr_pixmap + figure-caption interaction more strongly than the arxiv preprints above, but no obvious public reproducible source exists that would clear rights review without individual per-document evaluation. Left out of v1."
+    }
+  ],
+  "future_authorised_steps": [
+    "Commit 3 (calibration): fetch each asset via its deterministic pdf_url into a user cache root OUTSIDE the repo tree, sha256 the fetched bytes, populate expected_sha256 and expected_size_bytes in a follow-up lockfile update, and add each asset as a CorpusEntry with source='science' in the calibration harness.",
+    "Any subsequent addition to the corpus (new arxiv paper, or an authorised non-arxiv source) MUST be a separate lockfile edit reviewed by the same rights posture that governs ParseBench."
+  ]
+}
