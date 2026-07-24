@@ -183,3 +183,143 @@ def test_evaluate_output_safety_boundary_count_alone_does_not_trigger() -> None:
         and sig.measurement.repetition_ratio < 0.10
     ):
         assert sig.detected is False
+
+
+# ── OcrPageResult protocol carries the optional signal ─────────────────
+
+
+def test_ocr_page_result_repetition_signal_defaults_to_none() -> None:
+    """Backward compat: existing backends that construct OcrPageResult
+    without the new field get None. None means "no verdict reported",
+    which the dispatcher must NOT treat as "safe"."""
+    from aksharamd.plugins.ocr_backends._protocol import OcrPageResult
+
+    result = OcrPageResult(page_index=0, markdown="hello world")
+    assert result.repetition_signal is None
+
+
+def test_ocr_page_result_carries_repetition_signal_when_populated() -> None:
+    from aksharamd.plugins.ocr_backends._protocol import OcrPageResult
+
+    signal = evaluate_output_safety(
+        " ".join(["alpha beta gamma delta epsilon zeta eta theta"] * 100)
+    )
+    result = OcrPageResult(
+        page_index=3, markdown="…", is_ok=True, repetition_signal=signal
+    )
+    assert result.repetition_signal is signal
+    assert result.repetition_signal.detected is True
+
+
+# ── Backend integration: UOC anchor carries the signal ────────────────
+
+
+def test_uoc_aggregation_attaches_signal_only_to_anchor() -> None:
+    """UnlimitedOcrBackend batches: full markdown lives on the first
+    result (anchor), followers carry empty markdown + aggregation meta.
+    The safety signal must live where the markdown lives, so only the
+    anchor gets it. Followers stay at repetition_signal=None."""
+    from aksharamd.plugins.ocr_backends.unlimited_ocr_backend import (
+        UnlimitedOcrBackend,
+    )
+
+    pathological_md = " ".join(
+        ["alpha beta gamma delta epsilon zeta eta theta"] * 100
+    )
+    results = UnlimitedOcrBackend._results_with_aggregated_markdown(
+        page_indices=[7, 8, 9],
+        markdown=pathological_md,
+        signals={"worker_signals": {}},
+    )
+    assert len(results) == 3
+
+    anchor, *followers = results
+    assert anchor.markdown == pathological_md
+    assert anchor.repetition_signal is not None
+    assert anchor.repetition_signal.detected is True
+    assert anchor.repetition_signal.measurement.max_repeated_ngram_count >= 50
+
+    for follower in followers:
+        assert follower.markdown == ""
+        assert follower.repetition_signal is None
+
+
+def test_uoc_aggregation_signal_carries_bounded_preview_and_fingerprint() -> None:
+    """The signal exposes only the bounded preview + sha256; no raw
+    long excerpt from source text is stored on the OcrPageResult."""
+    from aksharamd.plugins.ocr_backends.unlimited_ocr_backend import (
+        UnlimitedOcrBackend,
+    )
+
+    pathological_md = " ".join(
+        ["alpha beta gamma delta epsilon zeta eta theta"] * 100
+    )
+    (anchor,) = UnlimitedOcrBackend._results_with_aggregated_markdown(
+        page_indices=[0],
+        markdown=pathological_md,
+        signals={"worker_signals": {}},
+    )
+    m = anchor.repetition_signal.measurement
+    assert len(m.repeated_ngram_preview) <= 100
+    assert len(m.repeated_ngram_sha256) == 64
+
+
+def test_uoc_aggregation_signal_reports_detected_false_on_clean_output() -> None:
+    """Clean UOC output — long enough to hit the char gate but with
+    natural word variety — must produce detected=False, never a
+    missing/None signal. Reviewers need to distinguish "backend
+    evaluated, safe" from "backend did not evaluate"."""
+    from aksharamd.plugins.ocr_backends.unlimited_ocr_backend import (
+        UnlimitedOcrBackend,
+    )
+
+    clean_md = (
+        "# Introduction\n\nThe system processes documents in three stages.\n"
+        "Each stage takes input from the previous one and produces structured\n"
+        "output. The parser is streaming to keep peak memory low even on\n"
+        "multi-hundred-page inputs. Rendering emits Markdown suitable for\n"
+        "downstream consumption, preserving headings, tables, and images.\n"
+    ) * 20
+    (anchor,) = UnlimitedOcrBackend._results_with_aggregated_markdown(
+        page_indices=[0],
+        markdown=clean_md,
+        signals={"worker_signals": {}},
+    )
+    assert anchor.repetition_signal is not None
+    assert anchor.repetition_signal.detected is False
+
+
+def test_uoc_aggregation_signal_present_even_when_markdown_is_short() -> None:
+    """UOC always populates the signal on the anchor (source of truth),
+    even when the markdown is too short to establish a verdict. Length-
+    based failures surface through the measurement fields rather than a
+    missing signal."""
+    from aksharamd.plugins.ocr_backends.unlimited_ocr_backend import (
+        UnlimitedOcrBackend,
+    )
+
+    (anchor,) = UnlimitedOcrBackend._results_with_aggregated_markdown(
+        page_indices=[0],
+        markdown="hi",
+        signals={"worker_signals": {}},
+    )
+    assert anchor.repetition_signal is not None
+    assert anchor.repetition_signal.detected is False
+    assert anchor.repetition_signal.measurement.evaluated_character_count == 2
+
+
+# ── Tesseract backend remains untouched ───────────────────────────────
+
+
+def test_tesseract_backend_still_produces_signal_free_results() -> None:
+    """Regression pin: Tesseract must not require any change to produce
+    an OcrPageResult that satisfies the protocol. Existing backend
+    constructions leave repetition_signal at the default None."""
+    from aksharamd.plugins.ocr_backends._protocol import OcrPageResult
+
+    # A hand-built result matching Tesseract's shape — no
+    # repetition_signal keyword.
+    result = OcrPageResult(
+        page_index=2, markdown="# Heading\n\nSome paragraph.\n", is_ok=True
+    )
+    assert result.repetition_signal is None
