@@ -19,9 +19,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol, runtime_checkable
 
-from .output_safety import RepetitionSignal
+if TYPE_CHECKING:
+    from .output_safety import RepetitionSignal
 
 # ---------------------------------------------------------------------------
 # Stable output-field names used by ``aksharamd doctor --json`` and by the

@@ -577,7 +577,8 @@ def test_scoring_policy_version_is_not_schema_version() -> None:
     m2 = Manifest(source="x.md", scoring_policy_version="99.0")
     assert m2.scoring_policy_version == "99.0"
     # Bumped 1.3 → 1.4 in PR 100 for the additive OCR Auto Policy fields.
-    assert m2.schema_version == "1.4"
+    # Bumped 1.4 → 1.5 in PR 102 for Output Safety Policy v1 fallback fields.
+    assert m2.schema_version == "1.5"
 
 
 # ── 16. to_dict serialization round-trip ──────────────────────────────────────

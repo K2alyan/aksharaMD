@@ -134,7 +134,8 @@ def test_chunk_schema_version() -> None:
 def test_manifest_schema_version() -> None:
     m = Manifest(source="test.md")
     # Bumped 1.3 → 1.4 in PR 100 for the additive OCR Auto Policy fields.
-    assert m.schema_version == "1.4"
+    # Bumped 1.4 → 1.5 in PR 102 for Output Safety Policy v1 fallback fields.
+    assert m.schema_version == "1.5"
 
 
 # ── _compute_source_id helper ─────────────────────────────────────────────────
