@@ -18,9 +18,12 @@ Analyses
 2. :func:`false_positive_report` — flags documents whose layout
    complexity band is ``moderate`` or ``complex`` but whose
    OCR-required page fraction is below a threshold. These are the
-   docs that a naive "route to UOC when layout is complex" rule
-   would send to UOC unnecessarily. Includes the reason each doc was
-   flagged.
+   docs that a hypothetical "route to UOC when layout is complex"
+   rule would send to UOC unnecessarily. The evaluator itself is
+   NOT wrong on these docs — a native-text multi-column paper is
+   genuinely a complex layout. The "false positive" belongs to the
+   hypothetical routing interpretation, not the detector. Includes
+   the reason each doc was flagged.
 
 3. :func:`rejected_table_candidate_predictor` — evaluates whether the
    raw ``rejected_table_candidate_count`` correlates with the
@@ -60,15 +63,18 @@ from benchmarks.ocr_auto_calibration.layout_complexity_capture import (
 # ---------------------------------------------------------------------------
 LAYOUT_COMPLEXITY_ANALYSIS_VERSION = "1"
 
-# False-positive threshold: a doc classified moderate/complex layout while
-# fewer than this fraction of its pages actually require OCR is flagged.
-# The bar is DELIBERATELY generous (10%) — the intent is to surface
-# candidates for human review, not to make a routing decision.
+# Routing-false-positive threshold: a doc classified moderate/complex
+# layout while fewer than this fraction of its pages actually require
+# OCR is flagged as a candidate the hypothetical complexity-only rule
+# would misroute. The bar is DELIBERATELY generous (10%) — the intent
+# is to surface candidates for human review, not to make a routing
+# decision.
 FALSE_POSITIVE_OCR_FRACTION_MAX = 0.10
 
 # Minimum char count below which we no longer trust ``ocr_required_fraction``
-# to distinguish "native text" from "image-only scan" — very short docs are
-# noisy either way and are excluded from the false-positive tally.
+# to distinguish "native text" from "image-only scan" — very short docs
+# are noisy either way and are excluded from the routing-false-positive
+# tally.
 FALSE_POSITIVE_MIN_TOTAL_CHARS = 2000
 
 # Minimum sample size for a meaningful Pearson correlation. Below this,
@@ -219,10 +225,14 @@ def false_positive_report(
     """Docs classified moderate/complex layout with an OCR-required
     fraction below the threshold AND substantial native text.
 
-    A ``simple`` layout classification is never a false positive here
-    — this analysis focuses on the case the milestone caveat calls
-    out: layout-complex scientific PDFs that a naive routing rule
-    would push to UOC without any OCR benefit.
+    A ``simple`` layout classification is never flagged here — this
+    analysis focuses on the case the milestone caveat calls out:
+    layout-complex scientific PDFs that a hypothetical
+    complexity-only routing rule would push to UOC without any
+    OCR benefit. The flag describes a property of that hypothetical
+    routing rule, NOT a defect in the layout-complexity evaluator
+    itself; the detector's classification of these docs as complex
+    is correct.
     """
     entries: list[FalsePositiveEntry] = []
     excluded_short = 0
@@ -247,10 +257,11 @@ def false_positive_report(
                 reason=(
                     f"native-text-dominant document ({capture.page_char_count_total} chars, "
                     f"OCR fraction {capture.ocr_required_fraction:.3f} "
-                    f"<= {FALSE_POSITIVE_OCR_FRACTION_MAX:.2f}) classified "
-                    f"'{capture.decision.band}' by layout signals "
-                    f"{list(capture.decision.triggered_signals)}. Routing on layout "
-                    f"complexity alone would send this to UOC without OCR benefit."
+                    f"<= {FALSE_POSITIVE_OCR_FRACTION_MAX:.2f}) correctly "
+                    f"classified '{capture.decision.band}' by layout signals "
+                    f"{list(capture.decision.triggered_signals)}. A hypothetical "
+                    f"routing rule on layout complexity alone would send this "
+                    f"to UOC without any OCR benefit."
                 ),
             )
         )
@@ -287,17 +298,13 @@ def rejected_table_candidate_predictor(
 
     Rationale: the milestone spec explicitly calls out
     ``rejected_table_candidate_count`` as a candidate UOC-benefit
-    predictor. Real evidence for that hypothesis requires a labeled
-    UOC-vs-Tesseract structural gain, which is out of scope for this
-    evidence commit (a heavy-model run). This function surfaces the
-    raw pairs plus an interim proxy — correlation with the OCR-required
-    fraction — so a reviewer can spot whether the two even move
-    together on this corpus before commissioning the heavier run.
-
-    A weak or inverted correlation on real scientific PDFs is
-    informative: it would mean the signal fires on native-text pages
-    where the parser's quality gate over-rejects candidates, not on
-    the scanned pages where UOC would actually help.
+    predictor. Real evidence for that hypothesis requires paired
+    UOC-vs-Tesseract quality outcomes on a targeted OCR-required
+    corpus, which is out of scope for this evidence commit. This
+    function surfaces the raw pairs plus an interim proxy —
+    correlation with the OCR-required fraction — as a first look;
+    the predictive value for UOC benefit is UNMEASURED regardless
+    of what the proxy shows.
     """
     pairs = tuple(
         (
@@ -337,22 +344,27 @@ def rejected_table_candidate_predictor(
 
     if r >= 0.5:
         interpretation = (
-            f"positive correlation (r={r:.3f}) — rejected_table_candidate_count "
-            f"tracks OCR difficulty on this corpus. A UOC-vs-Tesseract "
-            f"structural-gain run would be worth commissioning."
+            f"positive correlation (r={r:.3f}) with OCR-required "
+            f"fraction on this corpus. Predictive value for UOC benefit "
+            f"remains UNMEASURED — this proxy correlates against OCR "
+            f"difficulty, not against a UOC-vs-Tesseract quality delta. "
+            f"A targeted OCR-required corpus is required before any "
+            f"routing use."
         )
     elif r <= -0.5:
         interpretation = (
-            f"negative correlation (r={r:.3f}) — rejected_table_candidate_count "
-            f"is higher on OCR-simple documents on this corpus. The signal "
-            f"is a poor UOC-benefit predictor as measured here; the "
-            f"conservative Commit 2 cap is justified."
+            f"negative correlation (r={r:.3f}) with OCR-required "
+            f"fraction on this corpus — the signal fires more on "
+            f"OCR-simple docs than OCR-difficult ones as measured here. "
+            f"Predictive value for UOC benefit remains UNMEASURED and "
+            f"the conservative Commit 2 cap is justified."
         )
     else:
         interpretation = (
-            f"weak correlation (r={r:.3f}) — rejected_table_candidate_count "
-            f"does not clearly track OCR difficulty on this corpus. Treat "
-            f"the signal as under-calibrated pending a UOC-vs-Tesseract run."
+            f"weak correlation (r={r:.3f}) with OCR-required fraction "
+            f"on this corpus. Predictive value for UOC benefit remains "
+            f"UNMEASURED. Treat the signal as under-calibrated pending "
+            f"a targeted OCR-required corpus."
         )
 
     _ = SIGNAL_REJECTED_TABLE_CANDIDATE  # module reference for grep-ability

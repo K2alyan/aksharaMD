@@ -61,28 +61,36 @@ pages. This is the score cap doing its job — no single signal or run
 of pages dominates; the score simply reports "as complex as the
 policy can measure".
 
-## False-positive candidates (layout complex, OCR simple)
+## Routing false-positive candidates (layout complex, OCR simple)
 
 Threshold: `ocr_required_fraction <= 0.10` AND
 `page_char_count_total >= 2,000`. Documents considered: 5. Excluded
 as too-short: 0.
 
-**Every single one of the five papers is a false-positive candidate.**
-This is the exact scientific-corpus caveat the milestone spec called
-out ahead of the run — reproducible arXiv preprints span layout /
-figure / table / math diversity but are native-text; a routing rule
-that consulted layout complexity alone would send all five to UOC
-without OCR benefit.
+**All five papers would be false routing triggers under a
+complexity-only rule.** The evaluator itself correctly identified
+these as complex layouts (multi-column, tables, figure captions,
+etc.); the false positive belongs to the hypothetical routing
+interpretation, not to the detector. This is the exact
+scientific-corpus caveat the milestone spec called out ahead of the
+run — reproducible arXiv preprints span layout / figure / table /
+math diversity but are native-text.
 
-Interpretation for Commit 4 (Auto Policy v2):
+Interpretation for the routing question:
 
-* Layout complexity is a **feature**, not a routing input on its own.
+* Layout complexity is a **feature**, not a routing input on its
+  own. A native-text arXiv paper correctly classifies as `complex`
+  layout — that is the evaluator behaving as designed.
 * Auto Policy v1 already gates UOC on `ocr_required_page_count`
-  and `ocr_required_fraction`. The correct role for layout complexity
-  in v2 is as a **secondary tiebreaker** or **additional guard** on
-  the OCR-required path — never as the primary trigger.
-* A native-text arXiv paper correctly classifies as `complex` layout.
-  That is the evaluator behaving as designed, not a defect.
+  and `ocr_required_fraction`. Nothing in this evidence justifies
+  wiring layout complexity into routing on top of that gate.
+* Any future combined rule (layout complexity plus at least one
+  OCR-required page → UOC) is UNSUPPORTED by this run because the
+  corpus contains zero OCR-required documents. The relevant
+  question — "does layout complexity predict when UOC materially
+  outperforms Tesseract on pages already known to require OCR?"
+  — needs a different, OCR-required corpus and paired
+  UOC-vs-Tesseract quality comparisons before any routing change.
 
 ## Rejected-table-candidate as a UOC-benefit predictor
 
@@ -99,16 +107,18 @@ the corpus).
 
 Interpretation: on native-text arXiv preprints, the parser's table
 quality gate rejected no candidates — so the signal produced no
-evidence here. This does NOT confirm or refute the hypothesis that
-`rejected_table_candidate_count` predicts UOC benefit; the corpus is
-the wrong instrument. A definitive evaluation requires a corpus with
-non-trivial rejected-candidate counts AND labeled OCR-treatment
-outcomes (UOC-vs-Tesseract structural-gain deltas). Both are out of
-scope for this evidence commit.
+evidence here. **`rejected_table_candidate_count` predictive value
+remains UNMEASURED** (not disproved). The corpus is the wrong
+instrument: it has no OCR-required pages and no rejected-candidate
+activity to correlate against anything. A definitive evaluation
+requires a targeted OCR-required corpus with non-trivial
+rejected-candidate counts AND paired UOC-vs-Tesseract structural /
+quality outcomes. Both are out of scope for this evidence commit.
 
 The Commit 2 conservative caps on `rejected_table_candidate`
-(per-page cap 5, document cap 15 points out of 100) remain justified
-pending that later run.
+(per-page cap 5, document cap 15 points out of 100) remain in
+place until that targeted evaluation exists — an unmeasured
+signal should not carry more weight than a measured one.
 
 ## Runtime cost (informational)
 
@@ -126,14 +136,22 @@ run.
 
 1. The layout-complexity evaluator behaves as designed on real
    scientific PDFs: multi-column density + tables + figure captions
-   drive high scores in the `complex` band.
-2. Layout complexity DOES NOT track OCR difficulty on this corpus.
+   drive high scores in the `complex` band. That the detector
+   places all five papers in `complex` is correct; the layouts
+   really are complex.
+2. Layout complexity does NOT track OCR difficulty on this corpus.
    Every paper is native-text and needs no OCR; every paper is
-   `complex`. This is the false-positive risk pinned by the milestone
-   caveat, now confirmed with numbers.
-3. `rejected_table_candidate_count` is silent on this corpus. Its
-   predictive value for UOC benefit remains unmeasured; the
-   conservative cap in Commit 2 stays in place.
-4. Auto Policy v2 (Commit 4) must not route on layout complexity
-   alone. The OCR-required-page signal remains the primary gate;
-   layout complexity is at most a supporting feature.
+   `complex`. Under a hypothetical complexity-only routing rule
+   all five would be false routing triggers — the routing
+   interpretation, not the detector, is what fails here.
+3. `rejected_table_candidate_count` predictive value for UOC
+   benefit remains UNMEASURED on this corpus (0 rejected candidates
+   across all 5 documents). The conservative cap in Commit 2 stays
+   in place; an unmeasured signal should not carry more weight
+   than a measured one.
+4. **Nothing in this run justifies changing production routing.**
+   Auto Policy v1's OCR-required gate remains the correct primary
+   trigger. Any future combined rule needs a different corpus:
+   documents that are already known to require OCR, spanning
+   varied structural complexity, with paired UOC-vs-Tesseract
+   quality outcomes.

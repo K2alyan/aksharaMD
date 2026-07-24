@@ -124,7 +124,7 @@ def _render_false_positive_section(
 ) -> list[str]:
     fp = analysis.false_positives
     lines: list[str] = [
-        "## False-positive candidates (layout complex, OCR simple)",
+        "## Routing false-positive candidates (layout complex, OCR simple)",
         "",
         (
             f"Threshold: OCR-required fraction "
@@ -136,7 +136,9 @@ def _render_false_positive_section(
         "",
     ]
     if not fp.entries:
-        lines.append("_No false-positive candidates on this corpus._")
+        lines.append(
+            "_No routing false-positive candidates on this corpus._"
+        )
         return lines
 
     lines.append("| doc | band | score | ocr_frac | chars | signals |")
@@ -151,10 +153,11 @@ def _render_false_positive_section(
         )
     lines.append("")
     lines.append(
-        "**Interpretation**: layout complexity alone MUST NOT drive UOC "
-        "routing on these documents — they are native-text-dominant. "
-        "Auto Policy v2 must combine layout complexity with the "
-        "OCR-required signal (as v1 already does)."
+        "**Interpretation**: the evaluator correctly identified these "
+        "as complex layouts — the false positive belongs to a "
+        "hypothetical complexity-only routing rule, not to the "
+        "detector. Auto Policy v1's OCR-required gate remains the "
+        "correct primary trigger; nothing here justifies changing it."
     )
     return lines
 
@@ -183,10 +186,13 @@ def _render_rejected_table_section(
     lines.append(rp.interpretation)
     lines.append("")
     lines.append(
-        "This is an interim proxy: it correlates the signal against the "
-        "OCR-required fraction, not against a UOC-vs-Tesseract structural-gain "
-        "delta. A definitive predictor evaluation requires actual OCR-treatment "
-        "runs and is deliberately out of scope for this evidence commit."
+        "**Predictive value: UNMEASURED (not disproved).** This is an "
+        "interim proxy that correlates the signal against the "
+        "OCR-required fraction, not against a UOC-vs-Tesseract "
+        "structural or quality delta. A definitive predictor "
+        "evaluation requires a targeted OCR-required corpus with "
+        "paired UOC and Tesseract outcomes; that is out of scope "
+        "for this evidence commit."
     )
     return lines
 
@@ -202,8 +208,7 @@ def _render_caveats_section() -> list[str]:
             "(multi-column, tables, figure captions, math bboxes, rejected "
             "table candidates) but is NOT an OCR-difficulty benchmark. "
             "A high layout score on these papers is correct behavior for "
-            "the evaluator; it is Commit 4 (Auto Policy v2) that decides "
-            "whether such a doc should be routed to UOC."
+            "the evaluator."
         ),
         (
             "* No production routing or manifest change is introduced by "
@@ -212,8 +217,10 @@ def _render_caveats_section() -> list[str]:
         (
             "* The `rejected_table_candidate_count` signal remains "
             "conservatively capped (per-page cap 5, document cap 15 points "
-            "out of 100) until a UOC-vs-Tesseract structural-gain benchmark "
-            "confirms its predictive value."
+            "out of 100). Its predictive value for UOC benefit is "
+            "**unmeasured** on this corpus (0 rejected candidates across "
+            "all documents) and remains an open question for a targeted "
+            "OCR-required corpus with paired UOC-vs-Tesseract outcomes."
         ),
     ]
 

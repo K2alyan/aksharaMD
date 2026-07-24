@@ -304,7 +304,7 @@ def test_write_markdown_report_renders_expected_sections(tmp_path: Path) -> None
     body = out.read_text(encoding="utf-8")
     assert "Layout Complexity v1 — Evidence Report (test-corpus)" in body
     assert "Layout complexity vs OCR difficulty" in body
-    assert "False-positive candidates" in body
+    assert "Routing false-positive candidates" in body
     assert "Rejected-table-candidate as a UOC-benefit predictor" in body
     assert "Caveats" in body
     assert "no production routing" in body.lower()
