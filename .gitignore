@@ -37,6 +37,13 @@ benchmarks/results/*.log
 benchmarks/document_package/results/
 benchmarks/document_package/qa_pilot/runs/
 benchmarks/kv_eval/results/
+benchmarks/ocr_auto_calibration/.cache/
+benchmarks/ocr_auto_calibration/.compile_outputs/
+benchmarks/ocr_auto_calibration/results/
+# Synthetic PDF fixtures are deterministic in *semantics* but not in bytes
+# (PyMuPDF stamps volatile metadata); regenerate via
+# `python -m benchmarks.ocr_auto_calibration.synthetics`.
+benchmarks/ocr_auto_calibration/fixtures/synthetic/
 
 # graphify indexer output — local artefact, do not commit
 graphify-out/

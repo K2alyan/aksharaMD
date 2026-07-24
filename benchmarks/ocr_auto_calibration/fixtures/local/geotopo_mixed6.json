@@ -1,0 +1,8 @@
+{
+  "document_id": "geotopo_mixed6",
+  "path": "C:/Users/kalya/uoc_smoke/geotopo_mixed6.pdf",
+  "profile_class": "local_real_mixed",
+  "expected_backend_by_policy": "unlimited_ocr",
+  "expected_sha256": "c27237266bb6e2fdf664d6fce7a8c9d876965028ec6ec3b8ddd55a3130fd67ee",
+  "notes": "6-page real GeoTopo slice: 3 native pdflatex pages + 3 rasterized (image-only) pages. Meets Auto Policy v1 thresholds (3+ OCR-required, 50% fraction). Local optional asset — harness skips gracefully if absent."
+}
