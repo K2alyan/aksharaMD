@@ -22,7 +22,6 @@ import subprocess  # nosec B404 - benign; used only for `git rev-parse`
 import sys
 from datetime import date
 from pathlib import Path
-
 from typing import Any
 
 from .corpus import (

@@ -202,7 +202,6 @@ def _lay_compile_output(
     (pkg / "document.md").write_bytes(markdown)
     payload = json.dumps(manifest or {"pages": 3}, indent=2)
     for i in range(n_manifests):
-        name = "manifest.json" if i == 0 else f"manifest_{i}.json"
         # Ambiguous case needs the same *filename* twice, in different dirs.
         target = pkg if i == 0 else (pkg / f"nested_{i}")
         target.mkdir(parents=True, exist_ok=True)
