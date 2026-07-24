@@ -1013,6 +1013,26 @@ class Compiler:
                 _ocr_auto_policy_version = None
                 _ocr_auto_decision_payload = None
 
+            # Output Safety Policy v1 audit propagation: when the auto
+            # fallback fired, ``ctx.ocr_output_safety_audit`` carries a
+            # bounded per-page evidence payload. When it did not fire,
+            # every field below stays None so the manifest schema is
+            # backwards-transparent.
+            _safety_audit = getattr(ctx, "ocr_output_safety_audit", None) or {}
+            _safety_policy_version = _safety_audit.get("output_safety_policy_version")
+            _safety_initially = _safety_audit.get("initially_selected_backend")
+            _safety_final = _safety_audit.get("final_backend")
+            _safety_discarded = _safety_audit.get("discarded_backend")
+            _safety_reason = _safety_audit.get("fallback_reason")
+            _safety_affected = _safety_audit.get("affected_page_count")
+            _safety_signals = _safety_audit.get("repetition_signals")
+            # Historical ``ocr_backend_selected`` semantics: the FINAL
+            # effective backend that produced output. On fallback, this
+            # becomes "tesseract" so legacy readers still see the right
+            # runtime backend.
+            if _safety_final is not None:
+                _ocr_selected = _safety_final
+
             ctx.manifest = Manifest(
                 source=source,
                 file_type=file_type,
@@ -1046,6 +1066,13 @@ class Compiler:
                 ocr_backend_selected=_ocr_selected,
                 ocr_auto_policy_version=_ocr_auto_policy_version,
                 ocr_auto_decision=_ocr_auto_decision_payload,
+                ocr_output_safety_policy_version=_safety_policy_version,
+                ocr_initially_selected_backend=_safety_initially,
+                ocr_final_backend=_safety_final,
+                ocr_discarded_backend=_safety_discarded,
+                ocr_fallback_reason=_safety_reason,
+                ocr_affected_page_count=_safety_affected,
+                ocr_repetition_signals=_safety_signals,
             )
 
             # 9. Extraction Confidence Score

@@ -1575,6 +1575,39 @@ def _emit_auto_backend_warnings(ctx, decision) -> None:
         )
 
 
+def _insert_tesseract_fallback_blocks(
+    *,
+    ctx,
+    tesseract_results,
+    ocr_source_pages: list[int],
+    all_blocks: list,
+) -> None:
+    """Insert Tesseract's per-page ``OcrPageResult.blocks`` into
+    ``all_blocks``, used only during Output Safety Policy v1 fallback.
+
+    Each Tesseract result carries either populated ``blocks`` (success)
+    or ``failure`` (per-page). Successful blocks are appended in
+    page_index order; failures surface as ``W_OCR_PAGE_FAILED``
+    warnings so a downstream reader can still audit which pages did
+    not produce blocks. Caller re-indexes ``all_blocks`` after the
+    return.
+    """
+    _ = ocr_source_pages  # reserved for future per-page positional insertion
+    for res in tesseract_results:
+        if res.is_ok:
+            if res.blocks:
+                all_blocks.extend(res.blocks)
+        else:
+            failure = res.failure
+            kind = failure.kind if failure else "other"
+            msg = failure.message if failure else ""
+            ctx.warn(
+                "W_OCR_PAGE_FAILED",
+                f"Tesseract fallback failed on source page "
+                f"{res.page_index}: {kind}: {msg}",
+            )
+
+
 def _apply_alternate_ocr_backend(
     *,
     ctx,
@@ -1647,15 +1680,110 @@ def _apply_alternate_ocr_backend(
     # UocOutputRepetitionError. No Tesseract fallback, no downgrade —
     # the user's explicit backend choice is honoured by refusing to
     # emit unsafe output rather than silently substituting another
-    # backend. The auto-selected path is intentionally out of scope
-    # here; Commit 4 of the milestone adds its own document-level
-    # Tesseract fallback for auto+UOC.
+    # backend.
     if (
         ctx.ocr_backend == "unlimited_ocr"
         and _resolved_backend_name == "unlimited_ocr"
     ):
         from ..ocr_backends.output_safety import raise_if_unsafe_uoc_result
         raise_if_unsafe_uoc_result(results)
+
+    # Auto-UOC Output Safety Policy v1 fallback.
+    #
+    # When ``--ocr-backend auto`` selected UOC and the UOC output trips
+    # Policy v1, discard the entire UOC document result and re-run all
+    # OCR-required pages via Tesseract. Emit a visible fallback warning
+    # exactly once and record structured audit payload on the context
+    # so the compiler can propagate it into the manifest. Fallback is
+    # document-level in v1 — no per-page mixing of backends.
+    if (
+        ctx.ocr_backend == "auto"
+        and _resolved_backend_name == "unlimited_ocr"
+    ):
+        from ..ocr_backends.output_safety import (
+            UOC_OUTPUT_SAFETY_POLICY_VERSION,
+            collect_affected_pages,
+        )
+        affected = collect_affected_pages(results)
+        if affected:
+            page_list = ", ".join(str(p.page_index) for p in affected)
+            ctx.warn(
+                "AUTO_OCR_BACKEND_FALLBACK_REPETITION",
+                f"UOC output rejected by Output Safety Policy "
+                f"v{UOC_OUTPUT_SAFETY_POLICY_VERSION}: "
+                f"{len(affected)} page(s) exceeded the repetition "
+                f"threshold (page_index={page_list}). Re-running the "
+                f"document via Tesseract.",
+            )
+            # Record structured audit payload. Every field is bounded;
+            # per-page signals reuse the AffectedPage shape which
+            # already caps the preview at 100 chars.
+            ctx.ocr_output_safety_audit = {
+                "output_safety_policy_version": UOC_OUTPUT_SAFETY_POLICY_VERSION,
+                "initially_selected_backend": "unlimited_ocr",
+                "final_backend": "tesseract",
+                "discarded_backend": "unlimited_ocr",
+                "fallback_reason": "uoc_output_repetition",
+                "affected_page_count": len(affected),
+                "repetition_signals": [
+                    {
+                        "page_index": p.page_index,
+                        "max_repeated_ngram_count": p.max_repeated_ngram_count,
+                        "repetition_ratio": p.repetition_ratio,
+                        # evaluated_character_count lives on the
+                        # RepetitionMeasurement, not on the compact
+                        # AffectedPage — pull it from the original
+                        # result's signal directly for full audit.
+                        "evaluated_character_count": next(
+                            (
+                                r.repetition_signal.measurement.evaluated_character_count
+                                for r in results
+                                if r.page_index == p.page_index
+                                and r.repetition_signal is not None
+                            ),
+                            None,
+                        ),
+                        "repeated_ngram_preview": p.repeated_ngram_preview,
+                        "repeated_ngram_sha256": p.repeated_ngram_sha256,
+                    }
+                    for p in affected
+                ],
+            }
+            # Re-run the same request via Tesseract and consume its
+            # per-page ``blocks`` output. Tesseract has a different
+            # emission shape (blocks, not aggregated markdown) so we
+            # bypass the UOC consumption code below.
+            try:
+                tesseract = get_backend("tesseract")
+            except ValueError as exc:
+                ctx.warn(
+                    "W_OCR_BACKEND_UNKNOWN",
+                    f"Tesseract backend unavailable for safety fallback: "
+                    f"{exc}",
+                )
+                return
+            try:
+                tesseract_results = tesseract.process(request)
+            except Exception as exc:
+                logger.debug(
+                    "Tesseract raised during safety fallback", exc_info=True
+                )
+                ctx.warn(
+                    "W_OCR_BACKEND_FAILED",
+                    f"Tesseract raised during Output Safety Policy "
+                    f"v{UOC_OUTPUT_SAFETY_POLICY_VERSION} fallback: "
+                    f"{type(exc).__name__}: {exc}",
+                )
+                return
+            # Insert per-page tesseract blocks at the position of the
+            # first OCR-required source page's slot in all_blocks.
+            _insert_tesseract_fallback_blocks(
+                ctx=ctx,
+                tesseract_results=tesseract_results,
+                ocr_source_pages=ocr_source_pages,
+                all_blocks=all_blocks,
+            )
+            return
 
     # Surface any per-page failures via ctx.warn but keep going so the
     # digital pages already assembled into all_blocks are not discarded.

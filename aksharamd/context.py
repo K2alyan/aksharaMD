@@ -71,6 +71,17 @@ class CompilationContext:
     # serialization. ``None`` for explicit backend choices.
     ocr_auto_decision: AutoOcrDecision | None = field(default=None)
 
+    # Output Safety Policy v1 milestone: populated only when
+    # ``ocr_backend == "auto"`` initially selected UOC AND the UOC
+    # output tripped Policy v1 (any anchor page's
+    # ``repetition_signal.detected`` was True). Carries the audit
+    # payload the compiler propagates into the manifest's
+    # ``ocr_output_safety_*`` / ``ocr_final_backend`` /
+    # ``ocr_discarded_backend`` fields. Every per-page entry is
+    # bounded; no raw markdown, no unbounded ngram text. ``None`` when
+    # the fallback did not fire.
+    ocr_output_safety_audit: dict | None = field(default=None)
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:
