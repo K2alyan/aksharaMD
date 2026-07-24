@@ -1639,6 +1639,24 @@ def _apply_alternate_ocr_backend(
         )
         return
 
+    # Explicit-UOC Output Safety Policy v1 guard.
+    #
+    # When the user explicitly requested ``--ocr-backend unlimited_ocr``
+    # AND the UOC anchor result trips Policy v1 (repetition_signal.
+    # detected=True), we discard the UOC result entirely and raise
+    # UocOutputRepetitionError. No Tesseract fallback, no downgrade —
+    # the user's explicit backend choice is honoured by refusing to
+    # emit unsafe output rather than silently substituting another
+    # backend. The auto-selected path is intentionally out of scope
+    # here; Commit 4 of the milestone adds its own document-level
+    # Tesseract fallback for auto+UOC.
+    if (
+        ctx.ocr_backend == "unlimited_ocr"
+        and _resolved_backend_name == "unlimited_ocr"
+    ):
+        from ..ocr_backends.output_safety import raise_if_unsafe_uoc_result
+        raise_if_unsafe_uoc_result(results)
+
     # Surface any per-page failures via ctx.warn but keep going so the
     # digital pages already assembled into all_blocks are not discarded.
     aggregated_markdown = ""

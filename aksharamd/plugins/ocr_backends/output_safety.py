@@ -24,8 +24,12 @@ from __future__ import annotations
 import hashlib
 import re
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._protocol import OcrPageResult
 
 # ── Detector primitive ────────────────────────────────────────────────
 
@@ -166,3 +170,126 @@ def evaluate_output_safety(markdown: str) -> RepetitionSignal:
         threshold_min_chars=_MIN_EVALUATED_CHARS,
         threshold_min_ratio=_MIN_REPETITION_RATIO,
     )
+
+
+# ── Explicit-UOC rejection ────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class AffectedPage:
+    """Reviewer-facing summary of one page that tripped the safety guard.
+
+    Every field is bounded. ``repeated_ngram_preview`` never exceeds 100
+    characters. ``repeated_ngram_sha256`` is the 64-char hex digest of
+    the whitespace-joined lowercased n-gram, not of the whole page.
+    Raw markdown is never carried here.
+    """
+
+    page_index: int
+    max_repeated_ngram_count: int
+    repetition_ratio: float
+    repeated_ngram_preview: str
+    repeated_ngram_sha256: str
+
+
+class UocOutputRepetitionError(RuntimeError):
+    """Explicit ``--ocr-backend unlimited_ocr`` rejection under Policy v1.
+
+    Raised by the dispatcher when the UOC backend returns any anchor
+    page whose ``repetition_signal.detected`` is True. Carries structured
+    evidence for both the CLI (concise error) and audit tooling. Because
+    a failed compile may not produce a manifest, this exception IS the
+    authoritative audit output for explicit UOC rejections — Commit 4
+    of the milestone adds Auto's document-level Tesseract fallback plus
+    manifest audit fields, but explicit UOC never re-plans and never
+    produces a final manifest.
+    """
+
+    error_code: str = "UOC_OUTPUT_REPETITION"
+
+    def __init__(
+        self,
+        *,
+        policy_version: str,
+        affected_pages: Sequence[AffectedPage],
+    ) -> None:
+        self.policy_version = policy_version
+        self.affected_pages = tuple(affected_pages)
+        self.total_affected_pages = len(self.affected_pages)
+        self.remediation = (
+            "Retry with --ocr-backend tesseract or --ocr-backend auto."
+        )
+        page_list = ", ".join(str(p.page_index) for p in self.affected_pages)
+        super().__init__(
+            f"UOC output rejected by Output Safety Policy "
+            f"v{policy_version}: {self.total_affected_pages} page(s) "
+            f"exceeded the repetition threshold "
+            f"(page_index={page_list}). {self.remediation}"
+        )
+
+    def to_structured_dict(self) -> dict[str, object]:
+        """JSON-safe payload for CLI ``--json`` output. All fields are
+        bounded; no raw markdown, no unbounded n-gram text."""
+        return {
+            "error_code": self.error_code,
+            "policy_version": self.policy_version,
+            "total_affected_pages": self.total_affected_pages,
+            "remediation": self.remediation,
+            "affected_pages": [
+                {
+                    "page_index": p.page_index,
+                    "max_repeated_ngram_count": p.max_repeated_ngram_count,
+                    "repetition_ratio": p.repetition_ratio,
+                    "repeated_ngram_preview": p.repeated_ngram_preview,
+                    "repeated_ngram_sha256": p.repeated_ngram_sha256,
+                }
+                for p in self.affected_pages
+            ],
+        }
+
+
+def collect_affected_pages(
+    results: Iterable[OcrPageResult],
+) -> list[AffectedPage]:
+    """Return one :class:`AffectedPage` per result whose signal fired.
+
+    Non-anchor pages (``repetition_signal is None``) and safe pages
+    (``detected is False``) are silently skipped. This is a pure
+    inspection helper; it never raises.
+    """
+    out: list[AffectedPage] = []
+    for r in results:
+        sig = r.repetition_signal
+        if sig is None or not sig.detected:
+            continue
+        m = sig.measurement
+        out.append(
+            AffectedPage(
+                page_index=r.page_index,
+                max_repeated_ngram_count=m.max_repeated_ngram_count,
+                repetition_ratio=m.repetition_ratio,
+                repeated_ngram_preview=m.repeated_ngram_preview,
+                repeated_ngram_sha256=m.repeated_ngram_sha256,
+            )
+        )
+    return out
+
+
+def raise_if_unsafe_uoc_result(
+    results: Iterable[OcrPageResult],
+) -> None:
+    """Raise :class:`UocOutputRepetitionError` if any result trips
+    Policy v1; return silently on safe inputs.
+
+    Caller contract: this is intended for the *explicit*
+    ``--ocr-backend unlimited_ocr`` path only. The auto-selected path
+    inspects the same signal but responds with a Tesseract fallback,
+    not an exception (that behavior lives in the dispatcher's
+    Auto branch in Commit 4).
+    """
+    affected = collect_affected_pages(results)
+    if affected:
+        raise UocOutputRepetitionError(
+            policy_version=UOC_OUTPUT_SAFETY_POLICY_VERSION,
+            affected_pages=affected,
+        )
