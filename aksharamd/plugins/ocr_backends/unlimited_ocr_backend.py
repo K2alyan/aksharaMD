@@ -47,6 +47,7 @@ from ._protocol import (
     OcrPageRequest,
     OcrPageResult,
 )
+from .output_safety import evaluate_output_safety
 
 logger = logging.getLogger(__name__)
 
@@ -453,6 +454,10 @@ class UnlimitedOcrBackend(OcrBackend):
         results: list[OcrPageResult] = []
         for i, idx in enumerate(page_indices):
             if i == 0:
+                # Anchor result carries the full aggregated markdown, so
+                # this is the ONE place the safety verdict is attached.
+                # Non-anchor results below hold empty markdown by design
+                # and leave repetition_signal at None.
                 results.append(OcrPageResult(
                     page_index=idx,
                     markdown=markdown,
@@ -463,6 +468,7 @@ class UnlimitedOcrBackend(OcrBackend):
                         "subset_page_to_source_page": subset_map,
                         "worker_signals": signals.get("worker_signals") or {},
                     },
+                    repetition_signal=evaluate_output_safety(markdown),
                 ))
             else:
                 results.append(OcrPageResult(

@@ -81,4 +81,21 @@ class Manifest(BaseModel):
     ocr_backend_selected: str | None = None
     ocr_auto_policy_version: str | None = None
     ocr_auto_decision: dict | None = None
-    schema_version: str = "1.4"
+    # Milestone: Output Safety Policy v1 (auto→UOC repetition fallback).
+    # ``ocr_backend_selected`` retains its historical meaning (the final
+    # effective backend that produced output — reflects the fallback
+    # substitution). The six new fields below make the fallback path
+    # explicit for auditors: they are non-None only when Output Safety
+    # Policy v1 discarded a UOC result and re-ran the document via
+    # Tesseract. ``ocr_repetition_signals`` carries bounded per-page
+    # evidence (page_index, count, ratio, char_count, bounded 100-char
+    # ngram preview, sha256 fingerprint) — never raw markdown, never
+    # unbounded ngram text. See docs/adr/uoc-output-safety-policy-v1.md.
+    ocr_output_safety_policy_version: str | None = None
+    ocr_initially_selected_backend: str | None = None
+    ocr_final_backend: str | None = None
+    ocr_discarded_backend: str | None = None
+    ocr_fallback_reason: str | None = None
+    ocr_affected_page_count: int | None = None
+    ocr_repetition_signals: list[dict] | None = None
+    schema_version: str = "1.5"

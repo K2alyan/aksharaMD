@@ -366,6 +366,32 @@ def _dollar_row(tokens_saved: int) -> str:
     return "  /  ".join(parts)
 
 
+def _emit_uoc_repetition_error(exc, *, output_json: bool) -> None:
+    """Render a :class:`UocOutputRepetitionError` to the user without a
+    Python traceback.
+
+    Extracted from the ``compile`` command so tests can exercise the
+    format directly without spinning up the full click flow (which
+    would trip UOC availability checks on any machine without the model
+    installed). ``exc`` is expected to be a
+    :class:`aksharamd.plugins.ocr_backends.output_safety
+    .UocOutputRepetitionError`; only its structured fields are used, no
+    internal state.
+    """
+    if output_json:
+        import json as _json
+        click.echo(_json.dumps(exc.to_structured_dict()))
+        return
+    page_list = ", ".join(str(p.page_index) for p in exc.affected_pages)
+    console.print(
+        f"[red]Error[/red] [{exc.error_code}] "
+        f"UOC output rejected by Output Safety Policy "
+        f"v{exc.policy_version}: {exc.total_affected_pages} "
+        f"page(s) exceeded the repetition threshold "
+        f"(page_index={page_list}). {exc.remediation}"
+    )
+
+
 class _AksharaMDGroup(click.Group):
     """Click Group that gives a helpful error when a file path is passed without a subcommand."""
 
@@ -554,22 +580,32 @@ def compile(
     if not _suppress_rich:
         _show_first_run_onboarding()
 
-    if run_package:
-        from .packaging import PackageMode, PackageProfile
-        profile = PackageProfile(mode=PackageMode(package_mode.lower()))
-        if _suppress_rich:
-            ctx = compiler.compile_package(source, profile=profile)
+    from .plugins.ocr_backends.output_safety import UocOutputRepetitionError
+
+    try:
+        if run_package:
+            from .packaging import PackageMode, PackageProfile
+            profile = PackageProfile(mode=PackageMode(package_mode.lower()))
+            if _suppress_rich:
+                ctx = compiler.compile_package(source, profile=profile)
+            else:
+                with _LiveProgress(source) as lp:
+                    ctx = compiler.compile_package(source, profile=profile, on_stage=lp.update)
+                console.print()
         else:
-            with _LiveProgress(source) as lp:
-                ctx = compiler.compile_package(source, profile=profile, on_stage=lp.update)
-            console.print()
-    else:
-        if _suppress_rich:
-            ctx = compiler.compile(source)
-        else:
-            with _LiveProgress(source) as lp:
-                ctx = compiler.compile(source, on_stage=lp.update)
-            console.print()
+            if _suppress_rich:
+                ctx = compiler.compile(source)
+            else:
+                with _LiveProgress(source) as lp:
+                    ctx = compiler.compile(source, on_stage=lp.update)
+                console.print()
+    except UocOutputRepetitionError as exc:
+        # Explicit --ocr-backend unlimited_ocr rejection: emit a concise
+        # structured error (never a Python traceback) and exit non-zero.
+        # A failed compile did not produce a manifest, so this error IS
+        # the audit output for the run.
+        _emit_uoc_repetition_error(exc, output_json=output_json)
+        sys.exit(1)
 
     # Evaluate readiness threshold (only when manifest was produced)
     _below_threshold = (

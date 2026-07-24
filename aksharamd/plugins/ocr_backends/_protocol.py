@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
+from ._repetition import RepetitionSignal
+
 # ---------------------------------------------------------------------------
 # Stable output-field names used by ``aksharamd doctor --json`` and by the
 # structured availability details below. The names appear in scripts and in
@@ -193,6 +195,14 @@ class OcrPageResult:
     Backends that batch output (e.g. UnlimitedOcrBackend's aggregated-
     markdown convention) use it to describe the aggregation to a
     dispatch layer without changing the primary shape.
+
+    ``repetition_signal`` is an optional Output Safety Policy verdict on
+    the page's markdown. A backend that performs a safety evaluation on
+    its own output (e.g. UOC) attaches the verdict here; backends that
+    do not perform the check (e.g. Tesseract, or a UOC batch's
+    non-anchor pages that carry no markdown) leave the field at ``None``.
+    ``None`` means "no verdict reported", NOT "verdict says safe" —
+    dispatchers must distinguish the two.
     """
 
     page_index: int
@@ -201,6 +211,7 @@ class OcrPageResult:
     is_ok: bool = True
     failure: OcrFailure | None = None
     meta: dict[str, Any] = field(default_factory=dict)
+    repetition_signal: RepetitionSignal | None = None
 
 
 @runtime_checkable
