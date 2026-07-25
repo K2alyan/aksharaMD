@@ -1,14 +1,14 @@
 """Tests for the science-corpus loader + hydrator.
 
-Offline. Never contacts the network. Hydrator tests use file-URL
-schemes to exercise the fetch path without external dependencies.
+Offline. Never contacts a real network. The happy-path fetch test
+monkeypatches ``urllib.request.urlopen``; the network-error test
+targets an unresolvable ``.invalid`` TLD (RFC 6761); a dedicated
+scheme-guard test exercises the http/https allowlist.
 """
 from __future__ import annotations
 
 import hashlib
 import json
-import os
-import urllib.request
 from pathlib import Path
 
 import pytest
@@ -161,25 +161,16 @@ def test_dry_run_reports_integrity_mismatch_when_pinned_sha_disagrees(
     assert outcome.observed_sha256 == hashlib.sha256(b"fake").hexdigest()
 
 
-# ── Fetch happy path via file:// URL ─────────────────────────────────
+# ── Fetch happy path via monkeypatched urlopen ───────────────────────
 
 
-@pytest.mark.skipif(
-    os.name == "nt", reason="urllib file:// paths are non-portable on Windows"
-)
-def test_fetch_downloads_and_installs_atomically(tmp_path: Path) -> None:
-    payload = b"%PDF-1.4\nfake-arxiv-bytes\n"
-    src = tmp_path / "src.pdf"
-    src.write_bytes(payload)
-
-    _, entries = load_science_corpus(cache_root=tmp_path / "cache")
-    base = entries[0]
-    entry = ScienceCorpusEntry(
+def _override_url(base: ScienceCorpusEntry, pdf_url: str) -> ScienceCorpusEntry:
+    return ScienceCorpusEntry(
         document_id=base.document_id,
         source=base.source,
         arxiv_id=base.arxiv_id,
         arxiv_version=base.arxiv_version,
-        pdf_url=urllib.request.pathname2url(str(src)),
+        pdf_url=pdf_url,
         title=base.title,
         expected_page_count_hint=base.expected_page_count_hint,
         expected_complexity_class=base.expected_complexity_class,
@@ -188,25 +179,43 @@ def test_fetch_downloads_and_installs_atomically(tmp_path: Path) -> None:
         expected_sha256=None,
         expected_size_bytes=None,
     )
-    # urllib expects file:// prefix for file paths.
-    entry_file_url = ScienceCorpusEntry(
-        document_id=entry.document_id,
-        source=entry.source,
-        arxiv_id=entry.arxiv_id,
-        arxiv_version=entry.arxiv_version,
-        pdf_url=f"file://{entry.pdf_url}"
-        if not entry.pdf_url.startswith("file://")
-        else entry.pdf_url,
-        title=entry.title,
-        expected_page_count_hint=entry.expected_page_count_hint,
-        expected_complexity_class=entry.expected_complexity_class,
-        why_included=entry.why_included,
-        pdf_path=entry.pdf_path,
-        expected_sha256=None,
-        expected_size_bytes=None,
+
+
+class _FakeResponse:
+    def __init__(self, payload: bytes) -> None:
+        self._buf = payload
+        self._pos = 0
+
+    def read(self, n: int) -> bytes:
+        chunk = self._buf[self._pos : self._pos + n]
+        self._pos += len(chunk)
+        return chunk
+
+    def __enter__(self) -> _FakeResponse:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+
+def test_fetch_downloads_and_installs_atomically(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = b"%PDF-1.4\nfake-arxiv-bytes\n"
+
+    def fake_urlopen(request: object, timeout: float) -> _FakeResponse:
+        return _FakeResponse(payload)
+
+    monkeypatch.setattr(
+        "benchmarks.ocr_auto_calibration.science_corpus.urllib.request.urlopen",
+        fake_urlopen,
     )
+
+    _, entries = load_science_corpus(cache_root=tmp_path / "cache")
+    entry = entries[0]  # keeps its https arxiv url; scheme guard accepts
+
     result = hydrate_science_corpus(
-        entries=[entry_file_url], cache_root=tmp_path / "cache", dry_run=False
+        entries=[entry], cache_root=tmp_path / "cache", dry_run=False
     )
     outcome = result.outcomes[0]
     assert outcome.status == "downloaded"
@@ -218,22 +227,12 @@ def test_fetch_downloads_and_installs_atomically(tmp_path: Path) -> None:
 
 def test_fetch_records_network_error_without_raising(tmp_path: Path) -> None:
     _, entries = load_science_corpus(cache_root=tmp_path)
-    base = entries[0]
-    unreachable = ScienceCorpusEntry(
-        document_id=base.document_id,
-        source=base.source,
-        arxiv_id=base.arxiv_id,
-        arxiv_version=base.arxiv_version,
-        # A file:// URL to a non-existent path is guaranteed to fail
-        # deterministically without touching the network.
-        pdf_url="file:///nonexistent/path/that/must/not/resolve.pdf",
-        title=base.title,
-        expected_page_count_hint=base.expected_page_count_hint,
-        expected_complexity_class=base.expected_complexity_class,
-        why_included=base.why_included,
-        pdf_path=base.pdf_path,
-        expected_sha256=None,
-        expected_size_bytes=None,
+    # An HTTPS URL to the reserved ``.invalid`` TLD (RFC 6761) is
+    # guaranteed to fail name resolution without hitting any real
+    # host — a portable substitute for the file:// path we used
+    # before the scheme guard was added.
+    unreachable = _override_url(
+        entries[0], "https://this-host-must-not-resolve.invalid/nothing.pdf"
     )
     result = hydrate_science_corpus(
         entries=[unreachable], cache_root=tmp_path, dry_run=False, timeout_seconds=1.0
@@ -242,6 +241,23 @@ def test_fetch_records_network_error_without_raising(tmp_path: Path) -> None:
     assert isinstance(outcome, HydrationOutcome)
     assert outcome.status == "network_error"
     assert outcome.error
+
+
+def test_fetch_refuses_non_http_scheme(tmp_path: Path) -> None:
+    """Scheme guard: a lockfile that smuggles in file:// or ftp:// or a
+    custom scheme must be rejected BEFORE ``urlopen`` is called. This
+    prevents SSRF-style local-file reads through
+    :func:`urllib.request.urlopen`."""
+    _, entries = load_science_corpus(cache_root=tmp_path)
+    for bad_scheme in ("file:///etc/passwd", "ftp://example.com/x.pdf"):
+        rogue = _override_url(entries[0], bad_scheme)
+        result = hydrate_science_corpus(
+            entries=[rogue], cache_root=tmp_path, dry_run=False, timeout_seconds=1.0
+        )
+        outcome = result.outcomes[0]
+        assert outcome.status == "network_error"
+        assert outcome.error is not None
+        assert "scheme" in outcome.error
 
 
 # ── Lockfile shape ───────────────────────────────────────────────────

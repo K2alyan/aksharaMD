@@ -42,6 +42,7 @@ import json
 import os
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -351,18 +352,43 @@ def hydrate_science_corpus(
     )
 
 
+_ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
+
+
 def _fetch_one(
     *,
     entry: ScienceCorpusEntry,
     timeout_seconds: float,
 ) -> HydrationOutcome:
+    # Defence in depth: refuse any non-HTTP(S) scheme before calling
+    # ``urlopen``. The lockfile pins arxiv HTTPS URLs; a modified
+    # lockfile that smuggled in ``file:``, ``ftp:``, or a custom
+    # handler URL must not be allowed to read local files or hit a
+    # non-network handler through this code path.
+    scheme = urllib.parse.urlparse(entry.pdf_url).scheme.lower()
+    if scheme not in _ALLOWED_URL_SCHEMES:
+        return HydrationOutcome(
+            document_id=entry.document_id,
+            status="network_error",
+            pdf_path=entry.pdf_path,
+            error=(
+                f"refusing url scheme {scheme!r}: only http/https are "
+                f"permitted for science-corpus hydration"
+            ),
+        )
+
     part_path = entry.pdf_path.with_suffix(entry.pdf_path.suffix + ".part")
     try:
         request = urllib.request.Request(
             entry.pdf_url,
             headers={"User-Agent": "aksharamd-science-corpus-hydrator/1"},
         )
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as resp:
+        # nosec B310 — scheme is validated to http/https above, and the
+        # URL originates from the reviewed ``science_corpus.lock.json``
+        # not from user input. See ``_ALLOWED_URL_SCHEMES``.
+        with urllib.request.urlopen(  # noqa: S310  # nosec B310
+            request, timeout=timeout_seconds
+        ) as resp:
             with part_path.open("wb") as fh:
                 while True:
                     chunk = resp.read(1024 * 64)
