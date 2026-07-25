@@ -1261,6 +1261,118 @@ def _classify_pdf(raw_pages: list[RawPage]) -> tuple[str, dict]:
     return label, stats
 
 
+# ── Layout-complexity feature bridge (v1) ──────────────────────────────
+#
+# Converts ``RawPage`` (parser-owned, private) into the neutral value
+# types defined in :mod:`~aksharamd.plugins.parsers.layout_complexity`.
+# Keeping this bridge INSIDE pdf.py preserves the architectural
+# constraint that the complexity module never imports RawPage or
+# parser-private helpers. The evaluator (Commit 2) and calibration
+# harness (Commit 3) will consume only the neutral output of this
+# bridge.
+#
+# The regex below is bounded and case-insensitive; it requires a
+# trailing digit so ordinary prose ("figure it out") never triggers.
+_FIGURE_CAPTION_RE = re.compile(
+    r"\b(?:Figure|Fig\.?)\s+\d+\b", re.IGNORECASE
+)
+
+
+def _mean_span_char_length(spans: list[dict]) -> float:
+    if not spans:
+        return 0.0
+    total = sum(len(str(s.get("text", ""))) for s in spans)
+    return total / len(spans)
+
+
+def _image_area_ratio(images: list[dict], page_width: float, page_height: float) -> float:
+    page_area = page_width * page_height
+    if page_area <= 0.0 or not images:
+        return 0.0
+    total = 0.0
+    for img in images:
+        bbox = img.get("bbox")
+        if not bbox or len(bbox) < 4:
+            continue
+        x0, y0, x1, y1 = bbox[0], bbox[1], bbox[2], bbox[3]
+        w = max(0.0, float(x1) - float(x0))
+        h = max(0.0, float(y1) - float(y0))
+        total += w * h
+    return max(0.0, min(1.0, total / page_area))
+
+
+def _figure_caption_hits(spans: list[dict]) -> int:
+    if not spans:
+        return 0
+    return sum(
+        1 for s in spans
+        if _FIGURE_CAPTION_RE.search(str(s.get("text", "")))
+    )
+
+
+def _column_count_from_boundaries(spans: list[dict], page_width: float) -> int:
+    """Estimate column count for a page using the parser's existing
+    boundary detector, so the bridge doesn't reinvent geometry logic.
+
+    ``_detect_column_boundaries`` returns interior boundary x-positions
+    between columns; column count is ``len(boundaries) + 1``. A page
+    with no boundaries has one column. Empty spans → one column (the
+    parser cannot see multi-column structure on a page with no text).
+    """
+    if not spans or page_width <= 0.0:
+        return 1
+    boundaries = _detect_column_boundaries(spans, page_width)
+    return len(boundaries) + 1
+
+
+def _extract_page_layout_features(raw: RawPage):  # noqa: ANN201 - forward-declared
+    """Turn one ``RawPage`` into a
+    :class:`~aksharamd.plugins.parsers.layout_complexity
+    .LayoutPageFeatures` instance. Imported locally to keep pdf.py's
+    module-import cost stable.
+    """
+    from .layout_complexity import LayoutPageFeatures
+
+    page_chars = sum(len(str(s.get("text", "")).strip()) for s in raw.spans)
+    return LayoutPageFeatures(
+        page_index=raw.page_num - 1,  # RawPage.page_num is 1-based
+        page_width=float(raw.width),
+        page_height=float(raw.height),
+        page_char_count=page_chars,
+        span_count=len(raw.spans),
+        mean_span_char_length=_mean_span_char_length(raw.spans),
+        has_ocr_pixmap=raw.ocr_pixmap is not None,
+        image_count=len(raw.images),
+        image_area_ratio=_image_area_ratio(
+            raw.images, float(raw.width), float(raw.height)
+        ),
+        table_count=len(raw.tables),
+        rejected_table_candidate_count=len(raw.rejected_candidates),
+        column_count=_column_count_from_boundaries(
+            raw.spans, float(raw.width)
+        ),
+        math_bbox_count=len(raw.math_bboxes),
+        figure_caption_hit_count=_figure_caption_hits(raw.spans),
+    )
+
+
+def extract_layout_document_features(raw_pages: list[RawPage]):  # noqa: ANN201
+    """Public bridge entry point.
+
+    Iterates ``raw_pages`` in order and returns a
+    :class:`~aksharamd.plugins.parsers.layout_complexity
+    .LayoutDocumentFeatures` containing one
+    :class:`~aksharamd.plugins.parsers.layout_complexity
+    .LayoutPageFeatures` per page. Pure and side-effect free —
+    calling it during the classification phase adds only span-level
+    aggregation cost.
+    """
+    from .layout_complexity import LayoutDocumentFeatures
+
+    pages = tuple(_extract_page_layout_features(raw) for raw in raw_pages)
+    return LayoutDocumentFeatures(pages=pages)
+
+
 def _detect_removable_spans(all_pages: list[RawPage]) -> set[str]:
     page_count = len(all_pages)
     to_remove: set[str] = set()
