@@ -87,7 +87,7 @@ def _check_allowed_path(file_path: str) -> str | None:
             f"({_ALLOWED_ROOT}). Set AKSHARAMD_ALLOWED_ROOT to permit it."
         )
 
-from mcp.server import FastMCP
+from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP(
     name="aksharamd",
