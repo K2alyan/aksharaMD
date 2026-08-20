@@ -21,6 +21,21 @@ from typing import NamedTuple
 # the module-level check inside pymupdf's _warn_layout_once picks it up.
 os.environ.setdefault("PYMUPDF_SUGGEST_LAYOUT_ANALYZER", "0")
 
+# Issue #109: pymupdf 1.28+ also emits a `fitz` deprecation warning on
+# stdout the moment `import fitz` runs — `fitz/__init__.py` calls
+# `message_warning(...)` at module top-level, and pymupdf's message
+# stream defaults to stdout (set in `pymupdf/__init__.py` module-level
+# from `os.environ.get("PYMUPDF_MESSAGE")`). This one-line warning
+# poisons `aksharamd validate --json` / `compile --json` stdout so JSON
+# consumers cannot parse the output. The `set_messages(stream=stderr)`
+# call below is too late: the module-import-time warning has already
+# fired. Redirect the message stream to `fd:2` (OS-level stderr) via
+# the documented env var so pymupdf picks it up on its own module
+# import. `aksharamd/__init__.py` sets the same default earlier for
+# defence in depth; users can still override by exporting
+# PYMUPDF_MESSAGE themselves.
+os.environ.setdefault("PYMUPDF_MESSAGE", "fd:2")
+
 import fitz  # PyMuPDF
 
 # Belt-and-braces: also route any other pymupdf messages to stderr so

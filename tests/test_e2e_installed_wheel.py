@@ -171,12 +171,6 @@ def test_formats_command_lists_registered_parsers() -> None:
 def test_compile_matrix(
     corpus: Path, tmp_path: Path, filename: str, expect_success: bool, min_readiness: int
 ) -> None:
-    # Issue #109: CLI `compile --json` emits empty stdout on Linux CI. The
-    # `expect_success=True` branch calls `json.loads(r.stdout)`; the failure
-    # branch below only inspects `r.returncode` and is unaffected. Un-skip the
-    # True branch once #109 is resolved.
-    if expect_success:
-        pytest.skip("issue #109 — CLI --json emits empty stdout on Linux CI (temporary)")
     src = corpus / filename
     out = tmp_path / "out"
     r = _run("compile", str(src), "-o", str(out), "--json", "--quiet")
@@ -189,7 +183,6 @@ def test_compile_matrix(
     assert payload.get("readiness_score", 0) >= min_readiness
 
 
-@pytest.mark.skip(reason="issue #109 — CLI --json emits empty stdout on Linux CI (temporary)")
 def test_bad_json_survives_as_plain_text(corpus: Path, tmp_path: Path) -> None:
     """Documents the current lenient behaviour of the JSON parser on
     malformed input. See docs/validation/E2E_2026-07-17.md finding 1.
@@ -316,7 +309,6 @@ def test_unsupported_extension_fails_non_zero(corpus: Path, tmp_path: Path) -> N
     assert r.returncode != 0
 
 
-@pytest.mark.skip(reason="issue #109 — CLI --json emits empty stdout on Linux CI (temporary)")
 def test_empty_markdown_produces_empty_document_warning(
     corpus: Path, tmp_path: Path
 ) -> None:

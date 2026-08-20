@@ -22,16 +22,6 @@ from pathlib import Path
 
 import pytest
 
-# Issue #109: `aksharamd validate --json` and `aksharamd compile --json` produce
-# empty stdout on Linux CI (both Ubuntu Python 3.11 and 3.12). Root cause is not
-# yet identified; suspected environmental drift in a subprocess/CLI dependency
-# (Rich 15, Click 8.4, pymupdf 1.28, or an interaction) between the last green
-# main CI (2026-07-25) and 2026-08-20. Locally on Windows the same CLI call
-# emits parseable JSON. Un-skip once #109 is resolved.
-_SKIP_JSON_CI_REGRESSION = pytest.mark.skip(
-    reason="issue #109 — CLI --json emits empty stdout on Linux CI (temporary)",
-)
-
 
 def _cli_argv() -> list[str]:
     """Locate the aksharamd CLI to exercise.
@@ -60,7 +50,6 @@ def _cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str
 # ── validate --json ───────────────────────────────────────────────────────────
 
 
-@_SKIP_JSON_CI_REGRESSION
 def test_validate_json_returns_parseable_json(tmp_path: Path) -> None:
     src = tmp_path / "small.md"
     src.write_text("# heading\n\nbody\n", encoding="utf-8")
@@ -72,7 +61,6 @@ def test_validate_json_returns_parseable_json(tmp_path: Path) -> None:
     assert isinstance(payload, dict)
 
 
-@_SKIP_JSON_CI_REGRESSION
 def test_validate_json_stdout_contains_only_json(tmp_path: Path) -> None:
     """Prose must not mix into stdout in JSON mode."""
     src = tmp_path / "small.md"
@@ -89,7 +77,6 @@ def test_validate_json_stdout_contains_only_json(tmp_path: Path) -> None:
         )
 
 
-@_SKIP_JSON_CI_REGRESSION
 def test_validate_json_required_fields_present(tmp_path: Path) -> None:
     src = tmp_path / "small.md"
     src.write_text("# heading\n\nbody\n", encoding="utf-8")
@@ -110,7 +97,6 @@ def test_validate_json_required_fields_present(tmp_path: Path) -> None:
         assert field in payload, f"missing field: {field}"
 
 
-@_SKIP_JSON_CI_REGRESSION
 def test_validate_json_warnings_and_deductions_are_lists(tmp_path: Path) -> None:
     """The warning code and deduction lists must serialize as JSON arrays,
     not as Python repr or stringified structures."""
@@ -129,7 +115,6 @@ def test_validate_json_warnings_and_deductions_are_lists(tmp_path: Path) -> None
         assert isinstance(d, dict), f"deduction not serialized as dict: {d!r}"
 
 
-@_SKIP_JSON_CI_REGRESSION
 def test_validate_json_failure_returns_nonzero(tmp_path: Path) -> None:
     """Unsupported extension → validation failure → exit 1 with parseable
     payload on stdout."""
