@@ -302,7 +302,7 @@ requires-dist = [
     { name = "markdown-it-py", specifier = ">=3.0" },
     { name = "marker-pdf", marker = "extra == 'vision'", specifier = ">=1.6" },
     { name = "markitdown", marker = "extra == 'eval'", specifier = ">=0.1" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.0,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "olefile", specifier = ">=0.46" },
     { name = "openai", marker = "extra == 'eval'", specifier = ">=1.30" },
