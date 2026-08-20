@@ -88,8 +88,12 @@ Penalties are applied for extraction problems detected during parsing and valida
 | `LARGE_BLOCK` | up to −10 | Unusually large blocks suggest layout merge failure |
 | No headings (multi-page) | −6 | Document structure may be flat or not preserved |
 | Auto-generated table columns | up to −5 | Tables may be visual/scanned with no header row |
+| `W_MULTICOLUMN_ORDER` | cap at 69 (RISKY) | Multi-column reading order likely incorrect; content may be interleaved between columns |
+| `W_HEADER_FOOTER_TABLE_GARBLED` | cap at 84 (top of OK) | A table near page furniture may not be a genuine table; softer cap while the signal's evidence base is experimental |
 
 The final score is clamped to [0, 100].
+
+**Caps vs penalties.** A cap sets the maximum score when a warning fires (e.g. `min(score, 69)`); a penalty subtracts a fixed amount. Caps are used when a warning indicates a structural extraction problem that should always route the document out of a specific band, regardless of format baseline.
 
 ---
 
@@ -149,6 +153,22 @@ The PDF is password-protected and could not be decrypted.
 One or more pages produced no extractable content.
 
 **Action:** If the document is a hybrid PDF (some text pages, some scanned pages), install `[ocr]` or `[vision]` to handle the image pages. The warning message includes the count of affected pages.
+
+### `W_MULTICOLUMN_ORDER`
+
+**Maturity:** candidate  |  **Effect:** caps readiness at 69 (RISKY band)
+
+Fired when the multi-column reading-order validator detects that block sequence on one or more pages likely interleaves content between adjacent columns. Precision on the calibrated fixtures is 100%; recall is currently ~40% (some span-level interleaving is not detected at block level).
+
+**Action:** The output text is present but may be out of reading order. For RAG on order-sensitive queries, consider re-running with a layout-aware backend. For factoid retrieval, the output is often still usable — verify against a sample query before ingesting at scale.
+
+### `W_HEADER_FOOTER_TABLE_GARBLED`
+
+**Maturity:** experimental  |  **Effect:** caps readiness at 84 (top of OK band)
+
+Fired when a table block is detected in the top or bottom margin of a page and its cells are short-fragment-heavy — a pattern that typically indicates running headers, page numbers, or column titles being misclassified as tabular data. The cap is deliberately softer than other alerting warnings because the signal is still calibrated on a small evidence base.
+
+**Action:** Inspect the flagged table blocks. If they represent page furniture rather than genuine tables, downstream table-aware chunking should either filter them or treat them as headers.
 
 ### `W_PARSE_FALLBACK`
 

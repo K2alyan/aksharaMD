@@ -152,10 +152,32 @@ def test_scoring_policy_suppression_links_are_symmetric() -> None:
 
 
 def test_scoring_policy_informational_rules_have_zero_max_penalty() -> None:
-    informational = ["W_MULTICOLUMN_ORDER", "W_HEADER_FOOTER_TABLE_GARBLED", "IMAGE_PLACEHOLDER_WITH_ASSETS"]
+    # Phase 2 (SCORING_POLICY_VERSION 1.1): W_MULTICOLUMN_ORDER and
+    # W_HEADER_FOOTER_TABLE_GARBLED graduated to alerting warnings with caps.
+    # See docs/calibration/SCORING_POLICY.md.
+    informational = [
+        "IMAGE_PLACEHOLDER_WITH_ASSETS",
+        "W_PDF_ATTACHMENT_IGNORED",
+        "AUTO_OCR_BACKEND_SELECTED",
+        "AUTO_OCR_BACKEND_FALLBACK",
+    ]
     for rule_id in informational:
         assert SCORING_POLICY[rule_id].max_penalty == 0, (
             f"Informational rule {rule_id} must have max_penalty=0"
+        )
+
+
+def test_scoring_policy_alerting_warnings_have_nonzero_max_penalty() -> None:
+    # Phase 2 alerting warnings. Caps documented in docs/calibration/SCORING_POLICY.md.
+    alerting = {
+        "W_MULTICOLUMN_ORDER": 31,           # cap at 69 → max realized penalty 100-69
+        "W_HEADER_FOOTER_TABLE_GARBLED": 16, # cap at 84 → max realized penalty 100-84
+        "IMAGE_PLACEHOLDER_NO_FALLBACK": 45, # cap at 55 → pre-existing
+    }
+    for rule_id, expected in alerting.items():
+        assert SCORING_POLICY[rule_id].max_penalty == expected, (
+            f"Alerting rule {rule_id} max_penalty must be {expected}, "
+            f"got {SCORING_POLICY[rule_id].max_penalty}"
         )
 
 
@@ -305,32 +327,57 @@ def test_suppressed_deductions_not_counted_in_score() -> None:
 
 # ── 9. Informational findings ─────────────────────────────────────────────────
 
-def test_w_multicolumn_order_appears_in_informational() -> None:
+def test_w_multicolumn_order_appears_in_deductions() -> None:
+    # Phase 2: alerting warning lands in deductions (with cap), not informational.
     ctx = _make_ctx()
     ctx.warn("W_MULTICOLUMN_ORDER", "column interleaving detected")
     r = compute_confidence(ctx)
-    info_ids = [d.rule_id for d in r.informational]
-    assert "W_MULTICOLUMN_ORDER" in info_ids
+    ded_ids = [d.rule_id for d in r.deductions]
+    assert "W_MULTICOLUMN_ORDER" in ded_ids
 
 
-def test_w_multicolumn_order_does_not_affect_score() -> None:
+def test_w_multicolumn_order_caps_score_at_69() -> None:
+    # Phase 2: cap at 69 (top of RISKY).
     ctx_clean = _make_ctx()
     ctx_warn = _make_ctx()
     ctx_warn.warn("W_MULTICOLUMN_ORDER", "column interleaving detected")
-    assert compute_confidence(ctx_clean).score == compute_confidence(ctx_warn).score
+    baseline = compute_confidence(ctx_clean).score
+    capped = compute_confidence(ctx_warn).score
+    assert baseline > 69, f"Baseline expected > 69, got {baseline}"
+    assert capped == 69, f"W_MULTICOLUMN_ORDER must cap at 69, got {capped}"
 
 
-def test_w_header_footer_table_garbled_in_informational() -> None:
+def test_w_header_footer_table_garbled_appears_in_deductions() -> None:
+    # Phase 2: alerting warning lands in deductions (softer cap for experimental maturity).
     ctx = _make_ctx()
     ctx.warn("W_HEADER_FOOTER_TABLE_GARBLED", "garbled table")
     r = compute_confidence(ctx)
-    info_ids = [d.rule_id for d in r.informational]
-    assert "W_HEADER_FOOTER_TABLE_GARBLED" in info_ids
+    ded_ids = [d.rule_id for d in r.deductions]
+    assert "W_HEADER_FOOTER_TABLE_GARBLED" in ded_ids
+
+
+def test_w_header_footer_table_garbled_caps_score_at_84() -> None:
+    # Phase 2: cap at 84 (top of OK band).
+    ctx_clean = _make_ctx()
+    ctx_warn = _make_ctx()
+    ctx_warn.warn("W_HEADER_FOOTER_TABLE_GARBLED", "garbled table")
+    baseline = compute_confidence(ctx_clean).score
+    capped = compute_confidence(ctx_warn).score
+    assert baseline > 84, f"Baseline expected > 84, got {baseline}"
+    assert capped == 84, f"W_HEADER_FOOTER_TABLE_GARBLED must cap at 84, got {capped}"
 
 
 def test_informational_deductions_have_zero_penalty() -> None:
-    ctx = _make_ctx()
-    ctx.warn("W_MULTICOLUMN_ORDER", "interleaved")
+    # Verify with a truly informational warning (W_PDF_ATTACHMENT_IGNORED).
+    ctx = _make_ctx(
+        metadata={
+            "pdf_attachment_diagnostics": {
+                "attachment_count": 1,
+                "warning_maturity": "candidate",
+            },
+        },
+    )
+    ctx.warn("W_PDF_ATTACHMENT_IGNORED", "attached file")
     r = compute_confidence(ctx)
     for d in r.informational:
         assert d.penalty == 0, f"Informational finding {d.rule_id} must have penalty=0"
@@ -432,13 +479,13 @@ def test_flag_only_rules_have_no_evidence() -> None:
 # ── 11b. Maturity field surfaced for informational findings ───────────────────
 
 def test_multicolumn_maturity_surfaced_from_diagnostics() -> None:
-    """W_MULTICOLUMN_ORDER informational record carries maturity from validator diagnostics."""
+    """W_MULTICOLUMN_ORDER deduction carries maturity from validator diagnostics."""
     ctx = _make_ctx(
         metadata={"multicolumn_diagnostics": {"warning_maturity": "candidate", "warned": True}},
     )
     ctx.warn("W_MULTICOLUMN_ORDER", "column interleave")
     r = compute_confidence(ctx)
-    d = next((x for x in r.informational if x.rule_id == "W_MULTICOLUMN_ORDER"), None)
+    d = next((x for x in r.deductions if x.rule_id == "W_MULTICOLUMN_ORDER"), None)
     assert d is not None
     assert d.maturity == "candidate"
     assert d.to_dict().get("maturity") == "candidate"
@@ -450,7 +497,7 @@ def test_header_footer_maturity_surfaced_from_diagnostics() -> None:
     )
     ctx.warn("W_HEADER_FOOTER_TABLE_GARBLED", "garbled table")
     r = compute_confidence(ctx)
-    d = next((x for x in r.informational if x.rule_id == "W_HEADER_FOOTER_TABLE_GARBLED"), None)
+    d = next((x for x in r.deductions if x.rule_id == "W_HEADER_FOOTER_TABLE_GARBLED"), None)
     assert d is not None
     assert d.maturity == "experimental"
 
@@ -460,7 +507,7 @@ def test_maturity_absent_when_diagnostics_missing() -> None:
     ctx = _make_ctx()
     ctx.warn("W_MULTICOLUMN_ORDER", "column interleave")
     r = compute_confidence(ctx)
-    d = next((x for x in r.informational if x.rule_id == "W_MULTICOLUMN_ORDER"), None)
+    d = next((x for x in r.deductions if x.rule_id == "W_MULTICOLUMN_ORDER"), None)
     assert d is not None
     assert d.maturity == ""
     assert "maturity" not in d.to_dict()  # omitted from dict when empty

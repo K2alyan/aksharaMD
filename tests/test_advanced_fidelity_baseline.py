@@ -95,7 +95,11 @@ _BASELINE: tuple[tuple[str, int, str | None, frozenset[str]], ...] = (
     # readiness band remains HIGH because Issue #51 is warning-only; a
     # future scoring-calibration PR may lower the band.
     ("pdf/025-attachment/with-attachment.pdf",                          0, "HIGH", frozenset({"W_PDF_ATTACHMENT_IGNORED"})),
-    ("pdf/026-latex-multicolumn/multicolumn.pdf",                       0, "HIGH", frozenset({"HEADING_SKIP"})),
+    # F1 update (2026-08-20): W_MULTICOLUMN_ORDER now caps the readiness at 69
+    # (RISKY) when column interleaving is detected. This closes the silent-fidelity
+    # concern F1 from the 2026-07-18 report. Landed in Phase 2 of the USP calibration
+    # cycle (docs/calibration/SCORING_POLICY.md, SCORING_POLICY_VERSION="1.1").
+    ("pdf/026-latex-multicolumn/multicolumn.pdf",                       0, "RISKY", frozenset({"HEADING_SKIP", "W_MULTICOLUMN_ORDER"})),
     ("pdf/027-cropped-rotated-scaled/cropped-rotated-scaled.pdf",       0, "RISKY", frozenset({"LOW_TEXT_DENSITY"})),
     # Non-PDF formats — one representative each.
     ("synthetic/sample.docx",                                           0, "OK",   frozenset()),
@@ -174,11 +178,15 @@ def test_advanced_fidelity_baseline(
 # corresponding follow-up issue.
 
 
-def test_multicolumn_currently_scores_high_documented_defect(tmp_path: Path) -> None:
-    """Silent-fidelity concern F1 from the 2026-07-18 report:
-    `pdf.multicolumn` scores HIGH 85 despite mid-word column interleaving.
-    When a future fix drops the band, update the baseline row and close
-    the corresponding follow-up issue."""
+def test_multicolumn_no_longer_silent_fidelity_defect(tmp_path: Path) -> None:
+    """Closes silent-fidelity concern F1 from the 2026-07-18 report.
+
+    `pdf.multicolumn` previously scored HIGH 85 despite mid-word column interleaving.
+    Phase 2 of the USP calibration cycle (SCORING_POLICY_VERSION="1.1") added a
+    cap-at-69 policy for W_MULTICOLUMN_ORDER, dropping the band to RISKY. This
+    test locks the fix so a future regression that lets the band drift back to
+    HIGH fails loudly.
+    """
     _require_corpus()
     argv = _cli_argv()
     src = _CORPUS_ROOT / "pdf/026-latex-multicolumn/multicolumn.pdf"
@@ -192,9 +200,12 @@ def test_multicolumn_currently_scores_high_documented_defect(tmp_path: Path) -> 
     )
     assert r.returncode == 0
     payload = json.loads(r.stdout)
-    assert payload["quality_band"] == "HIGH", (
-        "multicolumn LaTeX PDF no longer scores HIGH — probably a good thing. "
-        "Update the baseline row + close the multicolumn silent-fidelity issue."
+    assert payload["quality_band"] == "RISKY", (
+        f"multicolumn LaTeX PDF band regressed to {payload['quality_band']}. "
+        "The Phase 2 W_MULTICOLUMN_ORDER cap must keep this doc out of HIGH."
+    )
+    assert "W_MULTICOLUMN_ORDER" in (payload.get("warning_codes") or []), (
+        "W_MULTICOLUMN_ORDER must fire on the multicolumn LaTeX fixture."
     )
 
 

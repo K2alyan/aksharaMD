@@ -504,26 +504,95 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
         else:
             notes.append("Text extracted via OCR (Tesseract). Accuracy depends on image quality and font clarity.")
 
-    # Informational: W_MULTICOLUMN_ORDER (zero penalty)
-    # Maturity surfaced from validator diagnostics so consumers know the finding's confidence.
+    # W_MULTICOLUMN_ORDER — score cap at 69 (RISKY band).
+    # Rationale: candidate-maturity signal, precision 100% on calibrated fixtures.
+    # Reading-order failure means content is present but interleaved — RISKY per
+    # docs/readiness-score.md ("extraction is partial or degraded").
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _MC_CAP = 69
     if warnings_by_code.get("W_MULTICOLUMN_ORDER", 0):
-        mc_maturity = doc.metadata.get("multicolumn_diagnostics", {}).get("warning_maturity", "")
-        informational.append(DeductionRecord(
-            rule_id="W_MULTICOLUMN_ORDER",
-            description="Multi-column reading order may be incorrect on one or more pages",
-            penalty=0,
-            maturity=mc_maturity,
-        ))
+        mc_diag = doc.metadata.get("multicolumn_diagnostics", {})
+        mc_maturity = mc_diag.get("warning_maturity", "")
+        problem_pages = mc_diag.get("problem_pages", []) or []
+        if score > _MC_CAP:
+            effective_penalty = score - _MC_CAP
+            score = _MC_CAP
+            notes.append(
+                "Multi-column reading order likely incorrect — content from adjacent columns "
+                f"may be interleaved. Score capped at {_MC_CAP} (RISKY band). "
+                "[W_MULTICOLUMN_ORDER]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_MULTICOLUMN_ORDER",
+                description=f"Multi-column reading order failure; score capped at {_MC_CAP}",
+                penalty=effective_penalty,
+                maturity=mc_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="problem_page_count",
+                    metric_value=float(len(problem_pages)),
+                    threshold=1.0,
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_MULTICOLUMN_ORDER",
+                description=f"Multi-column reading order failure; cap ({_MC_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_MC_CAP}",
+                maturity=mc_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="problem_page_count",
+                    metric_value=float(len(problem_pages)),
+                    threshold=1.0,
+                ),
+            ))
 
-    # Informational: W_HEADER_FOOTER_TABLE_GARBLED (zero penalty)
+    # W_HEADER_FOOTER_TABLE_GARBLED — score cap at 84 (top of OK band).
+    # Rationale: experimental-maturity signal (calibrated on n=1 known positive).
+    # Softer cap than W_MULTICOLUMN_ORDER while the evidence base grows.
+    # The USP claim ("no known-issue warning at HIGH") is preserved by dropping
+    # the doc out of HIGH; the softer cap limits damage from a hypothetical FP.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _HFT_CAP = 84
     if warnings_by_code.get("W_HEADER_FOOTER_TABLE_GARBLED", 0):
-        hft_maturity = doc.metadata.get("header_footer_table_diagnostics", {}).get("warning_maturity", "")
-        informational.append(DeductionRecord(
-            rule_id="W_HEADER_FOOTER_TABLE_GARBLED",
-            description="A table near a page header or footer may represent garbled page furniture",
-            penalty=0,
-            maturity=hft_maturity,
-        ))
+        hft_diag = doc.metadata.get("header_footer_table_diagnostics", {})
+        hft_maturity = hft_diag.get("warning_maturity", "")
+        problem_tables = hft_diag.get("problem_tables", []) or []
+        if score > _HFT_CAP:
+            effective_penalty = score - _HFT_CAP
+            score = _HFT_CAP
+            notes.append(
+                "A table detected near a page header or footer appears fragmented — "
+                "the output may include page furniture (running headers, page numbers, "
+                f"column titles) rather than a meaningful table. Score capped at {_HFT_CAP} "
+                "(top of OK band). [W_HEADER_FOOTER_TABLE_GARBLED]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_HEADER_FOOTER_TABLE_GARBLED",
+                description=f"Header/footer table garbling; score capped at {_HFT_CAP}",
+                penalty=effective_penalty,
+                maturity=hft_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="problem_table_count",
+                    metric_value=float(len(problem_tables)),
+                    threshold=1.0,
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_HEADER_FOOTER_TABLE_GARBLED",
+                description=f"Header/footer table garbling; cap ({_HFT_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_HFT_CAP}",
+                maturity=hft_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="problem_table_count",
+                    metric_value=float(len(problem_tables)),
+                    threshold=1.0,
+                ),
+            ))
 
     # Informational: W_PDF_ATTACHMENT_IGNORED (zero penalty)
     # Attachment payloads are separate from page content; AksharaMD detects but
