@@ -674,5 +674,8 @@ def test_document_id_unchanged_by_quality_diagnostics():
 
 
 def test_scoring_policy_version_unchanged():
+    # Bumped 1.0 -> 1.1 by Phase 2 alerting-warning caps (2026-08-20).
+    # See docs/calibration/SCORING_POLICY.md. Any subsequent policy change must
+    # bump this again.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.0"
+    assert SCORING_POLICY_VERSION == "1.1"

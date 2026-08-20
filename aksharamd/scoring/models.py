@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-SCORING_POLICY_VERSION = "1.0"
+SCORING_POLICY_VERSION = "1.1"
 
 
 @dataclass
@@ -188,15 +188,15 @@ SCORING_POLICY: dict[str, ScoringRule] = {
     ),
     "W_MULTICOLUMN_ORDER": ScoringRule(
         rule_id="W_MULTICOLUMN_ORDER",
-        description="Informational: multi-column reading order may be incorrect",
-        max_penalty=0,
-        formula="0 (observational only)",
+        description="Score cap when multi-column reading order is likely incorrect (candidate maturity)",
+        max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
+        formula="score = min(score, 69)  # RISKY band",
     ),
     "W_HEADER_FOOTER_TABLE_GARBLED": ScoringRule(
         rule_id="W_HEADER_FOOTER_TABLE_GARBLED",
-        description="Informational: a table near header/footer may be garbled page furniture",
-        max_penalty=0,
-        formula="0 (observational only)",
+        description="Score cap when a table near header/footer likely represents garbled page furniture (experimental maturity — softer cap while evidence base grows)",
+        max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
+        formula="score = min(score, 84)  # top of OK band",
     ),
     "W_PDF_ATTACHMENT_IGNORED": ScoringRule(
         rule_id="W_PDF_ATTACHMENT_IGNORED",
