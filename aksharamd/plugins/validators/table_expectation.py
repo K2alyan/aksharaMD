@@ -46,6 +46,7 @@ class TableExpectationValidator(ValidatorPlugin):
                 pages_with_tables.add(page)
 
         reports: list[dict] = []
+        pages_expected_not_extracted: list[int] = []
 
         for page_num, page_blocks in sorted(blocks_by_page.items()):
             # Support both int and str keys in rejected_by_page
@@ -66,6 +67,7 @@ class TableExpectationValidator(ValidatorPlugin):
 
             # Emit warning for pages where a table was expected but not extracted
             if report.expected == "true" and page_num not in pages_with_tables:
+                pages_expected_not_extracted.append(page_num)
                 ctx.warn(
                     "W_TABLE_EXPECTED_NOT_EXTRACTED",
                     (
@@ -78,6 +80,16 @@ class TableExpectationValidator(ValidatorPlugin):
 
         if reports:
             doc.metadata["table_expectation_reports"] = reports
+
+        # Summary diagnostics dict for cap consumers (readiness.py). Uses
+        # the same shape as other validator diagnostics dicts — carrying a
+        # top-level warning_maturity field so the cap wiring can gradate its
+        # cap value per the maturity-aware pattern.
+        doc.metadata["table_expectation_diagnostics"] = {
+            "pages_expected_not_extracted": pages_expected_not_extracted,
+            "warned": bool(pages_expected_not_extracted),
+            "warning_maturity": self.maturity,
+        }
 
         return ctx
 

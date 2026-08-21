@@ -1,13 +1,15 @@
-"""Regression tests for Phase 2 + Phase 3 alerting-warning score caps.
+"""Regression tests for Phase 2 + Phase 3 + Phase 3.5 alerting-warning score caps.
 
 Locks the score-policy behaviour ratified in docs/calibration/USP_CLAIM_V1.md §5.1
-(Option A) and specified in docs/calibration/SCORING_POLICY.md:
+(Option A) and §5.2 (text-only bar), specified in docs/calibration/SCORING_POLICY.md:
 
-  W_MULTICOLUMN_ORDER          -> cap at 69 (top of RISKY)              [Phase 2]
-  W_HEADER_FOOTER_TABLE_GARBLED -> cap at 84 (top of OK; softer cap     [Phase 2]
-                                    because experimental maturity)
-  W_TABLE_MISSING              -> cap at 69 (top of RISKY)              [Phase 3]
-  W_ENCODING_ARTIFACTS         -> cap at 69 (top of RISKY)              [Phase 3]
+  W_MULTICOLUMN_ORDER            -> cap at 69 (top of RISKY)             [Phase 2]
+  W_HEADER_FOOTER_TABLE_GARBLED  -> cap at 84 (top of OK; softer cap     [Phase 2]
+                                     because experimental maturity)
+  W_TABLE_MISSING                -> cap at 69 (top of RISKY)             [Phase 3]
+  W_ENCODING_ARTIFACTS           -> cap at 69 (top of RISKY)             [Phase 3]
+  W_IMAGE_ONLY_TEXT_BAR_FAIL     -> cap at 69 (top of RISKY)             [Phase 3.5]
+  W_TABLE_EXPECTED_NOT_EXTRACTED -> cap at 84 (top of OK; experimental)  [Phase 3.5]
   W_IMAGE_ONLY_NO_USABLE_FALLBACK -> cap at 55 (unchanged; regression only)
 
 Also locks:
@@ -333,17 +335,18 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_2(self):
-        assert SCORING_POLICY_VERSION == "1.2", (
-            "SCORING_POLICY_VERSION was bumped to 1.2 for Phase 3 cap attachment "
-            "on W_TABLE_MISSING and W_ENCODING_ARTIFACTS; any subsequent policy "
+    def test_version_is_1_3(self):
+        assert SCORING_POLICY_VERSION == "1.3", (
+            "SCORING_POLICY_VERSION was bumped to 1.3 for Phase 3.5 cap "
+            "attachment on W_IMAGE_ONLY_TEXT_BAR_FAIL and "
+            "W_TABLE_EXPECTED_NOT_EXTRACTED; any subsequent policy "
             "change must bump it again"
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.2"
+        assert result.scoring_policy_version == "1.3"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -357,4 +360,179 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.2"
+        assert result.scoring_policy_version == "1.3"
+
+
+# ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────
+
+class TestImageOnlyTextBarFailCap:
+    """Cap regression for Phase 3.5 Gap 1 (image-only text-bar FAIL).
+
+    Ratified per docs/calibration/USP_CLAIM_V1.md §5.2 — a fully image-only
+    PDF (classification=="scanned", text_pages==0) fails the text-only bar
+    regardless of whether OCR was applied.
+
+    Closes silent HIGH-band failures on the Phase 4 dev split:
+      - text_simple__myctophidae
+      - text_simple__letter3
+      - text_dense__japanese
+    """
+
+    def test_warning_caps_at_69(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_IMAGE_ONLY_TEXT_BAR_FAIL"],
+            metadata_extras={
+                "image_only_text_bar_diagnostics": {
+                    "classification": "scanned",
+                    "image_pages": 1,
+                    "text_pages": 0,
+                    "page_count": 1,
+                    "ocr_available": True,
+                    "warned": True,
+                    "warning_maturity": "candidate",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 69, (
+            f"W_IMAGE_ONLY_TEXT_BAR_FAIL must cap score at 69 (RISKY); "
+            f"got {result.score}"
+        )
+
+    def test_deduction_recorded_with_maturity(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_IMAGE_ONLY_TEXT_BAR_FAIL"],
+            metadata_extras={
+                "image_only_text_bar_diagnostics": {
+                    "classification": "scanned",
+                    "image_pages": 3,
+                    "text_pages": 0,
+                    "page_count": 3,
+                    "ocr_available": True,
+                    "warned": True,
+                    "warning_maturity": "candidate",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        io = [d for d in result.deductions if d.rule_id == "W_IMAGE_ONLY_TEXT_BAR_FAIL"]
+        assert len(io) == 1
+        assert io[0].maturity == "candidate"
+        assert io[0].penalty > 0
+        assert io[0].suppressed is False
+        assert io[0].evidence is not None
+        assert io[0].evidence.metric_name == "image_pages"
+        assert io[0].evidence.metric_value == 3.0
+        assert io[0].evidence.extras.get("page_count") == 3
+        assert io[0].evidence.extras.get("text_pages") == 0
+        assert io[0].evidence.extras.get("classification") == "scanned"
+        assert io[0].evidence.extras.get("ocr_available") is True
+
+    def test_suppressed_when_score_already_below_cap(self):
+        """Coexists gracefully with OCR_REQUIRED — the OCR-required deduction
+        typically drops the score into the 40s, well below the 69 cap."""
+        ctx = _clean_pdf_ctx(
+            warning_codes=[
+                "W_IMAGE_ONLY_TEXT_BAR_FAIL",
+                "GLYPH_ARTIFACTS",
+                "REPEATED_CONTENT",
+                "TOKEN_BLOAT",
+            ],
+            metadata_extras={
+                "image_only_text_bar_diagnostics": {
+                    "classification": "scanned",
+                    "image_pages": 1,
+                    "text_pages": 0,
+                    "page_count": 1,
+                    "ocr_available": False,
+                    "warned": True,
+                    "warning_maturity": "candidate",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        # Base pdf=87 minus 25+8+8 = 46. 46 < 69 → cap doesn't apply.
+        assert result.score <= 69
+        io = [d for d in result.deductions if d.rule_id == "W_IMAGE_ONLY_TEXT_BAR_FAIL"]
+        assert len(io) == 1
+        assert io[0].suppressed is True
+        assert io[0].penalty == 0
+        assert "already" in io[0].suppression_reason
+
+
+# ── W_TABLE_EXPECTED_NOT_EXTRACTED — cap at 84 (top of OK) ───────────────────
+
+class TestTableExpectedNotExtractedCap:
+    """Cap regression for Phase 3.5 Gap 2.
+
+    Wires the existing TableExpectationValidator warning (already emitted on
+    Phase 4 dev-split docs fqr-retail-blackrock, ikea3, VRSK) into the score
+    layer. Softer cap (84, experimental) mirrors W_HEADER_FOOTER_TABLE_GARBLED
+    — the signal has real evidence but the evidence base is narrow.
+    """
+
+    def test_warning_caps_at_84(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_TABLE_EXPECTED_NOT_EXTRACTED"],
+            metadata_extras={
+                "table_expectation_diagnostics": {
+                    "pages_expected_not_extracted": [1],
+                    "warned": True,
+                    "warning_maturity": "experimental",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 84, (
+            f"W_TABLE_EXPECTED_NOT_EXTRACTED must cap score at 84 (top of OK); "
+            f"got {result.score}"
+        )
+        # Softer cap — must stay above RISKY unless other rules deduct.
+        assert result.score >= 70, (
+            "W_TABLE_EXPECTED_NOT_EXTRACTED cap is 84, but score dropped "
+            "below OK — another rule must be interacting"
+        )
+
+    def test_deduction_recorded_with_maturity(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_TABLE_EXPECTED_NOT_EXTRACTED"],
+            metadata_extras={
+                "table_expectation_diagnostics": {
+                    "pages_expected_not_extracted": [3, 5, 7],
+                    "warned": True,
+                    "warning_maturity": "experimental",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        te = [d for d in result.deductions if d.rule_id == "W_TABLE_EXPECTED_NOT_EXTRACTED"]
+        assert len(te) == 1
+        assert te[0].maturity == "experimental"
+        assert te[0].penalty > 0
+        assert te[0].suppressed is False
+        assert te[0].evidence is not None
+        assert te[0].evidence.metric_name == "pages_expected_not_extracted"
+        assert te[0].evidence.metric_value == 3.0
+        assert te[0].evidence.extras.get("pages") == [3, 5, 7]
+
+    def test_suppressed_when_score_already_below_cap(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=[
+                "W_TABLE_EXPECTED_NOT_EXTRACTED",
+                "GLYPH_ARTIFACTS",  # -25
+            ],
+            metadata_extras={
+                "table_expectation_diagnostics": {
+                    "pages_expected_not_extracted": [1],
+                    "warned": True,
+                    "warning_maturity": "experimental",
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        # Base pdf=87 -25 = 62; 62 < 84 → cap doesn't apply.
+        assert result.score <= 84
+        te = [d for d in result.deductions if d.rule_id == "W_TABLE_EXPECTED_NOT_EXTRACTED"]
+        assert len(te) == 1
+        assert te[0].suppressed is True
+        assert te[0].penalty == 0
