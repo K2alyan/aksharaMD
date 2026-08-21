@@ -110,7 +110,7 @@ cap.
 
 ### 2.1 W_MULTICOLUMN_ORDER recall improvement — TIMEBOXED
 
-Recall stays at 40% (2/5 on the calibration positives 3colpres and 4c).
+Recall stays at 40% (2/5 on the calibration positives 3colpres and 4c).[^4c-regression]
 The three missed positives (ikea3, elpais, simple2) all have block-level
 signals below detector thresholds:
 
@@ -119,6 +119,23 @@ signals below detector thresholds:
 | ikea3 | 0.13 | 0.0 | 0.0 | gap below 0.15 threshold |
 | elpais | 0.14 | 0.0 | 0.0 | gap below 0.15 threshold |
 | simple2 | 0.59 | 0.12 | 0.33 | has gap; trans + short_frac both under thresholds |
+
+[^4c-regression]: As of 2026-08-20, `text_multicolumns__4c` no longer
+    fires `W_MULTICOLUMN_ORDER` on live runs. Post-2026-07-13 the parser
+    fix `c4dfe86` (`fix(parser): reject single-line clusters in
+    column-boundary detection`) corrected block emission order for 4c
+    from column-interleaved to column-first, collapsing the detector's
+    `transition_rate` signal from 0.63 (RESCORE_REPORT_V1 era) to 0.02
+    (fresh run). The block-level detector is therefore correct — 4c's
+    residual FAIL is span-level (broken cross-column heading spans),
+    matching the elpais / simple2 failure class. See
+    `.claude/worktrees/agent-a28883f2/PHASE_4_4C_INVESTIGATION.md` for
+    the full timeline and rescore_high_band_v1.jsonl evidence, and
+    `benchmarks/CALIBRATION_DEV_RUN_PHASE4.md` §5.1 for the discrepancy
+    that surfaced it. The 40% recall claim above reflects the corpus
+    state at Phase 3 landing; the live recall on the block-level
+    detector today is closer to 20% (3colpres only) with 4c moved into
+    the span-level FN class.
 
 **Attempts considered:**
 
