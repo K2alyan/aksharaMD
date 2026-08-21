@@ -1,11 +1,13 @@
-"""Regression tests for Phase 2 alerting-warning score caps.
+"""Regression tests for Phase 2 + Phase 3 alerting-warning score caps.
 
 Locks the score-policy behaviour ratified in docs/calibration/USP_CLAIM_V1.md §5.1
 (Option A) and specified in docs/calibration/SCORING_POLICY.md:
 
-  W_MULTICOLUMN_ORDER          -> cap at 69 (top of RISKY)
-  W_HEADER_FOOTER_TABLE_GARBLED -> cap at 84 (top of OK; softer cap because
-                                    experimental maturity)
+  W_MULTICOLUMN_ORDER          -> cap at 69 (top of RISKY)              [Phase 2]
+  W_HEADER_FOOTER_TABLE_GARBLED -> cap at 84 (top of OK; softer cap     [Phase 2]
+                                    because experimental maturity)
+  W_TABLE_MISSING              -> cap at 69 (top of RISKY)              [Phase 3]
+  W_ENCODING_ARTIFACTS         -> cap at 69 (top of RISKY)              [Phase 3]
   W_IMAGE_ONLY_NO_USABLE_FALLBACK -> cap at 55 (unchanged; regression only)
 
 Also locks:
@@ -172,6 +174,131 @@ class TestHeaderFooterTableCap:
         assert hft[0].suppressed is False
 
 
+# ── W_TABLE_MISSING — cap at 69 (RISKY) ──────────────────────────────────────
+
+class TestTableMissingCap:
+    def test_warning_caps_at_69(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_TABLE_MISSING"],
+            metadata_extras={
+                "table_missing_diagnostics": {
+                    "leader_dot_lines": 21,
+                    "total_leader_dot_matches": 21,
+                    "fired_triggers": ["leader_dot_lines"],
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 69, (
+            f"W_TABLE_MISSING must cap score at 69 (RISKY); got {result.score}"
+        )
+
+    def test_fallback_trigger_also_caps(self):
+        """strikeUnderline analogue: 1 line, many total matches."""
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_TABLE_MISSING"],
+            metadata_extras={
+                "table_missing_diagnostics": {
+                    "leader_dot_lines": 1,
+                    "total_leader_dot_matches": 54,
+                    "fired_triggers": ["total_leader_dot_matches"],
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 69
+
+    def test_deduction_recorded_with_maturity(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_TABLE_MISSING"],
+            metadata_extras={
+                "table_missing_diagnostics": {
+                    "leader_dot_lines": 5,
+                    "total_leader_dot_matches": 12,
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        tm = [d for d in result.deductions if d.rule_id == "W_TABLE_MISSING"]
+        assert len(tm) == 1
+        assert tm[0].maturity == "candidate"
+        assert tm[0].penalty > 0
+        assert tm[0].suppressed is False
+        # evidence carries both counts
+        assert tm[0].evidence is not None
+        assert tm[0].evidence.metric_name == "leader_dot_lines"
+        assert tm[0].evidence.metric_value == 5.0
+        assert tm[0].evidence.extras.get("total_leader_dot_matches") == 12
+
+
+# ── W_ENCODING_ARTIFACTS — cap at 69 (RISKY) ─────────────────────────────────
+
+class TestEncodingArtifactsCap:
+    def test_warning_caps_at_69(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_ENCODING_ARTIFACTS"],
+            metadata_extras={
+                "encoding_artifacts_diagnostics": {
+                    "xml_fragment_count": 4,
+                    "mojibake_density": 0.001,
+                    "fired_triggers": ["xml_fragment_count"],
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 69, (
+            f"W_ENCODING_ARTIFACTS must cap score at 69 (RISKY); got {result.score}"
+        )
+
+    def test_mojibake_trigger_also_caps(self):
+        """Trigger C only: high mojibake density, zero XML fragments."""
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_ENCODING_ARTIFACTS"],
+            metadata_extras={
+                "encoding_artifacts_diagnostics": {
+                    "xml_fragment_count": 0,
+                    "mojibake_density": 0.012,
+                    "fired_triggers": ["mojibake_density"],
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 69
+
+    def test_deduction_recorded_with_maturity(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_ENCODING_ARTIFACTS"],
+            metadata_extras={
+                "encoding_artifacts_diagnostics": {
+                    "xml_fragment_count": 7,
+                    "mojibake_density": 0.008,
+                    "warning_maturity": "candidate",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        ea = [d for d in result.deductions if d.rule_id == "W_ENCODING_ARTIFACTS"]
+        assert len(ea) == 1
+        assert ea[0].maturity == "candidate"
+        assert ea[0].penalty > 0
+        assert ea[0].suppressed is False
+        assert ea[0].evidence is not None
+        assert ea[0].evidence.metric_name == "xml_fragment_count"
+        assert ea[0].evidence.metric_value == 7.0
+        assert ea[0].evidence.extras.get("mojibake_density") == 0.008
+
+
 # ── Non-alerting warnings must never cap ─────────────────────────────────────
 
 class TestNonAlertingWarningsDoNotCap:
@@ -206,16 +333,17 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_1(self):
-        assert SCORING_POLICY_VERSION == "1.1", (
-            "SCORING_POLICY_VERSION was bumped for Phase 2 alerting-warning caps; "
-            "any subsequent policy change must bump it again"
+    def test_version_is_1_2(self):
+        assert SCORING_POLICY_VERSION == "1.2", (
+            "SCORING_POLICY_VERSION was bumped to 1.2 for Phase 3 cap attachment "
+            "on W_TABLE_MISSING and W_ENCODING_ARTIFACTS; any subsequent policy "
+            "change must bump it again"
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.1"
+        assert result.scoring_policy_version == "1.2"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -229,4 +357,4 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.1"
+        assert result.scoring_policy_version == "1.2"

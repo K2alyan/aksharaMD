@@ -90,6 +90,8 @@ Penalties are applied for extraction problems detected during parsing and valida
 | Auto-generated table columns | up to −5 | Tables may be visual/scanned with no header row |
 | `W_MULTICOLUMN_ORDER` | cap at 69 (RISKY) | Multi-column reading order likely incorrect; content may be interleaved between columns |
 | `W_HEADER_FOOTER_TABLE_GARBLED` | cap at 84 (top of OK) | A table near page furniture may not be a genuine table; softer cap while the signal's evidence base is experimental |
+| `W_TABLE_MISSING` | cap at 69 (RISKY) | Leader-dot density indicates a table of contents or table was flattened to prose |
+| `W_ENCODING_ARTIFACTS` | cap at 69 (RISKY) | XML tag residue or replacement-character (`�`) density indicates encoding/segmentation pipeline failure |
 
 The final score is clamped to [0, 100].
 
@@ -169,6 +171,22 @@ Fired when the multi-column reading-order validator detects that block sequence 
 Fired when a table block is detected in the top or bottom margin of a page and its cells are short-fragment-heavy — a pattern that typically indicates running headers, page numbers, or column titles being misclassified as tabular data. The cap is deliberately softer than other alerting warnings because the signal is still calibrated on a small evidence base.
 
 **Action:** Inspect the flagged table blocks. If they represent page furniture rather than genuine tables, downstream table-aware chunking should either filter them or treat them as headers.
+
+### `W_TABLE_MISSING`
+
+**Maturity:** candidate  |  **Effect:** caps readiness at 69 (RISKY band)
+
+Fired when leader-dot sequences (runs of `. . . .` or `.....`) in the output indicate a table of contents or a table was rendered as tab-separated prose and the parser did not recover its structure. The detector fires when either `leader_dot_lines >= 3` or `total_leader_dot_matches >= 5` across the document; the second condition catches TOCs emitted on a single smushed line.
+
+**Action:** The output is present as prose but its structural meaning is lost. For structured retrieval, re-parse with a layout-aware backend or manually reconstruct the missing table.
+
+### `W_ENCODING_ARTIFACTS`
+
+**Maturity:** candidate  |  **Effect:** caps readiness at 69 (RISKY band)
+
+Fired when either XML tag residue (numeric-suffixed fragments like `</pt192>` or `<tspan42`) appears at density `>= 3` matches, or replacement characters (`�`) appear at density `>= 0.005` (0.5%). Both are direct evidence of the encoding or segmentation stage of the parser failing on part of the content.
+
+**Action:** Compiled content is partially corrupt or missing. If the source is a scanned PDF, install the `[ocr]` or `[vision]` extras. If the source is text-native, try a different backend or convert the file upstream.
 
 ### `W_PARSE_FALLBACK`
 
