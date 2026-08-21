@@ -182,7 +182,10 @@ class StructureValidator(ValidatorPlugin):
         if doc.file_type == "pdf":
             classification = doc.metadata.get("pdf_classification", "")
             ocr_available = doc.metadata.get("pdf_ocr_available", True)
-            image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
+            pdf_stats = doc.metadata.get("pdf_stats", {})
+            image_pages = pdf_stats.get("image_pages", 0)
+            text_pages = pdf_stats.get("text_pages", 0)
+            page_count = pdf_stats.get("page_count", doc.pages or 0)
 
             if classification in ("scanned", "hybrid") and not ocr_available and image_pages > 0:
                 ctx.warn(
@@ -203,6 +206,57 @@ class StructureValidator(ValidatorPlugin):
                     "that the model was not trained on (e.g. classical Chinese, historical "
                     "scripts, ornate calligraphy). The affected pages may have reduced or "
                     "missing text content.",
+                )
+
+            # ── W_IMAGE_ONLY_TEXT_BAR_FAIL ─────────────────────────────────────
+            # Text-only bar per docs/calibration/USP_CLAIM_V1.md §5.2:
+            # a fully image-only PDF still FAILs the HIGH-band claim regardless
+            # of whether OCR was applied. Rationale: even when OCR succeeds
+            # (e.g. myctophidae, letter3, japanese in the Phase 4 dev split),
+            # the extracted text is not verbatim source text and is not
+            # reliable enough for HIGH-band ingestion. The multimodal-target
+            # consumption path is deferred (§5.2 Option A ratified).
+            #
+            # Fires on the strict text-only-bar condition:
+            #   classification == "scanned"   (image_ratio >= 0.80 per _classify_pdf)
+            #   AND text_pages == 0           (no page had a real text layer)
+            #   AND page_count >= 1           (defensive)
+            #
+            # Does NOT suppress on OCR_REQUIRED — the two warnings target the
+            # same failure class from complementary angles (no-OCR vs. OCR
+            # applied but unreliable). When both fire, the cap PR's
+            # suppression pattern gracefully emits the second deduction with
+            # penalty=0.
+            #
+            # Diagnostics live at doc.metadata["image_only_text_bar_diagnostics"];
+            # cap wiring reads warning_maturity from that dict per the
+            # maturity-aware pattern already used by W_MULTICOLUMN_ORDER,
+            # W_TABLE_MISSING, and W_ENCODING_ARTIFACTS.
+            if (
+                classification == "scanned"
+                and text_pages == 0
+                and page_count >= 1
+            ):
+                doc.metadata["image_only_text_bar_diagnostics"] = {
+                    "classification": classification,
+                    "image_pages": image_pages,
+                    "text_pages": text_pages,
+                    "page_count": page_count,
+                    "ocr_available": ocr_available,
+                    "warned": True,
+                    "warning_maturity": "candidate",
+                }
+                ctx.warn(
+                    "W_IMAGE_ONLY_TEXT_BAR_FAIL",
+                    (
+                        f"This PDF is fully image-only ({image_pages}/{page_count} page(s) "
+                        "with no text layer). Any extracted text comes from OCR and is not "
+                        "verbatim source text — content should not be treated as HIGH-fidelity. "
+                        "For a text-only consumption path, verify the OCR output manually or "
+                        "use a document with a real text layer. Multimodal consumption with "
+                        "the image assets is a valid alternative but is not scored as HIGH by "
+                        "the current readiness policy."
+                    ),
                 )
 
         return ctx

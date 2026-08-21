@@ -49,6 +49,13 @@ Phase 1 re-score findings (2026-07-13):
 Phase 3 (this PR) closes ikea3 and strikeUnderline (via W_TABLE_MISSING
 per-line + fallback gates) and de (via new W_ENCODING_ARTIFACTS).
 japanese, letter3, myctophidae, simple2 remain open.
+
+Phase 3.5 (Gap 1 detection) closes japanese, letter3, myctophidae via a new
+StructureValidator gate — W_IMAGE_ONLY_TEXT_BAR_FAIL — which fires when a
+PDF is classified "scanned" with zero text-layer pages. Regression tests
+for the new gate live in tests/test_plugins/test_validator.py and this
+suite's _ALERTING_CODES set is extended so clean-doc fixtures also
+guard against it.
 """
 from __future__ import annotations
 
@@ -527,6 +534,7 @@ class TestCleanDocsNoAlertingWarnings:
         "W_HEADER_FOOTER_TABLE_GARBLED",
         "W_TABLE_MISSING",
         "W_ENCODING_ARTIFACTS",
+        "W_IMAGE_ONLY_TEXT_BAR_FAIL",
         "OCR_REQUIRED",
         "NEAR_EMPTY_OUTPUT",
         "LOW_TEXT_DENSITY",

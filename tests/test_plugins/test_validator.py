@@ -257,3 +257,132 @@ def test_ocr_required_does_not_fire_for_native_text():
     })
     StructureValidator().execute(ctx)
     assert "OCR_REQUIRED" not in _warning_codes(ctx)
+
+
+# ── W_IMAGE_ONLY_TEXT_BAR_FAIL ───────────────────────────────────────────────
+# Text-only bar per docs/calibration/USP_CLAIM_V1.md §5.2: a fully image-only
+# PDF fails the HIGH-band claim regardless of whether OCR was applied.
+#
+# Positive fixtures model:
+#   - text_simple__myctophidae, text_simple__letter3, text_dense__japanese
+#     (all classified as "scanned", all with text_pages == 0, all with OCR
+#     applied and producing some low-fidelity output).
+# Controls model:
+#   - hybrid PDFs (some text pages present) — must stay silent.
+#   - native_text PDFs — must stay silent.
+
+
+def test_image_only_text_bar_fires_when_ocr_succeeded():
+    """myctophidae/letter3/japanese analogue: scanned, OCR ran, some text extracted."""
+    blocks = [_para("Text extracted via OCR — low fidelity.", page=1)]
+    ctx = _make_ctx(blocks, pages=1, metadata={
+        "pdf_classification": "scanned",
+        "pdf_stats": {"image_pages": 1, "text_pages": 0, "page_count": 1},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" in _warning_codes(ctx), (
+        "Expected W_IMAGE_ONLY_TEXT_BAR_FAIL when a scanned PDF has zero "
+        "text-layer pages and OCR was applied "
+        "(myctophidae/letter3/japanese analogue)"
+    )
+
+
+def test_image_only_text_bar_fires_when_ocr_not_available():
+    """Also fires when OCR unavailable — the text-only bar is regardless of OCR state.
+
+    OCR_REQUIRED also fires here; the two warnings coexist and the cap
+    PR's suppression pattern handles the overlap gracefully.
+    """
+    blocks = [_para("[Image not extracted — OCR unavailable.", page=1)]
+    ctx = _make_ctx(blocks, pages=2, metadata={
+        "pdf_classification": "scanned",
+        "pdf_stats": {"image_pages": 2, "text_pages": 0, "page_count": 2},
+        "pdf_ocr_available": False,
+    })
+    StructureValidator().execute(ctx)
+    codes = _warning_codes(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" in codes
+    assert "OCR_REQUIRED" in codes
+
+
+def test_image_only_text_bar_silent_on_hybrid():
+    """Hybrid PDFs have SOME text pages — text-only bar does not apply."""
+    blocks = [_para("Native text page 1.", page=1)]
+    ctx = _make_ctx(blocks, pages=4, metadata={
+        "pdf_classification": "hybrid",
+        "pdf_stats": {"image_pages": 2, "text_pages": 2, "page_count": 4},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" not in _warning_codes(ctx), (
+        "W_IMAGE_ONLY_TEXT_BAR_FAIL must not fire on hybrid PDFs — "
+        "some native text pages are present"
+    )
+
+
+def test_image_only_text_bar_silent_on_native_text():
+    """Native_text PDFs must stay silent."""
+    blocks = [_para("Fully native text.", page=1)]
+    ctx = _make_ctx(blocks, pages=1, metadata={
+        "pdf_classification": "native_text",
+        "pdf_stats": {"image_pages": 0, "text_pages": 1, "page_count": 1},
+        "pdf_ocr_available": False,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" not in _warning_codes(ctx)
+
+
+def test_image_only_text_bar_silent_when_any_text_page():
+    """Even a single text page suppresses — text_pages must be exactly 0."""
+    blocks = [_para("Content.", page=1)]
+    ctx = _make_ctx(blocks, pages=3, metadata={
+        "pdf_classification": "scanned",  # scanned label but at least one text page
+        "pdf_stats": {"image_pages": 2, "text_pages": 1, "page_count": 3},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" not in _warning_codes(ctx)
+
+
+def test_image_only_text_bar_diagnostics_present_on_warning():
+    """Diagnostics dict must carry warning_maturity for the cap PR."""
+    blocks = [_para("OCR text.", page=1)]
+    ctx = _make_ctx(blocks, pages=1, metadata={
+        "pdf_classification": "scanned",
+        "pdf_stats": {"image_pages": 1, "text_pages": 0, "page_count": 1},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    diag = ctx.document.metadata.get("image_only_text_bar_diagnostics", {})
+    assert diag.get("warned") is True
+    assert diag.get("warning_maturity") == "candidate"
+    assert diag.get("image_pages") == 1
+    assert diag.get("text_pages") == 0
+    assert diag.get("page_count") == 1
+    assert diag.get("classification") == "scanned"
+    assert diag.get("ocr_available") is True
+
+
+def test_image_only_text_bar_warning_code_stable():
+    """Warning code must not be renamed — downstream consumers depend on this."""
+    blocks = [_para("OCR text.", page=1)]
+    ctx = _make_ctx(blocks, pages=1, metadata={
+        "pdf_classification": "scanned",
+        "pdf_stats": {"image_pages": 1, "text_pages": 0, "page_count": 1},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" in _warning_codes(ctx)
+
+
+def test_image_only_text_bar_does_not_fire_on_non_pdf():
+    """Non-PDF file types are outside the scope of this signal."""
+    blocks = [_para("Some content.", page=1)]
+    ctx = _make_ctx(blocks, file_type="docx", pages=1, metadata={
+        "pdf_classification": "scanned",  # ignored because file_type != pdf
+        "pdf_stats": {"image_pages": 1, "text_pages": 0, "page_count": 1},
+        "pdf_ocr_available": True,
+    })
+    StructureValidator().execute(ctx)
+    assert "W_IMAGE_ONLY_TEXT_BAR_FAIL" not in _warning_codes(ctx)
