@@ -40,10 +40,12 @@ from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
+from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
 from .plugins.validators import multicolumn as _multicolumn_validator_pkg  # noqa: F401
 from .plugins.validators import structure as _validator_pkg  # noqa: F401
 from .plugins.validators import table_expectation as _te_validator_pkg  # noqa: F401
+from .plugins.validators import table_missing as _tm_validator_pkg  # noqa: F401
 from .plugins.validators import table_quality as _tq_validator_pkg  # noqa: F401
 from .scoring import compute_confidence
 from .utils import count_tokens
