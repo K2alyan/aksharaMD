@@ -92,6 +92,8 @@ Penalties are applied for extraction problems detected during parsing and valida
 | `W_HEADER_FOOTER_TABLE_GARBLED` | cap at 84 (top of OK) | A table near page furniture may not be a genuine table; softer cap while the signal's evidence base is experimental |
 | `W_TABLE_MISSING` | cap at 69 (RISKY) | Leader-dot density indicates a table of contents or table was flattened to prose |
 | `W_ENCODING_ARTIFACTS` | cap at 69 (RISKY) | XML tag residue or replacement-character (`�`) density indicates encoding/segmentation pipeline failure |
+| `W_IMAGE_ONLY_TEXT_BAR_FAIL` | cap at 69 (RISKY) | PDF is fully image-only (scanned, zero text-layer pages); any extracted text is OCR output and cannot be treated as HIGH-fidelity |
+| `W_TABLE_EXPECTED_NOT_EXTRACTED` | cap at 84 (top of OK) | One or more pages had table candidates rejected by the quality filter with corroborating caption/numeric-alignment signals; softer experimental cap |
 
 The final score is clamped to [0, 100].
 
@@ -187,6 +189,28 @@ Fired when leader-dot sequences (runs of `. . . .` or `.....`) in the output ind
 Fired when either XML tag residue (numeric-suffixed fragments like `</pt192>` or `<tspan42`) appears at density `>= 3` matches, or replacement characters (`�`) appear at density `>= 0.005` (0.5%). Both are direct evidence of the encoding or segmentation stage of the parser failing on part of the content.
 
 **Action:** Compiled content is partially corrupt or missing. If the source is a scanned PDF, install the `[ocr]` or `[vision]` extras. If the source is text-native, try a different backend or convert the file upstream.
+
+### `W_IMAGE_ONLY_TEXT_BAR_FAIL`
+
+**Maturity:** candidate  |  **Effect:** caps readiness at 69 (RISKY band)
+
+Fired when a PDF is classified `scanned` (image_ratio ≥ 0.80) AND every page is image-only (`text_pages == 0`). Ratified per `docs/calibration/USP_CLAIM_V1.md` §5.2 as the "text-only bar": even when OCR runs successfully, the extracted content is not verbatim source text and cannot be treated as HIGH-fidelity for the text-only consumption path.
+
+Fires independently of OCR state. When OCR is unavailable, `OCR_REQUIRED` also fires — the two warnings coexist and the deduction for this cap is suppressed via the standard "score already <= cap" pattern.
+
+Multimodal consumption (via `compile_to_multimodal()`) with the image assets is a valid alternative but is not scored as HIGH by the current readiness policy. Multimodal-target scoring is deferred (`USP_CLAIM_V1.md` §5.2 Option A ratified).
+
+**Action:** For text-only consumption, verify the OCR output manually or use a document with a real text layer. For multimodal consumption, the page image bytes are captured and can be routed to a vision-capable model.
+
+### `W_TABLE_EXPECTED_NOT_EXTRACTED`
+
+**Maturity:** experimental  |  **Effect:** caps readiness at 84 (top of OK band)
+
+Fired when one or more pages had table candidates rejected by the quality filter AND corroborating text signals (captions, numeric-column alignment, leader-dot rows, document archetype) confirm a table was expected on that page. See `aksharamd/scoring/table_expectation.py` for the multi-family signal logic.
+
+The cap is softer than the candidate-tier warnings (84 rather than 69) because the detector's evidence base is still narrow — it correctly flags rejected-but-corroborated candidates on Phase 4 dev-split docs `fqr-retail-blackrock`, `ikea3`, and `VRSK`, but broader precision is not yet measured.
+
+**Action:** Inspect the flagged pages. If a real table was missed, the source PDF likely needs a different table extraction strategy (or a layout-aware backend such as `[vision]`).
 
 ### `W_PARSE_FALLBACK`
 

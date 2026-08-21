@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-SCORING_POLICY_VERSION = "1.2"
+SCORING_POLICY_VERSION = "1.3"
 
 
 @dataclass
@@ -209,6 +209,18 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         description="Score cap when XML tag residue or mojibake density indicates encoding/segmentation failure (candidate maturity)",
         max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
         formula="score = min(score, 69)  # RISKY band",
+    ),
+    "W_IMAGE_ONLY_TEXT_BAR_FAIL": ScoringRule(
+        rule_id="W_IMAGE_ONLY_TEXT_BAR_FAIL",
+        description="Score cap when a fully image-only PDF (scanned, zero text-layer pages) fails the text-only bar per USP §5.2 (candidate maturity)",
+        max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
+        formula="score = min(score, 69)  # RISKY band",
+    ),
+    "W_TABLE_EXPECTED_NOT_EXTRACTED": ScoringRule(
+        rule_id="W_TABLE_EXPECTED_NOT_EXTRACTED",
+        description="Score cap when a page had table candidates rejected by the quality filter with corroborating caption/numeric-alignment signals (experimental maturity — softer cap while evidence base grows)",
+        max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
+        formula="score = min(score, 84)  # top of OK band",
     ),
     "W_PDF_ATTACHMENT_IGNORED": ScoringRule(
         rule_id="W_PDF_ATTACHMENT_IGNORED",

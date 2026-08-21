@@ -690,6 +690,119 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # W_IMAGE_ONLY_TEXT_BAR_FAIL — score cap at 69 (RISKY band).
+    # Rationale: candidate-maturity signal. Ratified per
+    # docs/calibration/USP_CLAIM_V1.md §5.2 (text-only bar). A PDF classified
+    # "scanned" with zero text-layer pages is not text-usable at HIGH fidelity
+    # even when OCR runs successfully — the OCR output is not verbatim source
+    # text. Same cap treatment as other candidate-maturity content-integrity
+    # signals (W_MULTICOLUMN_ORDER, W_TABLE_MISSING, W_ENCODING_ARTIFACTS).
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _IOTBF_CAP = 69
+    if warnings_by_code.get("W_IMAGE_ONLY_TEXT_BAR_FAIL", 0):
+        iotbf_diag = doc.metadata.get("image_only_text_bar_diagnostics", {})
+        iotbf_maturity = iotbf_diag.get("warning_maturity", "")
+        image_pages = iotbf_diag.get("image_pages", 0)
+        page_count = iotbf_diag.get("page_count", 0)
+        if score > _IOTBF_CAP:
+            effective_penalty = score - _IOTBF_CAP
+            score = _IOTBF_CAP
+            notes.append(
+                f"PDF is fully image-only ({image_pages}/{page_count} page(s) "
+                "with no text layer). Text extraction was performed via OCR — "
+                "output is not verbatim source text. "
+                f"Score capped at {_IOTBF_CAP} (RISKY band). "
+                "[W_IMAGE_ONLY_TEXT_BAR_FAIL]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_IMAGE_ONLY_TEXT_BAR_FAIL",
+                description=f"Fully image-only PDF; text-only bar FAIL; score capped at {_IOTBF_CAP}",
+                penalty=effective_penalty,
+                maturity=iotbf_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="image_pages",
+                    metric_value=float(image_pages),
+                    threshold=1.0,
+                    extras={
+                        "page_count": int(page_count),
+                        "text_pages": int(iotbf_diag.get("text_pages", 0)),
+                        "classification": iotbf_diag.get("classification", ""),
+                        "ocr_available": iotbf_diag.get("ocr_available", False),
+                    },
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_IMAGE_ONLY_TEXT_BAR_FAIL",
+                description=f"Fully image-only PDF; text-only bar FAIL; cap ({_IOTBF_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_IOTBF_CAP}",
+                maturity=iotbf_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="image_pages",
+                    metric_value=float(image_pages),
+                    threshold=1.0,
+                    extras={
+                        "page_count": int(page_count),
+                        "text_pages": int(iotbf_diag.get("text_pages", 0)),
+                        "classification": iotbf_diag.get("classification", ""),
+                        "ocr_available": iotbf_diag.get("ocr_available", False),
+                    },
+                ),
+            ))
+
+    # W_TABLE_EXPECTED_NOT_EXTRACTED — score cap at 84 (top of OK band).
+    # Rationale: experimental-maturity signal. Fires on pages where a table
+    # strategy found candidates but the quality filter rejected them AND
+    # corroborating text signals (captions, numeric alignment) confirm a
+    # table was likely expected. Same softer cap as
+    # W_HEADER_FOOTER_TABLE_GARBLED — the signal has real evidence but the
+    # evidence base is still narrow; a hard 69 cap risks silently downgrading
+    # legitimate HIGH-band docs if the detector generalizes imperfectly.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _TENE_CAP = 84
+    if warnings_by_code.get("W_TABLE_EXPECTED_NOT_EXTRACTED", 0):
+        tene_diag = doc.metadata.get("table_expectation_diagnostics", {})
+        tene_maturity = tene_diag.get("warning_maturity", "")
+        pages_missing = tene_diag.get("pages_expected_not_extracted", []) or []
+        if score > _TENE_CAP:
+            effective_penalty = score - _TENE_CAP
+            score = _TENE_CAP
+            notes.append(
+                f"{len(pages_missing)} page(s) had table candidates rejected by "
+                "the quality filter with corroborating caption/numeric-alignment "
+                f"signals. Score capped at {_TENE_CAP} (top of OK band). "
+                "[W_TABLE_EXPECTED_NOT_EXTRACTED]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_TABLE_EXPECTED_NOT_EXTRACTED",
+                description=f"Table expected but not extracted on {len(pages_missing)} page(s); score capped at {_TENE_CAP}",
+                penalty=effective_penalty,
+                maturity=tene_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="pages_expected_not_extracted",
+                    metric_value=float(len(pages_missing)),
+                    threshold=1.0,
+                    extras={"pages": list(pages_missing)},
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_TABLE_EXPECTED_NOT_EXTRACTED",
+                description=f"Table expected but not extracted on {len(pages_missing)} page(s); cap ({_TENE_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_TENE_CAP}",
+                maturity=tene_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="pages_expected_not_extracted",
+                    metric_value=float(len(pages_missing)),
+                    threshold=1.0,
+                    extras={"pages": list(pages_missing)},
+                ),
+            ))
+
     # Informational: W_PDF_ATTACHMENT_IGNORED (zero penalty)
     # Attachment payloads are separate from page content; AksharaMD detects but
     # does not extract them. Surfaced as informational so a HIGH readiness on
