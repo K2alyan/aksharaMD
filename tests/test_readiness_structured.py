@@ -168,11 +168,14 @@ def test_scoring_policy_informational_rules_have_zero_max_penalty() -> None:
 
 
 def test_scoring_policy_alerting_warnings_have_nonzero_max_penalty() -> None:
-    # Phase 2 alerting warnings. Caps documented in docs/calibration/SCORING_POLICY.md.
+    # Phase 2 + Phase 3 alerting warnings. Caps documented in
+    # docs/calibration/SCORING_POLICY.md.
     alerting = {
-        "W_MULTICOLUMN_ORDER": 31,           # cap at 69 → max realized penalty 100-69
-        "W_HEADER_FOOTER_TABLE_GARBLED": 16, # cap at 84 → max realized penalty 100-84
-        "IMAGE_PLACEHOLDER_NO_FALLBACK": 45, # cap at 55 → pre-existing
+        "W_MULTICOLUMN_ORDER": 31,           # cap at 69 (Phase 2)
+        "W_HEADER_FOOTER_TABLE_GARBLED": 16, # cap at 84 (Phase 2)
+        "W_TABLE_MISSING": 31,               # cap at 69 (Phase 3)
+        "W_ENCODING_ARTIFACTS": 31,          # cap at 69 (Phase 3)
+        "IMAGE_PLACEHOLDER_NO_FALLBACK": 45, # cap at 55 (pre-existing)
     }
     for rule_id, expected in alerting.items():
         assert SCORING_POLICY[rule_id].max_penalty == expected, (

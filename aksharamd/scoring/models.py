@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-SCORING_POLICY_VERSION = "1.1"
+SCORING_POLICY_VERSION = "1.2"
 
 
 @dataclass
@@ -197,6 +197,18 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         description="Score cap when a table near header/footer likely represents garbled page furniture (experimental maturity — softer cap while evidence base grows)",
         max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
         formula="score = min(score, 84)  # top of OK band",
+    ),
+    "W_TABLE_MISSING": ScoringRule(
+        rule_id="W_TABLE_MISSING",
+        description="Score cap when leader-dot density indicates a TOC/table was flattened to prose (candidate maturity)",
+        max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
+        formula="score = min(score, 69)  # RISKY band",
+    ),
+    "W_ENCODING_ARTIFACTS": ScoringRule(
+        rule_id="W_ENCODING_ARTIFACTS",
+        description="Score cap when XML tag residue or mojibake density indicates encoding/segmentation failure (candidate maturity)",
+        max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
+        formula="score = min(score, 69)  # RISKY band",
     ),
     "W_PDF_ATTACHMENT_IGNORED": ScoringRule(
         rule_id="W_PDF_ATTACHMENT_IGNORED",

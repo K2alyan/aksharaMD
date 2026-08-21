@@ -594,6 +594,102 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # W_TABLE_MISSING — score cap at 69 (RISKY band).
+    # Rationale: candidate-maturity signal (Phase 3 detection PR #111).
+    # Leader-dot density indicates a TOC or table was flattened to prose;
+    # content is present but structural claim is missing. Same treatment as
+    # W_MULTICOLUMN_ORDER (candidate + partial/degraded content).
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _TM_CAP = 69
+    if warnings_by_code.get("W_TABLE_MISSING", 0):
+        tm_diag = doc.metadata.get("table_missing_diagnostics", {})
+        tm_maturity = tm_diag.get("warning_maturity", "")
+        leader_dot_lines = tm_diag.get("leader_dot_lines", 0)
+        total_matches = tm_diag.get("total_leader_dot_matches", 0)
+        if score > _TM_CAP:
+            effective_penalty = score - _TM_CAP
+            score = _TM_CAP
+            notes.append(
+                "Leader-dot density suggests a table of contents or table was flattened "
+                f"to prose without its structure. Score capped at {_TM_CAP} (RISKY band). "
+                "[W_TABLE_MISSING]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_TABLE_MISSING",
+                description=f"Table/TOC flattened to prose; score capped at {_TM_CAP}",
+                penalty=effective_penalty,
+                maturity=tm_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="leader_dot_lines",
+                    metric_value=float(leader_dot_lines),
+                    threshold=3.0,
+                    extras={"total_leader_dot_matches": int(total_matches)},
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_TABLE_MISSING",
+                description=f"Table/TOC flattened to prose; cap ({_TM_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_TM_CAP}",
+                maturity=tm_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="leader_dot_lines",
+                    metric_value=float(leader_dot_lines),
+                    threshold=3.0,
+                    extras={"total_leader_dot_matches": int(total_matches)},
+                ),
+            ))
+
+    # W_ENCODING_ARTIFACTS — score cap at 69 (RISKY band).
+    # Rationale: candidate-maturity signal (Phase 3 detection PR #111).
+    # XML tag residue or mojibake density directly indicates the encoding /
+    # segmentation stage of the parser failed on part of the content. Same
+    # treatment as W_MULTICOLUMN_ORDER and W_TABLE_MISSING.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _EA_CAP = 69
+    if warnings_by_code.get("W_ENCODING_ARTIFACTS", 0):
+        ea_diag = doc.metadata.get("encoding_artifacts_diagnostics", {})
+        ea_maturity = ea_diag.get("warning_maturity", "")
+        xml_fragment_count = ea_diag.get("xml_fragment_count", 0)
+        mojibake_density = ea_diag.get("mojibake_density", 0.0)
+        if score > _EA_CAP:
+            effective_penalty = score - _EA_CAP
+            score = _EA_CAP
+            notes.append(
+                "Encoding or segmentation artifacts detected in extracted output — "
+                f"content may be partially corrupt or missing. Score capped at {_EA_CAP} "
+                "(RISKY band). [W_ENCODING_ARTIFACTS]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_ENCODING_ARTIFACTS",
+                description=f"Encoding/segmentation artifacts; score capped at {_EA_CAP}",
+                penalty=effective_penalty,
+                maturity=ea_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="xml_fragment_count",
+                    metric_value=float(xml_fragment_count),
+                    threshold=3.0,
+                    extras={"mojibake_density": float(mojibake_density)},
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_ENCODING_ARTIFACTS",
+                description=f"Encoding/segmentation artifacts; cap ({_EA_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_EA_CAP}",
+                maturity=ea_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="xml_fragment_count",
+                    metric_value=float(xml_fragment_count),
+                    threshold=3.0,
+                    extras={"mojibake_density": float(mojibake_density)},
+                ),
+            ))
+
     # Informational: W_PDF_ATTACHMENT_IGNORED (zero penalty)
     # Attachment payloads are separate from page content; AksharaMD detects but
     # does not extract them. Surfaced as informational so a HIGH readiness on
