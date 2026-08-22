@@ -308,10 +308,30 @@ def compute_table_expectation(
     risk_families = {s.family for s in risk_signals}
     risk_names    = {s.name   for s in risk_signals}
 
+    # A rejected candidate is "substantial" when it has enough rows AND columns
+    # to be a real table rather than chart-page noise. Threshold: >= 10 rows AND
+    # >= 3 cols. Chart pages usually reject only tiny 2–3-row single-column
+    # candidates; actuarial and financial schedules yield candidates with tens
+    # of rows and multiple columns. SERFF_CA_random_pages 1_page1682 is the
+    # canonical positive fixture — its rejected candidate is 48 rows × 13
+    # columns, which is unmistakably a real table, not chart noise.
+    _has_substantial_rejected = any(
+        c.get("row_count", 0) >= 10 and c.get("col_count", 0) >= 3
+        for c in rejected_candidates
+    )
+
+    # Exception path: parser + numeric_alignment alone is INSUFFICIENT when
+    # the rejected candidate is small. Both signals react to chart-page visual
+    # structure (axes, callouts) which are empirically correlated, not
+    # independent — so a third independent cue (CAPTION_NEARBY, LEADER_DOT_ROWS,
+    # DOC_TABLE_HEAVY) is normally required. Guard: if there IS a substantial
+    # rejected candidate, the pair is not chart noise and the exception does
+    # not apply.
     _parser_plus_numeric_only = (
         risk_families == {"parser", "text"}
         and TableExpectationSignalName.NUMERIC_COLUMN_ALIGNMENT in risk_names
         and TableExpectationSignalName.CAPTION_NEARBY not in risk_names
+        and not _has_substantial_rejected
     )
 
     if len(risk_families) >= 2 and not _parser_plus_numeric_only:
