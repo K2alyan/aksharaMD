@@ -128,6 +128,59 @@ class TestComputeTableExpectationBasic:
         )
         assert report.expected == "unknown"
 
+    def test_rejected_substantial_plus_numeric_alignment_returns_true(self):
+        """Substantial rejected candidate (>= 10 rows AND >= 3 cols) + numeric
+        alignment → true, without needing a third cue.
+
+        The chart-noise exception only applies when the rejected candidate is
+        small. A large candidate (SERFF-scale: 48 rows × 13 cols) is a real
+        actuarial/financial table, not chart-page visual structure, so the
+        parser + numeric_alignment pair is a valid true-positive signature.
+
+        Canonical fixture: SERFF_CA_random_pages 1_page1682 (48-row × 13-col
+        rejected whitespace candidate with `word_split` rejection and 9 numeric
+        alignment lines on the page). This case previously returned "unknown"
+        and let the doc silently score HIGH — see Phase 4 dev-split report
+        v2 and the associated fix PR for context.
+        """
+        numeric_content = "\n".join([
+            "2021 12.5 34.2 0.8",
+            "2022 14.1 31.7 1.2",
+            "2023 16.0 29.3 2.1",
+        ])
+        blocks = [_para(numeric_content)]
+        report = compute_table_expectation(
+            page=1,
+            blocks=blocks,
+            rejected_candidates=[_rejected(
+                reasons=["word_split"], row_count=48, col_count=13,
+            )],
+        )
+        assert report.expected == "true"
+
+    def test_rejected_small_plus_numeric_alignment_still_returns_unknown(self):
+        """Small rejected candidate + numeric alignment → unknown (unchanged).
+
+        Chart-page noise: parser rejects a tiny 2-row / 2-col candidate near
+        chart axes while numeric_alignment fires on the chart's data callouts.
+        The pair is still not enough to declare "expected=true" without a
+        third independent cue.
+        """
+        numeric_content = "\n".join([
+            "2021 12.5 34.2 0.8",
+            "2022 14.1 31.7 1.2",
+            "2023 16.0 29.3 2.1",
+        ])
+        blocks = [_para(numeric_content)]
+        report = compute_table_expectation(
+            page=1,
+            blocks=blocks,
+            rejected_candidates=[_rejected(
+                reasons=["word_split"], row_count=2, col_count=2,
+            )],
+        )
+        assert report.expected == "unknown"
+
     def test_rejected_plus_numeric_plus_caption_returns_true(self):
         """Rejected candidate + numeric + table caption → true (three cues, caption breaks the tie)."""
         numeric_content = "\n".join([
