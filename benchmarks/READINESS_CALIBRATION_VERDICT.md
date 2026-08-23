@@ -54,9 +54,17 @@ The following held up under the dev-split evaluation and are considered stable:
 
 These are the documents the scorer currently gets wrong, stated specifically so any reader can check whether their own corpus resembles them. Severity reflects how dangerous the failure is, not how hard it is to fix.
 
-### 5.1 `de` — content omission on image-substituted pages · **Severity: HIGH**
+### 5.1 `de` — content-bearing rasterized regions on text-classified pages · **Severity: MEDIUM**
 
-A page whose text was silently dropped (emitted as an `asset://` image reference instead of extracted text) scores HIGH with no warning. This is the most dangerous class because the output looks clean and complete — there is no garble to detect, only absence. The existing encoding-artifact detector was designed for visible breakage (mojibake, XML residue) and cannot see missing content. Closing it requires a new content-omission signal, not a threshold change. Tracked as a required detector, not a bug.
+Corrected 2026-08-23. Prior versions of this document described `de` as an extraction failure ("text silently dropped, emitted as an `asset://` image reference"). That is empirically wrong. Investigation against `aksharamd/plugins/parsers/pdf.py` (both IMAGE-block emission sites at ~L1166 and ~L2322) confirmed there is no extraction-fallback path in the parser — IMAGE blocks are only ever emitted for genuine embedded raster objects present in the source PDF (or for whole-page raster on image-only pages, which lands in the `scanned` classification and is handled by `W_IMAGE_ONLY_TEXT_BAR_FAIL`).
+
+`de`'s content — patent SEQ ID motif tables — was rasterized into an embedded image object by the authoring tool before AksharaMD received the file. The text lives in pixels, not in the PDF's text layer. AksharaMD faithfully preserved that image object as-is.
+
+The failure class is the same as image-only pages (content that needs a vision path to be readable), but at **region granularity** — a content-bearing image on an otherwise text-native page — rather than whole-page granularity. Existing vision routing (`W_IMAGE_ONLY_TEXT_BAR_FAIL`) covers whole-page image-only documents; it does not extend to content-bearing image regions on pages that are otherwise text-classified.
+
+Closing this requires OCR-ing embedded images to distinguish content-bearing rasterized text from decorative figures. The false-positive boundary is load-bearing: a legitimate figure on an academic paper is also "an image on a text-classified page" and must not be flagged as omission. The distinguishing information — text inside the image — does not exist at the layer scoring runs, so no metadata-based detector on the current pipeline can cleanly separate the cases. Deferred as post-calibration parser/pipeline work.
+
+Severity revised HIGH → MEDIUM: this is a bounded, understood routing gap (region-level vision path is not implemented), not a silent logic failure. The prior HIGH severity reflected an incorrect model of the mechanism.
 
 ### 5.2 `simple2` — span-level multi-column reading order · **Severity: MEDIUM**
 
@@ -113,7 +121,7 @@ This is a feature of the process, not an omission. A calibration verdict that re
 
 In priority order, what stands between today and an unattended-production-certified score:
 
-1. **Content-omission detector (5.1, `de`).** New signal. Highest severity and the most self-contained of the open design tracks; content omission via image substitution is likely not unique to `de`, so the signal generalizes.
+1. **Extend vision-routing to content-bearing image regions (5.1, `de`).** Adds region-level coverage to the existing whole-page vision path: OCR embedded images at parse time and, when a large fraction of an image's OCR text is present on a text-classified page, treat the page as needing vision-mode consumption rather than trusting the text layer alone. Complements `W_IMAGE_ONLY_TEXT_BAR_FAIL` (whole-page); the distinguishing information (text inside embedded images) requires new parser-layer surface area, not a signal on existing metadata.
 2. **Parser candidate-feature exposure (5.4, classifier).** Systemic. Requires surfacing finer per-candidate features from the parse layer so the classifier can separate text-columns from data-columns without circular dependence on downstream signals. This one is load-bearing for the whole table tier — until it lands, table-tier passes rest on coincidental redundancy.
 3. **Span-level multi-column detection (5.2/5.3, `simple2`, `4c`).** New capability, existing design placeholder.
 4. **Re-run the development split.** Only when 1–3 are projected to bring both gates green.
@@ -129,7 +137,7 @@ Until step 5 passes cleanly, the honest external statement is: the AI Readiness 
 - **Controls:** `battery`, `2colmercedes`, `docusigned`, `gridofnumbers`, `webprint` — band and warning set unchanged across all Phase 4 changes.
 - **Classifier separation analysis (5.4):** rejection-reason overlap table (14/15 false positives share reason codes with real tables); preserved in issue #117.
 - **Rejected naive fix (5.4):** branch `wip/117-naive-classifier-fix-DO-NOT-MERGE`, retained for reference, not merged.
-- **Deferred design tracks:** `de` content-omission (new); span-level multi-column (design not yet drafted); parser candidate-feature exposure (issue #117).
+- **Deferred design tracks:** `de` region-level vision routing / embedded-image OCR (new; supersedes the earlier "content-omission" framing after investigation on 2026-08-23 confirmed the parser has no extraction-fallback path); span-level multi-column (design not yet drafted); parser candidate-feature exposure (issue #117).
 - **Sealed splits:** locked and challenge — unopened as of this verdict.
 
 This verdict measures extraction reliability on a development corpus. Consistent with the project's stated limits, a high Readiness Score means text was extracted cleanly; it does not guarantee retrieval accuracy or final answer correctness. Run end-to-end retrieval evaluation against your own queries before production deployment.
