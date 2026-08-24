@@ -10,7 +10,7 @@ records (including suppressed ones), and human-readable notes.
 from __future__ import annotations
 
 from ..context import CompilationContext
-from ..models.block import BlockType
+from ..models.block import Block, BlockType
 from .models import (
     SCORING_POLICY_VERSION,
     DeductionRecord,
@@ -197,12 +197,12 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
     # per BLOCK_TREE_CONTRACT_DESIGN.md §5.2 + §5.3.
     _IMAGE_PLACEHOLDER_SENTINEL = "[Image not extracted"
 
-    def _is_placeholder(b: object) -> bool:
-        if getattr(b, "metadata", None) and b.metadata.get("is_placeholder"):
+    def _is_placeholder(b: Block) -> bool:
+        if b.metadata and b.metadata.get("is_placeholder"):
             return True
         return (
-            getattr(b, "type", None) == BlockType.PARAGRAPH
-            and _IMAGE_PLACEHOLDER_SENTINEL in (getattr(b, "content", None) or "")
+            b.type == BlockType.PARAGRAPH
+            and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or "")
         )
 
     placeholder_paragraphs = [

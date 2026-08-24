@@ -18,7 +18,7 @@ Wiring happens in a later step alongside the consumer refactor.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from ..models.block import BlockType
 from ..models.document import Document
@@ -100,7 +100,9 @@ class PdfBlockTreeAdapter:
         raw_hint = meta.get("pdf_classification")
         document_type_hint = raw_hint if raw_hint in _VALID_DOC_TYPE_HINTS else None
 
-        ocr_capability = "available" if meta.get("pdf_ocr_available") else "unavailable"
+        ocr_capability: Literal["available", "unavailable", "not_applicable"] = (
+            "available" if meta.get("pdf_ocr_available") else "unavailable"
+        )
 
         # hallucinated_pages: today pdf.py records a bool flag, not a
         # count. Map to 1/0 per design Section 5.2. If pdf.py starts
