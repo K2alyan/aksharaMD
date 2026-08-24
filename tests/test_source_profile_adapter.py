@@ -27,6 +27,7 @@ import pytest
 from aksharamd.models.document import Document
 from aksharamd.scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
 from aksharamd.scoring.source_profile import PageDim, SourceProfile
+from aksharamd.scoring.table_expectation import RejectedTableCandidate
 
 # Fixture generator lives under tools/analysis/. It's a script directory not
 # on sys.path by default; add it so the test can import the generator without
@@ -281,3 +282,118 @@ def test_adapter_handles_absent_pdf_stats_with_neutral_defaults():
     assert sp.hallucinated_pages == 0
     assert sp.document_type_hint is None
     assert sp.page_dimensions == {}
+
+
+# ── Boundary 2: table-expectation rejected-candidate contract ────────────────
+#
+# These tests cover PdfBlockTreeAdapter._build_rejected_table_candidates —
+# the second boundary of the parser-neutral refactor
+# (BLOCK_TREE_CONTRACT_DESIGN.md §3.1). Consumer wiring is via option (b) —
+# the neutral typed list is materialized back to dicts at the
+# TableExpectationValidator boundary so compute_table_expectation's
+# list[dict] signature stays unchanged (byte-identity discipline).
+
+
+def test_adapter_rejected_candidates_opt_out_when_raw_key_absent():
+    """Parser did not populate the raw accumulator → adapter attaches None.
+    Design §3.1 opt-in semantics."""
+    doc = _mk_doc({})
+    PdfBlockTreeAdapter().populate(doc)
+    assert doc.metadata["rejected_table_candidates_by_page"] is None
+
+
+def test_adapter_rejected_candidates_empty_when_raw_key_empty_dict():
+    """Parser considered the concept but produced no rejections → empty dict.
+    Different from opt-out."""
+    doc = _mk_doc({"table_rejected_candidates_by_page": {}})
+    PdfBlockTreeAdapter().populate(doc)
+    assert doc.metadata["rejected_table_candidates_by_page"] == {}
+
+
+def test_adapter_maps_serff_like_substantial_candidate_field_by_field():
+    """SERFF is the canonical PR #116 substantiality fixture: 48 rows x
+    13 cols. This test asserts the adapter converts a SERFF-shaped raw
+    dict into a RejectedTableCandidate with every field intact — including
+    the row/col counts the substantiality guard reads and the
+    quality_metrics nested-dict that _compute_leader_dot_signal reads for
+    its evidence field.
+    """
+    raw = {
+        "table_rejected_candidates_by_page": {
+            1: [{
+                "strategy": "pdfplumber",
+                "page": 1,
+                "bbox": [72.0, 100.0, 540.0, 700.0],
+                "row_count": 48,
+                "col_count": 13,
+                "rejection_reasons": ["word_split", "too_few_cols"],
+                "quality_metrics": {
+                    "dot_leader_fraction": 0.0,
+                    "empty_cell_fraction": 0.15,
+                    "col_count": 13,
+                },
+            }],
+        },
+    }
+    doc = _mk_doc(raw)
+    PdfBlockTreeAdapter().populate(doc)
+
+    neutral = doc.metadata["rejected_table_candidates_by_page"]
+    assert isinstance(neutral, dict)
+    assert list(neutral.keys()) == [1]
+    lst = neutral[1]
+    assert len(lst) == 1
+    c = lst[0]
+    assert isinstance(c, RejectedTableCandidate)
+
+    # Field-by-field one-to-one mapping.
+    assert c.strategy == "pdfplumber"
+    assert c.page == 1
+    assert c.bbox == [72.0, 100.0, 540.0, 700.0]
+    assert c.row_count == 48
+    assert c.col_count == 13
+    assert c.rejection_reasons == ["word_split", "too_few_cols"]
+
+    # quality_metrics: dict-of-scalars, must round-trip byte-identical
+    # since _compute_leader_dot_signal reads
+    # quality_metrics["dot_leader_fraction"] for the LEADER_DOT_ROWS
+    # evidence dict.
+    assert c.quality_metrics == {
+        "dot_leader_fraction": 0.0,
+        "empty_cell_fraction": 0.15,
+        "col_count": 13,
+    }
+
+    # Substantiality-guard preview: with option (b) the guard still runs
+    # on dicts materialized from the typed model, but confirm the typed
+    # attribute values already satisfy the >= 10 rows AND >= 3 cols
+    # threshold — the guard would fire on this candidate.
+    assert c.row_count >= 10
+    assert c.col_count >= 3
+
+    # Round-trip via model_dump (what the shim does at the compute
+    # boundary) preserves quality_metrics scalars exactly.
+    round_tripped = c.model_dump()
+    assert round_tripped["quality_metrics"] == {
+        "dot_leader_fraction": 0.0,
+        "empty_cell_fraction": 0.15,
+        "col_count": 13,
+    }
+    assert round_tripped["row_count"] == 48
+    assert round_tripped["col_count"] == 13
+
+
+def test_adapter_handles_string_page_keys_in_raw_accumulator():
+    """The raw accumulator may serialize page keys as strings (JSON
+    round-trip). Adapter normalizes to int keys."""
+    doc = _mk_doc({
+        "table_rejected_candidates_by_page": {
+            "3": [{"strategy": "hrule", "page": 3, "bbox": [0, 0, 100, 100],
+                   "row_count": 5, "col_count": 2, "rejection_reasons": [], "quality_metrics": {}}],
+        },
+    })
+    PdfBlockTreeAdapter().populate(doc)
+    neutral = doc.metadata["rejected_table_candidates_by_page"]
+    assert 3 in neutral      # int key present
+    assert "3" not in neutral  # not the string version
+

@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from ...context import CompilationContext
 from ...models.block import BlockType
-from ...scoring.table_expectation import compute_table_expectation
+from ...scoring.source_profile import SourceProfile
+from ...scoring.table_expectation import RejectedTableCandidate, compute_table_expectation
 from ..base import ValidatorPlugin
 from ..registry import register_plugin
 
@@ -29,9 +30,38 @@ class TableExpectationValidator(ValidatorPlugin):
 
         doc = ctx.document
 
-        # Retrieve rejected candidates accumulated during parsing (keyed by int page)
-        rejected_by_page: dict = doc.metadata.get("table_rejected_candidates_by_page", {})
-        doc_type: str | None = doc.metadata.get("pdf_classification")
+        # Read via the neutral scoring contract when the PdfBlockTreeAdapter
+        # populated it (BLOCK_TREE_CONTRACT_DESIGN.md §3.1 / §3.2), else fall
+        # back to the raw pdf.py metadata keys with identical defaults.
+        # Backward-compat shim per §5.3 — retire the else branches once every
+        # parser adapter is in place.
+        #
+        # Option (b) migration: the neutral contract stores typed
+        # RejectedTableCandidate instances; we materialize back to raw dicts
+        # at the boundary so compute_table_expectation's existing list[dict]
+        # signature and .get("row_count") / .get("col_count") substantiality
+        # guard remain BYTE-IDENTICAL. Signature migration to typed input
+        # (design option a) is a separate follow-up PR.
+        neutral_rejected = doc.metadata.get("rejected_table_candidates_by_page")
+        if isinstance(neutral_rejected, dict):
+            rejected_by_page_dicts: dict = {
+                pg: [
+                    (c.model_dump() if isinstance(c, RejectedTableCandidate) else c)
+                    for c in (candidates or [])
+                ]
+                for pg, candidates in neutral_rejected.items()
+            }
+        else:
+            # Legacy path — parser did not populate the neutral contract.
+            rejected_by_page_dicts = doc.metadata.get(
+                "table_rejected_candidates_by_page", {}
+            )
+
+        sp = doc.metadata.get("source_profile")
+        if isinstance(sp, SourceProfile):
+            doc_type: str | None = sp.document_type_hint
+        else:
+            doc_type = doc.metadata.get("pdf_classification")
 
         # Group blocks by page and collect pages that already have a table
         blocks_by_page: dict[int, list] = {}
@@ -49,8 +79,11 @@ class TableExpectationValidator(ValidatorPlugin):
         pages_expected_not_extracted: list[int] = []
 
         for page_num, page_blocks in sorted(blocks_by_page.items()):
-            # Support both int and str keys in rejected_by_page
-            rejected = rejected_by_page.get(page_num) or rejected_by_page.get(str(page_num), [])
+            # Support both int and str keys in rejected_by_page_dicts
+            rejected = (
+                rejected_by_page_dicts.get(page_num)
+                or rejected_by_page_dicts.get(str(page_num), [])
+            )
 
             report = compute_table_expectation(
                 page=page_num,

@@ -23,6 +23,7 @@ from typing import Any, Literal
 from ..models.block import BlockType
 from ..models.document import Document
 from .source_profile import PageDim, SourceProfile
+from .table_expectation import RejectedTableCandidate
 
 # Sentinel string pdf.py's IMAGE-block emitter writes as the paragraph
 # content when it emits a placeholder for content it could not extract.
@@ -58,19 +59,69 @@ class PdfBlockTreeAdapter:
     """
 
     def populate(self, doc: Document) -> None:
-        """Compute and attach a ``SourceProfile`` at
-        ``doc.metadata["source_profile"]`` and set the
-        ``is_placeholder`` metadata key on placeholder-content blocks.
+        """Compute and attach the neutral scoring contract on ``doc``:
 
-        Overwrites any existing ``SourceProfile`` at that key and
-        overwrites any existing ``is_placeholder`` value on each block
-        the adapter touches. Does not remove or modify the raw
-        ``pdf_*`` keys — the design's backward-compat shim
-        (Section 5.3) relies on those keys remaining available while
-        consumers are migrated over.
+        - ``doc.metadata["source_profile"]`` — ``SourceProfile`` (Boundary 1).
+        - ``doc.metadata["rejected_table_candidates_by_page"]`` —
+          ``dict[int, list[RejectedTableCandidate]] | None`` (Boundary 2,
+          per BLOCK_TREE_CONTRACT_DESIGN.md §3.1). Opt-in: ``None`` when
+          the parser did not populate the raw accumulator.
+        - Per-paragraph-block ``metadata["is_placeholder"]`` on placeholder
+          content (transitional shim per §5.2).
+
+        Overwrites any existing values at those keys. Does not remove or
+        modify the raw ``pdf_*`` / ``table_rejected_candidates_by_page``
+        keys — the backward-compat shim (§5.3) relies on those keys
+        remaining available while consumers are migrated over.
         """
         doc.metadata["source_profile"] = self._build(doc)
+        doc.metadata["rejected_table_candidates_by_page"] = (
+            self._build_rejected_table_candidates(doc)
+        )
         self._populate_is_placeholder(doc)
+
+    def _build_rejected_table_candidates(
+        self, doc: Document,
+    ) -> dict[int, list[RejectedTableCandidate]] | None:
+        """Convert pdf.py's ``table_rejected_candidates_by_page`` raw dict
+        into the neutral ``dict[int, list[RejectedTableCandidate]]``.
+
+        Opt-in semantics per design §3.1:
+          - Raw key absent            → return ``None`` (parser opt-out)
+          - Raw key present, empty {} → return ``{}`` (considered, no rejects)
+          - Raw key populated         → convert each dict to typed model
+
+        One-to-one field mapping. ``quality_metrics`` is a dict-of-scalars
+        (``dot_leader_fraction: float``, ``empty_cell_fraction: float``,
+        ``col_count: int``) — passthrough preserves the three scalar
+        values through Pydantic's ``dict`` field type (no nested
+        conversion). The only downstream reader is
+        ``_compute_leader_dot_signal`` which accesses
+        ``quality_metrics["dot_leader_fraction"]`` for the evidence dict
+        of a LEADER_DOT_ROWS signal (does not gate the risk decision).
+        """
+        raw = doc.metadata.get("table_rejected_candidates_by_page")
+        if raw is None:
+            return None
+        result: dict[int, list[RejectedTableCandidate]] = {}
+        for page_key, candidates in raw.items():
+            try:
+                page_num = int(page_key)
+            except (TypeError, ValueError):
+                continue
+            typed_list: list[RejectedTableCandidate] = []
+            for c in candidates or []:
+                typed_list.append(RejectedTableCandidate(
+                    strategy=c.get("strategy", "unknown"),
+                    page=int(c.get("page", page_num)),
+                    bbox=list(c.get("bbox") or [0.0, 0.0, 0.0, 0.0]),
+                    row_count=int(c.get("row_count", 0)),
+                    col_count=int(c.get("col_count", 0)),
+                    rejection_reasons=list(c.get("rejection_reasons") or []),
+                    quality_metrics=dict(c.get("quality_metrics") or {}),
+                ))
+            result[page_num] = typed_list
+        return result
 
     def _populate_is_placeholder(self, doc: Document) -> None:
         """Set ``block.metadata["is_placeholder"]`` on paragraph blocks
