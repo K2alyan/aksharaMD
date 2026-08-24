@@ -158,10 +158,10 @@ In priority order, what stands between today and an unattended-production-certif
 4. **Parser mid-word font-boundary handling (5.2, `simple2`).** Rule at the same block-formation stage: do not split a word into differently-typed blocks on a mid-word font-style change (drop-cap / first-letter styling). Also lives in `pdf.py`, also not a detector. Separate from (3) — different mechanism, different fix path.
 
 (Items 3 and 4 were previously collapsed into a single "span-level multi-column detection" track. Post-2026-08-23 investigation showed neither failure is multi-column and neither fix is a detector; both are parser block-formation rules.)
-4. **Re-run the development split.** Only when 1–3 are projected to bring both gates green.
-5. **Open the sealed splits** (locked, then challenge) for the one clean generalization read. If they pass → certify. If not, the gap between dev and sealed performance is itself the next finding.
+5. **Re-run the development split.** Only when 1–4 are projected to bring both gates green.
+6. **Open the sealed splits** (locked, then challenge) for the one clean generalization read. If they pass → certify. If not, the gap between dev and sealed performance is itself the next finding.
 
-Until step 5 passes cleanly, the honest external statement is: the AI Readiness Score is a materially improved, stable extraction-reliability signal with four documented blind spots, not yet certified for unattended gating.
+Until step 6 passes cleanly, the honest external statement is: the AI Readiness Score is a materially improved, stable extraction-reliability signal with four documented blind spots, not yet certified for unattended gating.
 
 ---
 
