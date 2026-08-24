@@ -54,6 +54,8 @@ The following held up under the dev-split evaluation and are considered stable:
 
 These are the documents the scorer currently gets wrong, stated specifically so any reader can check whether their own corpus resembles them. Severity reflects how dangerous the failure is, not how hard it is to fix.
 
+Note on where these failures actually originate. After per-doc code-level investigation on 2026-08-23 (see the sub-section notes), **all three remaining doc-level residuals originate outside the readiness-scoring logic** — `de` in upstream document authoring (rasterized content before AksharaMD saw the file), `4c` and `simple2` in the PDF parser's block-formation stage. In all three cases the scorer's detectors behave correctly on the blocks they receive; the block sequence is well-formed and multi-column ordering is correct. This is materially relevant to the certified-parser direction, because it makes the residual failures parser-dependent — exactly the class per-parser certification exists to characterize.
+
 ### 5.1 `de` — content-bearing rasterized regions on text-classified pages · **Severity: MEDIUM**
 
 Corrected 2026-08-23. Prior versions of this document described `de` as an extraction failure ("text silently dropped, emitted as an `asset://` image reference"). That is empirically wrong. Investigation against `aksharamd/plugins/parsers/pdf.py` (both IMAGE-block emission sites at ~L1166 and ~L2322) confirmed there is no extraction-fallback path in the parser — IMAGE blocks are only ever emitted for genuine embedded raster objects present in the source PDF (or for whole-page raster on image-only pages, which lands in the `scanned` classification and is handled by `W_IMAGE_ONLY_TEXT_BAR_FAIL`).
@@ -66,13 +68,42 @@ Closing this requires OCR-ing embedded images to distinguish content-bearing ras
 
 Severity revised HIGH → MEDIUM: this is a bounded, understood routing gap (region-level vision path is not implemented), not a silent logic failure. The prior HIGH severity reflected an incorrect model of the mechanism.
 
-### 5.2 `simple2` — span-level multi-column reading order · **Severity: MEDIUM**
+### 5.2 `simple2` — mid-word block split on a first-letter font-style change · **Severity: MEDIUM**
 
-Multi-column text whose reading order is scrambled at the span level (within a line region, not between blocks) scores HIGH. The block-level multi-column detector does not reach this granularity. Closing it requires span-level multi-column detection, an open workstream whose design is not yet drafted; it remains a known placeholder, not implemented.
+Corrected 2026-08-23. Prior versions of this document described `simple2` as "span-level multi-column reading order." That framing was wrong twice over: the failure is not multi-column, and the fix is not a detector.
 
-### 5.3 `4c` — span-level multi-column, exposed by a correct parser fix · **Severity: MEDIUM**
+The actual mechanism is a **parser block-formation bug at mid-word font boundaries**. Investigation dump of the compiled output (see commit body for the full block-level receipts):
 
-`4c` now fails for the same span-level reason as `simple2`. Note for the record: this is not a regression. A deliberate parser fix (`c4dfe86`, PR #56 closing investigation #54) correctly reordered `4c`'s blocks column-first, which legitimately silenced the block-level signal that used to catch it by accident. The document was always a span-level case; the parser fix simply removed the coincidental catch. It joins the same deferred workstream as 5.2.
+```
+block 0: page=1  x0=85.1  y0=83.9  type=paragraph  content="**O**"
+block 1: page=1  x0=96.0  y0=83.9  type=heading    content="VERVIEW"
+```
+
+The visual word "OVERVIEW" at the top of page 1 uses a first-letter font style. The parser saw the font change mid-word and split it into two blocks of different types — a bolded "O" as a paragraph, and the rest of the word promoted to a heading. Both blocks are on the same visual line (identical `y0=83.9`, adjacent x-coordinates).
+
+Block ordering between the 9 blocks is correct: the multi-column-order validator computed `gap_rel=0.59, transition_rate=0.12, large_y_drops=1, warn=False`, and an independent cluster analysis confirmed 5 left-column blocks followed by 4 right-column blocks (transitions=1). The detector correctly does NOT warn — the block-level ordering is fine, and the scorer is behaving correctly on the blocks it received.
+
+The bug lives in the parser's span→block promotion stage. Closing it requires a parser rule at block formation: don't split a word into differently-typed blocks on a mid-word font change. This is not a new detector or a new scoring signal.
+
+Severity MEDIUM: the content-fidelity damage is bounded (one word visually fragmented, one spurious heading emitted). Damage does not propagate — only the styled first-letter transition is affected.
+
+### 5.3 `4c` — cross-column span merging within blocks · **Severity: MEDIUM**
+
+Corrected 2026-08-23. Prior versions of this document described `4c` as "span-level multi-column reading order." The reading-order framing is wrong; the actual mechanism is different.
+
+Confirmed against the code: `c4dfe86` (PR #56, closing investigation #54) reordered `4c`'s blocks column-first. Verified on the current compiled output — the 47 positional blocks form a column-first sequence with `transitions=1, longest_same_run=33` (14 left-cluster blocks followed by 33 right-cluster blocks). The multi-column-order validator computed `gap_rel=0.16, transition_rate=0.02, large_y_drops=2, warn=False` and correctly does NOT warn. Block-level reading order is textbook correct.
+
+The actual failure is **cross-column span merging within blocks**. The parser's span-clustering stage merges spans from adjacent columns into a single block when their y-coordinates overlap. Smoking gun — block 15 of the compiled output, verbatim:
+
+```
+**of Pharmacy Regula-** *Mike Davis **tory Authori
+```
+
+That one block contains three fragments — `"of Pharmacy Regula-"`, `"Mike Davis"`, `"tory Authori"` — from three different columns of the source PDF, joined into a single paragraph because their spans overlap in y. The block-level detector operates on already-formed blocks and correctly reports they're column-ordered; it has no way to see the within-block merge.
+
+Closing this requires span-clustering discipline at block formation: don't merge spans across distinct x-clusters even when their y-coordinates overlap. This is a parser rule, not a detector.
+
+Severity MEDIUM: the damage is more severe per affected block than `simple2` — merged content is genuinely nonsensical to a downstream reader — but bounded to blocks where cross-column content shares a y-band. The mechanism is understood and localized to the parser's span-clustering pass.
 
 ### 5.4 Document classifier — cannot distinguish multi-column text from real tables · **Severity: HIGH (systemic)**
 
@@ -100,7 +131,7 @@ What the verdict *does* give you is the honest input to that decision: a HIGH sc
 To choose your own point on that tradeoff, ask:
 
 1. **What does one silent failure cost me?** If a single wrong answer is expensive (legal, medical, financial), weight toward human review, and do not auto-ingest any band unattended until the gates pass. If wrong answers are cheap and recoverable, auto-ingesting HIGH may be acceptable today.
-2. **Does my corpus resemble the Section 5 documents?** Scanned/image-substituted pages (5.1), span-level multi-column layouts (5.2/5.3), and table-heavy documents (5.4) are where the risk concentrates. A corpus of clean single-column native-text PDFs is far less exposed than one full of scanned actuarial tables.
+2. **Does my corpus resemble the Section 5 documents?** Rasterized content on text-classified pages (5.1), documents that exercise mid-word font-style boundaries or overlapping-y multi-column layouts that trip the parser's block-formation stage (5.2/5.3), and table-heavy documents (5.4) are where the risk concentrates. A corpus of clean single-column native-text PDFs is far less exposed than one full of scanned actuarial tables or authoring-tool-generated PDFs with rasterized content.
 3. **Do I have a human backstop available at all?** If not, the honest posture today is to treat sub-HIGH as "hold" rather than "drop," and to sample-audit HIGH, because unattended full trust is not yet earned.
 
 Whatever rule you pick, record it, and re-evaluate it when the gates pass. The scorer's job is to give you an honest signal; the policy that acts on that signal is a decision this document equips you to make, not one it makes for you.
@@ -123,7 +154,10 @@ In priority order, what stands between today and an unattended-production-certif
 
 1. **Extend vision-routing to content-bearing image regions (5.1, `de`).** Adds region-level coverage to the existing whole-page vision path: OCR embedded images at parse time and, when a large fraction of an image's OCR text is present on a text-classified page, treat the page as needing vision-mode consumption rather than trusting the text layer alone. Complements `W_IMAGE_ONLY_TEXT_BAR_FAIL` (whole-page); the distinguishing information (text inside embedded images) requires new parser-layer surface area, not a signal on existing metadata.
 2. **Parser candidate-feature exposure (5.4, classifier).** Systemic. Requires surfacing finer per-candidate features from the parse layer so the classifier can separate text-columns from data-columns without circular dependence on downstream signals. This one is load-bearing for the whole table tier — until it lands, table-tier passes rest on coincidental redundancy.
-3. **Span-level multi-column detection (5.2/5.3, `simple2`, `4c`).** New capability, existing design placeholder.
+3. **Parser span-clustering discipline (5.3, `4c`).** Rule at the parser's span→block promotion stage: do not merge spans across distinct x-clusters when their y-coordinates overlap. Fix lives in `aksharamd/plugins/parsers/pdf.py` block formation, not in a new detector. Post-2026-08-23 code investigation confirmed the block-level ordering is already correct after PR #56; the corruption is within blocks.
+4. **Parser mid-word font-boundary handling (5.2, `simple2`).** Rule at the same block-formation stage: do not split a word into differently-typed blocks on a mid-word font-style change (drop-cap / first-letter styling). Also lives in `pdf.py`, also not a detector. Separate from (3) — different mechanism, different fix path.
+
+(Items 3 and 4 were previously collapsed into a single "span-level multi-column detection" track. Post-2026-08-23 investigation showed neither failure is multi-column and neither fix is a detector; both are parser block-formation rules.)
 4. **Re-run the development split.** Only when 1–3 are projected to bring both gates green.
 5. **Open the sealed splits** (locked, then challenge) for the one clean generalization read. If they pass → certify. If not, the gap between dev and sealed performance is itself the next finding.
 
@@ -137,7 +171,7 @@ Until step 5 passes cleanly, the honest external statement is: the AI Readiness 
 - **Controls:** `battery`, `2colmercedes`, `docusigned`, `gridofnumbers`, `webprint` — band and warning set unchanged across all Phase 4 changes.
 - **Classifier separation analysis (5.4):** rejection-reason overlap table (14/15 false positives share reason codes with real tables); preserved in issue #117.
 - **Rejected naive fix (5.4):** branch `wip/117-naive-classifier-fix-DO-NOT-MERGE`, retained for reference, not merged.
-- **Deferred design tracks:** `de` region-level vision routing / embedded-image OCR (new; supersedes the earlier "content-omission" framing after investigation on 2026-08-23 confirmed the parser has no extraction-fallback path); span-level multi-column (design not yet drafted); parser candidate-feature exposure (issue #117).
+- **Deferred design tracks (all confirmed as parser-side or upstream-side after 2026-08-23 code investigation):** `de` region-level vision routing / embedded-image OCR (new; supersedes the earlier "content-omission" framing after code review confirmed the parser has no extraction-fallback path); `4c` parser span-clustering discipline (fix in `pdf.py` block formation — supersedes the earlier "span-level multi-column detection" framing); `simple2` parser mid-word font-boundary handling (also in `pdf.py` block formation — was previously conflated with `4c` in the same span-level track); parser candidate-feature exposure (issue #117).
 - **Sealed splits:** locked and challenge — unopened as of this verdict.
 
 This verdict measures extraction reliability on a development corpus. Consistent with the project's stated limits, a high Readiness Score means text was extracted cleanly; it does not guarantee retrieval accuracy or final answer correctness. Run end-to-end retrieval evaluation against your own queries before production deployment.
