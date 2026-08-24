@@ -955,7 +955,10 @@ class RawPage(NamedTuple):
     width: float
     ocr_pixmap: bytes | None = None       # PNG bytes when page has < _OCR_TEXT_THRESHOLD chars
     embedded_image_bytes: list[bytes] = []  # per-image bytes for image-heavy pages (OCR use)
-    content_images: list[tuple[str, bytes]] = []  # (asset_id, bytes) for multimodal output
+    # (asset_id, bytes, bbox) for multimodal output; bbox is the image's
+    # on-page rectangle in PDF units (x0, y0, x1, y1). Whole-page rasters
+    # use page dimensions; embedded images use page.get_image_bbox().
+    content_images: list[tuple[str, bytes, tuple[float, float, float, float]]] = []
     math_bboxes: list[tuple[float, float, float, float]] = []  # bboxes of undecodable font spans (math candidates)
     rejected_candidates: list[dict] = []  # table candidates found but rejected by _is_quality_table
 
@@ -1157,14 +1160,20 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                 logger.debug("Image extraction failed on page %d xref %s",
                              page_num, img_info[0], exc_info=True)
 
-    # Extract content images for multimodal output
-    content_images: list[tuple[str, bytes]] = []
+    # Extract content images for multimodal output. Each entry carries a bbox
+    # in PDF units so downstream consumers (multimodal pipelines, region-level
+    # vision routing, future detectors) can reason about image placement
+    # without re-parsing.
+    content_images: list[tuple[str, bytes, tuple[float, float, float, float]]] = []
     if total_chars < _OCR_TEXT_THRESHOLD and ocr_pixmap is not None:
-        # Scanned page — the full raster IS the content image
+        # Scanned page — the full raster IS the content image. bbox is the
+        # full page rectangle.
         asset_id = hashlib.sha256(f"{page_num}:raster".encode()).hexdigest()[:12]
-        content_images.append((asset_id, ocr_pixmap))
+        page_bbox = (0.0, 0.0, float(page.rect.width), float(page.rect.height))
+        content_images.append((asset_id, ocr_pixmap, page_bbox))
     elif total_chars >= _OCR_TEXT_THRESHOLD and images:
-        # Text page — extract individual significant embedded images
+        # Text page — extract individual significant embedded images. Each
+        # image's on-page bbox comes from PyMuPDF's page.get_image_bbox().
         img_count = 0
         for img_info in page.get_images(full=True):
             if img_count >= _MAX_IMAGES_PER_PAGE:
@@ -1178,7 +1187,18 @@ def _extract_raw_page(pdf: fitz.Document, page_num: int, pdf_pl=None) -> RawPage
                 if (w >= _EMBED_MIN_PX and h >= _EMBED_MIN_PX
                         and raw_bytes and len(raw_bytes) <= _MAX_CONTENT_IMAGE_BYTES):
                     asset_id = hashlib.sha256(f"{page_num}:{xref}".encode()).hexdigest()[:12]
-                    content_images.append((asset_id, raw_bytes))
+                    # PyMuPDF returns a fitz.Rect; empty (unlocated) rects have
+                    # zero width/height. We record them regardless — downstream
+                    # code can filter on area if it needs to.
+                    try:
+                        bbox_rect = page.get_image_bbox(img_info)
+                        img_bbox = (
+                            float(bbox_rect.x0), float(bbox_rect.y0),
+                            float(bbox_rect.x1), float(bbox_rect.y1),
+                        )
+                    except Exception:
+                        img_bbox = (0.0, 0.0, 0.0, 0.0)
+                    content_images.append((asset_id, raw_bytes, img_bbox))
                     img_count += 1
             except Exception:
                 logger.debug("Content image extraction failed on page %d", page_num, exc_info=True)
@@ -2219,12 +2239,15 @@ def _process_raw_page(
 
     # Add IMAGE blocks for content images (after text, for multimodal output).
     # Content uses standard markdown image syntax so the reference survives in .md output.
-    for asset_id, _img_bytes in raw.content_images:
+    # bbox is recorded in the block metadata so downstream consumers can reason
+    # about image placement (region-level vision routing, multimodal pipelines,
+    # future detectors) without re-parsing. bbox is [x0, y0, x1, y1] in PDF units.
+    for asset_id, _img_bytes, img_bbox in raw.content_images:
         blocks.append(Block(
             type=BlockType.IMAGE,
             content=f"![Image on page {raw.page_num}](asset://{asset_id})",
             page=raw.page_num, index=0,
-            metadata={"asset_id": asset_id},
+            metadata={"asset_id": asset_id, "bbox": list(img_bbox)},
         ))
 
     assets = [
@@ -2234,7 +2257,7 @@ def _process_raw_page(
             page=raw.page_num,
             image_bytes=img_bytes,
         )
-        for asset_id, img_bytes in raw.content_images
+        for asset_id, img_bytes, _bbox in raw.content_images
     ]
 
     col_info: dict = {
@@ -2349,6 +2372,15 @@ def _parse_marker_markdown(
                 content=f"![{alt_text}](asset://{asset_id})",
                 page=page_num,
                 index=idx,
+                # NOTE: bbox is deliberately absent on the Marker path.
+                # Marker's returned images dict maps key -> PIL image and does not
+                # expose per-image on-page bbox. Reading Marker's internal block
+                # objects would give us bbox but requires a bigger refactor than
+                # this plumbing PR scopes. The Marker path only fires for image-
+                # only pages (see _apply_marker_to_image_pages), which are already
+                # handled at the scoring layer by W_IMAGE_ONLY_TEXT_BAR_FAIL, so
+                # downstream detectors that key on bbox on text-classified pages
+                # will not miss anything by treating a missing bbox as "unknown".
                 metadata={"asset_id": asset_id},
                 confidence=ExtractionConfidence.EXTRACTED,
             ))
