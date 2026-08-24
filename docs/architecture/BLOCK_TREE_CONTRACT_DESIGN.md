@@ -1,7 +1,7 @@
 # Block-Tree Contract — Design
 
 **Status:** design, not implementation. Zero code changes ship with this document.
-**As of:** main @ `c4f6298` (post PR #118 merge).
+**As of:** main @ `63c1e08` (post PRs #118, #119, #120 — bbox groundwork + verdict corrections + Section 8 renumbering).
 **Depends on:** `docs/architecture/SCORER_COUPLING_INVENTORY.md` (particularly Section H — Verification pass).
 
 ## Purpose

@@ -6,7 +6,7 @@
 
 **Scope:** every validator warning, every readiness deduction / cap, and every table-quality signal that feeds either the score or a cap. Content-shaping transformers (e.g. key-value promotion) are out of scope — they change what blocks the scorer sees but do not themselves emit warnings or deductions.
 
-**As of:** main @ `c4eb565`, `SCORING_POLICY_VERSION = 1.3`.
+**As of:** main @ `63c1e08`, `SCORING_POLICY_VERSION = 1.3`.
 
 Notation for inputs:
 - **B.field** = per-block attribute (`type`, `content`, `level`, `page`, `id`, `metadata`).
@@ -265,7 +265,7 @@ None of these counter-scenarios hold on inspection. The scoring layer is a refac
 
 ## Section H — Verification pass
 
-**As of:** main @ `c4eb565`. Re-read every COUPLED and BORDERLINE signal at its cited file:line, traced the actual field accesses, and re-checked classification. Also spot-checked the 5 highest-impact AGNOSTIC signals.
+**As of:** main @ `63c1e08`. Re-read every COUPLED and BORDERLINE signal at its cited file:line, traced the actual field accesses, and re-checked classification. Also spot-checked the 5 highest-impact AGNOSTIC signals. (Source files reviewed under this pass are byte-identical between the pre-verification-pass working state and `63c1e08` — only doc-only PRs #119 and #120 landed in between.)
 
 Preserves first-pass results — this section records what was verified vs what shifted, so the record shows both passes.
 
