@@ -3110,6 +3110,13 @@ class PDFParser(ParserPlugin):
             metadata=pdf_metadata,
         )
         doc.compute_id()
+        # Populate the parser-neutral SourceProfile contract on the Document
+        # so downstream scoring can read via the neutral surface instead of
+        # raw pdf_* metadata keys. See BLOCK_TREE_CONTRACT_DESIGN.md §5.1.
+        # This is a pure population — raw pdf_* keys stay on doc.metadata
+        # for the backward-compat shim window.
+        from ...scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
+        PdfBlockTreeAdapter().populate(doc)
         ctx.document = doc
         return ctx
 

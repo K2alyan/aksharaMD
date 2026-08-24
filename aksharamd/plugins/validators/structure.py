@@ -180,12 +180,39 @@ class StructureValidator(ValidatorPlugin):
 
         # ── OCR required but unavailable ───────────────────────────────────────
         if doc.file_type == "pdf":
-            classification = doc.metadata.get("pdf_classification", "")
-            ocr_available = doc.metadata.get("pdf_ocr_available", True)
-            pdf_stats = doc.metadata.get("pdf_stats", {})
-            image_pages = pdf_stats.get("image_pages", 0)
-            text_pages = pdf_stats.get("text_pages", 0)
-            page_count = pdf_stats.get("page_count", doc.pages or 0)
+            # Read via the neutral SourceProfile contract when present, else
+            # fall back to the raw pdf_* metadata keys with identical
+            # defaults. Backward-compat shim per BLOCK_TREE_CONTRACT_DESIGN.md
+            # §5.3 — retire the else branch once every parser adapter is in
+            # place. This is a source swap: the gate expressions below are
+            # unchanged, only the SOURCE of the six values changes.
+            from ...scoring.source_profile import SourceProfile
+            sp = doc.metadata.get("source_profile")
+            if isinstance(sp, SourceProfile):
+                classification = sp.document_type_hint or ""
+                ocr_available = sp.ocr_capability == "available"
+                image_pages = sp.pages_without_text_layer
+                text_pages = sp.pages_with_text_layer
+                page_count = sp.pages_total or (doc.pages or 0)
+                hallucination = sp.hallucinated_pages > 0
+            else:
+                # LEGACY-PIPELINE DEFAULT ASSUMPTION: pdf_ocr_available
+                # defaults to True here — this is structure.py's historical
+                # default and differs from readiness.py's default False for
+                # the same raw key. Safe today only because pdf.py always
+                # populates every raw pdf_* key on the PDF path; a non-PDF
+                # or synthetic Document that reaches this fallback WITHOUT
+                # those keys would produce divergent OCR-availability
+                # judgments between the two consumers. The divergence
+                # retires along with this else-branch once every parser
+                # populates SourceProfile.
+                classification = doc.metadata.get("pdf_classification", "")
+                ocr_available = doc.metadata.get("pdf_ocr_available", True)
+                pdf_stats = doc.metadata.get("pdf_stats", {})
+                image_pages = pdf_stats.get("image_pages", 0)
+                text_pages = pdf_stats.get("text_pages", 0)
+                page_count = pdf_stats.get("page_count", doc.pages or 0)
+                hallucination = bool(doc.metadata.get("pdf_ocr_hallucination"))
 
             if classification in ("scanned", "hybrid") and not ocr_available and image_pages > 0:
                 ctx.warn(
@@ -197,7 +224,7 @@ class StructureValidator(ValidatorPlugin):
                     "(B) pip install aksharamd[vision]  — no system binary required, uses Surya neural OCR and reconstructs table structure; requires PyTorch (~3 GB download)",
                 )
 
-            if doc.metadata.get("pdf_ocr_hallucination"):
+            if hallucination:
                 ctx.warn(
                     "OCR_HALLUCINATION",
                     "The vision OCR model produced repetitive output on one or more pages, "
