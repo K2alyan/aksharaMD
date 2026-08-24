@@ -10,7 +10,7 @@ records (including suppressed ones), and human-readable notes.
 from __future__ import annotations
 
 from ..context import CompilationContext
-from ..models.block import BlockType
+from ..models.block import Block, BlockType
 from .models import (
     SCORING_POLICY_VERSION,
     DeductionRecord,
@@ -188,15 +188,30 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
 
     # ── New quality-signal penalties ───────────────────────────────────────────
 
+    # Read placeholder-status via the neutral Block.metadata.is_placeholder
+    # flag when the SourceProfile adapter populated it, else fall back to
+    # the sentinel-in-content grep. Both branches identify the same set of
+    # blocks on the current pdf.py path — the adapter's shim sets
+    # is_placeholder=True on exactly the sentinel-matching paragraphs (see
+    # PdfBlockTreeAdapter._populate_is_placeholder). Backward-compat shim
+    # per BLOCK_TREE_CONTRACT_DESIGN.md §5.2 + §5.3.
     _IMAGE_PLACEHOLDER_SENTINEL = "[Image not extracted"
+
+    def _is_placeholder(b: Block) -> bool:
+        if b.metadata and b.metadata.get("is_placeholder"):
+            return True
+        return (
+            b.type == BlockType.PARAGRAPH
+            and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or "")
+        )
+
     placeholder_paragraphs = [
         b for b in blocks
-        if b.type == BlockType.PARAGRAPH and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or "")
+        if b.type == BlockType.PARAGRAPH and _is_placeholder(b)
     ]
     real_content_blocks = [
         b for b in blocks
-        if b.type not in (BlockType.IMAGE,)
-        and not (b.type == BlockType.PARAGRAPH and _IMAGE_PLACEHOLDER_SENTINEL in (b.content or ""))
+        if b.type not in (BlockType.IMAGE,) and not _is_placeholder(b)
     ]
     image_placeholder_only = (
         bool(placeholder_paragraphs)
@@ -238,11 +253,24 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # Backward-compat shim resolver: return either the populated
+    # SourceProfile or None. Downstream code reads via SourceProfile when
+    # present, else falls back to raw pdf_* keys with today's defaults.
+    # BLOCK_TREE_CONTRACT_DESIGN.md §5.3 — retire once every parser
+    # adapter is in place.
+    from .source_profile import SourceProfile as _SourceProfile
+    _sp = doc.metadata.get("source_profile")
+    _sp = _sp if isinstance(_sp, _SourceProfile) else None
+
     # OCR required but unavailable
     ocr_required_fired = bool(warnings_by_code.get("OCR_REQUIRED", 0))
     if ocr_required_fired:
-        classification = doc.metadata.get("pdf_classification", "")
-        image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
+        if _sp is not None:
+            classification = _sp.document_type_hint or ""
+            image_pages = _sp.pages_without_text_layer
+        else:
+            classification = doc.metadata.get("pdf_classification", "")
+            image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
         total_pages = max(doc.pages, 1)
         image_ratio = image_pages / total_pages
         ded = min(40, int(40 * image_ratio) + 10)
@@ -265,14 +293,29 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
         ))
 
     # OCR attempted but produced sparse output
+    if _sp is not None:
+        _sparse_ocr_available = _sp.ocr_capability == "available"
+        _sparse_image_pages = _sp.pages_without_text_layer
+    else:
+        # LEGACY-PIPELINE DEFAULT ASSUMPTION: pdf_ocr_available defaults
+        # to False here — this is readiness.py's historical default and
+        # differs from structure.py's default True for the same raw key.
+        # Safe today only because pdf.py always populates every raw pdf_*
+        # key on the PDF path; a non-PDF or synthetic Document that
+        # reaches this fallback WITHOUT those keys would produce divergent
+        # OCR-availability judgments between the two consumers. The
+        # divergence retires along with this else-branch once every
+        # parser populates SourceProfile.
+        _sparse_ocr_available = doc.metadata.get("pdf_ocr_available", False)
+        _sparse_image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
     ocr_attempted_sparse = (
         not ocr_required_fired
         and file_type == "pdf"
         and bool(warnings_by_code.get("NEAR_EMPTY_OUTPUT", 0))
-        and doc.metadata.get("pdf_ocr_available", False)
+        and _sparse_ocr_available
     )
     if ocr_attempted_sparse:
-        image_pages = doc.metadata.get("pdf_stats", {}).get("image_pages", 0)
+        image_pages = _sparse_image_pages
         total_pages = max(doc.pages, 1)
         image_ratio = image_pages / total_pages
         ded = min(40, int(40 * image_ratio) + 10)
@@ -452,8 +495,19 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
 
     # PDF classification note
     if file_type == "pdf":
-        classification = doc.metadata.get("pdf_classification", "")
-        stats = doc.metadata.get("pdf_stats", {})
+        # Same SourceProfile shim as above. `tp` (pages_containing_tables)
+        # is the risky field per BLOCK_TREE_CONTRACT_DESIGN.md §2.3 —
+        # reads pdf_stats.table_pages directly, never derived from block
+        # types.
+        if _sp is not None:
+            classification = _sp.document_type_hint or ""
+            ip = _sp.pages_without_text_layer
+            tp = _sp.pages_containing_tables
+        else:
+            classification = doc.metadata.get("pdf_classification", "")
+            stats = doc.metadata.get("pdf_stats", {})
+            ip = stats.get("image_pages", 0)
+            tp = stats.get("table_pages", 0)
         if classification:
             label_map = {
                 "native_text": "native text PDF",
@@ -464,8 +518,6 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 "low_confidence": "PDF with low extraction confidence",
             }
             label = label_map.get(classification, classification)
-            ip = stats.get("image_pages", 0)
-            tp = stats.get("table_pages", 0)
             detail_parts = []
             if ip:
                 detail_parts.append(f"{ip} image-only page(s)")
