@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
@@ -28,7 +27,6 @@ from aksharamd.models.document import Document
 from aksharamd.scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
 from aksharamd.scoring.source_profile import PageDim, SourceProfile
 from aksharamd.scoring.table_expectation import RejectedTableCandidate
-
 from tests._sourceprofile_fixtures import generate_fixtures
 
 
