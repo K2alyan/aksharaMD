@@ -194,11 +194,11 @@ Fired when either XML tag residue (numeric-suffixed fragments like `</pt192>` or
 
 **Maturity:** candidate  |  **Effect:** caps readiness at 69 (RISKY band)
 
-Fired when a PDF is classified `scanned` (image_ratio ≥ 0.80) AND every page is image-only (`text_pages == 0`). Ratified per `docs/calibration/USP_CLAIM_V1.md` §5.2 as the "text-only bar": even when OCR runs successfully, the extracted content is not verbatim source text and cannot be treated as HIGH-fidelity for the text-only consumption path.
+Fired when a PDF is classified `scanned` (image_ratio ≥ 0.80) AND every page is image-only (`text_pages == 0`). This is the "text-only bar": even when OCR runs successfully, the extracted content is not verbatim source text and cannot be treated as HIGH-fidelity for the text-only consumption path.
 
 Fires independently of OCR state. When OCR is unavailable, `OCR_REQUIRED` also fires — the two warnings coexist and the deduction for this cap is suppressed via the standard "score already <= cap" pattern.
 
-Multimodal consumption (via `compile_to_multimodal()`) with the image assets is a valid alternative but is not scored as HIGH by the current readiness policy. Multimodal-target scoring is deferred (`USP_CLAIM_V1.md` §5.2 Option A ratified).
+Multimodal consumption (via `compile_to_multimodal()`) with the image assets is a valid alternative but is not scored as HIGH by the current readiness policy. Multimodal-target scoring is deferred.
 
 **Action:** For text-only consumption, verify the OCR output manually or use a document with a real text layer. For multimodal consumption, the page image bytes are captured and can be routed to a vision-capable model.
 
