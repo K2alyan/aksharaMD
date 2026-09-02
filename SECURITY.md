@@ -143,7 +143,7 @@ The following Dependabot vulnerability alerts are present in the lockfile but **
   - `aksharamd/plugins/ocr_backends/unlimited_ocr/adapter.py` — Unlimited-OCR pinned model loader.
   - `aksharamd/plugins/ocr_backends/eval_override.py` — audited module-local eval override for that specific model's remote-code surface.
 - Both are gated by a byte-level trust manifest (`unlimited_ocr_trusted_manifest.json`) verified against the pinned revision `d549bb9d6a055dbe291408916d66acc2cd5920f6` of `baidu/Unlimited-OCR` before any load. The model repo id is a hardcoded constant; **no user input reaches the model-id argument**.
-- Full static review of the trusted code lives at `docs/security/unlimited_ocr_static_review_d549bb9d.md`. The eval-override sandbox restricts what the remote code may do, and is unit-tested in `tests/test_unlimited_ocr_eval_override.py`.
+- The eval-override sandbox restricts what the remote code may do, and is unit-tested in `tests/test_unlimited_ocr_eval_override.py`.
 - Unlimited-OCR is NOT wired into the default compile flow (PR 94 will add explicit opt-in `--ocr-backend unlimited_ocr` selection). Base installs do not import `torch` or `transformers` at package load — enforced by `tests/test_unlimited_ocr_no_heavy_import.py`.
 - `marker-pdf 1.10.2` (installed) has 0 references across 130 `.py` files.
 - `surya-ocr 0.17.1` (installed) has 0 references across 87 `.py` files.

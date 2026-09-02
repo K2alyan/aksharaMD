@@ -29,12 +29,7 @@ from aksharamd.scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
 from aksharamd.scoring.source_profile import PageDim, SourceProfile
 from aksharamd.scoring.table_expectation import RejectedTableCandidate
 
-# Fixture generator lives under tools/analysis/. It's a script directory not
-# on sys.path by default; add it so the test can import the generator without
-# polluting the runtime package tree.
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_REPO_ROOT / "tools" / "analysis"))
-from generate_sourceprofile_fixtures import generate_fixtures  # noqa: E402
+from tests._sourceprofile_fixtures import generate_fixtures
 
 
 @pytest.fixture(scope="session")

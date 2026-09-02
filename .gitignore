@@ -75,3 +75,49 @@ mcp_config.json
 .claude/
 CLAUDE.md
 tmp_*.txt
+
+# Local-only scratch & analysis (never committed)
+tools_scratch/
+tools/analysis/
+.cleanup-remove.txt
+
+# Internal engineering docs — never committed to the public repo
+docs/architecture/
+docs/calibration/
+docs/adr/
+docs/security/
+docs/validation/
+docs/IDENTITY_DESIGN.md
+docs/OCR_AUTO_CALIBRATION_HARNESS.md
+ADR.md
+comparison.md
+benchmark_liteparse.py
+
+# Dated benchmark run outputs (regenerated per-run, keep locally, never commit)
+benchmarks/*_2026-*
+benchmarks/*.checkpoint.json
+benchmarks/*.stdout.log
+benchmarks/EXPECTATION_VALIDATION_REPORT_V*.md
+benchmarks/READINESS_CALIBRATION_DEV_REPORT.md
+benchmarks/READINESS_CALIBRATION_VERDICT.md
+benchmarks/SIDEBAR_*.json
+benchmarks/SIDEBAR_*.md
+benchmarks/PARSEBENCH_REFERENCE_FETCH_DESIGN.md
+benchmarks/expectation_validation_run*.json
+benchmarks/expectation_detector_lock_v*.json
+benchmarks/table_quality_baseline*.json
+benchmarks/multicolumn_recalibration_labels.json
+benchmarks/parsebench_assets.proposed.json
+benchmarks/pdf_benchmark_v1_*human_reviews.json
+benchmarks/pdf_benchmark_v1_manifest.json
+benchmarks/hallucination_inspection_*/
+benchmarks/results/comparison_benchmark_*.jsonl
+benchmarks/results/comparison_benchmark_*.md
+
+# Ad-hoc benchmark harnesses (one-off, not framework)
+benchmarks/a1_*_harness.py
+benchmarks/a2_*.py
+benchmarks/multicolumn_*.py
+benchmarks/sidebar_*.py
+benchmarks/parsebench_recalibration*.py
+benchmarks/pdf_benchmark_v1_parity_audit.py
