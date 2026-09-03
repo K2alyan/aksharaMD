@@ -92,9 +92,9 @@ def _check_allowed_path(file_path: str) -> str | None:
 # public API (`.tool()`, `.run()`, `.streamable_http_app()`, constructor
 # kwargs) is unchanged, so we just try both import paths.
 try:
-    from mcp.server.fastmcp import FastMCP as _MCPServer  # noqa: I001  # type: ignore[import-not-found,unused-ignore]  # mcp 1.x
-except ModuleNotFoundError:  # pragma: no cover - depends on installed mcp version
-    from mcp.server.mcpserver import MCPServer as _MCPServer  # noqa: I001  # type: ignore[import-not-found,no-redef,unused-ignore]  # mcp 2.x
+    from mcp.server.fastmcp import FastMCP as _MCPServer  # type: ignore[import-not-found,attr-defined,unused-ignore]  # noqa: I001  # mcp 1.x
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - depends on installed mcp version
+    from mcp.server.mcpserver import MCPServer as _MCPServer  # type: ignore[import-not-found,attr-defined,no-redef,unused-ignore]  # noqa: I001  # mcp 2.x
 
 mcp = _MCPServer(
     name="aksharamd",
@@ -237,9 +237,9 @@ def compile_document_multimodal(file_path: str) -> list:
 
     # See top-of-file note re: mcp 1.x vs 2.x import paths.
     try:
-        from mcp.server.fastmcp import Image as MCPImage  # noqa: I001  # type: ignore[import-not-found,unused-ignore]  # mcp 1.x
-    except ModuleNotFoundError:  # pragma: no cover - depends on installed mcp version
-        from mcp.server.mcpserver import Image as MCPImage  # noqa: I001  # type: ignore[import-not-found,no-redef,unused-ignore]  # mcp 2.x
+        from mcp.server.fastmcp import Image as MCPImage  # type: ignore[import-not-found,attr-defined,unused-ignore]  # noqa: I001  # mcp 1.x
+    except (ModuleNotFoundError, ImportError):  # pragma: no cover - depends on installed mcp version
+        from mcp.server.mcpserver import Image as MCPImage  # type: ignore[import-not-found,attr-defined,no-redef,unused-ignore]  # noqa: I001  # mcp 2.x
 
     from aksharamd.compiler import Compiler
 
