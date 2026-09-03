@@ -40,7 +40,7 @@ dependencies = [
     # Pinned to <2 because mcp 2.0.0 (released 2026-08) restructured its API
     # and `FastMCP` is no longer exposed at `mcp.server.fastmcp` or `mcp.server`.
     # Migrating to the 2.x API is a separate track. See PR #108 discussion.
-    "mcp[cli]>=1.0,<2",
+    "mcp[cli]>=1.0,<3",
     "requests>=2.28",
     "defusedxml>=0.7",
     # optional heavy deps — install separately for full support:

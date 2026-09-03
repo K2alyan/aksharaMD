@@ -87,9 +87,16 @@ def _check_allowed_path(file_path: str) -> str | None:
             f"({_ALLOWED_ROOT}). Set AKSHARAMD_ALLOWED_ROOT to permit it."
         )
 
-from mcp.server.fastmcp import FastMCP
+# mcp 1.x exposes FastMCP at `mcp.server.fastmcp`; mcp 2.x renamed it to
+# MCPServer at `mcp.server.mcpserver` and dropped the old path entirely. The
+# public API (`.tool()`, `.run()`, `.streamable_http_app()`, constructor
+# kwargs) is unchanged, so we just try both import paths.
+try:
+    from mcp.server.fastmcp import FastMCP as _MCPServer  # type: ignore[import-not-found,attr-defined,unused-ignore]  # noqa: I001  # mcp 1.x
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - depends on installed mcp version
+    from mcp.server.mcpserver import MCPServer as _MCPServer  # type: ignore[import-not-found,attr-defined,no-redef,unused-ignore]  # noqa: I001  # mcp 2.x
 
-mcp = FastMCP(
+mcp = _MCPServer(
     name="aksharamd",
     instructions=(
         "AksharaMD compiles documents (PDF, DOCX, HTML, CSV, images, audio, and 30+ more "
@@ -228,7 +235,11 @@ def compile_document_multimodal(file_path: str) -> list:
 
     import base64
 
-    from mcp.server.fastmcp import Image as MCPImage
+    # See top-of-file note re: mcp 1.x vs 2.x import paths.
+    try:
+        from mcp.server.fastmcp import Image as MCPImage  # type: ignore[import-not-found,attr-defined,unused-ignore]  # noqa: I001  # mcp 1.x
+    except (ModuleNotFoundError, ImportError):  # pragma: no cover - depends on installed mcp version
+        from mcp.server.mcpserver import Image as MCPImage  # type: ignore[import-not-found,attr-defined,no-redef,unused-ignore]  # noqa: I001  # mcp 2.x
 
     from aksharamd.compiler import Compiler
 
