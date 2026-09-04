@@ -4,13 +4,13 @@ from __future__ import annotations
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
+from aksharamd.models.stitching_profile import PageRowRange, StitchingProfile
 from aksharamd.models.table import (
     BoundingBox,
     ExtractionMethod,
     TableCell,
     TableData,
 )
-from aksharamd.models.stitching_profile import PageRowRange, StitchingProfile
 from aksharamd.scoring.table_quality import (
     SigName,
     TableQualityReport,

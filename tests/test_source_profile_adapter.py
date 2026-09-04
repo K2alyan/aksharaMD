@@ -25,8 +25,8 @@ import pytest
 
 from aksharamd.models.block import Block
 from aksharamd.models.document import Document
-from aksharamd.models.table import ExtractionMethod, TableCell, TableData
 from aksharamd.models.stitching_profile import PageRowRange, StitchingProfile
+from aksharamd.models.table import ExtractionMethod, TableCell, TableData
 from aksharamd.scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
 from aksharamd.scoring.source_profile import PageDim, SourceProfile
 from aksharamd.scoring.table_expectation import RejectedTableCandidate
