@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ....models.block import Block, BlockType
+from ....models.stitching_profile import PageRowRange, StitchingProfile
 from ....models.table import ExtractionMethod, TableCell, TableData
 
 # ── Markdown-string helpers (used for legacy blocks without table_data) ────────
@@ -63,6 +64,16 @@ def _stitch_structured(
 
     new_row_count = row_offset + (b_td.row_count - b_start_row)
 
+    # Boundary-3 (parser-neutral scoring refactor): populate the typed
+    # StitchingProfile as a first-class TableData field. The scorer
+    # (compute_table_quality) reads this typed profile exclusively — the
+    # PDF_STITCHED extraction_method gate and the five td.metadata keys
+    # below are no longer consulted by the scorer. The metadata keys are
+    # RETAINED here as a producer-side compatibility surface for downstream
+    # non-scoring readers (table_splitter's per-chunk source_pages
+    # narrowing, table-serialization tests). When those readers migrate
+    # to td.stitching in a follow-up PR, the metadata writes can be
+    # dropped.
     metadata: dict = {
         **{k: v for k, v in (a_td.metadata or {}).items()
            if k not in ("source_pages", "page_row_ranges", "source_table_methods",
@@ -81,6 +92,21 @@ def _stitch_structured(
         "stitching_confidence": "inferred",
     }
 
+    stitching = StitchingProfile(
+        source_pages=[a_page, b_page],
+        source_table_methods=[
+            str(a_td.extraction_method or ""),
+            str(b_td.extraction_method or ""),
+        ],
+        page_row_ranges=[
+            PageRowRange(page=a_page, row_start=0, row_end=row_offset - 1),
+            PageRowRange(page=b_page, row_start=row_offset,
+                         row_end=new_row_count - 1),
+        ],
+        repeated_header_removed=repeated_header,
+        stitching_confidence="inferred",
+    )
+
     return TableData(
         row_count=new_row_count,
         column_count=a_td.column_count,
@@ -92,6 +118,7 @@ def _stitch_structured(
         page=a_td.page,
         extraction_method=ExtractionMethod.PDF_STITCHED,
         metadata=metadata,
+        stitching=stitching,
     )
 
 
