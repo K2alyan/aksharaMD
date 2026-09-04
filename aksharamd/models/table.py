@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from .stitching_profile import StitchingProfile
+
 
 class ExtractionMethod(StrEnum):
     XLSX_NATIVE     = "xlsx.native"
@@ -70,6 +72,7 @@ class TableData(BaseModel):
     extraction_method: ExtractionMethod | None = None
     confidence: str | None = None
     metadata: dict = Field(default_factory=dict)
+    stitching: StitchingProfile | None = None
     id: str = ""                            # set to block.id after block context is known
 
     @model_validator(mode="after")

@@ -23,10 +23,14 @@ from pathlib import Path
 
 import pytest
 
+from aksharamd.models.block import Block
 from aksharamd.models.document import Document
+from aksharamd.models.stitching_profile import PageRowRange, StitchingProfile
+from aksharamd.models.table import ExtractionMethod, TableCell, TableData
 from aksharamd.scoring.pdf_block_tree_adapter import PdfBlockTreeAdapter
 from aksharamd.scoring.source_profile import PageDim, SourceProfile
 from aksharamd.scoring.table_expectation import RejectedTableCandidate
+from aksharamd.scoring.table_quality import SigName, compute_table_quality
 from tests._sourceprofile_fixtures import generate_fixtures
 
 
@@ -389,4 +393,247 @@ def test_adapter_handles_string_page_keys_in_raw_accumulator():
     neutral = doc.metadata["rejected_table_candidates_by_page"]
     assert 3 in neutral      # int key present
     assert "3" not in neutral  # not the string version
+
+
+# ── Boundary 3: table-level stitching-profile contract ───────────────────────
+#
+# These tests cover the third boundary of the parser-neutral refactor: the
+# stitching-signal group in ``compute_table_quality`` reads a typed
+# ``StitchingProfile`` field on ``TableData`` instead of the five pdf.py-
+# specific ``td.metadata`` keys and the ``ExtractionMethod.PDF_STITCHED``
+# gate. This is Shape 2 in the design menu — typed first-class field, not a
+# metadata-dict shim.
+#
+# Boundary contract:
+#   * Gate: ``td.stitching is not None`` (nothing else)
+#   * Semantics: same signal values as pre-refactor
+#   * Parser-neutral: any parser can populate the typed profile; the scorer
+#     does not care whether the ``extraction_method`` is PDF_STITCHED or not
+#   * Hard cut: the five old metadata keys and the ``PDF_STITCHED`` string
+#     literal are gone from ``table_quality.py``
+
+
+def _b3_make_stitched_td(
+    rows: int = 4,
+    cols: int = 2,
+    *,
+    stitching: StitchingProfile | None,
+    extraction_method: ExtractionMethod | None = None,
+) -> TableData:
+    """Build a minimal 4-row / 2-col TableData with optional stitching profile
+    and optional extraction_method.
+
+    Both parameters are independent — this lets tests verify that the
+    scorer's gate is purely ``td.stitching is not None`` and does NOT depend
+    on ``extraction_method``.
+    """
+    cells = [
+        TableCell(text=f"r{r}c{c}", row=r, column=c)
+        for r in range(rows)
+        for c in range(cols)
+    ]
+    return TableData(
+        row_count=rows,
+        column_count=cols,
+        cells=cells,
+        header_rows=[0],
+        header_detection="assumed_first_row",
+        span_detection="unsupported",
+        extraction_method=extraction_method,
+        stitching=stitching,
+    )
+
+
+def _b3_stitching_signal_names() -> set[str]:
+    return {
+        SigName.STITCHED_SOURCE_PAGE_COUNT,
+        SigName.REPEATED_HEADER_REMOVED,
+        SigName.STITCHING_CONFIDENCE,
+        SigName.SOURCE_METHOD_CONSISTENCY,
+        SigName.PAGE_ROW_RANGES_AVAILABLE,
+        SigName.ROW_CONTINUITY_OK,
+    }
+
+
+def test_boundary3_pdf_stitched_signals_match_prerefactor_semantics():
+    """A PDF-stitched table with a full StitchingProfile produces the same
+    signal values the pre-refactor code produced for the same inputs.
+
+    Byte-identical field-by-field: the profile is the only input the
+    scorer consults; the values below are the exact values the pre-
+    refactor ``_stitching_signals`` computed from the equivalent
+    ``td.metadata`` dict.
+    """
+    sp = StitchingProfile(
+        source_pages=[1, 2],
+        source_table_methods=["pdf.ruled", "pdf.ruled"],
+        page_row_ranges=[
+            PageRowRange(page=1, row_start=0, row_end=1),
+            PageRowRange(page=2, row_start=2, row_end=3),
+        ],
+        repeated_header_removed=False,
+        stitching_confidence="inferred",
+    )
+    td = _b3_make_stitched_td(
+        rows=4, cols=2, stitching=sp,
+        extraction_method=ExtractionMethod.PDF_STITCHED,
+    )
+    block = Block.from_table(td, page=1, index=0)
+    report = compute_table_quality(block)
+
+    def _val(name: str):
+        s = next((s for s in report.signals if s.name == name), None)
+        return None if s is None else s.value
+
+    def _stat(name: str):
+        s = next((s for s in report.signals if s.name == name), None)
+        return None if s is None else s.status
+
+    assert _val(SigName.STITCHED_SOURCE_PAGE_COUNT) == 2
+    assert _val(SigName.REPEATED_HEADER_REMOVED) is False
+    assert _val(SigName.STITCHING_CONFIDENCE) == "inferred"
+    assert _stat(SigName.STITCHING_CONFIDENCE) == "risk"
+    assert _val(SigName.SOURCE_METHOD_CONSISTENCY) is True
+    assert _val(SigName.PAGE_ROW_RANGES_AVAILABLE) is True
+    assert _val(SigName.ROW_CONTINUITY_OK) is True
+
+
+def test_boundary3_non_pdf_parser_can_receive_stitching_signals():
+    """A parser with no relation to PDF (extraction_method=None or
+    HTML_NATIVE) can construct a TableData with a StitchingProfile and
+    still receive the full stitching signal set.
+
+    This is the load-bearing parser-neutrality property: the scorer no
+    longer requires ``ExtractionMethod.PDF_STITCHED`` to emit the
+    stitching signal group.
+    """
+    sp = StitchingProfile(
+        source_pages=[7, 8],
+        source_table_methods=["html.native", "html.native"],
+        page_row_ranges=[
+            PageRowRange(page=7, row_start=0, row_end=1),
+            PageRowRange(page=8, row_start=2, row_end=3),
+        ],
+        repeated_header_removed=True,
+        stitching_confidence="inferred",
+    )
+    td = _b3_make_stitched_td(
+        rows=4, cols=2, stitching=sp,
+        extraction_method=ExtractionMethod.HTML_NATIVE,
+    )
+    block = Block.from_table(td, page=7, index=0)
+    report = compute_table_quality(block)
+
+    emitted = {s.name for s in report.signals}
+    assert _b3_stitching_signal_names().issubset(emitted), (
+        f"Non-PDF parser did not receive stitching signals; "
+        f"missing: {_b3_stitching_signal_names() - emitted}"
+    )
+
+
+def test_boundary3_stitching_none_returns_neutral_no_signals():
+    """A table with ``stitching=None`` (the default) receives ZERO
+    stitching signals, regardless of ``extraction_method``.
+
+    Same behavior as the pre-refactor code returned for tables where
+    ``extraction_method != PDF_STITCHED``; the new gate is stricter (it
+    ignores the extraction method entirely) but produces the same visible
+    output for the common case.
+    """
+    td = _b3_make_stitched_td(
+        rows=3, cols=2, stitching=None,
+        extraction_method=ExtractionMethod.PDF_STITCHED,  # deliberately set
+    )
+    block = Block.from_table(td, page=1, index=0)
+    report = compute_table_quality(block)
+
+    emitted = {s.name for s in report.signals}
+    assert not (emitted & _b3_stitching_signal_names()), (
+        "stitching=None must emit ZERO stitching signals even if "
+        f"extraction_method==PDF_STITCHED. Leaked: "
+        f"{emitted & _b3_stitching_signal_names()}"
+    )
+
+
+def test_boundary3_pdf_stitched_extraction_method_is_not_required():
+    """A table with a StitchingProfile but ``extraction_method=None``
+    still receives the stitching signals.
+
+    Confirms the new gate is purely ``td.stitching is not None``. Under
+    the pre-refactor code, this table would have received no stitching
+    signals because ``extraction_method != PDF_STITCHED``.
+    """
+    sp = StitchingProfile(
+        source_pages=[1, 2],
+        source_table_methods=[],
+        page_row_ranges=[],
+        repeated_header_removed=None,
+        stitching_confidence="unknown",
+    )
+    td = _b3_make_stitched_td(
+        rows=3, cols=2, stitching=sp,
+        extraction_method=None,
+    )
+    block = Block.from_table(td, page=1, index=0)
+    report = compute_table_quality(block)
+
+    emitted = {s.name for s in report.signals}
+    assert _b3_stitching_signal_names().issubset(emitted), (
+        f"Missing stitching signals when extraction_method=None; "
+        f"missing: {_b3_stitching_signal_names() - emitted}"
+    )
+
+
+def test_boundary3_static_assertion_no_pdf_stitched_literal_in_table_quality():
+    """Static tripwire: the string ``PDF_STITCHED`` must not appear in
+    ``table_quality.py`` — the scorer must not gate on this pdf.py-specific
+    extraction method.
+    """
+    tq_path = Path(__file__).resolve().parents[1] / "aksharamd" / "scoring" / "table_quality.py"
+    contents = tq_path.read_text(encoding="utf-8")
+    assert "PDF_STITCHED" not in contents, (
+        "PDF_STITCHED must not appear in table_quality.py — the scorer's "
+        "stitching gate is purely td.stitching is not None (Boundary 3)."
+    )
+
+
+def test_boundary3_static_assertion_no_old_metadata_reads_in_table_quality():
+    """Static tripwire: the scorer must not read the five old
+    ``td.metadata`` keys used by the pre-refactor stitching code path.
+
+    The check targets metadata-dict access patterns (``.metadata.get(``,
+    ``.metadata[``, ``meta.get(``, ``meta[``) with each of the five old
+    key names. The typed ``StitchingProfile`` is the only stitching input
+    the scorer reads.
+
+    The class attribute names ``REPEATED_HEADER_REMOVED``,
+    ``STITCHING_CONFIDENCE``, and ``PAGE_ROW_RANGES_AVAILABLE`` on
+    ``SigName`` continue to hold the string signal-name values (those
+    are emitted signal names, not metadata-dict keys) — this test is
+    scoped to metadata-dict access patterns and therefore does not
+    conflict with those attributes.
+    """
+    tq_path = Path(__file__).resolve().parents[1] / "aksharamd" / "scoring" / "table_quality.py"
+    contents = tq_path.read_text(encoding="utf-8")
+    banned_keys = (
+        "source_pages",
+        "source_table_methods",
+        "page_row_ranges",
+        "repeated_header_removed",
+        "stitching_confidence",
+    )
+    # Match .metadata.get("<key>"), .metadata["<key>"], meta.get("<key>"),
+    # meta["<key>"] — any dict-access pattern with the banned key names.
+    forbidden_patterns = []
+    for key in banned_keys:
+        for prefix in ('.metadata.get("', ".metadata.get('",
+                       '.metadata["', ".metadata['",
+                       'meta.get("', "meta.get('",
+                       'meta["', "meta['"):
+            forbidden_patterns.append(prefix + key)
+    hits = [p for p in forbidden_patterns if p in contents]
+    assert not hits, (
+        "Scorer must not read the pre-refactor td.metadata stitching keys. "
+        f"Found reads matching: {hits}"
+    )
 

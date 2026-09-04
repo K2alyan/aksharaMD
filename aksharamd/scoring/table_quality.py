@@ -11,7 +11,7 @@ import statistics
 from pydantic import BaseModel, Field
 
 from ..models.block import Block
-from ..models.table import ExtractionMethod, TableData
+from ..models.table import TableData
 
 # ── Data models ────────────────────────────────────────────────────────────────
 
@@ -424,29 +424,39 @@ def _geometry_signals(
 # ── Stitching quality ──────────────────────────────────────────────────────────
 
 def _stitching_signals(td: TableData) -> list[TableQualitySignal]:
-    em = td.extraction_method
-    if em is None or str(em) != str(ExtractionMethod.PDF_STITCHED):
+    """Emit the stitching-quality signal group.
+
+    Boundary 3 of the parser-neutral refactor: the only gate is
+    ``td.stitching is not None``. The pdf.py-specific extraction-method
+    gate and the five metadata-dict reads are removed. Any parser that
+    produces a stitched table populates ``TableData.stitching`` with a
+    typed ``StitchingProfile`` and receives the same signals as the
+    pre-refactor PDF path did.
+
+    Signal semantics unchanged; only the input plumbing changed.
+    """
+    sp = td.stitching
+    if sp is None:
         return []
 
-    meta = td.metadata or {}
-    source_pages: list = meta.get("source_pages", [])
-    source_methods: list[str] = meta.get("source_table_methods", [])
-    page_row_ranges: list[dict] = meta.get("page_row_ranges", [])
-    repeated_removed: bool | None = meta.get("repeated_header_removed")
-    stitching_confidence: str = meta.get("stitching_confidence", "unknown")
+    source_pages = list(sp.source_pages)
+    source_methods = list(sp.source_table_methods)
+    page_row_ranges = list(sp.page_row_ranges)
+    repeated_removed = sp.repeated_header_removed
+    stitching_confidence = sp.stitching_confidence
 
     # Row continuity: page_row_ranges should cover all rows with no gaps
     row_continuity_ok = True
     if page_row_ranges:
-        sorted_ranges = sorted(page_row_ranges, key=lambda e: e["row_start"])
+        sorted_ranges = sorted(page_row_ranges, key=lambda e: e.row_start)
         for i, entry in enumerate(sorted_ranges):
-            if i == 0 and entry["row_start"] != 0:
+            if i == 0 and entry.row_start != 0:
                 row_continuity_ok = False
                 break
-            if i > 0 and entry["row_start"] != sorted_ranges[i - 1]["row_end"] + 1:
+            if i > 0 and entry.row_start != sorted_ranges[i - 1].row_end + 1:
                 row_continuity_ok = False
                 break
-        if sorted_ranges and sorted_ranges[-1]["row_end"] != td.row_count - 1:
+        if sorted_ranges and sorted_ranges[-1].row_end != td.row_count - 1:
             row_continuity_ok = False
 
     method_consistent = len(set(m for m in source_methods if m)) <= 1

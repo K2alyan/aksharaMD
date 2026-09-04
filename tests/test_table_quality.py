@@ -4,6 +4,7 @@ from __future__ import annotations
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType
 from aksharamd.models.document import Document
+from aksharamd.models.stitching_profile import PageRowRange, StitchingProfile
 from aksharamd.models.table import (
     BoundingBox,
     ExtractionMethod,
@@ -426,21 +427,24 @@ def test_geometry_valid_small_table_near_margin_but_not_short():
 # ── Stitching quality ──────────────────────────────────────────────────────────
 
 def _make_stitched_td(rows: list[list[str]]) -> TableData:
+    # Boundary-3: stitching signals gate on td.stitching, not extraction_method
+    # or td.metadata. The extraction_method is kept for producer parity but is
+    # no longer consulted by the scorer.
     td = _make_td(rows, extraction_method=ExtractionMethod.PDF_STITCHED)
-    td = td.model_copy(update={"metadata": {
-        "source_pages": [1, 2],
-        "source_table_methods": [
+    stitching = StitchingProfile(
+        source_pages=[1, 2],
+        source_table_methods=[
             str(ExtractionMethod.PDF_RULED),
             str(ExtractionMethod.PDF_RULED),
         ],
-        "page_row_ranges": [
-            {"page": 1, "row_start": 0, "row_end": len(rows) // 2},
-            {"page": 2, "row_start": len(rows) // 2 + 1, "row_end": len(rows) - 1},
+        page_row_ranges=[
+            PageRowRange(page=1, row_start=0, row_end=len(rows) // 2),
+            PageRowRange(page=2, row_start=len(rows) // 2 + 1, row_end=len(rows) - 1),
         ],
-        "repeated_header_removed": False,
-        "stitching_confidence": "inferred",
-    }})
-    return td
+        repeated_header_removed=False,
+        stitching_confidence="inferred",
+    )
+    return td.model_copy(update={"stitching": stitching})
 
 
 def test_stitching_signals_present_for_stitched_table():
@@ -466,32 +470,32 @@ def test_stitching_confidence_inferred_is_risk():
 
 def test_stitching_repeated_header_removed_recorded():
     td = _make_td([["H"], ["R1"], ["R2"]], extraction_method=ExtractionMethod.PDF_STITCHED)
-    td = td.model_copy(update={"metadata": {
-        "source_pages": [1, 2],
-        "source_table_methods": ["pdf.ruled", "pdf.ruled"],
-        "page_row_ranges": [
-            {"page": 1, "row_start": 0, "row_end": 1},
-            {"page": 2, "row_start": 2, "row_end": 2},
+    td = td.model_copy(update={"stitching": StitchingProfile(
+        source_pages=[1, 2],
+        source_table_methods=["pdf.ruled", "pdf.ruled"],
+        page_row_ranges=[
+            PageRowRange(page=1, row_start=0, row_end=1),
+            PageRowRange(page=2, row_start=2, row_end=2),
         ],
-        "repeated_header_removed": True,
-        "stitching_confidence": "inferred",
-    }})
+        repeated_header_removed=True,
+        stitching_confidence="inferred",
+    )})
     report = compute_table_quality(_make_block(td))
     assert _value(report, SigName.REPEATED_HEADER_REMOVED) is True
 
 
 def test_stitching_mixed_extraction_methods_noted():
     td = _make_td([["H"], ["R1"], ["R2"]], extraction_method=ExtractionMethod.PDF_STITCHED)
-    td = td.model_copy(update={"metadata": {
-        "source_pages": [1, 2],
-        "source_table_methods": ["pdf.ruled", "pdf.whitespace"],  # mixed
-        "page_row_ranges": [
-            {"page": 1, "row_start": 0, "row_end": 1},
-            {"page": 2, "row_start": 2, "row_end": 2},
+    td = td.model_copy(update={"stitching": StitchingProfile(
+        source_pages=[1, 2],
+        source_table_methods=["pdf.ruled", "pdf.whitespace"],  # mixed
+        page_row_ranges=[
+            PageRowRange(page=1, row_start=0, row_end=1),
+            PageRowRange(page=2, row_start=2, row_end=2),
         ],
-        "repeated_header_removed": False,
-        "stitching_confidence": "inferred",
-    }})
+        repeated_header_removed=False,
+        stitching_confidence="inferred",
+    )})
     report = compute_table_quality(_make_block(td))
     assert _value(report, SigName.SOURCE_METHOD_CONSISTENCY) is False
 
