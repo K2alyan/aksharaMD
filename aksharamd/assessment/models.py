@@ -6,7 +6,7 @@ import mimetypes
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ASSESSMENT_SCHEMA_VERSION = "1.0"
 GENERAL_INGESTION_POLICY_ID = "general-ingestion-v1"  # Historical replay policy; do not retarget.
@@ -69,7 +69,8 @@ class Artifact(BaseModel):
     def from_path(cls, path: str | Path, *, logical_id: str | None = None):
         resolved = Path(path)
         data = resolved.read_bytes()
-        media_type = mimetypes.guess_type(resolved.name)[0]
+        media_type = ("text/markdown" if resolved.suffix.lower() in {".md", ".markdown"}
+                      else mimetypes.guess_type(resolved.name)[0])
         if media_type is None and resolved.suffix.lower() in {".md", ".markdown", ".txt", ".rst"}:
             media_type = "text/plain"
         return cls(
@@ -98,6 +99,8 @@ class RequiredLiteralRelationship(BaseModel):
     deliberately does not infer a semantic relation from natural language.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     first_literal: str = Field(min_length=1)
     second_literal: str = Field(min_length=1)
     max_characters_between: int = Field(default=160, ge=0)
@@ -119,7 +122,17 @@ class TaskProfile(BaseModel):
     general relevance or usefulness score.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     schema_version: str = TASK_PROFILE_SCHEMA_VERSION
+
+    @field_validator("schema_version")
+    @classmethod
+    def _supported_version(cls, value: str) -> str:
+        if value != TASK_PROFILE_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported task profile schema version: {value}")
+        return value
+
     purpose: str = Field(min_length=1)
     required_literals: list[str] = Field(default_factory=list)
     required_relationships: list[RequiredLiteralRelationship] = Field(default_factory=list)

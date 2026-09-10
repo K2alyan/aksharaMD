@@ -72,7 +72,11 @@ class Assessor:
                 code="SOURCE_IDENTITY_MISMATCH", dimension="conversion_fidelity", severity="critical",
                 message="Candidate provenance names a different source artifact.", origin="unknown",
             ))
-        structure = self._structure(candidate_text, candidate_supported)
+        # CommonMark must see the literal Markdown bytes, not entity-decoded
+        # text (entities inside code fences are not Markdown delimiters).
+        structural_text = (candidate.data.decode("utf-8", errors="replace")
+                           if policy_id == DEFAULT_ASSESSMENT_POLICY_ID else candidate_text)
+        structure = self._structure(structural_text, candidate_supported, policy_id=policy_id)
         integrity = self._integrity(source_text, source_supported, candidate_text, candidate_supported)
         task_suitability = self._task_suitability(candidate_text, candidate_supported, task_profile)
         dimensions = {
@@ -113,11 +117,14 @@ class Assessor:
         return DimensionResult(status=EvidenceStatus.OBSERVED, verdict=Verdict.PASS, evidence=[evidence])
 
     @staticmethod
-    def _structure(text, supported):
+    def _structure(text, supported, *, policy_id=GENERAL_INGESTION_POLICY_ID):
         if not supported:
             return DimensionResult(status=EvidenceStatus.UNKNOWN, verdict=Verdict.UNDETERMINED)
-        unbalanced = text.count("```") % 2
-        evidence = EvidenceItem(check_id="markdown_fence_balance", status=EvidenceStatus.OBSERVED,
+        unbalanced = (_unclosed_fences(text) if policy_id == DEFAULT_ASSESSMENT_POLICY_ID
+                      else text.count("```") % 2)
+        evidence = EvidenceItem(check_id="markdown_fence_balance",
+                                check_version="2" if policy_id == DEFAULT_ASSESSMENT_POLICY_ID else "1",
+                                status=EvidenceStatus.OBSERVED,
                                 measurement=float(unbalanced), unit="unbalanced_fences")
         if unbalanced:
             return DimensionResult(status=EvidenceStatus.OBSERVED, verdict=Verdict.FAIL, evidence=[evidence], findings=[Finding(
@@ -246,3 +253,39 @@ class Assessor:
         if any(dimensions[name].status in {EvidenceStatus.UNKNOWN, EvidenceStatus.FAILED} for name in required):
             return AssessmentDisposition.ABSTAIN, NextAction.REVIEW
         return AssessmentDisposition.ACCEPT, NextAction.NONE
+
+
+def _unclosed_fences(text: str) -> int:
+    """Use CommonMark's fence rule while container-adjusted line state is live.
+
+    Parsed token maps alone lose the indentation adjustments made by quotes
+    and lists. Inspect the closing line inside the rule wrapper, before those
+    containers restore their state. The parser remains responsible for finding
+    all opening and closing boundaries.
+    """
+    from markdown_it import MarkdownIt
+    from markdown_it.rules_block import fence
+
+    unclosed = 0
+
+    def checked_fence(state, start_line, end_line, silent):
+        nonlocal unclosed
+        matched = fence(state, start_line, end_line, silent)
+        if matched and not silent:
+            token = state.tokens[-1]
+            last_line = state.line - 1
+            closed = False
+            if last_line > start_line:
+                start = state.bMarks[last_line] + state.tShift[last_line]
+                ending = state.src[start:state.eMarks[last_line]]
+                indentation = state.sCount[last_line] - state.blkIndent
+                closed = (0 <= indentation < 4 and re.fullmatch(
+                    re.escape(token.markup[0]) + "{" + str(len(token.markup)) + ",}[ \t]*", ending
+                ) is not None)
+            unclosed += int(not closed)
+        return matched
+
+    parser = MarkdownIt("commonmark")
+    parser.block.ruler.at("fence", checked_fence, {"alt": ["paragraph", "reference", "blockquote", "list"]})
+    parser.parse(text)
+    return unclosed
