@@ -36,7 +36,8 @@ class Manifest(BaseModel):
     images: int = 0
     tables: int = 0
     original_tokens: int = Field(default=0, description=(
-        "Parser-reported extracted-text baseline (falls back to output count when absent); "
+        "Post-cleaning, pre-optimization text baseline for the built-in pipeline "
+        "(falls back to output count when absent); "
         "not raw-file or provider input tokens."
     ))
     optimized_tokens: int = Field(default=0, description=(

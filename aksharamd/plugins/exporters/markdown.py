@@ -55,7 +55,7 @@ class MarkdownExporter(ExporterPlugin):
         out.mkdir(parents=True, exist_ok=True)
 
         content = render_markdown(ctx.document)
-        (out / "document.md").write_text(content, encoding="utf-8")
+        (out / "document.md").write_bytes(content.encode("utf-8"))
         return ctx
 
 

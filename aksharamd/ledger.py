@@ -1,7 +1,8 @@
 """Persistent savings ledger stored at ~/.aksharamd/ledger.jsonl.
 
 Each line is a JSON object recording one compilation. Counts compare the
-parser-reported extraction baseline with emitted Markdown using local estimates;
+built-in pipeline's post-cleaning, pre-optimization text baseline with emitted
+Markdown using local estimates;
 they do not measure raw-file/provider usage or billed monetary savings. Negative
 savings record expansions. Historical clipped savings are corrected on read.
 The ledger grows by append — never rewritten — so it survives crashes and is

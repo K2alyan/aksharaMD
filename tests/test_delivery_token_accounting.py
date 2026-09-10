@@ -11,6 +11,7 @@ from aksharamd.utils import count_tokens
 
 @pytest.mark.parametrize("markdown", [
     "```python\nprint(42)\n```",
+    "```python\nx\n \ny\n```",
     "### Quarterly revenue",
     "| Product | Revenue |\n| --- | --- |\n| Alpha | USD 125 |",
     "# Report\n\n```python\nprint(42)\n```\n\n> Evidence survives.",
@@ -21,7 +22,7 @@ def test_manifest_counts_exact_string_and_export(markdown, tmp_path):
     compiler = Compiler(output_dir=str(tmp_path / "out"))
     text, string_ctx = compiler.compile_to_string(str(source))
     export_ctx = compiler.compile(str(source))
-    exported = (tmp_path / "out" / "document.md").read_text(encoding="utf-8")
+    exported = (tmp_path / "out" / "document.md").read_bytes().decode("utf-8")
     manifest = json.loads((tmp_path / "out" / "manifest.json").read_text(encoding="utf-8"))
     assert text == exported
     assert string_ctx.manifest.optimized_tokens == count_tokens(text)
