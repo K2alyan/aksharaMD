@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
+from ...models.document import Document
 from ..base import ExporterPlugin
 from ..registry import register_plugin
 
@@ -36,6 +37,12 @@ def _block_to_md(block: Block) -> str:
         return block.content
 
 
+def render_markdown(document: Document) -> str:
+    """Render the exact Markdown shared by string delivery and file export."""
+    lines = [_block_to_md(block) for block in document.blocks]
+    return "\n\n".join(line for line in lines if line)
+
+
 class MarkdownExporter(ExporterPlugin):
     name = "markdown_exporter"
     priority = 90
@@ -47,13 +54,7 @@ class MarkdownExporter(ExporterPlugin):
         out = Path(ctx.output_dir)
         out.mkdir(parents=True, exist_ok=True)
 
-        lines = []
-        for block in ctx.document.blocks:
-            md = _block_to_md(block)
-            if md:
-                lines.append(md)
-
-        content = "\n\n".join(lines)
+        content = render_markdown(ctx.document)
         (out / "document.md").write_text(content, encoding="utf-8")
         return ctx
 

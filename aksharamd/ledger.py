@@ -1,6 +1,9 @@
 """Persistent savings ledger stored at ~/.aksharamd/ledger.jsonl.
 
-Each line is a JSON object recording one compilation.
+Each line is a JSON object recording one compilation. Counts compare the
+parser-reported extraction baseline with emitted Markdown using local estimates;
+they do not measure raw-file/provider usage or billed monetary savings. Negative
+savings record expansions. Historical clipped savings are corrected on read.
 The ledger grows by append — never rewritten — so it survives crashes and is
 safe to read from multiple processes. It is compacted to _MAX_ENTRIES when it
 grows past _COMPACT_AT to prevent unbounded disk and memory growth.
@@ -69,7 +72,7 @@ def append_entry(
         file_type=file_type,
         original_tokens=original_tokens,
         optimized_tokens=optimized_tokens,
-        saved_tokens=max(0, original_tokens - optimized_tokens),
+        saved_tokens=original_tokens - optimized_tokens,
         elapsed_seconds=elapsed_seconds,
     )
     try:
@@ -92,7 +95,9 @@ def read_entries() -> list[LedgerEntry]:
             if not line:
                 continue
             try:
-                entries.append(LedgerEntry(**json.loads(line)))
+                entry = LedgerEntry(**json.loads(line))
+                entry.saved_tokens = entry.original_tokens - entry.optimized_tokens
+                entries.append(entry)
             except Exception:
                 logger.debug("Skipping malformed ledger line", exc_info=True)
     except Exception:

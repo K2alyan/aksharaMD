@@ -35,10 +35,10 @@ def test_append_multiple_entries():
     assert {e.source for e in entries} == {"a.txt", "b.pdf"}
 
 
-def test_saved_tokens_clamped_to_zero():
+def test_expansion_records_negative_savings():
     append_entry("small.md", "md", 100, 200, 0.1)
     entries = read_entries()
-    assert entries[0].saved_tokens == 0
+    assert entries[0].saved_tokens == -100
 
 
 def test_get_stats_empty_returns_empty_dict():
@@ -106,3 +106,29 @@ def test_ledger_entry_ts_is_string():
     entries = read_entries()
     assert isinstance(entries[0].ts, str)
     assert entries[0].ts  # non-empty
+
+
+def test_mixed_savings_and_expansion_reconcile():
+    append_entry("a.md", "md", 100, 50, 0.1)
+    append_entry("b.md", "md", 100, 200, 0.1)
+    stats = get_stats()
+    assert stats["total_saved_tokens"] == -50
+    assert stats["total_saved_tokens"] == (
+        stats["total_original_tokens"] - stats["total_optimized_tokens"]
+    )
+    assert stats["by_file_type"]["md"]["saved"] == -50
+    assert stats["reduction_percent"] == -25.0
+
+
+def test_historical_clipped_expansion_is_corrected_on_read():
+    import aksharamd.ledger as ledger
+
+    append_entry("old.md", "md", 100, 200, 0.1)
+    path = ledger._ledger_path()
+    old_record = json.loads(path.read_text(encoding="utf-8"))
+    old_record["saved_tokens"] = 0
+    path.write_text(json.dumps(old_record) + "\n", encoding="utf-8")
+    assert read_entries()[0].saved_tokens == -100
+    assert get_stats()["recent"][0]["saved_tokens"] == -100
+    assert get_stats()["total_saved_tokens"] == -100
+    assert json.loads(path.read_text(encoding="utf-8"))["saved_tokens"] == 0
