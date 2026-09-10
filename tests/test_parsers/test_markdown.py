@@ -205,3 +205,44 @@ def test_quote_source_map_does_not_treat_unicode_separators_as_lines(tmp_path):
     text = "First\u2028second\u2028third\u2028last"
     ctx = _parse("> " + text + "\n\nOutside", tmp_path)
     assert [b.content for b in ctx.document.blocks] == [text, "Outside"]
+
+
+def test_compiled_admonition_preserves_nested_code_and_blank_lines(tmp_path):
+    from markdown_it import MarkdownIt
+
+    from aksharamd.compiler import Compiler
+
+    code = "if ready:\n    ship()\n\n    notify()\n"
+    source = "> [!NOTE]\n> ```python\n> if ready:\n>     ship()\n>\n>     notify()\n> ```"
+    path = tmp_path / "admonition.md"
+    path.write_text(source, encoding="utf-8")
+    output = tmp_path / "compiled"
+    ctx = Compiler(output_dir=str(output)).compile(str(path))
+    assert len(ctx.document.blocks) == 1
+    block = ctx.document.blocks[0]
+    assert block.type == BlockType.ADMONITION
+    assert block.content == "```python\n" + code + "```"
+    rendered = (output / "document.md").read_text(encoding="utf-8")
+    fences = [t for t in MarkdownIt().parse(rendered) if t.type == "fence"]
+    assert len(fences) == 1
+    assert fences[0].content == code
+    assert fences[0].info == "python"
+    assert rendered.startswith("> **NOTE**:\n>\n> ```python")
+
+
+def test_compiled_quote_keeps_unicode_separator_as_literal_content(tmp_path):
+    from aksharamd.compiler import Compiler
+
+    source = "> First\u2028second\u2028third\u2028last"
+    path = tmp_path / "unicode.md"
+    path.write_text(source, encoding="utf-8")
+    output = tmp_path / "compiled"
+    Compiler(output_dir=str(output)).compile(str(path))
+    assert (output / "document.md").read_text(encoding="utf-8") == source
+
+
+def test_admonition_marker_inside_quoted_code_stays_literal(tmp_path):
+    ctx = _parse(">     [!NOTE]\n>     literal", tmp_path)
+    assert len(ctx.document.blocks) == 1
+    assert ctx.document.blocks[0].type == BlockType.BLOCKQUOTE
+    assert ctx.document.blocks[0].content == "    [!NOTE]\n    literal"

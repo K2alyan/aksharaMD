@@ -160,14 +160,15 @@ class MarkdownParser(ParserPlugin):
                 quote_lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
                 parts = [re.sub(r"^ {0,3}> ?", "", line, count=1) for line in quote_lines[start:end]]
                 if parts:
-                    m = _GH_ADMONITION_RE.match(parts[0].strip())
+                    m = (_GH_ADMONITION_RE.match(parts[0].strip())
+                         if tokens[i + 1].type == "paragraph_open" else None)
                     if m:
                         admonition_type = m.group(1).lower()
                         # Body is everything after the [!TYPE] tag on the first line,
                         # plus all subsequent lines.
                         first_body = parts[0].strip()[m.end():].strip()
                         rest = parts[1:]
-                        body = "\n".join(filter(None, [first_body] + rest)).strip()
+                        body = "\n".join(([first_body] if first_body else []) + rest)
                         blocks.append(Block(
                             type=BlockType.ADMONITION,
                             content=body,

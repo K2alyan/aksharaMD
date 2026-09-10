@@ -34,7 +34,7 @@ class DefaultCleaner(CleanerPlugin):
             # Numeric text (including apparent page labels) can be source facts.
             # Without furniture provenance, preserve it.
             # Normalize text content — skip LIST/CODE blocks whose indentation is meaningful
-            if block.type not in (BlockType.LIST, BlockType.CODE_BLOCK, BlockType.BLOCKQUOTE):
+            if block.type not in (BlockType.LIST, BlockType.CODE_BLOCK, BlockType.BLOCKQUOTE, BlockType.ADMONITION):
                 block = block.model_copy(update={"content": _normalize_text(block.content)})
             # Keep block if it has content OR is an IMAGE (images may have empty alt text)
             if block.content or block.type == BlockType.IMAGE:
