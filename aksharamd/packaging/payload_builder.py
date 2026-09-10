@@ -170,7 +170,11 @@ def select_table_serialization(
 
     # Never trade away inline data for a reference that cannot be followed.
     reference_formats = {TablePayloadFormat.PREVIEW_REFERENCE, TablePayloadFormat.JSON_REFERENCE}
-    candidates = [c for c in candidates if c.format not in reference_formats or c.artifact_path]
+    candidates = [
+        c for c in candidates
+        if c.format not in reference_formats
+        or (c.artifact_path and profile.allow_table_artifact_references)
+    ]
     if not candidates:
         raise ValueError("No table serialization with inline content or a usable artifact reference")
     full_inline = [c for c in candidates if c.preserves_all_rows_inline]
@@ -246,7 +250,7 @@ def render_table_for_payload(
 
     # Legacy json_reference override (kept for backward compat)
     fmt = getattr(profile, "table_payload_format", "markdown")
-    if fmt == "json_reference" and artifact_path:
+    if fmt == "json_reference" and artifact_path and profile.allow_table_artifact_references:
         tid = getattr(table_data, "id", "") or block_id or "unnamed"
         text = f"[Table: {tid}]"
         cand = TableSerializationCandidate(
@@ -254,6 +258,7 @@ def render_table_for_payload(
             token_count=count_text_tokens(text),
             preserves_all_rows_inline=False, preserves_structure_inline=False,
             artifact_path=artifact_path,
+            omitted_row_count=max(0, table_data.row_count - len(table_data.header_rows)),
         )
         return text, cand
 

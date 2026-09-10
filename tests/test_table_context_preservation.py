@@ -216,3 +216,43 @@ def test_selector_rejects_unavailable_reference_candidates():
         [inline, unavailable], "adaptive", PackageProfile(max_inline_table_tokens=1), 1
     )
     assert selected == inline
+
+
+def test_disabled_references_override_legacy_format_and_external_candidates(tmp_path):
+    from aksharamd.packaging.payload_builder import select_table_serialization
+
+    table = _context_table("simple")
+    profile = PackageProfile(table_payload_format="json_reference", allow_table_artifact_references=False,
+                             table_payload_strategy="reference_only", max_inline_table_tokens=1)
+    text, candidate = render_table_for_payload(table, profile, artifact_path="tables/t.json")
+    assert candidate.preserves_all_rows_inline
+    assert "100" in text and "80" in text
+    candidates = build_table_candidates(table, "t", "tables/t.json", 0, PackageProfile())
+    selected = select_table_serialization(candidates, "adaptive", profile, 0)
+    assert selected.format not in {TablePayloadFormat.JSON_REFERENCE, TablePayloadFormat.PREVIEW_REFERENCE}
+    block = Block.from_table(table, page=1)
+    doc = Document(source="table.xlsx", blocks=[block])
+    doc.document_id = doc.id = "disabled-ref"
+    plan = plan_document(doc, profile)
+    assets, _ = PackageWriter().write(tmp_path, plan, doc, None)
+    payload = build_llm_payload(plan, doc, tmp_path, assets, profile)
+    item = next(i for i in payload.items if i.content_type == PayloadContentType.STRUCTURED_TABLE)
+    assert item.inline_complete
+    assert item.table_rows_omitted == 0
+    assert "100" in item.table_markdown
+
+
+def test_legacy_reference_reports_zero_inline_rows(tmp_path):
+    block = Block.from_table(_context_table("simple"), page=1)
+    doc = Document(source="table.xlsx", blocks=[block])
+    doc.document_id = doc.id = "legacy-ref"
+    profile = PackageProfile(table_payload_format="json_reference")
+    plan = plan_document(doc, profile)
+    assets, _ = PackageWriter().write(tmp_path, plan, doc, None)
+    payload = build_llm_payload(plan, doc, tmp_path, assets, profile)
+    item = next(i for i in payload.items if i.content_type == PayloadContentType.STRUCTURED_TABLE)
+    assert item.table_payload_format == "json_reference"
+    assert not item.inline_complete
+    assert item.table_rows_inline == 0
+    assert item.table_rows_omitted == item.table_rows_total == 1
+    assert (tmp_path / item.full_table_artifact_path).is_file()
