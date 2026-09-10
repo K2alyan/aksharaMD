@@ -92,8 +92,8 @@ def test_read_entries_skips_malformed_lines(tmp_path, monkeypatch):
     })
     fake_file.write_text("not valid json\n\n" + valid + "\n", encoding="utf-8")
 
-    monkeypatch.setattr(_ledger, "_LEDGER_DIR", fake_dir)
-    monkeypatch.setattr(_ledger, "_LEDGER_FILE", fake_file)
+    monkeypatch.setattr(ledger, "_LEDGER_DIR", fake_dir)
+    monkeypatch.setattr(ledger, "_LEDGER_FILE", fake_file)
 
     entries = ledger.read_entries()
     assert len(entries) == 1
