@@ -1,7 +1,8 @@
 # AksharaMD — Downstream LLM Accuracy Benchmark
 
 > Primary benchmark results were collected on **AksharaMD v0.3.3**. The current
-> package version is v0.3.6 (no parser changes that affect these results).
+> package version was v0.3.6 when this report was written. Results are historical
+> and must not be transferred to later code without a new measurement.
 > Methodology and reproducibility limitations are described in detail below.
 >
 > **Study 1** (token efficiency and speed) was measured on an internal production
@@ -12,15 +13,25 @@
 > licensing); which formats are re-downloadable from public sources is documented
 > in `benchmarks/corpus_manifest.json`.
 
+> **Review correction - September 10, 2026:** This is a historical prefix-window
+> study. Answering used the first 6,000 characters, while token tables counted
+> complete outputs; the two measurements describe different delivered contexts.
+> Candidate-derived automatic question generation can omit source facts lost by
+> AksharaMD. Its availability does not establish how every historical reference
+> was created. Tool cohorts also differ. Dollar, GPU-capacity, and prefill figures
+> below are projections, not measured end-to-end savings or hardware results.
+> Historical superiority language below records the original interpretation and
+> is superseded by these limits. See [claims policy](../docs/evaluation-claims.md).
+
 ---
 
 ## What We Measured and Why
 
-Better document extraction produces fewer tokens. That is easy to demonstrate.
+Fewer output tokens can reflect compact formatting, omitted content, or truncation. Token count alone does not establish better extraction.
 
 What is harder to demonstrate — but more important to users — is whether cleaner extractions actually make LLMs *more accurate* when answering questions about a document. A 90% token reduction is not meaningful if the lost tokens carried the answers.
 
-This benchmark answers both questions directly across five tools: **AksharaMD, MarkItDown (Microsoft), LlamaParse (LlamaIndex), PyMuPDF4LLM, and Docling (IBM)**.
+This historical benchmark compares prefix-window QA and full-output token counts across five tools: **AksharaMD, MarkItDown (Microsoft), LlamaParse (LlamaIndex), PyMuPDF4LLM, and Docling (IBM)**.
 
 ---
 
@@ -54,7 +65,7 @@ Documents were not chosen to favour AksharaMD — they represent everyday enterp
 ### Evaluation Protocol
 
 1. Each document is independently converted by all five tools
-2. The first 6,000 characters of each conversion are used as LLM context (~4,000 tokens)
+2. The first 6,000 characters of each conversion are used as LLM context (character count is not a model-specific token count)
 3. The same question is sent to the LLM with each conversion's context: *"Answer using only the document text. Be concise."*
 4. Claude Haiku 4.5 scores every answer **0–10** against the expected answer
 
