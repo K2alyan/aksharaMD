@@ -19,6 +19,12 @@ def get_parser(file_type: str) -> ParserPlugin | None:
 def register_plugin(cls: type[BasePlugin]) -> None:
     if cls not in _plugin_classes:
         _plugin_classes.append(cls)
+        # A stage may already have been used before an application loads its
+        # extension. Rebuild affected stages on their next lookup while keeping
+        # unrelated cached plugin instances intact.
+        for plugin_type in list(_plugin_cache):
+            if issubclass(cls, plugin_type):
+                del _plugin_cache[plugin_type]
 
 
 def get_registered_extensions() -> list[str]:
