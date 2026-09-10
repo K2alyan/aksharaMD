@@ -100,7 +100,7 @@ def test_literal_source_preserved_through_compiler_export(tmp_path, suffix, lang
     assert code[0].language == language
     assert ctx.document.file_type == suffix[1:]
     markdown = (output / "document.md").read_text(encoding="utf-8")
-    assert f"```{language}\n{source}\n```" in markdown
+    assert f"```{language}\n{source}```" in markdown
     if suffix == ".py":
         import ast
         assert ast.dump(ast.parse(code[0].content)) == ast.dump(ast.parse(source))
@@ -126,3 +126,21 @@ def test_numeric_facts_preserved_through_compiler_export(tmp_path):
     assert [b.content for b in ctx.document.blocks] == ["Amount", "1000", "2026", "00042"]
     markdown = (output / "document.md").read_text(encoding="utf-8")
     assert "Amount\n\n1000\n\n2026\n\n00042" in markdown
+
+
+@pytest.mark.parametrize("embedded_fence", ["```", "````", "````````"])
+def test_literal_source_fences_roundtrip(tmp_path, embedded_fence):
+    from markdown_it import MarkdownIt
+
+    from aksharamd.compiler import Compiler
+
+    source = f'message = """\n{embedded_fence}\n# Not a heading\n{embedded_fence}\n"""\n'
+    path = tmp_path / "literal.py"
+    path.write_text(source, encoding="utf-8")
+    output = tmp_path / "compiled"
+    Compiler(output_dir=str(output)).compile(str(path))
+    tokens = MarkdownIt().parse((output / "document.md").read_text(encoding="utf-8"))
+    assert len(tokens) == 1
+    assert tokens[0].type == "fence"
+    assert tokens[0].info == "python"
+    assert tokens[0].content == source
