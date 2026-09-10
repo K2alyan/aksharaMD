@@ -676,7 +676,7 @@ Formats with exclusive AksharaMD support (MarkItDown does not handle): `.zip`, `
 
 ### Generation 2 — LLM accuracy study (~1,000 documents, 19,920 scored evaluations)
 
-> Historical AksharaMD v0.3.3 prefix-window study. Current behavior must be measured again; these results are not automatically transferable to later code.
+> Current package is v0.3.6. Historical AksharaMD v0.3.3 prefix-window study. Current behavior must be measured again; these results are not automatically transferable to later code.
 
 **When:** AksharaMD v0.3.3. **Scope:** ~1,000 documents across 12 formats (83 per format) — an independent dataset from Generation 1, designed to test whether token savings actually produce better LLM answers. Each document received 4 factual questions, independently answered by 5 tools and scored 0–10 by Claude Haiku 4.5 as judge (19,920 graded answers total). No tool-specific prompt tuning was applied.
 

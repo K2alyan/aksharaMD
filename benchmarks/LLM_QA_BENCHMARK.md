@@ -1,7 +1,7 @@
 # AksharaMD — Downstream LLM Accuracy Benchmark
 
 > Primary benchmark results were collected on **AksharaMD v0.3.3**. The current
-> package version was v0.3.6 when this report was written. Results are historical
+> package version is v0.3.6. Results are historical
 > and must not be transferred to later code without a new measurement.
 > Methodology and reproducibility limitations are described in detail below.
 >
