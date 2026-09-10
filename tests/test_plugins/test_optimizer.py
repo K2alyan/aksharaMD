@@ -25,11 +25,11 @@ def _image(page: int | None = None) -> Block:
     return Block(type=BlockType.IMAGE, content="", page=page, index=0)
 
 
-def test_duplicate_paragraph_removed():
+def test_duplicate_paragraph_preserved():
     blocks = [_para("Same text here."), _para("Same text here.")]
     ctx = _run(blocks)
-    assert len(ctx.document.blocks) == 1
-    assert ctx.duplicate_blocks_removed == 1
+    assert len(ctx.document.blocks) == 2
+    assert ctx.duplicate_blocks_removed == 0
 
 
 def test_unique_blocks_kept():
@@ -58,9 +58,8 @@ def test_repeated_header_removed():
         ))
         blocks.append(_para(f"Page {page} body content.", page=page))
     ctx = _run(blocks, pages=10)
-    remaining = [b for b in ctx.document.blocks if b.content == header]
-    assert len(remaining) == 0
-    assert ctx.headers_removed > 0 or ctx.footers_removed > 0 or ctx.duplicate_blocks_removed > 0
+    assert sum(b.content.count(header) for b in ctx.document.blocks) == 10
+    assert ctx.headers_removed == ctx.footers_removed == ctx.duplicate_blocks_removed == 0
 
 
 def test_short_fragments_merged():
@@ -181,18 +180,19 @@ def test_numbered_heading_not_removed_as_furniture():
     assert len(numbered_headings) > 0, "repeated numbered section headings must not be removed as furniture"
 
 
-def test_plain_repeated_header_still_removed():
-    """Non-numbered repeated page headers should still be removed (existing behavior)."""
-    blocks = []
-    for page in range(1, 11):
-        blocks.append(Block(
-            type=BlockType.PARAGRAPH, content="Company Confidential",
-            page=page, index=len(blocks),
-        ))
-        blocks.append(_para(f"Page {page} body.", page=page))
-    ctx = _run(blocks, pages=10)
-    remaining = [b for b in ctx.document.blocks if b.content == "Company Confidential"]
-    assert len(remaining) == 0, "plain repeated page headers must still be removed"
+def test_repeated_obligation_on_single_block_pages_preserved():
+    text = "Payment due: USD 100"
+    ctx = _run([_para(text, page=page) for page in range(1, 4)], pages=3)
+    assert [b.content for b in ctx.document.blocks] == [text] * 3
+    assert ctx.headers_removed == ctx.footers_removed == 0
+
+
+def test_boundary_match_does_not_remove_body_occurrence():
+    text = "Payment due: USD 100"
+    blocks = [_para(text, page=page) for page in range(1, 4)]
+    blocks += [_para("Body start", page=4), _para(text, page=4), _para("Body end", page=4)]
+    ctx = _run(blocks, pages=4)
+    assert sum(b.content.count(text) for b in ctx.document.blocks) == 4
 
 
 def test_multiple_numbering_schemes_preserved():

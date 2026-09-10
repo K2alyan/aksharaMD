@@ -8,7 +8,6 @@ from ...models.block import BlockType
 from ..base import CleanerPlugin
 from ..registry import register_plugin
 
-_PAGE_NUMBER_RE = re.compile(r"^\d+$|^page\s+\d+(\s+of\s+\d+)?$", re.IGNORECASE)
 _ZERO_WIDTH = re.compile(r"[​‌‍﻿­]")
 
 
@@ -18,10 +17,6 @@ def _normalize_text(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
-
-
-def _is_page_number(text: str) -> bool:
-    return bool(_PAGE_NUMBER_RE.match(text.strip()))
 
 
 class DefaultCleaner(CleanerPlugin):
@@ -36,9 +31,8 @@ class DefaultCleaner(CleanerPlugin):
         cleaned = []
 
         for block in blocks:
-            # Drop lone page numbers
-            if block.type == BlockType.PARAGRAPH and _is_page_number(block.content):
-                continue
+            # Numeric text (including apparent page labels) can be source facts.
+            # Without furniture provenance, preserve it.
             # Normalize text content — skip LIST/CODE blocks whose indentation is meaningful
             if block.type not in (BlockType.LIST, BlockType.CODE_BLOCK):
                 block = block.model_copy(update={"content": _normalize_text(block.content)})
