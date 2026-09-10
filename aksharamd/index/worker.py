@@ -13,6 +13,7 @@ from aksharamd.assessment import (
     SourceArtifact,
 )
 from aksharamd.compiler import Compiler
+from aksharamd.plugins.exporters.markdown import _block_to_md
 
 if TYPE_CHECKING:
     from aksharamd.index.config import IndexConfig
@@ -28,7 +29,7 @@ _SKIP_TYPES = {"image", "page_break"}
 def _source_grounded_assessment(
     source_path: str, candidate_text: str, ctx: Any,
 ) -> tuple[AssessmentResult | None, str | None]:
-    """Assess the exact in-memory candidate emitted by ``compile_to_string``."""
+    """Assess the exact joined text payload that will be embedded and stored."""
     try:
         source = SourceArtifact.from_path(source_path, logical_id=ctx.source_id)
         # The candidate has no durable path in this worker.  Supplying its
@@ -69,9 +70,7 @@ def process_file(
     assessment_error: str | None = None
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            candidate_text, ctx = Compiler(output_dir=tmp).compile_to_string(path)
-            if config.require_assessment_accept:
-                assessment, assessment_error = _source_grounded_assessment(path, candidate_text, ctx)
+            _, ctx = Compiler(output_dir=tmp).compile_to_string(path)
     except Exception as exc:
         logger.error("Compile failed for %s: %s", path, exc)
         queue.mark_error(path, str(exc))
@@ -84,20 +83,6 @@ def process_file(
         queue.mark_low_quality(path, score)
         return
 
-    if config.require_assessment_accept:
-        if assessment_error:
-            reason = f"assessment gate: {assessment_error}"
-        elif assessment is None:
-            reason = "assessment gate: no assessment result was produced"
-        elif assessment.disposition != AssessmentDisposition.ACCEPT:
-            reason = f"assessment gate: {assessment.disposition} ({assessment.next_action})"
-        else:
-            reason = None
-        if reason:
-            logger.warning("Assessment gate blocked indexing %s: %s", path, reason)
-            queue.mark_low_quality(path, score, reason)
-            return
-
     if ctx.document is None or not ctx.document.blocks:
         queue.mark_error(path, "no document blocks produced")
         return
@@ -108,7 +93,7 @@ def process_file(
     for block in ctx.document.blocks:
         if block.type.value in _SKIP_TYPES:
             continue
-        content = block.content.strip()
+        content = _block_to_md(block) if config.require_assessment_accept else block.content.strip()
         if not content:
             continue
         texts.append(content)
@@ -122,6 +107,22 @@ def process_file(
     if not texts:
         queue.mark_error(path, "no indexable blocks after filtering")
         return
+
+    if config.require_assessment_accept:
+        assessment, assessment_error = _source_grounded_assessment(path, "\n\n".join(texts), ctx)
+    if config.require_assessment_accept:
+        if assessment_error:
+            reason = f"assessment gate: {assessment_error}"
+        elif assessment is None:
+            reason = "assessment gate: no assessment result was produced"
+        elif assessment.disposition != AssessmentDisposition.ACCEPT:
+            reason = f"assessment gate: {assessment.disposition} ({assessment.next_action})"
+        else:
+            reason = None
+        if reason:
+            logger.warning("Assessment gate blocked indexing %s: %s", path, reason)
+            queue.mark_low_quality(path, score, reason)
+            return
 
     try:
         embeddings = embedder.embed(texts)

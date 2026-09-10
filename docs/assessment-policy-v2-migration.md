@@ -61,3 +61,23 @@ explicit v1 replay; clean controls; unsupported sources; both truncation aliases
 and saved compiler policy binding. The existing literal/task tests retain their
 specific successful evidence assertions while no longer equating literal presence
 with full acceptance.
+
+## Delivery binding and validation
+
+Before gated CLI promotion, the gate rereads staged `document.md` and the source,
+checks their hashes against the assessment, verifies the original captured source
+identity, and checks the report's provenance hashes and sizes. A later exporter
+that changes either artifact blocks activation. Successful CLI JSON names the
+active output directory. The report's candidate `storage_reference` is relative
+to the report directory (`document.md`), so it survives promotion.
+
+The opt-in index gate renders each selected block as Markdown, assesses the exact
+joined payload, then embeds and stores those same per-block strings. Ungated
+indexing retains its legacy text representation. This can abstain when rendering
+changes literal code layout; abstention prevents indexing unverified output.
+
+V2's structural fence check uses CommonMark fence parsing, including delimiter
+length, tilde fences, and quote/list containers. Historical v1 fence checks remain
+unchanged. Task profiles and literal relationships reject unknown fields, and
+profiles reject unsupported schema versions, so unsupported requirements cannot
+silently disappear.

@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .models import CandidateArtifact, SourceArtifact
+from .models import AssessmentResult, CandidateArtifact, SourceArtifact
 from .service import Assessor
 
 if TYPE_CHECKING:
@@ -83,7 +83,7 @@ def save_compiled_assessment(ctx: CompilationContext) -> Path | None:
             "content_hash": candidate.content_hash,
             "byte_size": candidate.byte_size,
             "media_type": candidate.media_type,
-            "storage_reference": str(candidate_path),
+            "storage_reference": "document.md",
             "original_source_hash": candidate.original_source_hash,
             "parser_name": candidate.parser_name,
             "parser_version": candidate.parser_version,
@@ -95,3 +95,19 @@ def save_compiled_assessment(ctx: CompilationContext) -> Path | None:
     path = output_dir / "quality_assessment.json"
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
+
+
+def verify_compiled_assessment(ctx: CompilationContext, report: dict, assessment: AssessmentResult) -> None:
+    """Recheck staged bytes and captured provenance immediately before activation."""
+    source = SourceArtifact.from_path(ctx.source)
+    candidate = CandidateArtifact.from_path(Path(ctx.output_dir) / "document.md")
+    if source.content_hash != ctx.capture_id or assessment.source_hash != source.content_hash:
+        raise ValueError("Source bytes no longer match the assessed capture")
+    if assessment.candidate_hash != candidate.content_hash:
+        raise ValueError("Staged candidate bytes no longer match the assessment")
+    if (report["source"]["capture_id"] != source.content_hash
+            or report["source"]["byte_size"] != source.byte_size
+            or report["candidate"]["original_source_hash"] != source.content_hash
+            or report["candidate"]["content_hash"] != candidate.content_hash
+            or report["candidate"]["byte_size"] != candidate.byte_size):
+        raise ValueError("Assessment provenance does not match staged source and candidate")

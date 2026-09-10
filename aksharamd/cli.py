@@ -735,6 +735,9 @@ def compile(
         and not _assessment_not_accepted
     ):
         try:
+            from .assessment.compiler_binding import verify_compiled_assessment
+
+            verify_compiled_assessment(ctx, assessment_payload, assessment)
             activated = staged_output.promote_if_accepted(assessment.disposition)
         except Exception as exc:
             activation_error = str(exc)
@@ -754,7 +757,7 @@ def compile(
                     and activation_error is None
                 ),
                 "source": m.source,
-                "output_dir": file_output,
+                "output_dir": str(final_output) if activated else file_output,
                 "readiness_score": m.readiness_score,
                 "quality_band": m.quality_band,
                 "scoring_policy_version": m.scoring_policy_version,
@@ -775,7 +778,7 @@ def compile(
             result = {
                 "success": False,
                 "source": source,
-                "output_dir": file_output,
+                "output_dir": str(final_output) if activated else file_output,
                 "readiness_score": None,
                 "quality_band": None,
                 "warning_codes": warning_codes,
