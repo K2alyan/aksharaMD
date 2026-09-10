@@ -973,7 +973,7 @@ def compile(
             ("validation.json", "all validation issues"),
         ]
         file_lines = "\n".join(
-            f"  [cyan]{file_output}/{name}[/]  [dim]{desc}[/]"
+            f"  [cyan]{final_output if activated else file_output}/{name}[/]  [dim]{desc}[/]"
             for name, desc in output_files
         )
         console.print(Panel(file_lines, title="[bold]Output Files[/]", border_style="dim"))

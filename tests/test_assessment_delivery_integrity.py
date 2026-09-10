@@ -103,9 +103,9 @@ def test_gated_index_assesses_exact_rendered_embedding_payload(tmp_path, monkeyp
     monkeypatch.setattr(worker, "_source_grounded_assessment", capture)
     worker.process_file(str(path), queue, store, embedder,
                         IndexConfig(index_dir=tmp_path, min_readiness_score=0, require_assessment_accept=True))
-    if "```" in source:
-        # The existing exporter appends an extra blank line to code. The bounded
-        # comparison must abstain instead of indexing a changed representation.
+    if "```" in source and observed != [source]:
+        # A renderer that changes literal layout must abstain. A renderer that
+        # preserves it exactly must deliver those same bytes (assertions below).
         assert len(queue.list_all(status="low_quality")) == 1
         assert observed == ["```python\nif ready:\n    ship()\n\n```"]
         embedder.embed.assert_not_called()
@@ -169,3 +169,16 @@ def test_cli_rejects_unsupported_profile_before_compilation(tmp_path, invalid):
     assert result.exit_code != 0
     assert "Invalid task profile" in result.output
     assert not (tmp_path / "out").exists()
+
+
+def test_rich_output_paths_resolve_after_activation(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.chdir(tmp_path)
+    Path("source.md").write_text("The shipment is ready.", encoding="utf-8")
+    result = CliRunner().invoke(main, ["compile", "source.md", "-o", "out", "--require-assessment-accept"])
+    assert result.exit_code == 0, result.output
+    active = Path("out") / "source"
+    assert active.is_dir()
+    assert f"{active}/document.md" in result.output
+    assert ".source.staging-" not in result.output
