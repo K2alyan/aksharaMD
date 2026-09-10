@@ -37,7 +37,7 @@ AksharaMD produces a quality signal alongside the content:
 
 - **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — on every compilation
 - **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
-- **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `OCR_HALLUCINATION`, and others — tell you exactly what's wrong and how to fix it
+- **Named warnings** such as `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, and `OCR_HALLUCINATION` identify observed risk categories for investigation.
 - **Heuristic deductions** respond to detected warnings; missing warnings do not establish faithful extraction or remove the need for validation.
 
 ### One tool. Every format. No stitching.
@@ -48,7 +48,7 @@ AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTM
 
 ### Rich structure, not flat text
 
-AksharaMD preserves document semantics in its output — not just plain text extraction:
+AksharaMD represents extracted structure in Markdown. The available representation depends on the parser and source:
 
 - **Headings** are emitted as Markdown headings (`#`, `##`, …) with level inferred from font size and weight
 - **Inline formatting** — bold (`**text**`), italic (`*text*`), underline (`<u>text</u>`), strikethrough (`~~text~~`), superscript (`<sup>text</sup>`), subscript (`<sub>text</sub>`) — is retained from the source document
