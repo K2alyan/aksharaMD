@@ -129,13 +129,15 @@ def render_table_tsv(table: TableData) -> str:
 def render_table_row_records(table: TableData) -> str:
     """ColName=value; ColName=value format. One logical data row per line.
 
-    Only usable when header_rows is non-empty and column_count <= 12.
+    Only usable with one leading header row, no spans, and column_count <= 12.
     Resolve duplicate column names by appending _1, _2 etc.
     Empty/missing cell value: (empty string after =).
     Skip header rows themselves; only emit body rows.
-    Return empty string if no headers or table is too wide.
+    Return empty string when header context or cell associations cannot be preserved.
     """
-    if not table.header_rows or table.column_count > 12:
+    if table.header_rows != [0] or table.column_count > 12:
+        return ""
+    if any(cell.row_span != 1 or cell.column_span != 1 for cell in table.cells):
         return ""
     if table.row_count == 0 or table.column_count == 0:
         return ""
@@ -254,6 +256,12 @@ def render_table_preview_reference(
         f"Columns: {', '.join(col_names)}",
         "",
     ]
+
+    # Keep upper header context (including units) even in a short preview.
+    if len(header_rows_sorted) > 1:
+        for r in header_rows_sorted:
+            lines.append("\t".join(grid.get((r, c), " ") for c in range(table.column_count)))
+        lines.append("")
 
     for r in preview_body:
         row_parts = [grid.get((r, c), " ") for c in range(table.column_count)]

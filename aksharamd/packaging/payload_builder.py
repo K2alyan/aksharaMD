@@ -51,6 +51,11 @@ def build_table_candidates(
     header_count = len(table_data.header_rows) if table_data.header_rows else 0
     body_rows = max(0, table_data.row_count - header_count)
 
+    # Grid formats keep cell text but do not encode merged cells or header hierarchy.
+    simple_structure = (
+        table_data.header_rows in ([], [0])
+        and all(cell.row_span == 1 and cell.column_span == 1 for cell in table_data.cells)
+    )
     candidates = []
 
     # 1. Markdown
@@ -60,7 +65,7 @@ def build_table_candidates(
         text=md,
         token_count=count_text_tokens(md),
         preserves_all_rows_inline=True,
-        preserves_structure_inline=True,
+        preserves_structure_inline=simple_structure,
         artifact_path=artifact_path,
         omitted_row_count=0,
     ))
@@ -72,12 +77,12 @@ def build_table_candidates(
         text=tsv,
         token_count=count_text_tokens(tsv),
         preserves_all_rows_inline=True,
-        preserves_structure_inline=True,
+        preserves_structure_inline=simple_structure,
         artifact_path=artifact_path,
         omitted_row_count=0,
     ))
 
-    # 3. Row records (only if headers available and narrow enough)
+    # 3. Row records (renderer rejects unsupported headers and spans)
     rr = render_table_row_records(table_data)
     if rr:
         candidates.append(TableSerializationCandidate(
@@ -103,7 +108,7 @@ def build_table_candidates(
             text=pr,
             token_count=count_text_tokens(pr),
             preserves_all_rows_inline=(omitted == 0),
-            preserves_structure_inline=True,
+            preserves_structure_inline=simple_structure,
             artifact_path=artifact_path,
             omitted_row_count=omitted,
         ))
@@ -476,7 +481,10 @@ def build_llm_payload(
             if table_candidate is not None:
                 tpf = str(table_candidate.format)
                 t_rows_omitted = table_candidate.omitted_row_count
-                t_inline_complete = table_candidate.preserves_all_rows_inline
+                t_inline_complete = (
+                    table_candidate.preserves_all_rows_inline
+                    and table_candidate.preserves_structure_inline
+                )
                 if block is not None and block.table_data is not None:
                     td = block.table_data
                     header_count = len(td.header_rows) if td.header_rows else 0
