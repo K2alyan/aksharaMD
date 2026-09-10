@@ -29,7 +29,7 @@ Runs locally. Processing local files with the base install makes no network call
 
 ## Why AksharaMD
 
-### The problem no parser solves: you don't know if the output is trustworthy
+### Inspect extraction risks before ingestion
 
 Parser diagnostics vary. AksharaMD provides a consistent place to collect extraction warnings and inspect converted content, but those signals need independent validation before they can establish trust.
 
@@ -38,7 +38,7 @@ AksharaMD produces a quality signal alongside the content:
 - **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — on every compilation
 - **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
 - **Named warnings** — `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `OCR_HALLUCINATION`, and others — tell you exactly what's wrong and how to fix it
-- **Score drops automatically** when extraction is unreliable — no manual checking required
+- **Heuristic deductions** respond to detected warnings; missing warnings do not establish faithful extraction or remove the need for validation.
 
 ### One tool. Every format. No stitching.
 
@@ -82,7 +82,7 @@ The tradeoff is explicit and bounded: ML extras slow down only the document type
 
 ## What AksharaMD does not guarantee
 
-AksharaMD measures **extraction reliability** — how faithfully it converted a document into text. A high Readiness Score means the text was extracted cleanly. It does not mean your RAG pipeline will produce correct answers.
+AksharaMD reports heuristic extraction diagnostics. A high Readiness Score means few modeled penalties were applied; it does not establish source fidelity, substantive content, or downstream answer correctness.
 
 Specifically, AksharaMD makes no guarantee about:
 
@@ -92,7 +92,7 @@ Specifically, AksharaMD makes no guarantee about:
 - **Optimal chunking for your embedding model.** The default semantic chunks are a reasonable starting point. Different embedding models have different context-window sensitivities. You should evaluate chunk size and overlap for your specific model and query distribution.
 - **Embedding dilution.** A clean parse can still produce semantically broad chunks. A chapter that covers three unrelated topics will embed as a mixture — relevant to none of the three queries precisely. This is a retrieval problem, not an extraction problem.
 
-**Run retrieval evals before production deployment.** The Readiness Score tells you whether the document was extracted reliably. It does not substitute for end-to-end RAG evaluation against your actual queries and expected answers.
+**Run source-preservation and retrieval evaluations before production deployment.** Readiness is one diagnostic input and cannot substitute for evaluation against your actual sources, queries, and expected answers.
 
 AksharaMD is also not a pixel-perfect visual layout reproduction engine. The goal is to give your LLM the semantic content of a document at minimum token cost — not to reproduce how the document looks on screen.
 
@@ -511,7 +511,7 @@ from langchain_core.documents import Document
 compiler = Compiler()
 text, ctx = compiler.compile_to_string("report.pdf")
 
-# Skip unreliable extractions before they reach the vector store
+# Example diagnostic threshold; calibrate against your workload before enforcement.
 # Scores below 70 (the OK threshold) indicate extraction problems worth reviewing
 if ctx.manifest.readiness_score < 70:
     print(f"Below-threshold extraction ({ctx.manifest.readiness_score}/100) — skipping embedding")
@@ -620,15 +620,15 @@ AksharaMD's benchmarking has grown across three generations: an early internal c
 
 AksharaMD is an **LLM consumption pipeline**, not a visual document reproduction engine. That distinction matters when reading any token comparison.
 
-Other tools try to reproduce how a document looks — preserving layout, visual structure, and formatting context that is meaningful to a human reader. AksharaMD does something different: it extracts the semantic content an LLM needs to reason over — headings, paragraphs, tables, code blocks — and deliberately strips everything that does not serve that purpose: page headers and footers, watermarks, revision metadata, empty spreadsheet cells, redundant whitespace, and formatting artifacts.
+AksharaMD aims to retain useful document structure while reducing unnecessary representation overhead. Each transformation needs preservation evidence; design intent alone cannot distinguish removed noise from lost facts.
 
-The result is that "fewer tokens" in AksharaMD's output means the LLM receives a cleaner, more focused signal — not an incomplete one. Before reading the tables below, two specific data points are worth understanding explicitly, because they look counterintuitive until you know the design:
+Fewer output tokens can mean compact formatting, truncation, or missing content in any tool. Evaluate content and answers on matched sources before interpreting output size as efficiency.
 
-**JSON: why AksharaMD produces more tokens than MarkItDown.** AksharaMD does not pass JSON through as a raw text dump. It adds structural markup — nested path context, field descriptions, type annotations — that makes the data meaningfully queryable by an LLM. MarkItDown passes the raw JSON string, which is more compact but harder to reason over. On the public corpus, AksharaMD's JSON output averaged 191 tokens vs MarkItDown's 121 — 58% more, intentionally. The extra tokens carry semantic structure; removing them would reduce token cost and also reduce LLM answer quality.
+**JSON output sizes.** The historical public-corpus comparison reported AksharaMD averaging 191 tokens and MarkItDown 121. Added structural context can increase output size; its effect on answer quality requires a matched task experiment and is not established by those counts.
 
 **PDF: why Docling's average token count is lower than AksharaMD's on the public corpus.** On this corpus, Docling's PDF average (1,327 tokens) is lower than AksharaMD's (1,970 tokens). This is not evidence of Docling being more token-efficient. Two 117-page technical books in the corpus (pdf-027, pdf-028) hit a memory ceiling in Docling partway through processing — Docling ran out of memory after approximately page 89 of 117, returned partial output (~15,800 tokens each), and reported both as successes. AksharaMD completed all 117 pages (~29,000 tokens each). The lower Docling average is a partial-extraction artifact from those two outlier files dragging the average down. On the 32 PDFs where Docling completed extraction without memory pressure, token counts are broadly comparable — and on a clean 4-page document (pdf-004), AksharaMD (696 tokens) is dramatically more compact than Docling (3,616 tokens) because it strips layout noise more aggressively. More tokens from AksharaMD on the large PDFs means more complete extraction, not more noise.
 
-This is the core principle: **more tokens from AksharaMD, when they occur, reflect completeness or deliberate structural enrichment — not verbosity**. Fewer tokens from a competitor, when they occur, should be examined: are they reflecting genuine efficiency, or missing content?
+Apply the same standard to every tool: report completeness and task outcomes alongside token counts, including cases where output grows.
 
 ---
 
