@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .assessment.models import TaskProfile
     from .packaging.models import PackageProfile
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ from .plugins.chunkers import semantic as _chunker_pkg  # noqa: F401
 from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
+from .plugins.exporters import quality_assessment as _quality_assessment_exporter_pkg  # noqa: F401
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
@@ -430,6 +432,7 @@ class Compiler:
         chunk_overlap: int = 0,
         safe_mode: bool = False,
         ocr_backend: str = "tesseract",
+        task_profile: TaskProfile | None = None,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {chunk_size}")
@@ -443,6 +446,7 @@ class Compiler:
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self.safe_mode = safe_mode
+        self.task_profile = task_profile
         # PR 94c: OCR backend selection. Default preserves current per-page
         # Tesseract path exactly; other values route OCR-required pages
         # through the alternate backend in pdf.py after CLI availability
@@ -855,6 +859,7 @@ class Compiler:
                 output_dir=self.output_dir,
                 safe_mode=self.safe_mode,
                 ocr_backend=self.ocr_backend,
+                task_profile=self.task_profile,
             )
             ctx.progress = on_stage  # parsers can call ctx.progress() for fine-grained events
 
@@ -888,6 +893,7 @@ class Compiler:
             if parser is None:
                 ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
                 return ctx, stage_timings, t0
+            ctx.parser_name = parser.name
             if on_stage:
                 on_stage(f"Parsing {file_type.upper()} document")
             with timed("parse"):

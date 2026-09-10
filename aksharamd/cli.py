@@ -27,6 +27,7 @@ from rich.table import Table
 from rich.text import Text
 
 from . import ledger as _ledger
+from .assessment.models import DEFAULT_ASSESSMENT_POLICY_ID
 from .compiler import Compiler
 from .utils import DISPLAY_MODELS, TOKEN_PRICES, tokens_to_dollars
 
@@ -423,6 +424,46 @@ def main():
     """AksharaMD — LLM Document Ingestion Pipeline"""
 
 
+@main.command("assess")
+@click.argument("candidate", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--source", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None,
+              help="Original source artifact. Required for an ACCEPT decision.")
+@click.option("--task-profile", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None,
+              help="Versioned JSON task profile declaring a bounded assessment purpose.")
+@click.option("--policy", type=click.Choice(["general-ingestion-v2", "general-ingestion-v1", "source-text-preservation-v1"]),
+              default=DEFAULT_ASSESSMENT_POLICY_ID, show_default=True,
+              help="Assessment policy; default requires bounded textual preservation, not semantic certification.")
+@click.option("--json", "output_json", is_flag=True, default=False,
+              help="Emit the versioned assessment result as JSON.")
+def assess(candidate: Path, source: Path | None, task_profile: Path | None, policy: str, output_json: bool) -> None:
+    """Assess saved output without compiling, repairing, or activating it."""
+    import json as _json
+
+    from .assessment import Assessor, CandidateArtifact, SourceArtifact, TaskProfile
+
+    candidate_artifact = CandidateArtifact.from_path(candidate)
+    source_artifact = SourceArtifact.from_path(source) if source else None
+    profile = None
+    if task_profile:
+        try:
+            profile_data = _json.loads(task_profile.read_text(encoding="utf-8"))
+            profile = TaskProfile.model_validate(profile_data)
+        except (OSError, ValueError, TypeError) as exc:
+            raise click.ClickException(f"Invalid task profile: {exc}") from exc
+    result = Assessor().assess(candidate=candidate_artifact, source=source_artifact,
+                              task_profile=profile, policy_id=policy)
+    payload = result.model_dump(mode="json")
+    if output_json:
+        click.echo(_json.dumps(payload, sort_keys=True))
+    else:
+        console.print(f"Disposition: [bold]{result.disposition}[/]")
+        console.print(f"Next action: {result.next_action}")
+        for name, dimension in result.dimensions.items():
+            console.print(f"  {name}: {dimension.verdict} ({dimension.status})")
+    if result.disposition != "ACCEPT":
+        raise SystemExit(2)
+
+
 @main.command()
 @click.argument("source", type=_SourceArg())
 @click.option("-o", "--output", default="output", show_default=True, help="Output directory")
@@ -444,6 +485,23 @@ def main():
     help=(
         "Print a single JSON object to stdout instead of Rich panels. "
         "Suppresses all progress output. Compatible with --min-readiness-score."
+    ),
+)
+@click.option(
+    "--require-assessment-accept", "require_assessment_accept", is_flag=True,
+    help=(
+        "Require the saved source-grounded quality assessment to be ACCEPT. "
+        "This opt-in gate exits 2 for HOLD, REJECT, or ABSTAIN and exits 1 "
+        "when no valid assessment was produced."
+    ),
+)
+@click.option(
+    "--task-profile", "task_profile_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Versioned JSON task profile for the assessment gate. Requires "
+        "--require-assessment-accept."
     ),
 )
 @click.option(
@@ -506,6 +564,8 @@ def compile(
     verbose: bool,
     min_readiness_score: int | None,
     output_json: bool,
+    require_assessment_accept: bool,
+    task_profile_path: Path | None,
     chunk_size: int,
     chunk_overlap: int,
     safe_mode: bool,
@@ -517,6 +577,19 @@ def compile(
     import json as _json
 
     _setup_logging(verbose)
+
+    task_profile = None
+    if task_profile_path is not None:
+        if not require_assessment_accept:
+            raise click.UsageError("--task-profile requires --require-assessment-accept")
+        try:
+            from .assessment import TaskProfile
+
+            task_profile = TaskProfile.model_validate(
+                _json.loads(task_profile_path.read_text(encoding="utf-8"))
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            raise click.ClickException(f"Invalid task profile: {exc}") from exc
 
     # --json implies quiet (suppress all Rich output)
     _suppress_rich = quiet or output_json
@@ -560,7 +633,18 @@ def compile(
                 msg += f"  Run: {_avail.recommended_command}"
             raise click.ClickException(msg)
 
-    file_output = str(Path(output) / _output_stem(source))
+    final_output = Path(output) / _output_stem(source)
+    staged_output = None
+    if require_assessment_accept:
+        # Gated invocations compile into a same-volume generation that is not
+        # visible at the requested output path.  It is atomically promoted
+        # only after the assessment for these exact bytes says ACCEPT.
+        from .assessment import StagedOutput
+
+        staged_output = StagedOutput(final_output)
+        file_output = str(staged_output.staging_dir)
+    else:
+        file_output = str(final_output)
     try:
         compiler = Compiler(
             output_dir=file_output,
@@ -568,6 +652,7 @@ def compile(
             chunk_overlap=chunk_overlap,
             safe_mode=safe_mode,
             ocr_backend=_ocr_backend_normalized,
+            task_profile=task_profile,
         )
     except ValueError as exc:
         if output_json:
@@ -614,6 +699,46 @@ def compile(
         and ctx.manifest.readiness_score < min_readiness_score
     )
 
+    # This is intentionally separate from the legacy readiness heuristic.  The
+    # assessment exporter binds its decision to the bytes saved in this output
+    # generation, so a gate caller can make an activation decision without
+    # mistaking readiness for a preservation guarantee.  Ordinary ``compile``
+    # remains unchanged: it neither reads nor enforces this report.
+    assessment = None
+    assessment_error = None
+    if require_assessment_accept:
+        assessment_path = Path(file_output) / "quality_assessment.json"
+        try:
+            from .assessment import AssessmentResult
+
+            assessment_payload = _json.loads(assessment_path.read_text(encoding="utf-8"))
+            assessment = AssessmentResult.model_validate(assessment_payload["assessment"])
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            assessment_error = (
+                "No valid source-grounded quality assessment was produced for "
+                f"this output: {exc}"
+            )
+
+    _assessment_not_accepted = (
+        require_assessment_accept
+        and assessment is not None
+        and assessment.disposition != "ACCEPT"
+    )
+    activation_error = None
+    activated = False
+    if (
+        staged_output is not None
+        and not ctx.validation.errors
+        and not _below_threshold
+        and assessment_error is None
+        and assessment is not None
+        and not _assessment_not_accepted
+    ):
+        try:
+            activated = staged_output.promote_if_accepted(assessment.disposition)
+        except Exception as exc:
+            activation_error = str(exc)
+
     # ── JSON output mode ───────────────────────────────────────────────────────
     if output_json:
         m = ctx.manifest
@@ -621,7 +746,13 @@ def compile(
             warning_codes = [w.code for w in ctx.validation.warnings]
             error_msgs = [f"[{e.code}] {e.message}" for e in ctx.validation.errors]
             result: dict = {
-                "success": not bool(ctx.validation.errors) and not _below_threshold,
+                "success": (
+                    not bool(ctx.validation.errors)
+                    and not _below_threshold
+                    and not _assessment_not_accepted
+                    and assessment_error is None
+                    and activation_error is None
+                ),
                 "source": m.source,
                 "output_dir": file_output,
                 "readiness_score": m.readiness_score,
@@ -656,9 +787,25 @@ def compile(
                 "optimized_tokens": None,
                 "elapsed_seconds": None,
             }
+        if require_assessment_accept:
+            result["assessment_gate"] = {
+                "required_disposition": "ACCEPT",
+                "disposition": assessment.disposition if assessment else None,
+                "next_action": assessment.next_action if assessment else None,
+                "assessment_path": str(
+                    (final_output if activated else Path(file_output)) / "quality_assessment.json"
+                ),
+                "error": assessment_error,
+                "activation_error": activation_error,
+                "activated": activated,
+                "final_output_dir": str(final_output),
+                "staging_output_dir": str(staged_output.staging_dir) if staged_output else None,
+            }
         click.echo(_json.dumps(result))
-        if ctx.validation.errors or _below_threshold:
+        if ctx.validation.errors or _below_threshold or assessment_error or activation_error:
             sys.exit(1)
+        if _assessment_not_accepted:
+            sys.exit(2)
         return
 
     # ── Rich output mode ───────────────────────────────────────────────────────
@@ -886,6 +1033,23 @@ def compile(
             if not quiet:
                 console.print(f"[red]ERROR[/] [{err.code}] {err.message}")
         sys.exit(1)
+
+    if require_assessment_accept:
+        if assessment_error or activation_error:
+            if not quiet:
+                console.print(
+                    f"[red]ASSESSMENT GATE ERROR[/]  {assessment_error or activation_error}"
+                )
+            sys.exit(1)
+        if _assessment_not_accepted and assessment is not None:
+            if not quiet:
+                console.print(
+                    f"[yellow]ASSESSMENT GATE NOT ACCEPTED[/]  "
+                    f"disposition [bold]{assessment.disposition}[/] "
+                    f"(next action: {assessment.next_action}).\n"
+                    f"  The compiled artifacts remain staged for review at {file_output}."
+                )
+            sys.exit(2)
 
     # Readiness threshold gate (after validation errors, before success)
     if _below_threshold and ctx.manifest is not None:
