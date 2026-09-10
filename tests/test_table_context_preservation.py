@@ -129,3 +129,90 @@ def test_simple_table_final_payload_remains_complete(tmp_path):
     assert items[0].table_rows_inline == items[0].table_rows_total == 1
     assert items[0].table_rows_omitted == 0
     assert items[0].table_markdown == "Revenue\tExpense\n100\t80"
+
+
+@pytest.mark.parametrize("headers", [["A", "A", "A_1"], ["", "B", "C"], ["A", " A ", "B"]])
+def test_ambiguous_record_headers_keep_grid_column_associations(tmp_path, headers):
+    rows = [headers, ["first", "second", "third"]]
+    table = TableData(row_count=2, column_count=3, header_rows=[0],
+                      extraction_method=ExtractionMethod.XLSX_NATIVE,
+                      cells=[TableCell(row=r, column=c, text=text)
+                             for r, row in enumerate(rows) for c, text in enumerate(row)])
+    assert render_table_row_records(table) == ""
+    profile = PackageProfile(table_payload_strategy="full_inline")
+    text, candidate = render_table_for_payload(table, profile)
+    assert candidate.format != TablePayloadFormat.ROW_RECORDS
+    assert text.splitlines()[1] == "first\tsecond\tthird"
+    block = Block.from_table(table, page=1)
+    doc = Document(source="ambiguous.xlsx", blocks=[block])
+    doc.document_id = doc.id = "ambiguous-doc"
+    plan = plan_document(doc, profile)
+    payload = build_llm_payload(plan, doc, tmp_path, [], profile)
+    item = next(i for i in payload.items if i.content_type == PayloadContentType.STRUCTURED_TABLE)
+    assert item.table_payload_format == "tsv"
+    assert item.table_markdown == "\n".join("\t".join(row) for row in rows)
+
+
+@pytest.mark.parametrize("strategy", ["auto", "full_inline", "preview_reference", "reference_only"])
+@pytest.mark.parametrize("artifact_state", ["missing", "directory", "present"])
+def test_reference_requires_real_artifact_or_keeps_all_rows(tmp_path, strategy, artifact_state):
+    table = TableData(row_count=12, column_count=1, header_rows=[0, 1],
+                      extraction_method=ExtractionMethod.XLSX_NATIVE,
+                      cells=[TableCell(row=r, column=0, text=text) for r, text in enumerate(
+                          [UNITS, "Revenue"] + [f"amount {r} details " * 20 for r in range(10)]
+                      )])
+    profile = PackageProfile(table_payload_strategy=strategy, max_inline_table_tokens=20)
+    # A direct rendering call has no artifact promise and must keep the entire tail.
+    text, candidate = render_table_for_payload(table, profile)
+    assert candidate.preserves_all_rows_inline
+    assert candidate.omitted_row_count == 0
+    assert "amount 9 details" in text
+    assert candidate.format not in {TablePayloadFormat.PREVIEW_REFERENCE, TablePayloadFormat.JSON_REFERENCE}
+
+    block = Block.from_table(table, page=1)
+    doc = Document(source="long.xlsx", blocks=[block])
+    doc.document_id = doc.id = "long-doc"
+    plan = plan_document(doc, profile)
+    assets = []
+    if artifact_state == "present":
+        assets, _ = PackageWriter().write(tmp_path, plan, doc, None)
+    elif artifact_state == "directory":
+        (tmp_path / "tables" / f"{block.id}.json").mkdir(parents=True)
+    payload = build_llm_payload(plan, doc, tmp_path, assets, profile)
+    item = next(i for i in payload.items if i.content_type == PayloadContentType.STRUCTURED_TABLE)
+    assert not item.inline_complete  # hierarchy is not represented by grid formats
+    if artifact_state == "present":
+        assert item.full_table_artifact_path
+        assert (tmp_path / item.full_table_artifact_path).is_file()
+        if strategy != "full_inline":
+            assert item.table_rows_omitted > 0
+    else:
+        assert item.full_table_artifact_path is None
+        assert item.table_rows_omitted == 0
+        assert item.table_rows_inline == item.table_rows_total == 10
+        assert "amount 9 details" in item.table_markdown
+
+
+def test_legacy_json_reference_without_artifact_keeps_data():
+    text, candidate = render_table_for_payload(
+        _context_table("simple"), PackageProfile(table_payload_format="json_reference")
+    )
+    assert candidate.format != TablePayloadFormat.JSON_REFERENCE
+    assert "100" in text and "80" in text
+
+
+def test_selector_rejects_unavailable_reference_candidates():
+    from aksharamd.packaging.models import TableSerializationCandidate
+    from aksharamd.packaging.payload_builder import select_table_serialization
+
+    inline = TableSerializationCandidate(format=TablePayloadFormat.TSV, text="A\nlast row",
+                                         token_count=50, preserves_all_rows_inline=True,
+                                         preserves_structure_inline=True)
+    unavailable = TableSerializationCandidate(format=TablePayloadFormat.PREVIEW_REFERENCE,
+                                              text="preview", token_count=1,
+                                              preserves_all_rows_inline=False,
+                                              preserves_structure_inline=True, artifact_path=None)
+    selected = select_table_serialization(
+        [inline, unavailable], "adaptive", PackageProfile(max_inline_table_tokens=1), 1
+    )
+    assert selected == inline

@@ -127,12 +127,11 @@ def test_row_records_too_wide_returns_empty():
     assert result == ""
 
 
-# T10: duplicate header names get _1, _2 suffixes
+# T10: duplicate header names cannot safely become record keys
 def test_row_records_duplicate_header_names():
     table = _make_table([["Val", "Val"], ["A", "B"]], header_rows=[0])
     result = render_table_row_records(table)
-    assert "Val_1=A" in result
-    assert "Val_2=B" in result
+    assert result == ""
 
 
 # T11: only body rows emitted (not header rows)
@@ -245,11 +244,13 @@ def _make_candidates_simple():
             preserves_all_rows_inline=True, preserves_structure_inline=True,
         ),
         TableSerializationCandidate(
+            artifact_path="tables/t1.json",
             format=TablePayloadFormat.PREVIEW_REFERENCE, text="pr" * 20, token_count=40,
             preserves_all_rows_inline=False, preserves_structure_inline=True,
             omitted_row_count=5,
         ),
         TableSerializationCandidate(
+            artifact_path="tables/t1.json",
             format=TablePayloadFormat.JSON_REFERENCE, text="jr", token_count=10,
             preserves_all_rows_inline=False, preserves_structure_inline=False,
             omitted_row_count=10,
@@ -321,11 +322,13 @@ def test_regression_guard_falls_back_to_preview_reference():
             preserves_all_rows_inline=True, preserves_structure_inline=True,
         ),
         TableSerializationCandidate(
+            artifact_path="tables/t1.json",
             format=TablePayloadFormat.PREVIEW_REFERENCE, text="pr" * 10, token_count=20,
             preserves_all_rows_inline=False, preserves_structure_inline=True,
             omitted_row_count=5,
         ),
         TableSerializationCandidate(
+            artifact_path="tables/t1.json",
             format=TablePayloadFormat.JSON_REFERENCE, text="jr", token_count=5,
             preserves_all_rows_inline=False, preserves_structure_inline=False,
         ),
