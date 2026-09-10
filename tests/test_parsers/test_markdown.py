@@ -150,3 +150,58 @@ def test_admonition_case_insensitive(tmp_path):
     admonitions = [b for b in ctx.document.blocks if b.type == BlockType.ADMONITION]
     assert len(admonitions) == 1
     assert admonitions[0].metadata.get("admonition_type") == "tip"
+
+
+def test_quote_tokens_are_not_reemitted_as_body(tmp_path):
+    ctx = _parse("> The claim is approved.\n\nThe claim is approved.\n", tmp_path)
+    assert [(b.type, b.content) for b in ctx.document.blocks] == [
+        (BlockType.BLOCKQUOTE, "The claim is approved."),
+        (BlockType.PARAGRAPH, "The claim is approved."),
+    ]
+
+
+def test_nested_quote_tokens_and_following_body_keep_their_boundaries(tmp_path):
+    source = "> Outer\n>\n> > Inner\n> >\n> > Deep detail\n>\n> Outer again\n\nOutside"
+    ctx = _parse(source, tmp_path)
+    assert len(ctx.document.blocks) == 2
+    quote, body = ctx.document.blocks
+    assert quote.type == BlockType.BLOCKQUOTE
+    assert quote.content == "Outer\n\n> Inner\n>\n> Deep detail\n\nOuter again"
+    assert body.type == BlockType.PARAGRAPH and body.content == "Outside"
+
+
+def test_compiled_nested_quote_preserves_markdown_structure_and_literal_repetitions(tmp_path):
+    from markdown_it import MarkdownIt
+
+    from aksharamd.compiler import Compiler
+
+    source = (
+        "> Outer\n>\n> > Inner\n> >\n> > ```python\n> > if ready:\n> >     ship()\n> > ```\n"
+        ">\n> - repeated\n> - repeated\n\nRepeated body.\n\nRepeated body."
+    )
+    path = tmp_path / "nested.md"
+    path.write_text(source, encoding="utf-8")
+    output = tmp_path / "compiled"
+    ctx = Compiler(output_dir=str(output)).compile(str(path))
+    rendered = (output / "document.md").read_text(encoding="utf-8")
+    assert len(ctx.document.blocks) == 3
+    assert rendered.count("Repeated body.") == 2
+    parser = MarkdownIt()
+
+    def semantic_tokens(text):
+        return [(t.type, t.tag, t.nesting, t.content, t.info) for t in parser.parse(text)]
+
+    assert semantic_tokens(rendered) == semantic_tokens(source)
+
+
+def test_admonition_consumes_its_inner_tokens_once(tmp_path):
+    ctx = _parse("> [!NOTE]\n> First line.\n> Second line.\n\nBody.", tmp_path)
+    assert [b.type for b in ctx.document.blocks] == [BlockType.ADMONITION, BlockType.PARAGRAPH]
+    assert ctx.document.blocks[0].content == "First line.\nSecond line."
+    assert ctx.document.blocks[1].content == "Body."
+
+
+def test_quote_source_map_does_not_treat_unicode_separators_as_lines(tmp_path):
+    text = "First\u2028second\u2028third\u2028last"
+    ctx = _parse("> " + text + "\n\nOutside", tmp_path)
+    assert [b.content for b in ctx.document.blocks] == [text, "Outside"]
