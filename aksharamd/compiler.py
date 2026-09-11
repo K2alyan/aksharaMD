@@ -617,7 +617,7 @@ class Compiler:
         if on_stage:
             on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+            for plugin in self._plugins(ExporterPlugin):
                 ctx = plugin.execute(ctx)
 
         if ctx.document is None:
@@ -714,10 +714,8 @@ class Compiler:
         so callers know exactly what was dropped.
         """
         from .dedup.minhash import CorpusDeduplicator
-        from .plugins.registry import get_registered_extensions
-
         source_path = Path(source_dir).resolve()
-        supported_exts = {f".{e}" for e in get_registered_extensions()}
+        supported_exts = {f".{e}" for e in self._parsers}
 
         dedup = CorpusDeduplicator(threshold=dedup_threshold)
         result = CorpusCompilationResult()
