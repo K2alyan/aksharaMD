@@ -421,7 +421,13 @@ class _AksharaMDGroup(click.Group):
 @click.group(cls=_AksharaMDGroup)
 @click.version_option()
 def main():
-    """AksharaMD — LLM Document Ingestion Pipeline"""
+    """AksharaMD — per-document extraction-readiness scorer for LLM ingestion.
+
+    Bring your own parser (MarkItDown, Docling, marker, MinerU, LlamaParse,
+    ...); AksharaMD grades the output. A bundled reference parser is included
+    for convenience via the ``compile`` command; use ``assess`` to grade
+    output produced by any other parser.
+    """
 
 
 @main.command("assess")

@@ -15,68 +15,98 @@
 
 # AksharaMD
 
-**A configurable document ingestion pipeline with extraction diagnostics.**
+**AksharaMD — per-document extraction-readiness scorer for LLM ingestion.**
 
-> **Evidence status:** Readiness is an uncalibrated heuristic, not a probability of correctness or a guarantee of downstream usefulness. Historical token and QA comparisons below do not establish full-document answer preservation, billed savings, or measured GPU throughput. See [evaluation and claims policy](docs/evaluation-claims.md).
+> **Evidence status:** Readiness is an uncalibrated heuristic, not a probability of correctness or a guarantee of downstream usefulness. Historical token and QA comparisons below describe the *bundled reference parser*, not the readiness score, and do not establish full-document answer preservation, billed savings, or measured GPU throughput. See [evaluation and claims policy](docs/evaluation-claims.md).
 
-Every compilation returns a **0-100 heuristic extraction score** and block provenance categories. Use these diagnostics to investigate extraction problems; validate downstream suitability against your workload before using a score to approve ingestion.
+AksharaMD grades the parser YOU chose. Point it at the source document plus your parser's Markdown output and it returns a per-document readiness verdict. The score answers two questions in the user's own words:
 
-AksharaMD processes PDF, DOCX, XLSX, audio, image, archive, and more — 40+ document categories across 118 registered extensions — and produces structured, token-efficient Markdown designed to be fed directly to an LLM. Unsupported file types are reported with a named error rather than silently dropped. The goal is not a visual replica of the source file. The goal is to give your LLM exactly what it needs to reason over the same content — at a fraction of the token cost — with a clear signal of how reliable that extraction actually is.
+1. **How well did your chosen parser parse the document into an AI-friendly Markdown option?**
+2. **How well did that conversion happen — not from a metric standpoint but from a substance standpoint?**
+
+"Not metric, substance" is the important part. The question is not "were the tokens counted right" — it is: did the actual meaning of the document survive the parse? Did columns collapse? Did tables flatten into a single line? Did numeric values drift by a digit? Did references get orphaned from what they cite? THAT is what the score grades.
 
 Runs locally. Processing local files with the base install makes no network calls. Network access occurs only when explicitly using a remote source such as an HTTP/HTTPS URL or S3, or when an optional ML backend downloads model weights on first use. Once required weights are cached, those backends can run offline. Documents are never sent to an AksharaMD-operated service.
 
 ---
 
-## Why AksharaMD
+## Why per-document matters
 
-### Inspect extraction risks before ingestion
+Parser vendors advertise average accuracy — "95% on our benchmark," "SOTA on OmniDocBench." You are not uploading average documents. You are uploading **this** document, right now. When this one lands in the tail 5% — the two-column layout the parser transposed, the merged-cell table it flattened, the scanned appendix it silently dropped — the average tells you nothing, and neither does the parser. No one else is going to warn you.
 
-Parser diagnostics vary. AksharaMD provides a consistent place to collect extraction warnings and inspect converted content, but those signals need independent validation before they can establish trust.
+AksharaMD is the layer that does. For every document you ingest, you get:
 
-AksharaMD produces a quality signal alongside the content:
-
-- **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — on every compilation
+- **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — for the *specific* parser output you fed in
 - **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
-- **Named warnings** such as `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, and `OCR_HALLUCINATION` identify observed risk categories for investigation.
-- **Heuristic deductions** respond to detected warnings; missing warnings do not establish faithful extraction or remove the need for validation.
+- **Named warnings** such as `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `W_MULTICOLUMN_ORDER`, `W_TABLE_MISSING`, `W_ENCODING_ARTIFACTS`, and `OCR_HALLUCINATION` for the risk categories AksharaMD observed on your document
+- **Source-grounded assessment gate** — a bounded check that key literals from the source (dates, IDs, currency amounts, named entities you declared) actually appear in the parser's Markdown, with an ACCEPT/REJECT verdict
 
-### One tool. Every format. No stitching.
+Missing warnings do not establish faithful extraction; the score is a diagnostic, not a certification. Validate downstream suitability against your workload before using a score to approve ingestion.
 
-Most teams assemble document pipelines from multiple tools: one for PDFs, another for scanned pages, another for spreadsheets, another for audio. Each has its own output format, its own failure modes, its own maintenance cost. When a new document type arrives, the pipeline breaks.
+---
 
-AksharaMD handles all of it — native PDFs, scanned PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and more — with a single consistent output format and a single quality signal across 40+ document categories and 118 registered extensions. Install once, handle whatever your users throw at you.
+## How it works
 
-### Rich structure, not flat text
+Two artifacts in, one verdict out.
 
-AksharaMD represents extracted structure in Markdown. The available representation depends on the parser and source:
+1. Give AksharaMD **the source** (`report.pdf`, `filing.docx`, etc.).
+2. Give it **your parser's Markdown output** for that source.
+3. It returns a readiness score, provenance categories per block, warning codes, and — with a task profile — a source-grounded ACCEPT/REJECT verdict.
 
-- **Headings** are emitted as Markdown headings (`#`, `##`, …) with level inferred from font size and weight
-- **Inline formatting** — bold (`**text**`), italic (`*text*`), underline (`<u>text</u>`), strikethrough (`~~text~~`), superscript (`<sup>text</sup>`), subscript (`<sub>text</sub>`) — is retained from the source document
-- **Code blocks** are detected from monospace fonts and emitted as triple-backtick fences
-- **Tables** are reconstructed as Markdown pipe tables with column alignment
-- **Semantic chunks** carry block-type metadata so downstream code can treat tables, headings, and paragraphs differently
+```bash
+# Grade output your parser already produced (this is the primary flow).
+aksharamd assess parsed.md --source report.pdf
 
-### The token and speed problem
+# With a task profile that declares literals that must survive the parse.
+aksharamd assess parsed.md --source report.pdf --task-profile invoice_v1.json
 
-Every format wastes tokens differently: a PDF with headers, footers, and watermarks; a DOCX with revision history; an XLSX with thousands of empty cells. AksharaMD strips all of that before your LLM sees it.
+# Machine-readable JSON for CI gates.
+aksharamd assess parsed.md --source report.pdf --json
+```
 
-- **Historical output-size comparisons:** an internal corpus reported 4-15x fewer output tokens than MarkItDown for some formats. Some formats use previews or truncate content; these measurements do not establish equivalent information retention. See the [benchmark limitations](benchmarks/LLM_QA_BENCHMARK.md).
-- **98.5% less noise** on the same corpus — 3.7 avg noise lines vs 250.1 for MarkItDown
-- **Same speed as MarkItDown** on the base install — 0.24s average across all formats, no ML overhead
-- **27× faster than [Docling](https://github.com/DS4SD/docling)** on the PDF subset (20 arXiv/technical-report documents) — Docling averaged ~30s per PDF; AksharaMD averaged ~1s on this subset
-- **Structured output** — real headings, tables, code blocks; not flat text
-- **Fully local** — no cloud API, no document upload, no data retention concerns
+The score is per-document. There is no aggregate to hide behind.
 
-### Speed is a choice, not a constraint
+---
 
-The base install (`pip install aksharamd`) has **zero ML dependencies** — it runs at MarkItDown speed and handles the majority of real-world documents. For harder document types, optional extras add ML capabilities surgically:
+## Bring your own parser
 
-- **Scanned PDFs** without extras: the tool flags them with `OCR_REQUIRED` and a RISKY or POOR score — you know immediately, before bad data reaches your vector store.
-- **Scanned PDFs** with `[ocr]` or `[vision]`: full text or layout-aware table extraction. The ML work runs only on image-only pages — your clean PDF pages are unaffected.
-- **Math-heavy PDFs** with `[math]`: LaTeX equation extraction. Runs only on pages with undecodable font spans.
-- **Audio files** with `[audio]`: Whisper transcription. No impact on non-audio documents.
+AksharaMD is parser-agnostic. Grade output from whichever parser fits your stack:
 
-The tradeoff is explicit and bounded: ML extras slow down only the document types that genuinely need ML. A pipeline processing 99% clean PDFs and 1% scanned forms still runs at base speed for 99% of its work.
+- [MarkItDown](https://github.com/microsoft/markitdown) — Microsoft, breadth-first
+- [Docling](https://github.com/DS4SD/docling) — IBM, layout-aware
+- [marker](https://github.com/VikParuchuri/marker) — neural PDF layout
+- [MinerU](https://github.com/opendatalab/MinerU) — layout + reading order
+- [LlamaParse](https://github.com/run-llama/llama_parse) — hosted parser
+- [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/) — PyMuPDF-based
+- Anything else that emits Markdown, including your own in-house parser
+
+For convenience, AksharaMD also ships a **bundled reference parser** (see below). The reference parser is a fallback for teams that don't already have a preferred parser — it is not the product. If you already have a parser you like, keep it and just grade its output.
+
+---
+
+## Bundled reference parser (optional)
+
+AksharaMD ships a reference parser reachable via `aksharamd compile`. It is a convenience so you can get end-to-end results without wiring in an external parser first. The historical benchmarks below describe **this bundled parser**, not the readiness score itself. They are preserved as facts about that specific parser at that specific version; they do not describe the AksharaMD product identity and are not a substitute for grading your parser on your documents.
+
+### What the bundled parser covers
+
+- Native PDFs, DOCX, XLSX, PPTX, HTML, EPUB, email, audio, archives, images, code, and more — 40+ document categories, 118 registered extensions
+- Structural Markdown output — Markdown headings inferred from font size/weight, inline bold/italic/underline/strikethrough/superscript/subscript, code blocks from monospace runs, Markdown pipe tables with column alignment
+- Semantic chunks with block-type metadata
+
+Scanned PDFs, math extraction, and audio transcription require optional ML extras (`[ocr]`, `[vision]`, `[math]`, `[audio]`). Without them, scanned pages surface an `OCR_REQUIRED` warning and a RISKY/POOR readiness score rather than silently emitting garbage.
+
+### Historical bundled-parser benchmarks (v0.3.x)
+
+These numbers describe the *bundled reference parser*, not the readiness score. See [`benchmarks/LLM_QA_BENCHMARK.md`](benchmarks/LLM_QA_BENCHMARK.md) for the full methodology and its prefix-window caveats.
+
+- Historical output-size comparisons on an internal corpus reported 4–15× fewer output tokens than MarkItDown for some formats. Some formats use previews or truncate content; these measurements do not establish equivalent information retention.
+- 98.5% less noise on the same corpus (3.7 avg noise lines vs 250.1 for MarkItDown).
+- Comparable throughput to MarkItDown on the base install — ~0.24s average across all formats, no ML overhead.
+- ~27× faster than [Docling](https://github.com/DS4SD/docling) on the PDF subset (20 arXiv/technical-report documents) — Docling averaged ~30s per PDF; the bundled parser averaged ~1s.
+- ML extras only impact document types that actually need them.
+
+Current package version is v0.3.6. The comparisons above were measured on v0.3.3 and are not automatically transferable to later releases without a fresh measurement.
 
 ---
 
@@ -106,28 +136,36 @@ Requires **Python 3.11 or later**.
 pip install aksharamd
 ```
 
-AksharaMD uses subcommands. The pattern is always `aksharamd <command> <file>`. The primary command is `compile`:
+AksharaMD uses subcommands. The pattern is always `aksharamd <command> <file>`. The two commands most users need are `assess` (grade a parser you already ran — the product) and `compile` (run the bundled reference parser end-to-end):
 
 ```bash
-aksharamd compile report.pdf     # convert a file to AI-optimized Markdown + JSON
-aksharamd validate report.pdf    # check extraction quality without writing output
-aksharamd formats                # list all supported file types
+# Grade the output of a parser you already ran (primary flow).
+aksharamd assess parsed.md --source report.pdf
+
+# Run the bundled reference parser end-to-end. Useful if you don't have a preferred parser yet.
+aksharamd compile report.pdf
+
+# Check for extraction issues without writing output files (bundled parser).
+aksharamd validate report.pdf
+
+# List every file type the bundled parser recognises.
+aksharamd formats
 ```
 
-> **Note:** `aksharamd report.pdf` will not work — the subcommand (e.g. `compile`) is always required.
+> **Note:** `aksharamd report.pdf` will not work — the subcommand (e.g. `assess` or `compile`) is always required.
 
-Output is written to `output/report/`:
+`compile` output is written to `output/report/`:
 
 ```
 output/report/
-├── document.md       # compiled Markdown
+├── document.md       # bundled reference parser's Markdown
 ├── document.json     # structured block model
 ├── manifest.json     # token counts, timings, readiness score
 ├── validation.json   # extraction issues
 └── chunks/           # semantic chunks as JSON
 ```
 
-**Scanned PDFs** (requires Tesseract 5+ installed at the system level — `pip install` alone is not enough):
+**Scanned PDFs via the bundled parser** (requires Tesseract 5+ installed at the system level — `pip install` alone is not enough):
 
 ```bash
 pip install "aksharamd[ocr]"
@@ -136,7 +174,7 @@ pip install "aksharamd[ocr]"
 aksharamd compile scanned.pdf
 ```
 
-**Image-based table reconstruction** (uses [Marker](https://github.com/VikParuchuri/marker) neural layout detection — requires PyTorch, downloads ~3 GB of models on first run):
+**Image-based table reconstruction via the bundled parser** (uses [Marker](https://github.com/VikParuchuri/marker) neural layout detection — requires PyTorch, downloads ~3 GB of models on first run):
 
 ```bash
 pip install "aksharamd[vision]"
