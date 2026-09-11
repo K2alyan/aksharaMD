@@ -31,6 +31,7 @@ from .models.manifest import Manifest
 from .plugins import parsers as _parsers_pkg  # noqa: F401
 from .plugins import registry
 from .plugins.base import (
+    BasePlugin,
     CleanerPlugin,
     ExporterPlugin,
     OptimizerPlugin,
@@ -456,11 +457,11 @@ class Compiler:
         # check succeeds.
         self.ocr_backend = ocr_backend
         registered_parsers, registered_plugins = registry.snapshot()
-        self._parsers = registered_parsers
+        self._parsers: dict[str, type[ParserPlugin] | Callable[[], ParserPlugin]] = dict(registered_parsers)
         if parsers:
             self._parsers.update({key.lower().lstrip("."): value for key, value in parsers.items()})
         self.parser_configuration_id = parser_configuration_id
-        self._stage_plugin_classes: dict[type, list[type]] = {}
+        self._stage_plugin_classes: dict[type, list[type[BasePlugin]]] = {}
         for plugin_type in (CleanerPlugin, OptimizerPlugin, ValidatorPlugin, ExporterPlugin):
             self._stage_plugin_classes[plugin_type] = sorted(
                 [cls for cls in registered_plugins
