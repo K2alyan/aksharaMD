@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-import re
-
 from ...context import CompilationContext
 from ...models.block import Block, BlockType
 from ...utils import count_tokens
 from ..base import OptimizerPlugin
 from ..registry import register_plugin
-
-# Matches numbered section headings: "1", "1.5", "1.5.1", "Section 1.5.1", "A.2", "IV."
-_NUMBERED_SECTION_RE = re.compile(
-    r'^(?:(?:Section|Appendix|Chapter|Article)\s+)?(?:\d+(?:\.\d+)*\.?\s|[IVXivx]+\.?\s|[A-Z]\.\d)'
-)
 
 _MIN_MERGE_LEN = 60   # paragraphs shorter than this are candidates for merging
 _MAX_MERGE_LEN = 300  # don't merge if combined result exceeds this
@@ -32,42 +25,6 @@ def _remove_duplicates(blocks: list[Block]) -> tuple[list[Block], int]:
             seen.add(block.checksum)
             result.append(block)
     return result, removed
-
-
-def _detect_repeated_headers_footers(blocks: list[Block], total_pages: int) -> tuple[set[str], set[str]]:
-    """Return (header_checksums, footer_checksums) for blocks repeated across pages."""
-    if total_pages < 3:
-        return set(), set()
-
-    threshold = max(2, int(total_pages * 0.4))
-
-    # Group by page
-    by_page: dict[int, list[Block]] = {}
-    for b in blocks:
-        if b.page is not None:
-            by_page.setdefault(b.page, []).append(b)
-
-    checksum_pages: dict[str, set[int]] = {}
-    for page, pblocks in by_page.items():
-        for b in pblocks:
-            checksum_pages.setdefault(b.checksum, set()).add(page)
-
-    repeated = {cs for cs, pages in checksum_pages.items() if len(pages) >= threshold}
-
-    # Classify header vs footer by position (first vs last block on page)
-    headers: set[str] = set()
-    footers: set[str] = set()
-    for page, pblocks in by_page.items():
-        if not pblocks:
-            continue
-        first_cs = pblocks[0].checksum
-        last_cs = pblocks[-1].checksum
-        if first_cs in repeated:
-            headers.add(first_cs)
-        if last_cs in repeated:
-            footers.add(last_cs)
-
-    return headers, footers
 
 
 def _merge_fragmented_headings(blocks: list[Block]) -> list[Block]:
@@ -155,35 +112,9 @@ class TokenOptimizer(OptimizerPlugin):
         total_text = " ".join(b.content for b in blocks)
         ctx.original_tokens = count_tokens(total_text)
 
-        # Remove exact duplicates
-        blocks, dups_removed = _remove_duplicates(blocks)
-        ctx.duplicate_blocks_removed += dups_removed
-
-        # Remove repeated headers/footers — but never remove numbered section headings
-        headers, footers = _detect_repeated_headers_footers(blocks, ctx.document.pages)
-        filtered = []
-        headers_removed = 0
-        footers_removed = 0
-        for b in blocks:
-            # KEY_VALUE_GROUP blocks are structured — never remove as page furniture
-            if b.type == BlockType.KEY_VALUE_GROUP:
-                filtered.append(b)
-            elif b.checksum in headers or b.checksum in footers:
-                if (
-                    b.type == BlockType.HEADING
-                    and bool(_NUMBERED_SECTION_RE.match(b.content))
-                ):
-                    # Conservative: preserve numbered section headings regardless of repetition
-                    filtered.append(b)
-                elif b.checksum in headers:
-                    headers_removed += 1
-                else:
-                    footers_removed += 1
-            else:
-                filtered.append(b)
-        ctx.headers_removed += headers_removed
-        ctx.footers_removed += footers_removed
-        blocks = filtered
+        # Repetition and first/last position alone do not establish page furniture.
+        # Preserve every occurrence until parsers provide reliable classification
+        # and provenance; checksum-wide removal can erase body facts as well.
 
         # Merge fragmented headings (e.g. PDF cover title split across lines)
         blocks = _merge_fragmented_headings(blocks)

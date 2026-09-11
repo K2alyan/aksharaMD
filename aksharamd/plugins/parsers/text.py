@@ -45,6 +45,25 @@ class TextParser(ParserPlugin):
         text = raw.decode(enc, errors="replace")
         text = text.replace("\r\n", "\n").replace("\r", "\n")
 
+        file_type = path.suffix.lower().lstrip(".") or path.name.lower().lstrip(".")
+        if file_type in _TEXT_LIKE and file_type not in {"txt", "text", "log"}:
+            # Prose splitting/normalization and preview truncation can change
+            # program structure or configuration semantics. Keep literal input
+            # intact, with only the line-ending normalization performed above.
+            language = {"py": "python", "pyw": "python", "yml": "yaml"}.get(
+                file_type, file_type
+            )
+            doc = Document(
+                source=str(path),
+                file_type=file_type,
+                title=path.stem,
+                pages=1,
+                blocks=[Block(type=BlockType.CODE_BLOCK, content=text, language=language)],
+            )
+            doc.compute_id()
+            ctx.document = doc
+            return ctx
+
         paragraphs = re.split(r"\n{2,}", text.strip())
         total_chars = len(text)
         large_file = total_chars > _MAX_CONTENT_CHARS
