@@ -6,11 +6,15 @@ downstream LLM answer accuracy across Claude, GPT-4, and Gemini.
 For each document, AksharaMD, MarkItDown, Unstructured, and Docling each
 produce a text representation. The same questions are then sent to every
 available LLM using each representation as context. A Claude Haiku judge
-scores every answer 0-10 against the expected answer.
+scores answers 0-10 against the expected answer. Operational failures are
+retained as unscored results and excluded from quality-score denominators.
+This legacy runner answers from the first 6,000 characters, while conversion
+token statistics describe the full output; it does not prove full-document
+quality preservation or billed savings.
 
-This makes the impact of extraction quality directly measurable:
-better-structured Markdown → more tokens used by the LLM on actual
-content → higher answer accuracy.
+Candidate-derived questions require explicit diagnostic opt-in and cannot
+establish independent extraction-quality evidence. Supplied questions have
+unverified provenance unless separately validated against original sources.
 
 Usage:
     # Use a pre-written Q&A YAML file (recommended)
@@ -24,10 +28,10 @@ Usage:
         --tools aksharamd markitdown unstructured docling --llms gemini
 
     # Auto-generate Q&A pairs from documents and evaluate
-    python -m benchmarks.llm_qa_eval report.pdf contract.docx
+    python -m benchmarks.llm_qa_eval report.pdf contract.docx --allow-candidate-derived-qa
 
     # Save auto-generated Q&A for reuse
-    python -m benchmarks.llm_qa_eval report.pdf --save-qa benchmarks/my_qa.yaml
+    python -m benchmarks.llm_qa_eval report.pdf --allow-candidate-derived-qa --save-qa benchmarks/my_qa.yaml
 
 Q&A YAML format (see benchmarks/qa_pairs_example.yaml):
     documents:
@@ -417,9 +421,13 @@ def _generate_qa(doc_text: str, filename: str, n: int = 4) -> list[dict]:
 
 # ── judge scoring ─────────────────────────────────────────────────────────────
 
-def _judge(question: str, expected: str, answer: str) -> int:
-    if not answer or answer.startswith("["):
-        return 0
+@dataclass
+class JudgeResult:
+    score: int = -1
+    error: str = ""
+
+
+def _judge(question: str, expected: str, answer: str) -> JudgeResult:
     prompt = (
         "You are an objective answer quality judge.\n\n"
         f"Question:         {question}\n"
@@ -430,10 +438,12 @@ def _judge(question: str, expected: str, answer: str) -> int:
         "Reply with a single integer only."
     )
     resp = _call_claude(prompt, max_tokens=8, model=_JUDGE_MODEL)
-    try:
-        return max(0, min(10, int(resp.text.strip().split()[0])))
-    except Exception:
-        return 0
+    if resp.error:
+        return JudgeResult(error=resp.error)
+    raw = resp.text.strip()
+    if raw not in {str(i) for i in range(11)}:
+        return JudgeResult(error=f"Invalid judge response: {raw!r}")
+    return JudgeResult(score=int(raw))
 
 
 # ── result container ──────────────────────────────────────────────────────────
@@ -446,12 +456,25 @@ class QAResult:
     tool: str
     llm: str
     answer: str
-    score: int        # 0–10; -1 = not scored (no expected answer)
+    score: int        # 0-10; -1 = unscored (missing reference or operational failure)
     doc_tokens: int   # tokens in conversion output (tiktoken cl100k_base)
     error: str = ""
+    status: str = "unscored"
+    judge_error: str = ""
+    qa_provenance: str = "provided_unverified"
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
+
+def _quality_summary(results: list[QAResult]) -> dict:
+    scored = [r.score for r in results if r.score >= 0]
+    return {
+        "attempted": len(results), "scored": len(scored),
+        "unscored": len(results) - len(scored),
+        "operational_failures": sum(r.status in {"conversion_error", "answer_error", "judge_error"} for r in results),
+        "mean_score": sum(scored) / len(scored) if scored else None,
+    }
+
 
 def main() -> None:  # noqa: C901
     parser = argparse.ArgumentParser(
@@ -471,6 +494,8 @@ def main() -> None:  # noqa: C901
                         help="LLMs to use (default: all available)")
     parser.add_argument("--no-llm", action="store_true",
                         help="Conversion stats only — no LLM calls, no API keys needed")
+    parser.add_argument("--allow-candidate-derived-qa", action="store_true",
+                        help="Allow diagnostic questions derived from AksharaMD output; not independent quality evidence")
     parser.add_argument("--n-qa", type=int, default=4,
                         help="Questions to auto-generate per document (default: 4)")
     parser.add_argument("--save-qa", metavar="PATH",
@@ -511,6 +536,10 @@ def main() -> None:  # noqa: C901
         with open(qa_path, encoding="utf-8") as fh:
             qa_docs = yaml.safe_load(fh).get("documents", [])
 
+        if not args.no_llm and not args.allow_candidate_derived_qa and any(
+            not d.get("qa") or d.get("qa_provenance") == "candidate_derived_diagnostic" for d in qa_docs
+        ):
+            parser.error("Missing or candidate-derived QA requires --allow-candidate-derived-qa (diagnostic only).")
         needs_gen = [d for d in qa_docs if not d.get("qa") and Path(d.get("path", "")).exists()]
         if needs_gen and not args.no_llm:
             print(f"Auto-generating Q&A pairs for {len(needs_gen)} document(s) with Claude Haiku…\n")
@@ -521,6 +550,7 @@ def main() -> None:  # noqa: C901
                     text, _ = _convert_aksharamd(p)
                     pairs = _generate_qa(text, p.name, n=args.n_qa)
                     doc_entry["qa"] = pairs
+                    doc_entry["qa_provenance"] = "candidate_derived_diagnostic"
                     print(f"{len(pairs)} questions")
                 except Exception as exc:
                     doc_entry["qa"] = []
@@ -535,6 +565,8 @@ def main() -> None:  # noqa: C901
             print()
 
     elif args.docs:
+        if not args.no_llm and not args.allow_candidate_derived_qa:
+            parser.error("Supply --qa with pre-written questions or opt in to --allow-candidate-derived-qa (diagnostic only).")
         paths = [Path(p) for p in args.docs]
         missing = [p for p in paths if not p.exists()]
         if missing:
@@ -552,7 +584,8 @@ def main() -> None:  # noqa: C901
                     text, _ = _convert_aksharamd(p)
                     pairs = _generate_qa(text, p.name, n=args.n_qa)
                     if pairs:
-                        qa_docs.append({"path": str(p), "qa": pairs})
+                        qa_docs.append({"path": str(p), "qa": pairs,
+                                        "qa_provenance": "candidate_derived_diagnostic"})
                         print(f"{len(pairs)} questions")
                     else:
                         print("no questions generated (document too short?)")
@@ -575,6 +608,9 @@ def main() -> None:  # noqa: C901
         sys.exit(1)
 
     # ── print run config ─────────────────────────────────────────────────────
+    diagnostic = any(d.get("qa_provenance") == "candidate_derived_diagnostic" for d in qa_docs)
+    if diagnostic:
+        print("DIAGNOSTIC: candidate-derived questions cannot establish independent quality preservation.")
     tool_labels = [TOOL_DISPLAY.get(t, t) for t in args.tools]
     print("\nEvaluation config")
     print(f"  Documents : {len(qa_docs)}")
@@ -594,6 +630,7 @@ def main() -> None:  # noqa: C901
     for doc_entry in qa_docs:
         doc_path = Path(doc_entry["path"])
         qa_pairs = doc_entry.get("qa", [])
+        qa_provenance = doc_entry.get("qa_provenance", "provided_unverified")
 
         if not doc_path.exists():
             print(f"  SKIP (not found): {doc_path}")
@@ -617,7 +654,7 @@ def main() -> None:  # noqa: C901
                 else:
                     print(f"{token_count:>8,} tokens   {elapsed:.2f}s")
             except Exception as exc:
-                tool_texts[tool] = ("", 0.0)
+                tool_texts[tool] = (f"[conversion error: {exc}]", 0.0)
                 print(f"FAILED: {exc}")
 
         if not active_llms or not qa_pairs:
@@ -646,14 +683,14 @@ def main() -> None:  # noqa: C901
                     llm_fn = _LLM_FNS[llm_name]  # type: ignore[index]
 
                     if is_error:
-                        score = 0
                         answer_preview = text[:65]
                         score_str = " n/a"
                         print(f"       {label:<15} {LLM_DISPLAY.get(llm_name, llm_name):<22} {score_str:>5}  {answer_preview!r}")
                         all_results.append(QAResult(
                             document=str(doc_path), question=question, expected=expected,
                             tool=tool, llm=llm_name, answer="", score=-1,
-                            doc_tokens=0, error=text,
+                            doc_tokens=0, error=text, status="conversion_error",
+                            qa_provenance=qa_provenance,
                         ))
                         continue
 
@@ -667,8 +704,13 @@ def main() -> None:  # noqa: C901
                     time.sleep(0.25)
 
                     score = -1
+                    status = "answer_error" if resp.error else "missing_reference"
+                    judge_error = ""
                     if expected and not resp.error:
-                        score = _judge(question, expected, resp.text)
+                        judgment = _judge(question, expected, resp.text)
+                        score = judgment.score
+                        judge_error = judgment.error
+                        status = "judge_error" if judge_error else "scored"
                         time.sleep(0.25)
 
                     score_str = f"{score}/10" if score >= 0 else " n/a"
@@ -681,7 +723,8 @@ def main() -> None:  # noqa: C901
                     all_results.append(QAResult(
                         document=str(doc_path), question=question, expected=expected,
                         tool=tool, llm=llm_name, answer=resp.text, score=score,
-                        doc_tokens=doc_tokens, error=resp.error,
+                        doc_tokens=doc_tokens, error=resp.error, status=status,
+                        judge_error=judge_error, qa_provenance=qa_provenance,
                     ))
 
         print()
@@ -697,7 +740,13 @@ def main() -> None:  # noqa: C901
     out_path.write_text(
         json.dumps(
             {
-                "config": {"tools": args.tools, "llms": active_llms},
+                "config": {"tools": args.tools, "llms": active_llms, "diagnostic": diagnostic},
+                "quality_summary": _quality_summary(all_results),
+                "quality_by_tool_llm": [
+                    {"tool": tool, "llm": llm, **_quality_summary(
+                        [r for r in all_results if r.tool == tool and r.llm == llm]
+                    )} for tool in args.tools for llm in active_llms
+                ],
                 "results": [
                     {
                         "document": r.document,
@@ -708,6 +757,8 @@ def main() -> None:  # noqa: C901
                         "answer": r.answer,
                         "score": r.score,
                         "doc_tokens": r.doc_tokens,
+                        "error": r.error, "status": r.status,
+                        "judge_error": r.judge_error, "qa_provenance": r.qa_provenance,
                     }
                     for r in all_results
                 ],
@@ -727,6 +778,9 @@ def _print_summary(results: list[QAResult], tools: list[str],
                    llms: list[str],
                    token_avgs_override: dict[str, float] | None = None) -> None:
     scored = [r for r in results if r.score >= 0]
+    counts = _quality_summary(results)
+    print(f"QA attempts: {counts['attempted']}; scored: {counts['scored']}; "
+          f"unscored: {counts['unscored']}; operational failures: {counts['operational_failures']}")
     col = max(len(TOOL_DISPLAY.get(t, t)) for t in tools) + 2
 
     # ── token comparison ─────────────────────────────────────────────────────
@@ -796,21 +850,26 @@ def _print_summary(results: list[QAResult], tools: list[str],
         for tool in tools:
             label = TOOL_DISPLAY.get(tool, tool)
             row = f"  {label:<{col}}"
-            per_llm: list[float] = []
             for llm in llms:
                 scores = score_map.get((tool, llm), [])
-                avg = sum(scores) / len(scores) if scores else 0.0
-                per_llm.append(avg)
-                row += f"{avg:>{avg_col}.1f}"
-            overall = sum(per_llm) / len(per_llm) if per_llm else 0.0
-            tool_overall[tool] = overall
-            row += f"{overall:>{avg_col}.1f}"
+                if scores:
+                    avg = sum(scores) / len(scores)
+                    row += f"{avg:>{avg_col}.1f}"
+                else:
+                    row += f"{'n/a':>{avg_col}}"
+            tool_scores = [r.score for r in scored if r.tool == tool]
+            if tool_scores:
+                overall = sum(tool_scores) / len(tool_scores)
+                tool_overall[tool] = overall
+                row += f"{overall:>{avg_col}.1f}"
+            else:
+                row += f"{'n/a':>{avg_col}}"
             print(row)
 
         print()
         base_overall = tool_overall.get(base_tool, 0)
         for tool in tools:
-            if tool == base_tool:
+            if tool == base_tool or tool not in tool_overall or base_tool not in tool_overall:
                 continue
             label = TOOL_DISPLAY.get(tool, tool)
             other_overall = tool_overall.get(tool, 0)
