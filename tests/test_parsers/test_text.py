@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import BlockType
 from aksharamd.plugins.parsers.text import _MAX_CONTENT_CHARS, TextParser
@@ -73,3 +75,72 @@ def test_empty_paragraphs_skipped(tmp_path):
     ctx = _parse(text, tmp_path)
     paras = [b for b in ctx.document.blocks if b.type == BlockType.PARAGRAPH]
     assert len(paras) == 2
+
+
+@pytest.mark.parametrize(
+    ("suffix", "language", "source"),
+    [
+        (".py", "python", '\ndef outer():\n    if True:\n        return "a  b"\n\n\n'),
+        (".yaml", "yaml", "root:\n  children:\n    - name: first\n      value: |\n        a  b\n\n"),
+        (".yml", "yaml", "root:\n  enabled: true\n"),
+        (".conf", "conf", "key = a  b\n\n"),
+        (".sh", "sh", "cat <<'EOF'\n  literal  text\nEOF\n"),
+    ],
+)
+def test_literal_source_preserved_through_compiler_export(tmp_path, suffix, language, source):
+    from aksharamd.compiler import Compiler
+
+    path = tmp_path / f"source{suffix}"
+    path.write_bytes(source.encode("utf-8"))
+    output = tmp_path / "compiled"
+    ctx = Compiler(output_dir=str(output)).compile(str(path))
+    code = [b for b in ctx.document.blocks if b.type == BlockType.CODE_BLOCK]
+    assert len(code) == 1
+    assert code[0].content == source
+    assert code[0].language == language
+    assert ctx.document.file_type == suffix[1:]
+    markdown = (output / "document.md").read_text(encoding="utf-8")
+    assert f"```{language}\n{source}```" in markdown
+    if suffix == ".py":
+        import ast
+        assert ast.dump(ast.parse(code[0].content)) == ast.dump(ast.parse(source))
+
+
+def test_large_literal_source_is_not_a_prose_preview(tmp_path):
+    source = "root:\n" + "  # retain every comment and blank line\n\n" * 2000 + "  tail: 42\n"
+    assert len(source) > _MAX_CONTENT_CHARS
+    ctx = _parse(source, tmp_path, suffix=".yaml")
+    assert len(ctx.document.blocks) == 1
+    assert ctx.document.blocks[0].content == source
+    assert not ctx.document.metadata.get("truncated", False)
+    assert not any(issue.code == "W_OUTPUT_TRUNCATED" for issue in ctx.validation.warnings)
+
+
+def test_numeric_facts_preserved_through_compiler_export(tmp_path):
+    from aksharamd.compiler import Compiler
+
+    path = tmp_path / "amount.txt"
+    path.write_text("Amount\n\n1000\n\n2026\n\n00042", encoding="utf-8")
+    output = tmp_path / "compiled"
+    ctx = Compiler(output_dir=str(output)).compile(str(path))
+    assert [b.content for b in ctx.document.blocks] == ["Amount", "1000", "2026", "00042"]
+    markdown = (output / "document.md").read_text(encoding="utf-8")
+    assert "Amount\n\n1000\n\n2026\n\n00042" in markdown
+
+
+@pytest.mark.parametrize("embedded_fence", ["```", "````", "````````"])
+def test_literal_source_fences_roundtrip(tmp_path, embedded_fence):
+    from markdown_it import MarkdownIt
+
+    from aksharamd.compiler import Compiler
+
+    source = f'message = """\n{embedded_fence}\n# Not a heading\n{embedded_fence}\n"""\n'
+    path = tmp_path / "literal.py"
+    path.write_text(source, encoding="utf-8")
+    output = tmp_path / "compiled"
+    Compiler(output_dir=str(output)).compile(str(path))
+    tokens = MarkdownIt().parse((output / "document.md").read_text(encoding="utf-8"))
+    assert len(tokens) == 1
+    assert tokens[0].type == "fence"
+    assert tokens[0].info == "python"
+    assert tokens[0].content == source

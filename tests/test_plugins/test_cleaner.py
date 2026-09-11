@@ -18,17 +18,10 @@ def _block(content: str, btype: BlockType = BlockType.PARAGRAPH) -> Block:
     return Block(type=btype, content=content, index=0)
 
 
-def test_page_number_dropped():
-    blocks = [_block("42"), _block("Hello world paragraph.")]
-    out = _run(blocks)
-    assert len(out) == 1
-    assert out[0].content == "Hello world paragraph."
-
-
-def test_page_number_with_word_dropped():
-    blocks = [_block("Page 5 of 20"), _block("Real content here.")]
-    out = _run(blocks)
-    assert len(out) == 1
+def test_numeric_facts_and_page_labels_preserved_without_provenance():
+    # A value or quoted page label is not proven furniture by its text alone.
+    content = ["Amount", "1000", "2026", "00042", "Page 5 of 20"]
+    assert [b.content for b in _run([_block(value) for value in content])] == content
 
 
 def test_empty_paragraph_dropped():
@@ -81,8 +74,8 @@ def test_multiple_blocks_all_processed():
     blocks = [
         _block("First paragraph here."),
         _block(""),  # dropped
-        _block("42"),  # dropped (page number)
+        _block("42"),  # preserved: may be a source fact
         _block("Second paragraph here."),
     ]
     out = _run(blocks)
-    assert len(out) == 2
+    assert len(out) == 3

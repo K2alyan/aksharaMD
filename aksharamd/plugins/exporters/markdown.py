@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ...context import CompilationContext
@@ -13,20 +14,22 @@ def _block_to_md(block: Block) -> str:
         return f"{'#' * (block.level or 1)} {block.content}"
     elif block.type == BlockType.CODE_BLOCK:
         lang = block.language or ""
-        return f"```{lang}\n{block.content}\n```"
+        longest = max((len(run) for run in re.findall(r"`+", block.content)), default=0)
+        fence = "`" * max(3, longest + 1)
+        newline = "" if block.content.endswith("\n") else "\n"
+        return f"{fence}{lang}\n{block.content}{newline}{fence}"
     elif block.type == BlockType.TABLE:
         return block.content
     elif block.type == BlockType.LIST:
         return block.content
     elif block.type == BlockType.BLOCKQUOTE:
-        lines = block.content.splitlines()
+        lines = block.content.replace("\r\n", "\n").replace("\r", "\n").split("\n")
         return "\n".join(f"> {line}" for line in lines)
     elif block.type == BlockType.ADMONITION:
         kind = block.metadata.get("admonition_type", "note").upper()
-        lines = block.content.splitlines()
-        first = f"> **{kind}**: {lines[0]}" if lines else f"> **{kind}**:"
-        rest = [f"> {ln}" for ln in lines[1:]]
-        return "\n".join([first] + rest)
+        lines = block.content.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        # Keep the label separate so a leading fence/list remains a block.
+        return "\n".join([f"> **{kind}**:", ">", *[f"> {line}" for line in lines]])
     elif block.type == BlockType.IMAGE:
         label = block.content or block.metadata.get("src", "Image")
         return f"![{label}]"

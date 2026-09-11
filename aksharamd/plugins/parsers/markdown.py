@@ -144,21 +144,31 @@ class MarkdownParser(ParserPlugin):
                 continue
 
             elif token.type == "blockquote_open":
+                # Consume the entire outer container, including nested quotes.
+                # Visiting these tokens again emits quoted content as body prose.
                 j = i + 1
-                parts = []
-                while j < len(tokens) and tokens[j].type != "blockquote_close":
-                    if tokens[j].type == "inline":
-                        parts.append(tokens[j].content)
+                depth = 1
+                while j < len(tokens) and depth:
+                    if tokens[j].type == "blockquote_open":
+                        depth += 1
+                    elif tokens[j].type == "blockquote_close":
+                        depth -= 1
                     j += 1
+                # Keep inner Markdown, blank lines, and nested quote markers.
+                # Collecting only inline token text would flatten that structure.
+                start, end = token.map or (0, 0)
+                quote_lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                parts = [re.sub(r"^ {0,3}> ?", "", line, count=1) for line in quote_lines[start:end]]
                 if parts:
-                    m = _GH_ADMONITION_RE.match(parts[0].strip())
+                    m = (_GH_ADMONITION_RE.match(parts[0].strip())
+                         if tokens[i + 1].type == "paragraph_open" else None)
                     if m:
                         admonition_type = m.group(1).lower()
                         # Body is everything after the [!TYPE] tag on the first line,
                         # plus all subsequent lines.
                         first_body = parts[0].strip()[m.end():].strip()
                         rest = parts[1:]
-                        body = "\n".join(filter(None, [first_body] + rest)).strip()
+                        body = "\n".join(([first_body] if first_body else []) + rest)
                         blocks.append(Block(
                             type=BlockType.ADMONITION,
                             content=body,
@@ -172,6 +182,8 @@ class MarkdownParser(ParserPlugin):
                             index=block_index,
                         ))
                     block_index += 1
+                i = j
+                continue
 
             i += 1
 
