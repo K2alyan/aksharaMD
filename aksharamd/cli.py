@@ -492,7 +492,10 @@ def assess(candidate: Path, source: Path | None, task_profile: Path | None, poli
     help=(
         "Require the saved source-grounded quality assessment to be ACCEPT. "
         "This opt-in gate exits 2 for HOLD, REJECT, or ABSTAIN and exits 1 "
-        "when no valid assessment was produced."
+        "when no valid assessment was produced. "
+        "Note: PDF, HTML, JSON, and other binary sources ABSTAIN by default "
+        "under `general-ingestion-v2`; provide a text/markdown source, or use "
+        "`aksharamd assess --policy source-text-preservation-v1` for that path."
     ),
 )
 @click.option(
@@ -814,7 +817,7 @@ def compile(
     # ── Rich output mode ───────────────────────────────────────────────────────
     if not quiet and ctx.manifest:
         m = ctx.manifest
-        tokens_saved = max(0, m.original_tokens - m.optimized_tokens)
+        tokens_saved = m.original_tokens - m.optimized_tokens
         pages_per_sec = round(m.pages / m.elapsed_seconds, 1) if m.elapsed_seconds > 0 and m.pages > 0 else 0
         tokens_per_sec = round(m.original_tokens / m.elapsed_seconds) if m.elapsed_seconds > 0 and m.original_tokens > 0 else 0
 
@@ -1153,7 +1156,7 @@ def benchmark(sources: tuple[str, ...], output: str, verbose: bool):
                 "pages": m.pages,
                 "orig_tokens": m.original_tokens,
                 "opt_tokens": m.optimized_tokens,
-                "saved": max(0, m.original_tokens - m.optimized_tokens),
+                "saved": (m.original_tokens - m.optimized_tokens) if m else 0,
                 "reduction": m.token_reduction_percent,
                 "tables": m.tables,
                 "chunks": m.chunks,
