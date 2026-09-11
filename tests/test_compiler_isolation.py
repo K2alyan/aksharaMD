@@ -110,3 +110,41 @@ def test_compilers_receive_distinct_stateful_stage_instances(monkeypatch):
     second_plugin = next(p for p in second._plugins(CleanerPlugin) if isinstance(p, StatefulCleaner))
     assert first_plugin is not second_plugin
     assert StatefulCleaner.instances == 2
+
+
+def test_package_uses_compiler_exporter_snapshot(monkeypatch, tmp_path: Path):
+    class LateExporter(ExporterPlugin):
+        name = "late-package-exporter"
+
+        def __init__(self):
+            raise RuntimeError("late exporter must not leak into existing compiler")
+
+        def execute(self, ctx):
+            return ctx
+
+    source = tmp_path / "sample.md"
+    source.write_text("# heading", encoding="utf-8")
+    compiler = Compiler(output_dir=str(tmp_path / "out"))
+    monkeypatch.setattr(registry, "_plugin_classes", [*registry._plugin_classes, LateExporter])
+
+    context = compiler.compile_package(str(source))
+
+    assert context.document is not None
+    assert not context.validation.errors
+
+
+def test_corpus_uses_compiler_parser_snapshot_and_custom_extensions(tmp_path: Path):
+    source_dir = tmp_path / "corpus"
+    source_dir.mkdir()
+    source = source_dir / "sample.customiso"
+    source.write_text("input", encoding="utf-8")
+    compiler = Compiler(
+        output_dir=str(tmp_path / "out"),
+        parsers={"customiso": _parser("custom")},
+    )
+
+    result = compiler.compile_corpus(str(source_dir))
+
+    assert result.processed == 1
+    assert result.failed == []
+    assert result.chunks[0]["documents"][0]["file_type"] == "customiso"
