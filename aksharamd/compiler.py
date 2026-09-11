@@ -43,6 +43,7 @@ from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.exporters import quality_assessment as _quality_assessment_exporter_pkg  # noqa: F401
+from .plugins.exporters.markdown import render_markdown
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
@@ -993,7 +994,7 @@ class Compiler:
                 on_stage("Counting tokens")
             with timed("tokenize"):
                 if ctx.document:
-                    optimized_text = " ".join(b.content for b in ctx.document.blocks)
+                    optimized_text = render_markdown(ctx.document)
                     optimized_tokens = count_tokens(optimized_text)
                 else:
                     optimized_tokens = 0
