@@ -1,3 +1,5 @@
+> **Status: EXPERIMENTAL.** These types define the intended integration boundary but are not yet wired into `Compiler`. Callers cannot yet substitute a `ParserAdapter` and have the Compiler validate the returned digest — that wiring is a tracked follow-up. Treat this document as a design contract, not a shipped guarantee.
+
 # Parser adapter contract
 
 `aksharamd.parser_contract` is the narrow boundary for applications that
