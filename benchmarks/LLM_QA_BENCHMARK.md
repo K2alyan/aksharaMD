@@ -103,6 +103,8 @@ AksharaMD, MarkItDown, and LlamaParse handle every format in the corpus. LlamaPa
 
 ## Results
 
+> **Historical study caveat.** This is a historical prefix-window study measuring the bundled reference parser, not the AksharaMD readiness score. Token totals were computed on complete parser outputs while answer accuracy was measured on a 6,000-character prefix — the two columns describe differently sized contexts and are not directly comparable. See the September 10 correction above.
+
 ### Token efficiency
 
 Token counts measured using the cl100k_base tokenizer (GPT-4 / Claude family).
@@ -142,6 +144,8 @@ Scores are averaged across 4 questions × 83 documents per format (max 10.0). Fo
 
 #### Claude Haiku 4.5 (primary benchmark — 5 tools, 996 documents)
 
+> Historical prefix-window study measuring the bundled reference parser (not the readiness score). Token totals and answer accuracy were measured on differently sized contexts and are not directly comparable — see the September 10 correction above.
+
 | Tool | Avg score | Docs scored | Format coverage |
 |------|:---------:|:-----------:|:---------------:|
 | **AksharaMD** | **9.5** | **996/996** | **12/12** |
@@ -166,7 +170,7 @@ Answer model: GPT-4o mini. Judge model: GPT-4o mini (separate call, same scoring
 | **AksharaMD** | **9.3** | **12/12** |
 | MarkItDown | 8.7 | 12/12 |
 
-AksharaMD leads on accuracy **and** uses the fewest tokens **and** covers all 12 formats — the only tool to achieve all three simultaneously. The advantage holds across Claude, Gemini, and GPT-4o mini judges.
+In this historical study the bundled reference parser was the only tool that led on accuracy, produced the fewest tokens, and covered all 12 formats simultaneously. The pattern held across Claude, Gemini, and GPT-4o mini judges within the prefix-window setup described above. These are properties of that specific study of the bundled parser, not of the AksharaMD readiness score or of the same parsers on today's code.
 
 ### Per-format accuracy — Claude Haiku 4.5
 
@@ -246,6 +250,8 @@ The PDF gap (8.6 vs 6.0) and HTML gap (9.9 vs 7.6) are consistent across all thr
 ---
 
 ## API Cost Projection
+
+> Historical prefix-window study measuring the bundled reference parser (not the readiness score). Token totals and answer accuracy were measured on differently sized contexts and are not directly comparable — see the September 10 correction above. These figures are analytical projections derived from historical token counts, not billed savings.
 
 Input token cost only. Prices verified July 2026 — confirm current rates at vendor sites.
 

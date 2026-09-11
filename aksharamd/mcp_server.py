@@ -1,13 +1,21 @@
 """AksharaMD MCP Server.
 
-Exposes AksharaMD's document compilation pipeline as Model Context Protocol tools
-so any MCP-compatible host (Claude Desktop, Cursor, etc.) can compile documents
-directly without writing files to disk.
+Exposes AksharaMD as Model Context Protocol tools so any MCP-compatible host
+(Claude Desktop, Cursor, etc.) can invoke it. AksharaMD is a per-document
+extraction-readiness scorer for LLM ingestion: bring your own parser
+(MarkItDown, Docling, marker, MinerU, LlamaParse, ...) and AksharaMD grades
+the output. A bundled reference parser is included for convenience.
 
 Tools:
-  compile_document      — compile any supported file into AI-ready Markdown
-  get_supported_formats — list every format AksharaMD handles
-  get_stats             — cumulative token savings across all compilations
+  compile_document      — run the bundled reference parser and return the
+                          readiness score for its output
+  get_supported_formats — list the file types the bundled reference parser
+                          recognises
+  get_stats             — cumulative token savings recorded by the bundled
+                          reference parser
+
+To grade output produced by a parser you already ran, use the CLI ``assess``
+command; an MCP tool for that path may be added later.
 
 Usage:
   # stdio (default — for Claude Desktop / most MCP hosts)
@@ -158,19 +166,22 @@ def _format_savings_summary(m: Any) -> str:
 
 @mcp.tool()
 def compile_document(file_path: str) -> str:
-    """Compile a document into AI-optimized Markdown.
+    """Compile a document with AksharaMD's bundled reference parser and return the readiness score for the result.
 
-    Supports 35+ formats including PDF, DOCX, HTML, CSV, JSON, images (OCR),
-    audio (Whisper transcription), archives, and more.
-
-    The returned text is the full document content in clean Markdown, followed
-    by a summary block showing token savings and confidence score.
+    AksharaMD's product is the readiness score, not the parser. This tool runs
+    the bundled reference parser (which supports 35+ formats including PDF,
+    DOCX, HTML, CSV, JSON, images (OCR), audio (Whisper), archives, and more)
+    and returns its Markdown output along with an appended summary block that
+    reports the readiness score and token counts. To grade output produced by
+    a parser you have already run (MarkItDown, Docling, marker, MinerU,
+    LlamaParse, ...), use the ``aksharamd assess`` CLI instead.
 
     Args:
         file_path: Absolute or relative path to the document to compile.
 
     Returns:
-        Compiled Markdown content with an appended AksharaMD summary block.
+        Compiled Markdown content with an appended AksharaMD summary block
+        (readiness score, quality band, token counts).
     """
     denied = _check_allowed_path(file_path)
     if denied:
@@ -212,22 +223,25 @@ def compile_document(file_path: str) -> str:
 
 @mcp.tool()
 def compile_document_multimodal(file_path: str) -> list:
-    """Compile a document into an interleaved text+image content sequence for multimodal LLMs.
+    """Compile a document with the bundled reference parser and return an interleaved text+image sequence plus a readiness score.
 
-    Like compile_document but returns the document as an ordered mix of text and image blocks.
-    Images appear at their exact position in the document — Figure 4 appears right where it
-    sits in the source, not appended at the end. The LLM can see each chart or diagram in
+    Like compile_document but returns the bundled reference parser's output as
+    an ordered mix of text and image blocks. Images appear at their exact
+    position in the document — Figure 4 appears right where it sits in the
+    source, not appended at the end. The LLM can see each chart or diagram in
     context with the surrounding text that references it.
 
-    Use this instead of compile_document when the document contains charts, diagrams, or
-    figures that are important to understand alongside the surrounding text (e.g. reports,
-    presentations, scientific papers).
+    Use this instead of compile_document when the document contains charts,
+    diagrams, or figures that are important to understand alongside the
+    surrounding text (e.g. reports, presentations, scientific papers). To
+    grade output from a parser you already ran, use ``aksharamd assess``.
 
     Args:
         file_path: Absolute or relative path to the document to compile.
 
     Returns:
-        Interleaved sequence of text strings and images in document order.
+        Interleaved sequence of text strings and images in document order,
+        followed by a readiness-score summary block.
     """
     denied = _check_allowed_path(file_path)
     if denied:
@@ -293,10 +307,13 @@ def compile_document_multimodal(file_path: str) -> list:
 
 @mcp.tool()
 def get_supported_formats() -> str:
-    """List all file formats AksharaMD can compile.
+    """List all file formats the bundled reference parser can compile.
 
-    Returns a Markdown table of supported formats grouped by category,
-    including notes on optional dependencies (OCR, Whisper, LibreOffice).
+    Returns a Markdown table of the formats the bundled reference parser
+    recognises, grouped by category, with notes on optional dependencies
+    (OCR, Whisper, LibreOffice). The readiness scorer itself is
+    parser-agnostic — this list only describes what the bundled parser
+    handles when it is used.
 
     Returns:
         Markdown string listing all supported formats.
@@ -322,14 +339,17 @@ def get_supported_formats() -> str:
 
 @mcp.tool()
 def get_stats() -> str:
-    """Get cumulative token savings across all AksharaMD compilations.
+    """Get cumulative token counts recorded by the bundled reference parser.
 
-    Reads the persistent ledger (~/.aksharamd/ledger.jsonl) and returns a
-    summary of total tokens saved, dollar savings per model, and recent
-    compilation history.
+    Reads the persistent ledger (~/.aksharamd/ledger.jsonl) written by the
+    bundled reference parser and returns a summary of total tokens processed,
+    projected dollar savings per model, and recent compilation history. This
+    ledger only records runs of the bundled parser; if you graded output
+    produced by another parser via ``aksharamd assess``, those runs are not
+    reflected here.
 
     Returns:
-        Markdown summary of lifetime AksharaMD savings.
+        Markdown summary of lifetime bundled-parser activity.
     """
     try:
         from aksharamd import ledger as _ledger
