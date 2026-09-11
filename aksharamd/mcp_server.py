@@ -126,7 +126,7 @@ _SUPPORTED_FORMATS: dict[str, list[str]] = {
 
 def _format_savings_summary(m: Any) -> str:
     """Build a compact savings block to append to compiled output."""
-    tokens_saved = max(0, m.original_tokens - m.optimized_tokens)
+    tokens_saved = m.original_tokens - m.optimized_tokens
     conf = m.readiness_score
     conf_label = "high" if conf >= 85 else "medium" if conf >= 65 else "low"
 
