@@ -116,11 +116,13 @@ class IndexQueue:
             )
             self._conn.commit()
 
-    def mark_low_quality(self, path: str, readiness_score: int) -> None:
+    def mark_low_quality(
+        self, path: str, readiness_score: int, reason: str | None = None
+    ) -> None:
         with self._lock:
             self._conn.execute(
-                "UPDATE jobs SET status='low_quality', readiness_score=?, processed_at=? WHERE path=?",
-                (readiness_score, time.time(), path),
+                "UPDATE jobs SET status='low_quality', readiness_score=?, error=?, processed_at=? WHERE path=?",
+                (readiness_score, reason, time.time(), path),
             )
             self._conn.commit()
 

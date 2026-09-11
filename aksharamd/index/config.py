@@ -10,6 +10,7 @@ class IndexConfig:
     embedding_model: str = "all-MiniLM-L6-v2"
     distance_metric: str = "cosine"
     min_readiness_score: int = 70
+    require_assessment_accept: bool = False
     debounce_seconds: float = 2.0
     worker_timeout_seconds: int = 300
 
