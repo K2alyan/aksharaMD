@@ -129,13 +129,15 @@ def render_table_tsv(table: TableData) -> str:
 def render_table_row_records(table: TableData) -> str:
     """ColName=value; ColName=value format. One logical data row per line.
 
-    Only usable when header_rows is non-empty and column_count <= 12.
-    Resolve duplicate column names by appending _1, _2 etc.
+    Only usable with one leading header row, no spans, and column_count <= 12.
+    Header names must be non-empty and unique; do not invent replacement names.
     Empty/missing cell value: (empty string after =).
     Skip header rows themselves; only emit body rows.
-    Return empty string if no headers or table is too wide.
+    Return empty string when header context or cell associations cannot be preserved.
     """
-    if not table.header_rows or table.column_count > 12:
+    if table.header_rows != [0] or table.column_count > 12:
+        return ""
+    if any(cell.row_span != 1 or cell.column_span != 1 for cell in table.cells):
         return ""
     if table.row_count == 0 or table.column_count == 0:
         return ""
@@ -151,34 +153,10 @@ def render_table_row_records(table: TableData) -> str:
     for c in range(table.column_count):
         raw_names.append(grid.get((last_header_row, c), "").strip())
 
-    # Deduplicate column names
-    col_names: list[str] = []
-    seen_counts: dict[str, int] = {}
-    for name in raw_names:
-        if name in seen_counts:
-            seen_counts[name] += 1
-            col_names.append(f"{name}_{seen_counts[name]}")
-        else:
-            seen_counts[name] = 0
-            col_names.append(name)
-
-    # Fix: if a name was seen more than once, rename the first occurrence too
-    # Re-do with correct dedup: track first occurrence position
-    col_names = []
-    name_positions: dict[str, list[int]] = {}
-    for i, name in enumerate(raw_names):
-        if name not in name_positions:
-            name_positions[name] = []
-        name_positions[name].append(i)
-
-    final_names = [""] * table.column_count
-    for name, positions in name_positions.items():
-        if len(positions) == 1:
-            final_names[positions[0]] = name
-        else:
-            for idx, pos in enumerate(positions):
-                final_names[pos] = f"{name}_{idx + 1}"
-    col_names = final_names
+    # Ambiguous keys cannot preserve column identity in record form.
+    if not all(raw_names) or len(set(raw_names)) != len(raw_names):
+        return ""
+    col_names = raw_names
 
     # Determine body rows (exclude all header rows)
     header_set = set(table.header_rows)
@@ -254,6 +232,12 @@ def render_table_preview_reference(
         f"Columns: {', '.join(col_names)}",
         "",
     ]
+
+    # Keep upper header context (including units) even in a short preview.
+    if len(header_rows_sorted) > 1:
+        for r in header_rows_sorted:
+            lines.append("\t".join(grid.get((r, c), " ") for c in range(table.column_count)))
+        lines.append("")
 
     for r in preview_body:
         row_parts = [grid.get((r, c), " ") for c in range(table.column_count)]

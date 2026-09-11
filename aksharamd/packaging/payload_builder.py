@@ -51,6 +51,11 @@ def build_table_candidates(
     header_count = len(table_data.header_rows) if table_data.header_rows else 0
     body_rows = max(0, table_data.row_count - header_count)
 
+    # Grid formats keep cell text but do not encode merged cells or header hierarchy.
+    simple_structure = (
+        table_data.header_rows in ([], [0])
+        and all(cell.row_span == 1 and cell.column_span == 1 for cell in table_data.cells)
+    )
     candidates = []
 
     # 1. Markdown
@@ -60,7 +65,7 @@ def build_table_candidates(
         text=md,
         token_count=count_text_tokens(md),
         preserves_all_rows_inline=True,
-        preserves_structure_inline=True,
+        preserves_structure_inline=simple_structure,
         artifact_path=artifact_path,
         omitted_row_count=0,
     ))
@@ -72,12 +77,12 @@ def build_table_candidates(
         text=tsv,
         token_count=count_text_tokens(tsv),
         preserves_all_rows_inline=True,
-        preserves_structure_inline=True,
+        preserves_structure_inline=simple_structure,
         artifact_path=artifact_path,
         omitted_row_count=0,
     ))
 
-    # 3. Row records (only if headers available and narrow enough)
+    # 3. Row records (renderer rejects unsupported headers and spans)
     rr = render_table_row_records(table_data)
     if rr:
         candidates.append(TableSerializationCandidate(
@@ -93,7 +98,7 @@ def build_table_candidates(
     preview_rows_n = getattr(profile, "table_preview_rows", 5)
 
     # 4. Preview + reference
-    if getattr(profile, "allow_table_artifact_references", True):
+    if artifact_path and getattr(profile, "allow_table_artifact_references", True):
         pr = render_table_preview_reference(
             table_data, table_id, artifact_path, preview_rows=preview_rows_n, title=title
         )
@@ -103,7 +108,7 @@ def build_table_candidates(
             text=pr,
             token_count=count_text_tokens(pr),
             preserves_all_rows_inline=(omitted == 0),
-            preserves_structure_inline=True,
+            preserves_structure_inline=simple_structure,
             artifact_path=artifact_path,
             omitted_row_count=omitted,
         ))
@@ -163,10 +168,19 @@ def select_table_serialization(
             preserves_all_rows_inline=True, preserves_structure_inline=True,
         )
 
+    # Never trade away inline data for a reference that cannot be followed.
+    reference_formats = {TablePayloadFormat.PREVIEW_REFERENCE, TablePayloadFormat.JSON_REFERENCE}
+    candidates = [
+        c for c in candidates
+        if c.format not in reference_formats
+        or (c.artifact_path and profile.allow_table_artifact_references)
+    ]
+    if not candidates:
+        raise ValueError("No table serialization with inline content or a usable artifact reference")
     full_inline = [c for c in candidates if c.preserves_all_rows_inline]
     preview_ref = next((c for c in candidates if c.format == TablePayloadFormat.PREVIEW_REFERENCE), None)
     json_ref = next((c for c in candidates if c.format == TablePayloadFormat.JSON_REFERENCE), None)
-    fallback: TableSerializationCandidate = json_ref or candidates[-1]
+    fallback: TableSerializationCandidate = json_ref or min(full_inline or candidates, key=lambda c: c.token_count)
 
     if strategy == "reference_only":
         return json_ref or fallback
@@ -236,7 +250,7 @@ def render_table_for_payload(
 
     # Legacy json_reference override (kept for backward compat)
     fmt = getattr(profile, "table_payload_format", "markdown")
-    if fmt == "json_reference":
+    if fmt == "json_reference" and artifact_path and profile.allow_table_artifact_references:
         tid = getattr(table_data, "id", "") or block_id or "unnamed"
         text = f"[Table: {tid}]"
         cand = TableSerializationCandidate(
@@ -244,6 +258,7 @@ def render_table_for_payload(
             token_count=count_text_tokens(text),
             preserves_all_rows_inline=False, preserves_structure_inline=False,
             artifact_path=artifact_path,
+            omitted_row_count=max(0, table_data.row_count - len(table_data.header_rows)),
         )
         return text, cand
 
@@ -444,7 +459,7 @@ def build_llm_payload(
 
             if block is not None and block.table_data is not None:
                 artifact_path = f"tables/{block.id}.json"
-                if (package_dir / artifact_path).exists():
+                if (package_dir / artifact_path).is_file():
                     table_artifact_path = artifact_path
 
                 table_text, table_candidate = render_table_for_payload(
@@ -476,7 +491,10 @@ def build_llm_payload(
             if table_candidate is not None:
                 tpf = str(table_candidate.format)
                 t_rows_omitted = table_candidate.omitted_row_count
-                t_inline_complete = table_candidate.preserves_all_rows_inline
+                t_inline_complete = (
+                    table_candidate.preserves_all_rows_inline
+                    and table_candidate.preserves_structure_inline
+                )
                 if block is not None and block.table_data is not None:
                     td = block.table_data
                     header_count = len(td.header_rows) if td.header_rows else 0
