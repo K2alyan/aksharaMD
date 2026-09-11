@@ -4,7 +4,7 @@ import hashlib
 import logging
 import os
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -34,6 +34,7 @@ from .plugins.base import (
     CleanerPlugin,
     ExporterPlugin,
     OptimizerPlugin,
+    ParserPlugin,
     ValidatorPlugin,
 )
 from .plugins.chunkers import semantic as _chunker_pkg  # noqa: F401
@@ -41,6 +42,7 @@ from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.exporters import quality_assessment as _quality_assessment_exporter_pkg  # noqa: F401
+from .plugins.exporters.markdown import render_markdown
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
@@ -433,6 +435,8 @@ class Compiler:
         safe_mode: bool = False,
         ocr_backend: str = "tesseract",
         task_profile: TaskProfile | None = None,
+        parsers: Mapping[str, type[ParserPlugin] | Callable[[], ParserPlugin]] | None = None,
+        parser_configuration_id: str | None = None,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {chunk_size}")
@@ -452,6 +456,35 @@ class Compiler:
         # through the alternate backend in pdf.py after CLI availability
         # check succeeds.
         self.ocr_backend = ocr_backend
+        registered_parsers, registered_plugins = registry.snapshot()
+        self._parsers = registered_parsers
+        if parsers:
+            self._parsers.update({key.lower().lstrip("."): value for key, value in parsers.items()})
+        self.parser_configuration_id = parser_configuration_id
+        # Keep stage definitions and instances private to this compiler. This
+        # prevents late process-wide registration and mutable plugin state from
+        # changing an existing compiler's behaviour.
+        self._stage_plugin_classes: dict[type, list[type]] = {}
+        for plugin_type in (CleanerPlugin, OptimizerPlugin, ValidatorPlugin, ExporterPlugin):
+            self._stage_plugin_classes[plugin_type] = sorted(
+                [cls for cls in registered_plugins
+                 if issubclass(cls, plugin_type) and cls is not plugin_type],
+                key=lambda cls: cls.priority,
+            )
+        self._stage_plugins: dict[type, list] = {}
+
+    def _plugins(self, plugin_type: type) -> list:
+        if plugin_type not in self._stage_plugins:
+            self._stage_plugins[plugin_type] = [
+                cls() for cls in self._stage_plugin_classes[plugin_type]
+            ]
+        return self._stage_plugins[plugin_type]
+
+    def _parser(self, file_type: str) -> ParserPlugin | None:
+        factory = self._parsers.get(file_type.lower())
+        if factory is None:
+            return None
+        return factory()  # type: ignore[operator]
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -490,7 +523,7 @@ class Compiler:
         if on_stage:
             on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+            for plugin in self._plugins(ExporterPlugin):
                 ctx = plugin.execute(ctx)
 
         return self._finalise(ctx, stage_timings, t0)
@@ -515,7 +548,7 @@ class Compiler:
         if on_stage:
             on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+            for plugin in self._plugins(ExporterPlugin):
                 ctx = plugin.execute(ctx)
 
         pre_opt_blocks = pre_opt_capture[0] if pre_opt_capture else []
@@ -546,13 +579,10 @@ class Compiler:
         Ideal for MCP server and programmatic usage where disk I/O is unwanted.
         Returns (markdown_text, ctx) — ctx.manifest has the full stats.
         """
-        from .plugins.exporters.markdown import _block_to_md
-
         ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
-            lines = [_block_to_md(b) for b in ctx.document.blocks]
-            text = "\n\n".join(ln for ln in lines if ln)
+            text = render_markdown(ctx.document)
         else:
             text = ""
 
@@ -590,7 +620,7 @@ class Compiler:
         if on_stage:
             on_stage("Writing output files")
         with _StageTimer(stage_timings, "export"):
-            for plugin in registry.get_plugins_of_type(ExporterPlugin):  # type: ignore[type-abstract]
+            for plugin in self._plugins(ExporterPlugin):
                 ctx = plugin.execute(ctx)
 
         if ctx.document is None:
@@ -679,6 +709,11 @@ class Compiler:
         If a single document exceeds the budget it is placed alone.  Groups that
         exceed the budget are bisected recursively (up to *max_bisect_depth* times).
 
+        Counts include each document's emitted Markdown framing. Chunk counts
+        sum these document counts; caller-added wrappers, JSON metadata, and
+        provider message/image overhead are excluded. This is a local text
+        budget, not a provider usage guarantee.
+
         Near-duplicate documents (Jaccard ≥ *dedup_threshold* across the whole
         corpus) are skipped automatically via MinHash LSH.
 
@@ -687,10 +722,8 @@ class Compiler:
         so callers know exactly what was dropped.
         """
         from .dedup.minhash import CorpusDeduplicator
-        from .plugins.registry import get_registered_extensions
-
         source_path = Path(source_dir).resolve()
-        supported_exts = {f".{e}" for e in get_registered_extensions()}
+        supported_exts = {f".{e}" for e in self._parsers}
 
         dedup = CorpusDeduplicator(threshold=dedup_threshold)
         result = CorpusCompilationResult()
@@ -750,7 +783,7 @@ class Compiler:
             doc_entry = {
                 "source": rel,
                 "file_type": m.file_type if m else file_path.suffix.lstrip("."),
-                "tokens": m.optimized_tokens if m else count_tokens(text),
+                "tokens": count_tokens(text),
                 "confidence": {
                     "extracted": m.blocks_extracted if m else 0,
                     "inferred":  m.blocks_inferred  if m else 0,
@@ -889,11 +922,12 @@ class Compiler:
             file_type = _detect_file_type(source)
 
             # 2. Parse
-            parser = registry.get_parser(file_type)
+            parser = self._parser(file_type)
             if parser is None:
                 ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
                 return ctx, stage_timings, t0
             ctx.parser_name = parser.name
+            ctx.parser_configuration_id = self.parser_configuration_id
             if on_stage:
                 on_stage(f"Parsing {file_type.upper()} document")
             with timed("parse"):
@@ -912,7 +946,7 @@ class Compiler:
                 page_info = f" ({pages} pages)" if pages > 0 else ""
                 on_stage(f"Cleaning blocks{page_info}")
             with timed("clean"):
-                for plugin in registry.get_plugins_of_type(CleanerPlugin):  # type: ignore[type-abstract]
+                for plugin in self._plugins(CleanerPlugin):
                     ctx = plugin.execute(ctx)
 
             # Capture pre-optimization blocks for Baseline A
@@ -930,14 +964,14 @@ class Compiler:
             if on_stage:
                 on_stage("Optimizing tokens")
             with timed("optimize"):
-                for plugin in registry.get_plugins_of_type(OptimizerPlugin):  # type: ignore[type-abstract]
+                for plugin in self._plugins(OptimizerPlugin):
                     ctx = plugin.execute(ctx)
 
             # 5. Validate
             if on_stage:
                 on_stage("Validating structure")
             with timed("validate"):
-                for plugin in registry.get_plugins_of_type(ValidatorPlugin):  # type: ignore[type-abstract]
+                for plugin in self._plugins(ValidatorPlugin):
                     ctx = plugin.execute(ctx)
 
             # Compute document_id from final block state before chunking so chunk
@@ -966,7 +1000,7 @@ class Compiler:
                 on_stage("Counting tokens")
             with timed("tokenize"):
                 if ctx.document:
-                    optimized_text = " ".join(b.content for b in ctx.document.blocks)
+                    optimized_text = render_markdown(ctx.document)
                     optimized_tokens = count_tokens(optimized_text)
                 else:
                     optimized_tokens = 0
