@@ -7,6 +7,16 @@ _plugin_classes: list[type[BasePlugin]] = []
 _plugin_cache: dict[type, list] = {}
 
 
+def snapshot() -> tuple[dict[str, type[ParserPlugin]], list[type[BasePlugin]]]:
+    """Capture the registered plugin definitions for an isolated compiler.
+
+    Registration is process-wide for discovery and backwards compatibility,
+    but a compiler must not change behaviour when another caller registers a
+    plugin later in the process.
+    """
+    return dict(_parsers), list(_plugin_classes)
+
+
 def register_parser(ext: str, cls: type[ParserPlugin]) -> None:
     _parsers[ext.lower()] = cls
 
