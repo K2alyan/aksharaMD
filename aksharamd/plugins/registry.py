@@ -7,6 +7,11 @@ _plugin_classes: list[type[BasePlugin]] = []
 _plugin_cache: dict[type, list] = {}
 
 
+def snapshot() -> tuple[dict[str, type[ParserPlugin]], list[type[BasePlugin]]]:
+    """Capture registered definitions for an isolated compiler instance."""
+    return dict(_parsers), list(_plugin_classes)
+
+
 def register_parser(ext: str, cls: type[ParserPlugin]) -> None:
     _parsers[ext.lower()] = cls
 
