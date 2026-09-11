@@ -1,9 +1,21 @@
-"""Small, parser-independent contract for source and delivered artifacts.
+"""Experimental parser-adapter boundary — not yet wired to Compiler.
 
-The existing :class:`~aksharamd.plugins.base.ParserPlugin` API operates on a
-``CompilationContext`` and remains unchanged. This module gives integrations
-that provide their own parser a stable boundary: parsers receive immutable
-source bytes and return the exact text delivered downstream.
+This module defines a hash-validated integration boundary for parsers
+supplied by callers who want extraction handled outside of AksharaMD.
+The types are stable enough to design against, but the Compiler does
+not yet route parsing through ``ParserAdapter``. Until the wiring lands,
+callers should treat these types as a design preview.
+
+Status: EXPERIMENTAL — API may change; not on the SemVer surface.
+Tracking follow-up: wire ``ParserAdapter`` into ``Compiler.__init__`` and
+post-validate the returned ``ParsedArtifact.source_hash`` against the
+supplied ``ParserInput.source_hash``.
+
+Background: the existing :class:`~aksharamd.plugins.base.ParserPlugin` API
+operates on a ``CompilationContext`` and remains unchanged. This module
+gives integrations that provide their own parser a stable boundary:
+parsers receive immutable source bytes and return the exact text
+delivered downstream.
 """
 
 from __future__ import annotations
