@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import logging
@@ -42,7 +42,6 @@ from .plugins.cleaners import default as _cleaner_pkg  # noqa: F401
 from .plugins.exporters import json_exporter as _json_exporter_pkg  # noqa: F401
 from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.exporters import quality_assessment as _quality_assessment_exporter_pkg  # noqa: F401
-from .plugins.exporters.markdown import render_markdown
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
@@ -461,9 +460,6 @@ class Compiler:
         if parsers:
             self._parsers.update({key.lower().lstrip("."): value for key, value in parsers.items()})
         self.parser_configuration_id = parser_configuration_id
-        # Keep stage definitions and instances private to this compiler. This
-        # prevents late process-wide registration and mutable plugin state from
-        # changing an existing compiler's behaviour.
         self._stage_plugin_classes: dict[type, list[type]] = {}
         for plugin_type in (CleanerPlugin, OptimizerPlugin, ValidatorPlugin, ExporterPlugin):
             self._stage_plugin_classes[plugin_type] = sorted(
@@ -579,10 +575,13 @@ class Compiler:
         Ideal for MCP server and programmatic usage where disk I/O is unwanted.
         Returns (markdown_text, ctx) — ctx.manifest has the full stats.
         """
+        from .plugins.exporters.markdown import _block_to_md
+
         ctx, stage_timings, t0 = self._run_pipeline(source, on_stage=on_stage, source_id=source_id)
 
         if ctx.document:
-            text = render_markdown(ctx.document)
+            lines = [_block_to_md(b) for b in ctx.document.blocks]
+            text = "\n\n".join(ln for ln in lines if ln)
         else:
             text = ""
 
@@ -709,11 +708,6 @@ class Compiler:
         If a single document exceeds the budget it is placed alone.  Groups that
         exceed the budget are bisected recursively (up to *max_bisect_depth* times).
 
-        Counts include each document's emitted Markdown framing. Chunk counts
-        sum these document counts; caller-added wrappers, JSON metadata, and
-        provider message/image overhead are excluded. This is a local text
-        budget, not a provider usage guarantee.
-
         Near-duplicate documents (Jaccard ≥ *dedup_threshold* across the whole
         corpus) are skipped automatically via MinHash LSH.
 
@@ -783,7 +777,7 @@ class Compiler:
             doc_entry = {
                 "source": rel,
                 "file_type": m.file_type if m else file_path.suffix.lstrip("."),
-                "tokens": count_tokens(text),
+                "tokens": m.optimized_tokens if m else count_tokens(text),
                 "confidence": {
                     "extracted": m.blocks_extracted if m else 0,
                     "inferred":  m.blocks_inferred  if m else 0,
@@ -1000,7 +994,7 @@ class Compiler:
                 on_stage("Counting tokens")
             with timed("tokenize"):
                 if ctx.document:
-                    optimized_text = render_markdown(ctx.document)
+                    optimized_text = " ".join(b.content for b in ctx.document.blocks)
                     optimized_tokens = count_tokens(optimized_text)
                 else:
                     optimized_tokens = 0
