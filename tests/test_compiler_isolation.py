@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 from aksharamd.compiler import Compiler
 from aksharamd.models.block import Block, BlockType
@@ -84,14 +84,10 @@ def test_string_compilation_does_not_construct_unused_exporters(monkeypatch, tmp
         def execute(self, ctx):
             return ctx
 
-    monkeypatch.setattr(
-        registry, "_plugin_classes", [*registry._plugin_classes, BrokenExporter]
-    )
+    monkeypatch.setattr(registry, "_plugin_classes", [*registry._plugin_classes, BrokenExporter])
     source = tmp_path / "sample.md"
     source.write_text("# heading", encoding="utf-8")
-
     text, ctx = Compiler(output_dir=str(tmp_path / "out")).compile_to_string(str(source))
-
     assert "heading" in text
     assert ctx.validation.passed
 
@@ -107,16 +103,10 @@ def test_compilers_receive_distinct_stateful_stage_instances(monkeypatch):
         def execute(self, ctx):
             return ctx
 
-    monkeypatch.setattr(
-        registry, "_plugin_classes", [*registry._plugin_classes, StatefulCleaner]
-    )
+    monkeypatch.setattr(registry, "_plugin_classes", [*registry._plugin_classes, StatefulCleaner])
     first = Compiler()
     second = Compiler()
-
-    first_plugins = first._plugins(CleanerPlugin)
-    second_plugins = second._plugins(CleanerPlugin)
-    first_plugin = next(p for p in first_plugins if isinstance(p, StatefulCleaner))
-    second_plugin = next(p for p in second_plugins if isinstance(p, StatefulCleaner))
-
+    first_plugin = next(p for p in first._plugins(CleanerPlugin) if isinstance(p, StatefulCleaner))
+    second_plugin = next(p for p in second._plugins(CleanerPlugin) if isinstance(p, StatefulCleaner))
     assert first_plugin is not second_plugin
     assert StatefulCleaner.instances == 2
