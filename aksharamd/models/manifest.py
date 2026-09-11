@@ -35,8 +35,15 @@ class Manifest(BaseModel):
     chunk_overlap: int = 0
     images: int = 0
     tables: int = 0
-    original_tokens: int = 0
-    optimized_tokens: int = 0
+    original_tokens: int = Field(default=0, description=(
+        "Post-cleaning, pre-optimization text baseline for the built-in pipeline "
+        "(falls back to output count when absent); "
+        "not raw-file or provider input tokens."
+    ))
+    optimized_tokens: int = Field(default=0, description=(
+        "Local token estimate of emitted document Markdown, including formatting; "
+        "not provider usage or a multimodal/package payload count."
+    ))
     token_reduction_percent: float = 0.0
     duplicate_blocks_removed: int = 0
     headers_removed: int = 0
