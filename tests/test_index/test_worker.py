@@ -1,11 +1,13 @@
 """Tests for the indexing worker — compile + embed + store pipeline."""
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from aksharamd.assessment import AssessmentDisposition
 from aksharamd.index.config import IndexConfig
 from aksharamd.index.queue import IndexQueue
-from aksharamd.index.worker import process_file
+from aksharamd.index.worker import _source_grounded_assessment, process_file
 from aksharamd.models.block import Block, BlockType
 
 
@@ -48,6 +50,106 @@ def test_success(tmp_path):
     assert done[0].chunk_count == 2
     assert store.add_chunks.called
     assert embedder.embed.called
+
+
+def test_assessment_gate_is_disabled_by_default(tmp_path):
+    """Legacy local indexing neither requires nor reads an assessment."""
+    q = IndexQueue(tmp_path / "queue.db")
+    path = _make_file(tmp_path)
+    q.enqueue(path)
+    q.dequeue()
+    store = MagicMock()
+    store.add_chunks.return_value = 2
+    embedder = MagicMock()
+    embedder.embed.return_value = [[0.1] * 384, [0.2] * 384]
+
+    with (
+        patch("aksharamd.index.worker.Compiler") as MockCompiler,
+        patch("aksharamd.index.worker._source_grounded_assessment") as assessment,
+    ):
+        MockCompiler.return_value.compile_to_string.return_value = ("text", _fake_ctx())
+        process_file(path, q, store, embedder, IndexConfig(index_dir=tmp_path))
+
+    assessment.assert_not_called()
+    assert len(q.list_all(status="done")) == 1
+
+
+def test_assessment_gate_skips_non_accepted_output(tmp_path):
+    q = IndexQueue(tmp_path / "queue.db")
+    path = _make_file(tmp_path)
+    q.enqueue(path)
+    q.dequeue()
+    store = MagicMock()
+    embedder = MagicMock()
+    rejected = MagicMock(
+        disposition=AssessmentDisposition.HOLD,
+        next_action="REVIEW",
+    )
+    cfg = IndexConfig(index_dir=tmp_path, require_assessment_accept=True)
+
+    with (
+        patch("aksharamd.index.worker.Compiler") as MockCompiler,
+        patch(
+            "aksharamd.index.worker._source_grounded_assessment",
+            return_value=(rejected, None),
+        ),
+    ):
+        MockCompiler.return_value.compile_to_string.return_value = ("text", _fake_ctx())
+        process_file(path, q, store, embedder, cfg)
+
+    jobs = q.list_all(status="low_quality")
+    assert len(jobs) == 1
+    assert "assessment gate: HOLD" in jobs[0].error
+    store.add_chunks.assert_not_called()
+    embedder.embed.assert_not_called()
+
+
+def test_assessment_gate_allows_accepted_output(tmp_path):
+    q = IndexQueue(tmp_path / "queue.db")
+    path = _make_file(tmp_path)
+    q.enqueue(path)
+    q.dequeue()
+    store = MagicMock()
+    store.add_chunks.return_value = 2
+    embedder = MagicMock()
+    embedder.embed.return_value = [[0.1] * 384, [0.2] * 384]
+    accepted = MagicMock(disposition=AssessmentDisposition.ACCEPT)
+    cfg = IndexConfig(index_dir=tmp_path, require_assessment_accept=True)
+
+    with (
+        patch("aksharamd.index.worker.Compiler") as MockCompiler,
+        patch(
+            "aksharamd.index.worker._source_grounded_assessment",
+            return_value=(accepted, None),
+        ),
+    ):
+        MockCompiler.return_value.compile_to_string.return_value = ("text", _fake_ctx())
+        process_file(path, q, store, embedder, cfg)
+
+    assert len(q.list_all(status="done")) == 1
+    assert store.add_chunks.called
+
+
+def test_in_memory_assessment_binds_source_and_candidate_bytes(tmp_path):
+    source = tmp_path / "source.txt"
+    source.write_text("Invoice INV-42 totals $50.", encoding="utf-8")
+    ctx = SimpleNamespace(
+        source_id="source.txt",
+        capture_id=None,
+        parser_name="test",
+        parser_version="1",
+        parser_configuration_id="default",
+        manifest=SimpleNamespace(document_id="document"),
+        document=SimpleNamespace(metadata={}),
+    )
+
+    assessment, error = _source_grounded_assessment(
+        str(source), "Invoice INV-42 totals $50.", ctx
+    )
+
+    assert error is None
+    assert assessment is not None
+    assert assessment.disposition == AssessmentDisposition.ACCEPT
 
 
 def test_low_quality_skips_store(tmp_path):

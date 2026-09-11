@@ -10,6 +10,7 @@ from .models.manifest import Manifest
 from .models.validation import Severity, ValidationIssue, ValidationReport
 
 if TYPE_CHECKING:
+    from .assessment.models import TaskProfile
     from .packaging.models import DocumentPackagePlan, PackageAssetReference
     from .packaging.payload import LLMPayload
     from .plugins.ocr_backends.auto_selector import AutoOcrDecision
@@ -22,6 +23,11 @@ class CompilationContext:
 
     source_id: str = ""   # populated by compiler after source resolution
     capture_id: str = ""  # SHA-256 of raw source bytes; populated by compiler
+    # Parser provenance captured at the compiler boundary.  Versions and
+    # configuration identities are deliberately nullable when unavailable.
+    parser_name: str | None = None
+    parser_version: str | None = None
+    parser_configuration_id: str | None = None
 
     document: Document | None = None
     chunks: list[Chunk] = field(default_factory=list)
@@ -70,6 +76,11 @@ class CompilationContext:
     # structured Auto Policy v1 decision for later manifest
     # serialization. ``None`` for explicit backend choices.
     ocr_auto_decision: AutoOcrDecision | None = field(default=None)
+
+    # An optional, caller-validated purpose contract.  Exporters use it only
+    # when producing a source-grounded assessment; it does not alter parsing,
+    # optimization, or legacy readiness scoring.
+    task_profile: TaskProfile | None = field(default=None)
 
     # Output Safety Policy v1 milestone: populated only when
     # ``ocr_backend == "auto"`` initially selected UOC AND the UOC
