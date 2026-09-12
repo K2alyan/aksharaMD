@@ -88,13 +88,11 @@ ocr = [
     "pytesseract>=0.3",
 ]
 vision = [
-    "marker-pdf>=1.6",
-    # transformers is pulled in transitively by marker-pdf. Cap at <5.0.0
-    # because all currently released marker-pdf versions (1.6.0-1.10.2)
-    # require transformers<5. Removing this cap makes the vision extra
-    # unresolvable. Lower bound tracks marker-pdf's own >=4.45.2 floor.
-    # Track: github.com/VikParuchuri/marker/issues (transformers 5.x support)
-    "transformers>=4.45.2,<5.0.0",
+    # marker-pdf 2.0.0 (2026-07-20) lifted the transformers cap to <6,
+    # pulling transformers>=5.12.1 transitively — no explicit pin needed.
+    # Pillow<11 remains capped upstream via surya-ocr (marker#1048, #942);
+    # see SECURITY.md for accepted-risk rationale.
+    "marker-pdf>=2.0.0",
 ]
 # ─── unlimited-ocr ────────────────────────────────────────────────────
 # Baidu's Unlimited-OCR (HuggingFace baidu/Unlimited-OCR) is an
