@@ -35,25 +35,26 @@ score is not a useful proxy on that corpus.
 |------------|-------------------|------------------------------------------------------------|
 | raw        | anthropic         | n/a (no extraction step)                                   |
 | aksharamd  | (bundled)         | `Compiler.compile_to_string` -> `ctx.manifest.readiness_score` |
-| markitdown | `pip install markitdown` | Assessor proxy from source + candidate bytes         |
-| docling    | `pip install docling`    | Assessor proxy from source + candidate bytes         |
+| markitdown | `pip install markitdown` | `Compiler(parser_adapter=MarkItDownAdapter())` -> same field |
+| docling    | `pip install docling`    | not yet wrapped as ParserAdapter (readiness None; follow-up) |
 
-The AksharaMD arm's readiness score is the exact value the Compiler
-computes for its own pipeline. External parsers cannot reproduce the
-same Compiler-internal state, so their readiness score is derived from
-the `aksharamd.assessment.Assessor` verdicts against source + candidate
-bytes: PASS on every dimension yields 100; each CONCERN drops 15 points;
-each FAIL drops 30; each UNDETERMINED drops 5. This is a documented
-proxy, not the raw Compiler score, and both numbers should be treated
-as different measurement instruments when interpreting cross-parser
-comparisons.
+The AksharaMD and MarkItDown arms both use the **exact same instrument**
+- `ctx.manifest.readiness_score` computed by the Compiler pipeline. The
+MarkItDown arm reaches it by plugging a `MarkItDownAdapter` into
+`Compiler(parser_adapter=...)`. Cross-arm correlation therefore compares
+apples to apples. Docling's arm still uses its own converter and does
+not yet emit a readiness score; wrapping Docling as a ParserAdapter
+mirroring MarkItDown is a follow-up.
 
 ## Supported corpora
 
 - **QASPER** (`--corpus qasper`): 1,585 arXiv NLP papers, 5,049 grounded
-  QA pairs (extractive/abstractive/boolean/unanswerable). Loaded via
-  `datasets.load_dataset("allenai/qasper", split="validation")`. Source
-  PDFs are fetched from arxiv.org and cached under `.cache/qasper/`.
+  QA pairs (extractive/abstractive/boolean/unanswerable). Loaded
+  directly from AllenAI's permanent S3 tarballs (`qasper-train-dev-v0.3.tgz`
+  and `qasper-test-and-evaluator-v0.3.tgz`) — no HuggingFace `datasets`
+  dependency. Source PDFs are fetched from arxiv.org and cached under
+  `.cache/qasper/`. Per-annotator answer flattening is ported from
+  EleutherAI's `lm-evaluation-harness` (MIT).
 
 ## Cost estimates
 
@@ -108,6 +109,20 @@ Two options:
 - `--fixture-mode <path>`: uses a JSON fixture of canned LLM responses
   (see `benchmarks/parsed_vs_raw/fixtures/llm_responses.json` for the
   shape). This is what the test suite exercises.
+
+## Smoke test with a real key
+
+`--smoke` runs the cheapest possible end-to-end verification against
+Anthropic: it forces `--limit 1`, `--questions-per-doc 1`, and a
+single arm (default `aksharamd`; if `--arms` is supplied, its first
+element wins). One answer call + one judge call on Haiku costs about
+$0.02. Output goes to a dated `parsed-vs-raw-smoke-YYYY-MM-DD/`
+directory and the run prints a `SMOKE OK` banner on success.
+
+The driver also loads `.env` from the current working directory at
+startup (looking for `ANTHROPIC_API_KEY`) without overwriting any
+already-set shell variables. This is a zero-dependency loader; no
+`python-dotenv` install is required.
 
 ## Interpreting the output
 
