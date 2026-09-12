@@ -33,8 +33,33 @@ from benchmarks.parsed_vs_raw.run import main as run_main
 from benchmarks.parsed_vs_raw.types import ArmResult, Question
 
 FIXTURES = Path(__file__).resolve().parent.parent / "benchmarks" / "parsed_vs_raw" / "fixtures"
-TINY_PDF = FIXTURES / "tiny.pdf"
 LLM_FIXTURE = FIXTURES / "llm_responses.json"
+
+
+def _generate_tiny_pdf() -> bytes:
+    """One-page synthetic PDF generated in-memory; never committed to git.
+
+    Kept at module scope with a ``.read_bytes()``-compatible proxy so all
+    existing test call sites (``TINY_PDF.read_bytes()``) work unchanged.
+    """
+    import fitz  # pymupdf
+
+    pdf = fitz.open()
+    pdf.new_page(width=100, height=100)
+    data = pdf.tobytes()
+    pdf.close()
+    return data
+
+
+class _TinyPdfProxy:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def read_bytes(self) -> bytes:
+        return self._data
+
+
+TINY_PDF = _TinyPdfProxy(_generate_tiny_pdf())
 
 
 # -- QASPER shape ---------------------------------------------------------
