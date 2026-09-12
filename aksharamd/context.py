@@ -93,6 +93,20 @@ class CompilationContext:
     # the fallback did not fire.
     ocr_output_safety_audit: dict | None = field(default=None)
 
+    # True when the compilation used ``Compiler(parser_adapter=...)`` to
+    # convert the source into markdown before the built-in MarkdownParser
+    # ingested it. In that case the resulting Document is fundamentally
+    # markdown, regardless of the on-disk source extension. PDF-geometry
+    # detectors (MISSING_PAGE, LOW_TEXT_DENSITY, W_MULTICOLUMN_ORDER,
+    # W_TABLE_MISSING, W_TABLE_EXPECTED_NOT_EXTRACTED,
+    # W_HEADER_FOOTER_TABLE_GARBLED, W_ENCODING_ARTIFACTS) must skip these
+    # Documents cleanly — they lack the block/page geometry those detectors
+    # need and would fire false positives if forced to evaluate against a
+    # source-detected ``pdf`` file_type. User-facing manifest reporting still
+    # records the original source file_type; only the scoring-relevant
+    # ``ctx.document.file_type`` stays as ``md``.
+    parser_provided_via_adapter: bool = False
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:
