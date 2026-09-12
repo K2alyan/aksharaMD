@@ -792,3 +792,294 @@ def test_smoke_mode_defaults_to_aksharamd_when_no_arms_flag_supplied(
     assert result.exit_code == 0, f"CLI failed: {result.output}\n{result.exception!r}"
     assert "SMOKE OK" in result.output
     set_client(None)
+
+
+# -- Streaming rows.jsonl + --resume --------------------------------------
+
+
+def _fake_corpus_factory(
+    doc_specs: list[tuple[str, list[str]]],
+) -> type:
+    """Build an ad-hoc _FakeCorpus class that yields DocumentRecord objects.
+
+    Each entry in ``doc_specs`` is ``(doc_id, [question_text, ...])``.
+    Gold answers are all set to a single fixture-matching string so the
+    fixture-mode judge scores every row identically.
+    """
+
+    class _FakeCorpus:
+        name = "fake"
+
+        def iter_documents(self, limit: int | None = None) -> Iterator[Any]:
+            from benchmarks.parsed_vs_raw.types import DocumentRecord
+
+            for doc_id, qs in doc_specs:
+                yield DocumentRecord(
+                    doc_id=doc_id,
+                    pdf_bytes=TINY_PDF.read_bytes(),
+                    questions=[
+                        Question(
+                            question=q,
+                            gold_answer="Hello parsed-vs-raw harness test.",
+                            answer_type="extractive",
+                        )
+                        for q in qs
+                    ],
+                )
+
+    return _FakeCorpus
+
+
+def _invoke_run(output: Path, extra_args: list[str], corpus_cls: type) -> Any:
+    runner = CliRunner()
+    with patch("benchmarks.parsed_vs_raw.run.get_corpus", lambda _n: corpus_cls()):
+        return runner.invoke(
+            run_main,
+            [
+                "--corpus",
+                "fake",
+                "--limit",
+                "10",
+                "--questions-per-doc",
+                "5",
+                "--arms",
+                "aksharamd-reference",
+                "--answer-model",
+                "unused",
+                "--judge-model",
+                "unused",
+                "--output",
+                str(output),
+                "--fixture-mode",
+                str(LLM_FIXTURE),
+                *extra_args,
+            ],
+        )
+
+
+def test_rows_jsonl_written_incrementally(tmp_path: Path) -> None:
+    """rows.jsonl must exist after a fixture-mode run, matching rows.csv row count."""
+    corpus_cls = _fake_corpus_factory(
+        [
+            ("doc-a", ["What text is in the document?", "What is the title?"]),
+            ("doc-b", ["What text is in the document?"]),
+        ]
+    )
+    output = tmp_path / "stream-out"
+    result = _invoke_run(output, [], corpus_cls)
+    assert result.exit_code == 0, f"CLI failed: {result.output}\n{result.exception!r}"
+
+    jsonl_path = output / "rows.jsonl"
+    assert jsonl_path.exists(), "streaming rows.jsonl should be produced"
+    lines = [ln for ln in jsonl_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    csv_lines = (output / "rows.csv").read_text(encoding="utf-8").splitlines()
+    # rows.csv has one header line; jsonl has none.
+    assert len(lines) == len(csv_lines) - 1
+
+    # Each jsonl line must parse to a dict with the ArmResult schema.
+    expected_keys = {
+        "doc_id",
+        "arm",
+        "question",
+        "gold_answer",
+        "answer",
+        "readiness_score",
+        "judge_score",
+        "correctness",
+        "error",
+    }
+    for ln in lines:
+        payload = json.loads(ln)
+        assert expected_keys.issubset(payload.keys())
+        # Round-trip through the dataclass to prove the schema really matches.
+        ArmResult(**payload)
+    set_client(None)
+
+
+def test_resume_skips_completed_rows(tmp_path: Path) -> None:
+    """A truncated rows.jsonl + --resume must yield the same final rows.csv as a fresh run."""
+    corpus_cls = _fake_corpus_factory(
+        [
+            ("doc-a", ["What text is in the document?", "What is the title?"]),
+            ("doc-b", ["What text is in the document?", "What is the title?"]),
+        ]
+    )
+
+    # Baseline: fresh full run into one dir.
+    full_out = tmp_path / "full"
+    r1 = _invoke_run(full_out, [], corpus_cls)
+    assert r1.exit_code == 0, r1.output
+    full_csv = (full_out / "rows.csv").read_text(encoding="utf-8")
+
+    # Partial: fresh full run into a second dir, then truncate rows.jsonl.
+    resume_out = tmp_path / "resume"
+    r2 = _invoke_run(resume_out, [], corpus_cls)
+    assert r2.exit_code == 0, r2.output
+    partial_path = resume_out / "rows.jsonl"
+    all_lines = [ln for ln in partial_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(all_lines) >= 3, "need enough rows to simulate a mid-run kill"
+    # Drop the last two rows to simulate a kill before the run finished.
+    kept = all_lines[:-2]
+    partial_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    # Delete the derived aggregates so a naive resume that skipped them
+    # would produce a stale rows.csv — the resumed run must rewrite it.
+    (resume_out / "rows.csv").unlink()
+    (resume_out / "summary.md").unlink()
+    (resume_out / "summary.json").unlink()
+
+    # Resume: same command with --resume.
+    r3 = _invoke_run(resume_out, ["--resume"], corpus_cls)
+    assert r3.exit_code == 0, f"resume run failed: {r3.output}\n{r3.exception!r}"
+    assert "Resuming from" in r3.output
+    assert "Resume summary" in r3.output
+
+    resumed_csv = (resume_out / "rows.csv").read_text(encoding="utf-8")
+    # rows.csv is sorted deterministically at the aggregation step, so a
+    # fresh run and a resumed run must produce byte-identical CSV output.
+    assert resumed_csv == full_csv
+    set_client(None)
+
+
+def test_resume_without_flag_errors_on_existing_jsonl(tmp_path: Path) -> None:
+    """A second run against the same --output with no --resume must fail cleanly."""
+    corpus_cls = _fake_corpus_factory(
+        [("doc-a", ["What text is in the document?"])]
+    )
+    output = tmp_path / "no-resume"
+    r1 = _invoke_run(output, [], corpus_cls)
+    assert r1.exit_code == 0, r1.output
+    assert (output / "rows.jsonl").exists()
+
+    # Second run, no --resume: must error out.
+    r2 = _invoke_run(output, [], corpus_cls)
+    assert r2.exit_code != 0
+    combined = (r2.output or "") + (str(r2.exception) if r2.exception else "")
+    assert "rows.jsonl" in combined
+    assert "--resume" in combined
+    set_client(None)
+
+
+def test_resume_no_partial_file_is_noop(tmp_path: Path) -> None:
+    """--resume against an empty output dir behaves like a fresh run."""
+    corpus_cls = _fake_corpus_factory(
+        [("doc-a", ["What text is in the document?"])]
+    )
+    output = tmp_path / "empty-then-resume"
+    result = _invoke_run(output, ["--resume"], corpus_cls)
+    assert result.exit_code == 0, f"CLI failed: {result.output}\n{result.exception!r}"
+    assert (output / "rows.jsonl").exists()
+    assert (output / "rows.csv").exists()
+    assert (output / "summary.json").exists()
+    set_client(None)
+
+
+def test_load_tolerates_trailing_partial_line(tmp_path: Path) -> None:
+    """A single truncated line at the tail is discarded on resume (mid-write kill)."""
+    corpus_cls = _fake_corpus_factory(
+        [
+            ("doc-a", ["What text is in the document?", "What is the title?"]),
+            ("doc-b", ["What text is in the document?"]),
+        ]
+    )
+    output = tmp_path / "trailing-partial"
+    r1 = _invoke_run(output, [], corpus_cls)
+    assert r1.exit_code == 0, r1.output
+
+    jsonl_path = output / "rows.jsonl"
+    lines = [ln for ln in jsonl_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) >= 2, "need at least two rows to simulate a mid-write kill"
+    # Keep all lines but the last; truncate the last line mid-JSON.
+    kept = lines[:-1]
+    truncated_tail = lines[-1][: max(1, len(lines[-1]) // 2)]
+    jsonl_path.write_text(
+        "\n".join(kept) + "\n" + truncated_tail,
+        encoding="utf-8",
+    )
+    # Clear derived aggregates so the resumed run must recompute.
+    (output / "rows.csv").unlink()
+    (output / "summary.md").unlink()
+    (output / "summary.json").unlink()
+
+    r2 = _invoke_run(output, ["--resume"], corpus_cls)
+    assert r2.exit_code == 0, f"resume failed: {r2.output}\n{r2.exception!r}"
+    # Warning should surface via stderr (CliRunner default merges stderr into output).
+    combined = (r2.output or "") + (r2.stderr if hasattr(r2, "stderr") else "")
+    assert "Discarded trailing partial line" in combined
+    # File was truncated back to a valid tail: reload and confirm only the
+    # kept rows remain plus (after resume) the recomputed final row.
+    reloaded = [
+        ln
+        for ln in (output / "rows.jsonl").read_text(encoding="utf-8").splitlines()
+        if ln.strip()
+    ]
+    # The discarded row was recomputed, so total count matches the fresh run.
+    assert len(reloaded) == len(lines)
+    for ln in reloaded:
+        payload = json.loads(ln)
+        ArmResult(**payload)
+    set_client(None)
+
+
+def test_load_errors_on_non_terminal_corruption(tmp_path: Path) -> None:
+    """A malformed line that is NOT last must raise (real corruption, not mid-write)."""
+    corpus_cls = _fake_corpus_factory(
+        [
+            ("doc-a", ["What text is in the document?", "What is the title?"]),
+            ("doc-b", ["What text is in the document?"]),
+        ]
+    )
+    output = tmp_path / "interior-corruption"
+    r1 = _invoke_run(output, [], corpus_cls)
+    assert r1.exit_code == 0, r1.output
+
+    jsonl_path = output / "rows.jsonl"
+    lines = [ln for ln in jsonl_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) >= 3, "need at least three rows so we can corrupt an interior one"
+    # Corrupt the FIRST line so the last line is still parseable - proves the
+    # error path is not just "any malformed line" but specifically interior.
+    corrupted = ["this-is-not-json-at-all"] + lines[1:]
+    jsonl_path.write_text("\n".join(corrupted) + "\n", encoding="utf-8")
+
+    r2 = _invoke_run(output, ["--resume"], corpus_cls)
+    assert r2.exit_code != 0, f"resume should have failed, got: {r2.output}"
+    combined = (r2.output or "") + (str(r2.exception) if r2.exception else "")
+    assert "Malformed row" in combined
+    set_client(None)
+
+
+def test_early_failure_before_first_row_leaves_no_orphan_jsonl(tmp_path: Path) -> None:
+    """If _iter_documents raises, rows.jsonl must NOT be created.
+
+    This guards the guard: an empty rows.jsonl left behind by a prior
+    early failure would trip the "existing rows.jsonl" check on the next
+    invocation and force the user to hand-clean the output dir.
+    """
+    output = tmp_path / "early-fail"
+
+    class _BoomCorpus:
+        name = "boom"
+
+        def iter_documents(self, limit: int | None = None) -> Iterator[Any]:
+            raise RuntimeError("corpus load failed")
+            yield  # pragma: no cover - unreachable, makes this a generator
+
+    runner = CliRunner()
+    with patch("benchmarks.parsed_vs_raw.run.get_corpus", lambda _n: _BoomCorpus()):
+        result = runner.invoke(
+            run_main,
+            [
+                "--corpus", "boom",
+                "--limit", "1",
+                "--questions-per-doc", "1",
+                "--arms", "aksharamd-reference",
+                "--answer-model", "unused",
+                "--judge-model", "unused",
+                "--output", str(output),
+                "--fixture-mode", str(LLM_FIXTURE),
+            ],
+        )
+    assert result.exit_code != 0
+    assert not (output / "rows.jsonl").exists(), (
+        "empty rows.jsonl must not be orphaned by an early corpus-load failure"
+    )
+    set_client(None)

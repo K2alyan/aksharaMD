@@ -102,10 +102,60 @@ Output:
 
 ```
 benchmarks/results/parsed-vs-raw-qasper-pilot/
-    rows.csv        # one row per (doc, question, arm)
+    rows.jsonl      # streamed one line per (doc, question, arm) as the run progresses
+    rows.csv        # one row per (doc, question, arm) — written at end of run
     summary.md      # per-arm means + correlations
     summary.json    # same, machine-readable
 ```
+
+`rows.jsonl` is flushed and `fsync`ed after every row so a mid-run kill
+does not lose the LLM answer + judge calls that already completed.
+
+## Resuming a killed run
+
+If a run is interrupted (Ctrl-C, machine reboot, network drop) the
+partial `rows.jsonl` survives. Re-run the same command with `--resume`
+and the same `--output` directory to skip already-completed
+`(doc_id, arm, question)` triples and continue from where you left off:
+
+```
+python -m benchmarks.parsed_vs_raw.run \
+    --corpus qasper \
+    --limit 25 \
+    --questions-per-doc 5 \
+    --arms raw,markitdown,aksharamd-reference,marker \
+    --output benchmarks/results/parsed-vs-raw-qasper-pilot/ \
+    --resume
+```
+
+Without `--resume`, a pre-existing `rows.jsonl` in `--output` causes the
+run to error out rather than silently overwrite prior work. To start
+fresh, either delete the output directory or pick a new `--output`.
+
+At end of run (whether fresh or resumed) `rows.csv`, `summary.md`, and
+`summary.json` are regenerated from the full row set — resumed rows plus
+newly computed rows — so the aggregates cover the whole pilot.
+
+### Running detached on Windows
+
+For long pilots that outlive your interactive shell, launch the driver
+with stdout/stderr redirected to log files. Keeping the child in its
+own PowerShell process (via `Start-Process`) means closing your
+interactive shell does not signal it, and the log files give you
+something to tail:
+
+```
+$out = "benchmarks/results/my-run"
+New-Item -ItemType Directory -Path $out -Force | Out-Null
+Start-Process powershell -ArgumentList @(
+  '-NoProfile','-Command',
+  "python -m benchmarks.parsed_vs_raw.run --corpus qasper --limit 25 --questions-per-doc 5 --arms raw,markitdown,aksharamd-reference,marker --output $out"
+) -RedirectStandardOutput "$out/run.out.log" -RedirectStandardError "$out/run.err.log" -PassThru | Tee-Object -Variable proc
+$proc.Id | Out-File "$out/run.pid"
+```
+
+To stop it cleanly, kill the PID recorded above (`Stop-Process -Id (Get-Content "$out/run.pid")`).
+If the run dies (or you kill it), resume with the same `--output` and `--resume`.
 
 ## Running without an API key
 
