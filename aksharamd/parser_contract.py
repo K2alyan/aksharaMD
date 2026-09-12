@@ -1,21 +1,10 @@
-"""Experimental parser-adapter boundary — not yet wired to Compiler.
+"""Hash-validated parser-adapter boundary for bring-your-own-parser callers.
 
-This module defines a hash-validated integration boundary for parsers
-supplied by callers who want extraction handled outside of AksharaMD.
-The types are stable enough to design against, but the Compiler does
-not yet route parsing through ``ParserAdapter``. Until the wiring lands,
-callers should treat these types as a design preview.
-
-Status: EXPERIMENTAL — API may change; not on the SemVer surface.
-Tracking follow-up: wire ``ParserAdapter`` into ``Compiler.__init__`` and
-post-validate the returned ``ParsedArtifact.source_hash`` against the
-supplied ``ParserInput.source_hash``.
-
-Background: the existing :class:`~aksharamd.plugins.base.ParserPlugin` API
-operates on a ``CompilationContext`` and remains unchanged. This module
-gives integrations that provide their own parser a stable boundary:
-parsers receive immutable source bytes and return the exact text
-delivered downstream.
+The Compiler accepts a ParserAdapter via ``Compiler(parser_adapter=...)`` and
+validates the returned ParsedArtifact against the supplied ParserInput
+(source_hash, source_id, content_hash) before downstream processing. Provenance
+(parser_name, parser_version, parser_configuration_id) is threaded into the
+quality_assessment.json candidate record so external extractions are auditable.
 """
 
 from __future__ import annotations
@@ -66,32 +55,43 @@ class ParserInput:
 
 @dataclass(frozen=True, slots=True)
 class ParsedArtifact:
-    """Parser output, including provenance and delivery state."""
+    """Parser output, including provenance and delivery state.
+
+    ``content`` carries the parser's exact output bytes. ``content_hash`` must
+    equal ``sha256(content).hexdigest()`` and is validated at construction so
+    downstream integrity checks can rely on it. ``content_mime_type`` is the
+    MIME type of the returned content (text/markdown or text/plain for the
+    initial Compiler wiring). ``declared_truncated`` signals that the parser
+    intentionally emitted a partial result.
+    """
 
     source_id: str
     source_hash: str
+    content: bytes
+    content_hash: str
+    content_mime_type: str
     parser_name: str
-    parser_version: str | None
-    parser_configuration_id: str | None
-    media_type: str
-    content: str
-    truncated: bool = False
-    preview: bool = False
+    parser_version: str | None = None
+    parser_configuration_id: str | None = None
+    declared_truncated: bool = False
     metadata: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # Snapshot content so a caller passing bytearray cannot mutate it out
+        # from under downstream consumers.
+        content = bytes(self.content)
+        object.__setattr__(self, "content", content)
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
         if not self.source_id.strip():
             raise ValueError("source_id must not be blank")
         _validate_digest(self.source_hash, "source_hash")
         if not self.parser_name.strip():
             raise ValueError("parser_name must not be blank")
-        if not self.media_type.strip() or "/" not in self.media_type:
-            raise ValueError("media_type must be a MIME type")
-        if not isinstance(self.content, str):
-            raise TypeError("content must be text")
-        if self.preview and not self.truncated:
-            raise ValueError("preview artifacts must declare truncated=True")
+        if not self.content_mime_type.strip() or "/" not in self.content_mime_type:
+            raise ValueError("content_mime_type must be a MIME type")
+        if not isinstance(self.content, bytes):
+            raise TypeError("content must be bytes")
+        _check_hash(self.content_hash, self.content, "content_hash")
 
 
 class ParserAdapter(Protocol):
@@ -99,4 +99,3 @@ class ParserAdapter(Protocol):
 
     def parse(self, source: ParserInput) -> ParsedArtifact:
         """Convert source into the exact downstream-delivered content."""
-

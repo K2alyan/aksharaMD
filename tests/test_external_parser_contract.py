@@ -31,14 +31,16 @@ class MarkItDownAdapter:
         if self.path.read_bytes() != source.data:
             raise ValueError("parser path does not match ParserInput source")
         converted = MarkItDown().convert(str(self.path))
+        content_bytes = converted.markdown.encode("utf-8")
         return ParsedArtifact(
             source_id=source.source_id,
             source_hash=source.source_hash,
+            content=content_bytes,
+            content_hash=hashlib.sha256(content_bytes).hexdigest(),
+            content_mime_type="text/markdown",
             parser_name="markitdown",
             parser_version=version("markitdown"),
             parser_configuration_id="local-default",
-            media_type="text/markdown",
-            content=converted.markdown,
         )
 
 
@@ -61,7 +63,7 @@ def test_markitdown_output_enters_canonical_artifact_and_assessment_contract(tmp
     source_input = ParserInput(source.logical_id, source.content_hash, source.media_type, source.data)
     adapter: ParserAdapter = MarkItDownAdapter(source_path)
     parsed = adapter.parse(source_input)
-    markdown = parsed.content
+    markdown = parsed.content.decode("utf-8")
     candidate_bytes = markdown.encode("utf-8")
     candidate = CandidateArtifact(
         content_hash=hashlib.sha256(candidate_bytes).hexdigest(),
@@ -73,7 +75,7 @@ def test_markitdown_output_enters_canonical_artifact_and_assessment_contract(tmp
         parser_name=parsed.parser_name,
         parser_version=parsed.parser_version,
         parser_configuration_id=parsed.parser_configuration_id,
-        declared_truncated=parsed.truncated,
+        declared_truncated=parsed.declared_truncated,
         original_source_hash=parsed.source_hash,
     )
 
@@ -101,10 +103,18 @@ def test_external_adapter_rejects_source_path_mismatch(tmp_path):
         MarkItDownAdapter(other_path).parse(source_input)
 
 
-def test_partial_adapter_output_is_explicitly_marked_preview():
-    source = ParserInput("fixture", hashlib.sha256(b"").hexdigest(), "text/plain", b"")
-    parsed = ParsedArtifact(source.source_id, source.source_hash, "partial", None, None, "text/markdown", "head", truncated=True, preview=True)
-    assert parsed.truncated and parsed.preview
+def test_partial_adapter_output_is_explicitly_marked_declared_truncated():
+    body = b"head"
+    parsed = ParsedArtifact(
+        source_id="fixture",
+        source_hash=hashlib.sha256(b"").hexdigest(),
+        content=body,
+        content_hash=hashlib.sha256(body).hexdigest(),
+        content_mime_type="text/markdown",
+        parser_name="partial",
+        declared_truncated=True,
+    )
+    assert parsed.declared_truncated
 
 
 def test_partial_bridge_is_held_even_when_preview_text_matches_source():
@@ -118,26 +128,26 @@ def test_partial_bridge_is_held_even_when_preview_text_matches_source():
     )
     source_input = ParserInput("fixture/preview-source.md", source.content_hash, source.media_type, data)
     parsed = ParsedArtifact(
-        source_input.source_id,
-        source_input.source_hash,
-        "preview-parser",
-        "1",
-        "preview-only",
-        "text/markdown",
-        text,
-        truncated=True,
-        preview=True,
+        source_id=source_input.source_id,
+        source_hash=source_input.source_hash,
+        content=data,
+        content_hash=hashlib.sha256(data).hexdigest(),
+        content_mime_type="text/markdown",
+        parser_name="preview-parser",
+        parser_version="1",
+        parser_configuration_id="preview-only",
+        declared_truncated=True,
     )
-    candidate_data = parsed.content.encode("utf-8")
+    candidate_data = parsed.content
     candidate = CandidateArtifact(
-        content_hash=hashlib.sha256(candidate_data).hexdigest(),
+        content_hash=parsed.content_hash,
         byte_size=len(candidate_data),
-        media_type=parsed.media_type,
+        media_type=parsed.content_mime_type,
         data=candidate_data,
         parser_name=parsed.parser_name,
         parser_version=parsed.parser_version,
         parser_configuration_id=parsed.parser_configuration_id,
-        declared_truncated=parsed.truncated,
+        declared_truncated=parsed.declared_truncated,
         original_source_hash=parsed.source_hash,
     )
     result = Assessor().assess(candidate=candidate, source=source)

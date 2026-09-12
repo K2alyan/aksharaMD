@@ -26,6 +26,7 @@ from requests.adapters import BaseAdapter, HTTPAdapter
 from . import ledger as _ledger
 from .context import CompilationContext
 from .models.manifest import Manifest
+from .parser_contract import ParserAdapter
 
 # Import all built-in plugins to trigger registration (side-effect imports)
 from .plugins import parsers as _parsers_pkg  # noqa: F401
@@ -438,6 +439,7 @@ class Compiler:
         task_profile: TaskProfile | None = None,
         parsers: Mapping[str, type[ParserPlugin] | Callable[[], ParserPlugin]] | None = None,
         parser_configuration_id: str | None = None,
+        parser_adapter: ParserAdapter | None = None,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {chunk_size}")
@@ -462,6 +464,7 @@ class Compiler:
         if parsers:
             self._parsers.update({key.lower().lstrip("."): value for key, value in parsers.items()})
         self.parser_configuration_id = parser_configuration_id
+        self._parser_adapter = parser_adapter
         self._stage_plugin_classes: dict[type, list[type[BasePlugin]]] = {}
         for plugin_type in (CleanerPlugin, OptimizerPlugin, ValidatorPlugin, ExporterPlugin):
             self._stage_plugin_classes[plugin_type] = sorted(
@@ -481,6 +484,154 @@ class Compiler:
         if factory is None:
             return None
         return factory()  # type: ignore[operator]
+
+    _ADAPTER_ACCEPTED_MIME_TYPES: frozenset[str] = frozenset({"text/markdown", "text/plain"})
+
+    def _run_parser_adapter(
+        self,
+        ctx: CompilationContext,
+        source: str,
+        file_type: str,
+        timed: Callable[[str], _StageTimer],
+    ) -> bool:
+        """Route parsing through ``self._parser_adapter``.
+
+        Reads the source bytes (reusing ``ctx.capture_id`` as the source hash
+        when already computed), builds a ``ParserInput``, invokes the adapter,
+        validates the returned ``ParsedArtifact``, and populates ``ctx.document``
+        by writing the artifact content to a NamedTemporaryFile that the
+        built-in ``MarkdownParser`` consumes. Returns True on success.
+
+        On any validation failure, records a ctx.error with the appropriate
+        code and returns False; the caller must treat that as an early return.
+        Never raises.
+        """
+        import mimetypes
+        import tempfile
+
+        from .parser_contract import ParsedArtifact, ParserInput
+        from .plugins.parsers.markdown import MarkdownParser
+
+        adapter = self._parser_adapter
+        assert adapter is not None  # narrowed by caller
+
+        source_path = Path(source)
+        try:
+            source_bytes = source_path.read_bytes()
+        except OSError as exc:
+            ctx.error("PARSE_FAILED", f"Could not read source bytes: {exc}")
+            return False
+
+        # capture_id is the SHA-256 of the raw source bytes computed earlier;
+        # fall back to a fresh digest if the file-size gate did not populate it.
+        source_hash = ctx.capture_id or hashlib.sha256(source_bytes).hexdigest()
+
+        media_type, _ = mimetypes.guess_type(source)
+        if not media_type:
+            media_type = f"application/x-{file_type or 'unknown'}"
+
+        try:
+            adapter_input = ParserInput(
+                source_id=(ctx.source_id or source_path.name),
+                source_hash=source_hash,
+                media_type=media_type,
+                data=source_bytes,
+            )
+        except (TypeError, ValueError) as exc:
+            ctx.error("PARSE_FAILED", f"Failed to build ParserInput: {exc}")
+            return False
+
+        try:
+            with timed("parse"):
+                artifact = adapter.parse(adapter_input)
+        except Exception as exc:
+            ctx.error("PARSE_FAILED", f"Parser adapter raised {type(exc).__name__}: {exc}")
+            return False
+
+        if not isinstance(artifact, ParsedArtifact):
+            ctx.error(
+                "PARSE_FAILED",
+                f"Parser adapter returned {type(artifact).__name__}, expected ParsedArtifact",
+            )
+            return False
+
+        # Validate in fail-fast order: hash → id → mime → content_hash.
+        if artifact.source_hash != adapter_input.source_hash:
+            ctx.error(
+                "ADAPTER_SOURCE_HASH_MISMATCH",
+                "Parser adapter returned a source_hash that does not match the compiler input.",
+                metadata={"expected": adapter_input.source_hash, "got": artifact.source_hash},
+            )
+            return False
+
+        if artifact.source_id != adapter_input.source_id:
+            ctx.error(
+                "ADAPTER_SOURCE_ID_MISMATCH",
+                "Parser adapter returned a source_id that does not match the compiler input.",
+                metadata={"expected": adapter_input.source_id, "got": artifact.source_id},
+            )
+            return False
+
+        mime = artifact.content_mime_type.split(";", 1)[0].strip().lower()
+        if mime not in self._ADAPTER_ACCEPTED_MIME_TYPES:
+            ctx.error(
+                "ADAPTER_UNSUPPORTED_MEDIA_TYPE",
+                f"Parser adapter returned unsupported content_mime_type {mime!r}; "
+                f"only {sorted(self._ADAPTER_ACCEPTED_MIME_TYPES)} accepted in this release.",
+                metadata={"media_type": artifact.content_mime_type},
+            )
+            return False
+
+        expected_content_hash = hashlib.sha256(artifact.content).hexdigest()
+        if artifact.content_hash != expected_content_hash:
+            ctx.error(
+                "ADAPTER_CONTENT_HASH_MISMATCH",
+                "Parser adapter returned a content_hash that does not match its content bytes.",
+                metadata={"expected": expected_content_hash, "got": artifact.content_hash},
+            )
+            return False
+
+        # Thread provenance into ctx BEFORE running the temp parser so downstream
+        # exporters observe the external adapter's identity, not the built-in
+        # MarkdownParser's.
+        ctx.parser_name = artifact.parser_name
+        ctx.parser_version = artifact.parser_version
+        ctx.parser_configuration_id = artifact.parser_configuration_id
+
+        original_source = ctx.source
+        tmp_path: str | None = None
+        try:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".md")
+            tmp_path = tmp.name
+            try:
+                tmp.write(artifact.content)
+            finally:
+                tmp.close()
+            ctx.source = tmp_path
+            try:
+                ctx = MarkdownParser().execute(ctx)
+            except Exception as exc:
+                ctx.error("PARSE_FAILED", f"Downstream markdown ingestion failed: {exc}")
+                return False
+        finally:
+            ctx.source = original_source
+            if tmp_path is not None:
+                try:
+                    Path(tmp_path).unlink(missing_ok=True)
+                except OSError as unlink_exc:
+                    logger.debug("Failed to delete adapter temp file %s: %s", tmp_path, unlink_exc)
+
+        if ctx.document is None:
+            if not ctx.validation.errors:
+                ctx.error("PARSE_FAILED", "Adapter produced no document")
+            return False
+
+        if artifact.declared_truncated:
+            metadata = dict(ctx.document.metadata or {})
+            metadata["declared_truncated"] = True
+            ctx.document = ctx.document.model_copy(update={"metadata": metadata})
+
+        return True
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -916,22 +1067,29 @@ class Compiler:
             file_type = _detect_file_type(source)
 
             # 2. Parse
-            parser = self._parser(file_type)
-            if parser is None:
-                ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
-                return ctx, stage_timings, t0
-            ctx.parser_name = parser.name
-            ctx.parser_configuration_id = self.parser_configuration_id
-            if on_stage:
-                on_stage(f"Parsing {file_type.upper()} document")
-            with timed("parse"):
-                ctx = parser.execute(ctx)
-            if ctx.document is None:
-                # Don't add a redundant PARSE_FAILED when the parser already
-                # set a specific error explaining why (e.g., ENCRYPTED_PDF).
-                if not ctx.validation.errors:
-                    ctx.error("PARSE_FAILED", "Parser produced no document")
-                return ctx, stage_timings, t0
+            if self._parser_adapter is not None:
+                if on_stage:
+                    on_stage(f"Parsing {file_type.upper()} via external adapter")
+                if not self._run_parser_adapter(ctx, source, file_type, timed):
+                    return ctx, stage_timings, t0
+            else:
+                parser = self._parser(file_type)
+                if parser is None:
+                    ctx.error("NO_PARSER", f"No parser registered for file type: {file_type}")
+                    return ctx, stage_timings, t0
+                ctx.parser_name = parser.name
+                ctx.parser_configuration_id = self.parser_configuration_id
+                if on_stage:
+                    on_stage(f"Parsing {file_type.upper()} document")
+                with timed("parse"):
+                    ctx = parser.execute(ctx)
+                if ctx.document is None:
+                    # Don't add a redundant PARSE_FAILED when the parser already
+                    # set a specific error explaining why (e.g., ENCRYPTED_PDF).
+                    if not ctx.validation.errors:
+                        ctx.error("PARSE_FAILED", "Parser produced no document")
+                    return ctx, stage_timings, t0
+            assert ctx.document is not None  # both branches guarantee this
             ctx.document = ctx.document.model_copy(update={"file_type": file_type})
 
             # 3. Clean
