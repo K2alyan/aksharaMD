@@ -1070,6 +1070,10 @@ class Compiler:
             if self._parser_adapter is not None:
                 if on_stage:
                     on_stage(f"Parsing {file_type.upper()} via external adapter")
+                # Mark the context so PDF-geometry detectors can skip cleanly
+                # even if a downstream caller manually forces the Document's
+                # file_type back to a PDF-family value.
+                ctx.parser_provided_via_adapter = True
                 if not self._run_parser_adapter(ctx, source, file_type, timed):
                     return ctx, stage_timings, t0
             else:
@@ -1090,7 +1094,15 @@ class Compiler:
                         ctx.error("PARSE_FAILED", "Parser produced no document")
                     return ctx, stage_timings, t0
             assert ctx.document is not None  # both branches guarantee this
-            ctx.document = ctx.document.model_copy(update={"file_type": file_type})
+            # In the parser_adapter branch the Document was built from the
+            # adapter's markdown output by the built-in MarkdownParser, which
+            # already set file_type="md". Preserving that is essential: PDF-only
+            # readiness detectors (MISSING_PAGE, W_MULTICOLUMN_ORDER, etc.)
+            # rely on PDF block/page geometry that markdown-derived Documents
+            # do not carry, and would fire false positives if we forced
+            # file_type back to the source-detected value.
+            effective_file_type = "md" if self._parser_adapter is not None else file_type
+            ctx.document = ctx.document.model_copy(update={"file_type": effective_file_type})
 
             # 3. Clean
             if on_stage:

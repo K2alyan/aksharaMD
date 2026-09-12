@@ -39,6 +39,19 @@ class StructureValidator(ValidatorPlugin):
             ctx.warn("EMPTY_DOCUMENT", "Document contains no blocks")
             return ctx
 
+        # Adapter-provided Documents are markdown by construction (an
+        # external adapter converted the source to markdown; the built-in
+        # MarkdownParser ingested that markdown). They have no per-page
+        # blocks and no PDF geometry — PDF-geometry detectors would fire
+        # false positives (e.g. MISSING_PAGE against 0 populated pages,
+        # LOW_TEXT_DENSITY against a markdown body). The compiler already
+        # keeps ``doc.file_type == "md"`` for these Documents; the flag
+        # check here is belt-and-suspenders against any future caller
+        # that manually forces file_type back to a PDF-family value.
+        is_pdf_like = (
+            doc.file_type == "pdf" and not ctx.parser_provided_via_adapter
+        )
+
         # ── Heading hierarchy ──────────────────────────────────────────────────
         headings = [b for b in blocks if b.type == BlockType.HEADING]
         if headings:
@@ -74,7 +87,7 @@ class StructureValidator(ValidatorPlugin):
                 ctx.warn("EMPTY_BLOCK", f"Block {block.id} has empty content", block_id=block.id)
 
         # ── PDF: missing pages ─────────────────────────────────────────────────
-        if doc.file_type == "pdf" and doc.pages > 0:
+        if is_pdf_like and doc.pages > 0:
             pages_with_content = {b.page for b in blocks if b.page is not None}
             for p in range(1, doc.pages + 1):
                 if p not in pages_with_content:
@@ -108,7 +121,7 @@ class StructureValidator(ValidatorPlugin):
         # ── Low text density (PDF-specific) ───────────────────────────────────
         # Count PARAGRAPH, HEADING, and TABLE blocks — tables are real extracted
         # text content and excluding them causes false positives on table-heavy PDFs.
-        if doc.file_type == "pdf" and doc.pages > 0:
+        if is_pdf_like and doc.pages > 0:
             text_chars = sum(
                 len(b.content.strip())
                 for b in blocks
