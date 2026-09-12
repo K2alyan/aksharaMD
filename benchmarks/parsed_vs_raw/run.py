@@ -25,6 +25,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import sys
 from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
@@ -37,6 +38,8 @@ from .arms.raw_arm import RawArm
 from .corpora import get_corpus
 from .llm_client import load_fixture_client, set_client
 from .types import ArmResult, DocumentRecord
+
+ROWS_JSONL_NAME = "rows.jsonl"
 
 _ALL_ARMS = ("raw", "markitdown", "aksharamd-reference", "marker", "docling")
 _SMOKE_DEFAULT_ARM = "aksharamd-reference"
@@ -87,6 +90,93 @@ def _iter_documents(corpus_name: str, limit: int, questions_per_doc: int) -> lis
     return trimmed
 
 
+def _row_key(doc_id: str, arm: str, question: str) -> tuple[str, str, str]:
+    """Identity triple used to detect already-completed rows on resume."""
+    return (doc_id, arm, question)
+
+
+def _append_row(row: ArmResult, path: Path) -> None:
+    """Persist a single ArmResult to rows.jsonl and fsync.
+
+    Opens the file per-row so an early failure before the first row is
+    written does not orphan an empty rows.jsonl that would trip the
+    guard on the next non-resume invocation. Per-row open/close overhead
+    is negligible next to the ~seconds each row takes for two LLM calls.
+
+    fsync-after-write is deliberate: each row represents one paid LLM
+    answer + judge call, so a mid-run kill (or crash) must not lose the
+    row we just spent money on.
+    """
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(asdict(row)) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _load_resumed_rows(path: Path) -> tuple[list[ArmResult], set[tuple[str, str, str]]]:
+    """Read a partial rows.jsonl into ArmResult objects + a completed-key set.
+
+    Silently skips blank lines. A malformed line raises ClickException so
+    the user is not surprised by a partial-file resume - except that a
+    single malformed line at the very end is treated as a mid-write kill:
+    because fsync happens per row, a hard kill mid-write can leave at
+    most one partial line at the tail. We discard that tail, warn on
+    stderr, and continue. Any malformed line that is NOT last still
+    raises (that is real corruption, not a mid-write kill).
+    """
+    # Read as bytes so we can compute exact truncation offsets on Windows,
+    # where read_text would silently normalize CRLF -> LF and desync byte
+    # counts from on-disk positions.
+    raw_bytes = path.read_bytes()
+    # splitlines(keepends=True) preserves \r\n or \n exactly as-is on bytes.
+    byte_lines: list[bytes] = raw_bytes.splitlines(keepends=True)
+    rows: list[ArmResult] = []
+    keys: set[tuple[str, str, str]] = set()
+
+    # Locate the index of the last non-blank line (if any) so we can
+    # tolerate exactly one trailing malformed record.
+    last_nonblank_idx = -1
+    for idx in range(len(byte_lines) - 1, -1, -1):
+        if byte_lines[idx].strip():
+            last_nonblank_idx = idx
+            break
+
+    trailing_partial_bytes: int | None = None
+    for idx, raw_line in enumerate(byte_lines):
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        lineno = idx + 1
+        try:
+            text = stripped.decode("utf-8")
+            payload = json.loads(text)
+            row = ArmResult(**payload)
+        except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
+            if idx == last_nonblank_idx:
+                # Exact byte offset of the start of the partial line, so
+                # truncation leaves the preceding valid rows (including
+                # their line terminators) intact.
+                trailing_partial_bytes = sum(len(byte_lines[j]) for j in range(idx))
+                snippet = stripped[:80].decode("utf-8", errors="replace").replace("\n", " ")
+                print(
+                    f"Discarded trailing partial line from rows.jsonl "
+                    f"(mid-write kill?): {snippet}",
+                    file=sys.stderr,
+                )
+                break
+            raise click.ClickException(
+                f"Malformed row in {path} at line {lineno}: {exc}"
+            ) from exc
+        rows.append(row)
+        keys.add(_row_key(row.doc_id, row.arm, row.question))
+
+    if trailing_partial_bytes is not None:
+        with open(path, "r+b") as handle:
+            handle.truncate(trailing_partial_bytes)
+
+    return rows, keys
+
+
 def _run_arms(
     docs: Sequence[DocumentRecord],
     arms: Sequence[str],
@@ -95,25 +185,33 @@ def _run_arms(
     judge_model: str,
     dry_run: bool,
     output_dir: Path,
+    jsonl_path: Path,
+    completed_keys: set[tuple[str, str, str]],
+    seeded_results: Sequence[ArmResult] = (),
 ) -> list[ArmResult]:
-    results: list[ArmResult] = []
+    results: list[ArmResult] = list(seeded_results)
     for doc in docs:
         if not doc.pdf_bytes:
             click.echo(f"[skip] {doc.doc_id}: no PDF bytes ({doc.metadata.get('fetch_error', 'unknown')})", err=True)
             continue
         for arm_name in arms:
             for question in doc.questions:
-                if dry_run:
-                    results.append(_dry_run_row(doc, question, arm_name, output_dir))
+                key = _row_key(doc.doc_id, arm_name, question.question)
+                if key in completed_keys:
                     continue
-                if arm_name == "raw":
+                if dry_run:
+                    row = _dry_run_row(doc, question, arm_name, output_dir)
+                elif arm_name == "raw":
                     raw_runner = RawArm(answer_model=answer_model, judge_model=judge_model)
-                    results.append(raw_runner.run(doc.doc_id, doc.pdf_bytes, question))
+                    row = raw_runner.run(doc.doc_id, doc.pdf_bytes, question)
                 else:
                     parser_runner = ParserArm(
                         parser=arm_name, answer_model=answer_model, judge_model=judge_model
                     )
-                    results.append(parser_runner.run(doc.doc_id, doc.pdf_bytes, question))
+                    row = parser_runner.run(doc.doc_id, doc.pdf_bytes, question)
+                _append_row(row, jsonl_path)
+                completed_keys.add(key)
+                results.append(row)
     return results
 
 
@@ -232,6 +330,16 @@ def _print_smoke_banner(results: Sequence[ArmResult]) -> None:
         "any --arms value narrows to its first element). Costs ~$0.02."
     ),
 )
+@click.option(
+    "--resume",
+    is_flag=True,
+    help=(
+        "Resume from an existing rows.jsonl in --output. Rows whose "
+        "(doc_id, arm, question) triple is already present are skipped; "
+        "new rows are appended. Without this flag, an existing rows.jsonl "
+        "causes the run to error out rather than clobber prior work."
+    ),
+)
 def main(
     corpus: str,
     limit: int,
@@ -243,6 +351,7 @@ def main(
     dry_run: bool,
     fixture_mode: Path | None,
     smoke: bool,
+    resume: bool,
 ) -> None:
     """Run the parsed-vs-raw evaluation pilot."""
     _load_dotenv()
@@ -264,13 +373,33 @@ def main(
         raise click.BadParameter("--output is required (unless --smoke is passed).")
     if fixture_mode is not None:
         set_client(load_fixture_client(fixture_mode))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    jsonl_path = output_dir / ROWS_JSONL_NAME
+    seeded_results: list[ArmResult] = []
+    completed_keys: set[tuple[str, str, str]] = set()
+    # Guard + resume-seed BEFORE any corpus load or LLM call so a misuse
+    # (existing rows.jsonl without --resume) does not waste an S3 fetch
+    # or a paid API call.
+    if jsonl_path.exists():
+        if not resume:
+            raise click.ClickException(
+                f"{jsonl_path} already exists; pass --resume to continue, "
+                f"or choose a fresh --output dir."
+            )
+        seeded_results, completed_keys = _load_resumed_rows(jsonl_path)
+        click.echo(
+            f"Resuming from {jsonl_path}: {len(seeded_results)} rows already complete."
+        )
+    elif resume:
+        # No partial file present: a no-op resume is not an error; behave
+        # like a fresh run so scripted retries survive an empty output dir.
+        click.echo(f"--resume passed but {jsonl_path} does not exist; starting fresh.")
     try:
         docs = _iter_documents(corpus, limit=limit, questions_per_doc=questions_per_doc)
     except RuntimeError as exc:
         raise click.ClickException(str(exc)) from exc
     if not docs:
         raise click.ClickException("No documents loaded; corpus was empty.")
-    output_dir.mkdir(parents=True, exist_ok=True)
     results = _run_arms(
         docs,
         arms,
@@ -278,7 +407,19 @@ def main(
         judge_model=judge_model,
         dry_run=dry_run,
         output_dir=output_dir,
+        jsonl_path=jsonl_path,
+        completed_keys=completed_keys,
+        seeded_results=seeded_results,
     )
+    new_rows = len(results) - len(seeded_results)
+    if seeded_results:
+        click.echo(
+            f"Resume summary: {len(seeded_results)} rows loaded, {new_rows} new rows computed."
+        )
+    # Sort at the final aggregation step (not during the run, which would
+    # break streaming semantics) so rows.csv is byte-deterministic across
+    # fresh vs. resumed runs of the same corpus + arms.
+    results = sorted(results, key=lambda r: (r.doc_id, r.arm, r.question))
     write_rows_csv(results, output_dir / "rows.csv")
     summaries = summarise(results)
     write_summary_markdown(summaries, output_dir / "summary.md")
