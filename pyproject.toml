@@ -50,6 +50,7 @@ dependencies = [
     "aiohttp>=3.14.3",       # security-min override for transitive dep, tracks GHSA #29 / #28 / #27
     "pyasn1>=0.6.4",         # security-min override for transitive dep, tracks GHSA #26 / #25 / #24
     "cryptography>=50.0.0",  # security-min override for transitive dep, tracks GHSA #30 (PKCS#7 Bleichenbacher oracle)
+    "setuptools>=83.0.0",    # security-min override for transitive dep, tracks GHSA #23 (MANIFEST.in Unicode bypass; also pinned in [build-system].requires)
     # optional heavy deps — install separately for full support:
     # pip install openai-whisper   (audio transcription; also needs ffmpeg on PATH)
     # pip install pytesseract      (image OCR; also needs Tesseract binary)
