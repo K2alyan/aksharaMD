@@ -160,9 +160,10 @@ def test_qasper_corpus_loader_yields_expected_shape(tmp_path: Path) -> None:
         },
     ]
 
-    def fake_load_dataset(name: str, split: str) -> list[dict[str, Any]]:
+    def fake_load_dataset(name: str, split: str, revision: str | None = None) -> list[dict[str, Any]]:
         assert name == "allenai/qasper"
         assert split == "validation"
+        assert revision is not None
         return fake_rows
 
     def fake_download(url: str) -> bytes:

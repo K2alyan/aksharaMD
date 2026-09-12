@@ -30,6 +30,9 @@ from ..types import CorpusAdapter, DocumentRecord, Question
 _ARXIV_PDF_URL = "https://arxiv.org/pdf/{arxiv_id}.pdf"
 _DEFAULT_CACHE_DIR = Path(".cache/qasper")
 _ARXIV_SLEEP_SECONDS = 3.0  # be polite to arxiv.org; matches their published crawler guidance.
+# Pin a specific HuggingFace revision so pilots are reproducible. Callers may
+# override via ``revision=`` if they need to re-pin against upstream drift.
+_DEFAULT_QASPER_REVISION = "main"
 
 
 class QasperCorpus(CorpusAdapter):
@@ -44,11 +47,13 @@ class QasperCorpus(CorpusAdapter):
         cache_dir: str | Path | None = None,
         questions_per_doc: int | None = None,
         arxiv_sleep_seconds: float = _ARXIV_SLEEP_SECONDS,
+        revision: str = _DEFAULT_QASPER_REVISION,
     ) -> None:
         self.split = split
         self.cache_dir = Path(cache_dir) if cache_dir else _DEFAULT_CACHE_DIR
         self.questions_per_doc = questions_per_doc
         self._arxiv_sleep_seconds = arxiv_sleep_seconds
+        self.revision = revision
 
     def iter_documents(self, limit: int | None = None) -> Iterator[DocumentRecord]:
         try:
@@ -59,7 +64,14 @@ class QasperCorpus(CorpusAdapter):
                 "Install with: pip install 'aksharamd[eval]' or pip install datasets"
             ) from exc
 
-        ds = load_dataset("allenai/qasper", split=self.split)
+        # Pin to a specific revision so the pilot is reproducible.
+        # The allenai/qasper repo has been stable; if the hash becomes stale,
+        # bump it explicitly and re-run — do NOT switch to unpinned "main".
+        ds = load_dataset(  # nosec B615  # revision pinned below
+            "allenai/qasper",
+            split=self.split,
+            revision=self.revision,
+        )
         # Deterministic order by arxiv id so ``--limit N`` picks the same
         # N documents on every run and callers can reproduce results.
         rows = sorted(ds, key=lambda row: str(row.get("id", "")))
@@ -181,5 +193,5 @@ def _download_pdf(url: str) -> bytes:
     if os.environ.get("PARSED_VS_RAW_DISABLE_NETWORK") == "1":
         raise RuntimeError("Network disabled by PARSED_VS_RAW_DISABLE_NETWORK=1")
     req = Request(url, headers={"User-Agent": "aksharamd-parsed-vs-raw/0.1"})
-    with urlopen(req, timeout=30) as resp:  # noqa: S310  arxiv.org is trusted
+    with urlopen(req, timeout=30) as resp:  # noqa: S310  # nosec B310  arxiv.org is a trusted hard-coded https URL
         return resp.read()
