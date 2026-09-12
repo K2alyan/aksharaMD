@@ -30,11 +30,10 @@ dependencies = [
     "ebooklib>=0.18",
     "feedparser>=6.0",
     "extract-msg>=0.50",
-    # Pillow CVEs require >=12.2.0 but marker-pdf (all released versions)
-    # pins pillow<11 and is blocked until marker-pdf lifts that cap. The
-    # affected Pillow features (PSD/FITS loading) are not in aksharamd's
-    # runtime path. Track: github.com/VikParuchuri/marker/issues
-    # (transformers has its own cap in the `vision` extra below.)
+    # Pillow>=10.0 tracks Wave 1's transitive floor; the 12 open Pillow CVEs
+    # are documented as accepted-risk in SECURITY.md ("Deferred dependency
+    # alerts") because the affected features are not on aksharamd's default
+    # parse path and marker-pdf/surya-ocr cap Pillow<11 upstream.
     "Pillow>=10.0",
     "striprtf>=0.0.26",
     "pdfplumber>=0.11",
@@ -129,6 +128,8 @@ math = [
 ]
 index = [
     "watchdog>=4.0",
+    # chromadb: 3 open CVEs are documented as unreachable in aksharamd's
+    # usage (PersistentClient local-only). See SECURITY.md.
     "chromadb>=0.5",
     "sentence-transformers>=3.0",
 ]

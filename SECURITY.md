@@ -105,55 +105,35 @@ The threshold is a heuristic, not a guarantee. A score of 70 means the extractio
 
 Override the threshold with `--min-readiness-score` (CLI) or `min_readiness_score` in `IndexConfig` (Python API). Set to 0 to index everything regardless of quality; set to 85 to index only HIGH-band documents.
 
-## Deferred Dependency Alerts
+## Deferred dependency alerts
 
-The following Dependabot vulnerability alerts are present in the lockfile but **cannot currently be resolved** because upstream optional-extra dependencies impose version caps that conflict with the fixed package versions. No code change in this repository can fix them until the upstream packages release new versions.
+The following third-party dependency CVEs are known to be reported against AksharaMD's dependency graph but are either unreachable in AksharaMD's own code paths or blocked upstream. Each is documented here rather than resolved so that dependency-scanning users can review our reasoning.
 
-### pillow — 5 alerts (HIGH × 3, MEDIUM × 2)
+### Pillow (12 CVEs, patched in Pillow 12.3.0, blocked upstream)
 
-**Fixed version required:** ≥ 12.2.0  
-**Locked version:** 10.4.0  
-**Blocker:** `surya-ocr` (required by `marker-pdf`, which powers the `[vision]` extra) declares `pillow < 11.0.0` across every released version (0.1.0–0.20.0). Because uv builds a universal lockfile that resolves all extras simultaneously, this cap pins `pillow` to 10.4.0 even for base-install users.
+The `vision` extra installs `marker-pdf`, which pulls `surya-ocr`, which caps `Pillow<11`. We cannot ship `Pillow>=12.3.0` without breaking the vision extra.
 
-**Advisories:**
-- OOB write when loading PSD images (× 2)
-- FITS GZIP decompression bomb (DoS)
-- PDF parsing trailer infinite loop (DoS)
-- Integer overflow in font processing
+**Affected CVEs:** see Pillow 12.3.0 changelog — PSD/FITS loaders, JPEG2000 tiled decode, PDF decompression bomb, `Image.paste`/`crop` signed-coord overflow, TGA RLE encoder heap leak, `ImageFilter.RankFilter` int overflow, decompression-bomb bypass via `BdfFontFile`/`GdImageFile`/`PcfFontFile`, McIdas AREA row-stride out-of-bounds read, WindowsViewer OS command injection.
 
-**Practical exposure:** AksharaMD uses `pillow` for general image handling during document parsing. It does not process PSD or FITS files in normal ingestion workflows. The PDF trailer DoS applies to pillow's own PDF parser, not to PyMuPDF which AksharaMD uses for PDF parsing. Risk is low in practice for the documented use case but the installed package remains vulnerable.
+**Reachability in AksharaMD:**
+- These features live in Pillow modules that AksharaMD does not import from its default parse path.
+- The `vision` extra is optional; installing `aksharamd` alone does not pull vulnerable Pillow features into play.
+- Even with `[vision]` installed, exploitation requires a maliciously crafted PSD/FITS/JPEG2000/PDF-stream/TGA/PCF/BDF/GD/McIdas file being fed to marker-pdf's image handling.
 
-**Removal condition:** When `surya-ocr` releases a version that supports `pillow >= 12.0`, remove the `pillow` ignore rule from `.github/dependabot.yml`, bump `Pillow >= 12.2.0` in `pyproject.toml`, regenerate `uv.lock`, and close the alerts.  
-**Track:** https://github.com/VikParuchuri/surya
+**Upstream status:** tracked in marker-pdf issues [#1048](https://github.com/VikParuchuri/marker/issues/1048) (transformers 5.x + Pillow 12 support) and [#942](https://github.com/VikParuchuri/marker/issues/942) (Pillow constraint on Python 3.14). When marker-pdf lifts the cap, we will bump `Pillow>=12.3.0` in the base dependencies.
 
----
+### chromadb (3 CVEs, no upstream patch, unreachable in AksharaMD's usage)
 
-### transformers — LightGlue arbitrary code execution (CVE-2026-5241)
+The `index` extra installs `chromadb`. No version of chromadb above 1.5.9 has been released; the CVEs affect `>=0.4.17, <=1.5.9` (or `>=1.0.0` for the critical). All three CVEs require attack surfaces AksharaMD never exposes.
 
-**Advisory:** GHSA-fgcw-684q-jj6r / CVE-2026-5241 / PYSEC-2026-2290 (High, CVSS 8.0, CWE-829)  
-**Fixed version required:** ≥ 5.5.0 (no 4.x back-port exists; the fix is in 5.5.0 only)  
-**Locked version:** 4.57.6 (in the affected range `< 5.5.0`)  
-**Blocker:** `marker-pdf >= 1.6` declares `transformers < 5.0.0` across all released versions (1.6.0–1.10.2). Affects the `[vision]` and `[math]` optional extras only. The base install does not depend on `transformers`.
+| CVE | GHSA | Severity | Attack surface | Required in AksharaMD? |
+|---|---|---|---|---|
+| CVE-2026-45829 | GHSA-f4j7-r4q5-qw2c | Critical | HTTP server + `trust_remote_code` on `/api/v2/.../collections` | **No** — we do not start the HTTP server |
+| CVE-2026-45833 | GHSA-36p7-vc44-83pf | High | HTTP server + `trust_remote_code` with UPDATE_COLLECTION permission | **No** — same reason |
+| CVE-2026-45830 / -45831 | (paired) | High | HTTP server + `SimpleRBACAuthorizationProvider` cross-tenant access | **No** — we do not configure an auth provider |
 
-**Vulnerable code path:** `transformers.models.lightglue.configuration_lightglue.LightGlueConfig` reads `trust_remote_code` from the untrusted `config.json` of the target model repository and forwards it to `AutoConfig.from_pretrained()` for the sub-model configs. As a result, an attacker who controls the model repository can execute arbitrary Python code even when the caller passes `trust_remote_code=False`.
+**AksharaMD's usage:** `aksharamd/index/store.py:41-49` initializes `chromadb.PersistentClient(path=...)`, a local-disk-only client. AksharaMD never starts the chromadb HTTP server, never configures `SimpleRBACAuthorizationProvider`, and never enables `trust_remote_code`. All three attack surfaces are unreachable.
 
-**Practical exposure in AksharaMD: none.** Evidence-based reachability review 2026-07-17, refreshed 2026-07-21 for the Unlimited-OCR production relocation (PR 93):
+**Users running chromadb's HTTP server separately** (outside AksharaMD, e.g. as a shared vector-store service) should upgrade to a mitigated configuration or wait for an upstream patch. That deployment mode is outside AksharaMD's scope.
 
-- `aksharamd/` production source references `LightGlue`, `AutoModel`, `AutoConfig`, or `trust_remote_code` in exactly TWO files, both allowlisted in `tests/test_security_transformers_reachability.py::_ALLOWED_PATHS`:
-  - `aksharamd/plugins/ocr_backends/unlimited_ocr/adapter.py` — Unlimited-OCR pinned model loader.
-  - `aksharamd/plugins/ocr_backends/eval_override.py` — audited module-local eval override for that specific model's remote-code surface.
-- Both are gated by a byte-level trust manifest (`unlimited_ocr_trusted_manifest.json`) verified against the pinned revision `d549bb9d6a055dbe291408916d66acc2cd5920f6` of `baidu/Unlimited-OCR` before any load. The model repo id is a hardcoded constant; **no user input reaches the model-id argument**.
-- The eval-override sandbox restricts what the remote code may do, and is unit-tested in `tests/test_unlimited_ocr_eval_override.py`.
-- Unlimited-OCR is NOT wired into the default compile flow (PR 94 will add explicit opt-in `--ocr-backend unlimited_ocr` selection). Base installs do not import `torch` or `transformers` at package load — enforced by `tests/test_unlimited_ocr_no_heavy_import.py`.
-- `marker-pdf 1.10.2` (installed) has 0 references across 130 `.py` files.
-- `surya-ocr 0.17.1` (installed) has 0 references across 87 `.py` files.
-- The only marker entry point is `marker.models.create_model_dict()` called with **no arguments**; every downstream checkpoint is a hardcoded Surya-package constant. No user input reaches any `from_pretrained` call anywhere in the marker pipeline.
-- Dynamic verification: instantiating marker's full model dict loads 40 `transformers.*` submodules; **zero** are `lightglue.*`.
-- The `trust_remote_code=True` in `benchmarks/docvqa_eval.py:124` is for HuggingFace **Datasets** (not `transformers`), targets a well-known dataset, and is annotated `# nosec B615`.
-
-Effective severity for AksharaMD: **informational**. The vulnerable code is present on disk in a transitive dependency but no code path in this repository reaches it with any attacker-controllable model repository id. The two allowlisted production references target a pinned, byte-verified, statically-reviewed model whose repository id is a compile-time constant.
-
-**Do not silence:** Do not attempt to hide this alert with a `pyproject.toml` version-range trick or an ignore rule for CVE-2026-5241 specifically. Either would mask a future transitive bump that could unlock the vulnerable path. The `>=5.0.0` ignore rule in `.github/dependabot.yml` is a different, coarse block on incompatible major-version bumps and remains appropriate.
-
-**Removal condition:** When `marker-pdf` releases a version that supports `transformers >= 5.5.0`, open a coordinated bump PR that (1) lifts the `<5.0.0` cap in `pyproject.toml` `[vision]`, (2) sets a floor of `transformers >= 5.5.0`, (3) removes the `transformers >=5.0.0` ignore in `.github/dependabot.yml`, (4) regenerates `uv.lock`, and (5) closes this alert.  
-**Track:** https://github.com/VikParuchuri/marker
+**Follow-up:** a drop-in migration to sqlite-vec, LanceDB, Qdrant, or pgvector is tracked as a separate roadmap item; the sole boundary is `store.py`.
