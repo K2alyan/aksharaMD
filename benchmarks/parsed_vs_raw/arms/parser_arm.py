@@ -101,12 +101,36 @@ def _extract_markitdown(pdf_bytes: bytes) -> ExtractionOutput:
     )
 
 
-def _extract_aksharamd(pdf_bytes: bytes) -> ExtractionOutput:
+def _extract_aksharamd_reference(pdf_bytes: bytes) -> ExtractionOutput:
+    """AksharaMD's bundled reference parser (PyMuPDF + custom pipeline).
+
+    Named ``aksharamd-reference`` (not just ``aksharamd``) so benchmark output
+    is unambiguous: AksharaMD the *product* is the readiness score; this arm
+    is its *reference parser*, one of several parsers users may pick from.
+    """
     markdown, ctx = _compile_pdf_bytes(pdf_bytes)
     return ExtractionOutput(
         markdown=markdown,
         readiness_score=_readiness_from_ctx(ctx),
-        parser_name="aksharamd",
+        parser_name="aksharamd-reference",
+    )
+
+
+def _extract_marker(pdf_bytes: bytes) -> ExtractionOutput:
+    """marker-pdf (via vision extra) wrapped as a ParserAdapter."""
+    try:
+        from ..adapters.marker_adapter import MarkerAdapter
+    except ImportError as exc:  # pragma: no cover - defensive
+        raise ParserUnavailable(f"marker adapter import failed: {exc}") from exc
+    try:
+        adapter = MarkerAdapter()
+    except RuntimeError as exc:
+        raise ParserUnavailable(str(exc)) from exc
+    markdown, ctx = _compile_pdf_bytes(pdf_bytes, parser_adapter=adapter)
+    return ExtractionOutput(
+        markdown=markdown,
+        readiness_score=_readiness_from_ctx(ctx),
+        parser_name="marker",
     )
 
 
@@ -138,7 +162,8 @@ def _extract_docling(pdf_bytes: bytes) -> ExtractionOutput:
 
 _EXTRACTORS = {
     "markitdown": _extract_markitdown,
-    "aksharamd": _extract_aksharamd,
+    "aksharamd-reference": _extract_aksharamd_reference,
+    "marker": _extract_marker,
     "docling": _extract_docling,
 }
 

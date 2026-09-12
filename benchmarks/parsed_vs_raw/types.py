@@ -44,7 +44,7 @@ class ArmResult:
     doc_id: str
     question: str
     gold_answer: str
-    arm: str  # "raw" | "markitdown" | "aksharamd" | "docling"
+    arm: str  # "raw" | "markitdown" | "aksharamd-reference" | "marker" | "docling"
     answer: str
     readiness_score: int | None
     judge_score: int  # 0-10 from the LLM judge; -1 = operational failure
