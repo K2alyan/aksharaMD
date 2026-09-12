@@ -31,17 +31,25 @@ score is not a useful proxy on that corpus.
 
 ## Supported arms
 
-| arm        | dependency        | readiness_score source                                    |
-|------------|-------------------|------------------------------------------------------------|
-| raw        | anthropic         | n/a (no extraction step)                                   |
-| aksharamd  | (bundled)         | `Compiler.compile_to_string` -> `ctx.manifest.readiness_score` |
-| markitdown | `pip install markitdown` | `Compiler(parser_adapter=MarkItDownAdapter())` -> same field |
-| docling    | `pip install docling`    | not yet wrapped as ParserAdapter (readiness None; follow-up) |
+| arm                  | dependency                  | readiness_score source                                           |
+|----------------------|-----------------------------|-------------------------------------------------------------------|
+| raw                  | anthropic                   | n/a (no extraction step)                                          |
+| aksharamd-reference  | (bundled)                   | `Compiler.compile_to_string` -> `ctx.manifest.readiness_score`    |
+| markitdown           | `pip install markitdown`    | `Compiler(parser_adapter=MarkItDownAdapter())` -> same field      |
+| marker               | `pip install 'aksharamd[vision]'` | `Compiler(parser_adapter=MarkerAdapter())` -> same field    |
+| docling              | `pip install docling`       | not yet wrapped as ParserAdapter (readiness None; follow-up)      |
 
-The AksharaMD and MarkItDown arms both use the **exact same instrument**
+**Naming note:** the `aksharamd-reference` arm is AksharaMD's *bundled reference
+parser* (PyMuPDF + custom pipeline). The product identity — AksharaMD, the
+readiness scorer — is the same instrument all parser arms use. Calling the
+bundled parser arm `aksharamd-reference` (rather than just `aksharamd`) avoids
+the "judge and contestant" ambiguity in benchmark output.
+
+The reference, MarkItDown, and marker arms all use the **exact same instrument**
 - `ctx.manifest.readiness_score` computed by the Compiler pipeline. The
-MarkItDown arm reaches it by plugging a `MarkItDownAdapter` into
-`Compiler(parser_adapter=...)`. Cross-arm correlation therefore compares
+MarkItDown and marker arms reach it by plugging their respective
+`ParserAdapter` into `Compiler(parser_adapter=...)`. Cross-arm correlation
+therefore compares
 apples to apples. Docling's arm still uses its own converter and does
 not yet emit a readiness score; wrapping Docling as a ParserAdapter
 mirroring MarkItDown is a follow-up.
@@ -58,7 +66,7 @@ mirroring MarkItDown is a follow-up.
 
 ## Cost estimates
 
-- Pilot (`--limit 5 --questions-per-doc 3 --arms raw,markitdown,aksharamd`):
+- Pilot (`--limit 5 --questions-per-doc 3 --arms raw,markitdown,aksharamd-reference,marker`):
   45 answer calls + 45 judge calls on Haiku ~ **$1-3**.
 - Serious run (100 docs x 5 questions x 3 arms = 1,500 answer + 1,500
   judge calls, Haiku answer, Sonnet judge): **$50-100** depending on
@@ -84,7 +92,7 @@ python -m benchmarks.parsed_vs_raw.run \
     --corpus qasper \
     --limit 5 \
     --questions-per-doc 3 \
-    --arms raw,markitdown,aksharamd \
+    --arms raw,markitdown,aksharamd-reference,marker \
     --answer-model claude-haiku-4-5-20251001 \
     --judge-model claude-haiku-4-5-20251001 \
     --output benchmarks/results/parsed-vs-raw-qasper-pilot/
@@ -114,7 +122,7 @@ Two options:
 
 `--smoke` runs the cheapest possible end-to-end verification against
 Anthropic: it forces `--limit 1`, `--questions-per-doc 1`, and a
-single arm (default `aksharamd`; if `--arms` is supplied, its first
+single arm (default `aksharamd-reference`; if `--arms` is supplied, its first
 element wins). One answer call + one judge call on Haiku costs about
 $0.02. Output goes to a dated `parsed-vs-raw-smoke-YYYY-MM-DD/`
 directory and the run prints a `SMOKE OK` banner on success.

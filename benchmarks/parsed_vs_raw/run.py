@@ -4,7 +4,7 @@ Typical invocation:
 
     python -m benchmarks.parsed_vs_raw.run \\
         --corpus qasper --limit 5 --questions-per-doc 3 \\
-        --arms raw,markitdown,aksharamd \\
+        --arms raw,markitdown,aksharamd-reference,marker \\
         --answer-model claude-haiku-4-5-20251001 \\
         --judge-model claude-haiku-4-5-20251001 \\
         --output benchmarks/results/parsed-vs-raw-qasper-pilot/
@@ -16,9 +16,9 @@ LLM; useful for auditing the pipeline before spending API dollars.
 whole thing runs offline (this is what the test suite exercises).
 
 ``--smoke`` overrides ``--limit`` to 1, ``--questions-per-doc`` to 1,
-and ``--arms`` to a single arm (default ``aksharamd``). It hits the
-real Anthropic API and prints a big ``SMOKE OK`` banner on success -
-the cheapest possible end-to-end verification before a real pilot.
+and ``--arms`` to a single arm (default ``aksharamd-reference``). It
+hits the real Anthropic API and prints a big ``SMOKE OK`` banner on
+success - the cheapest possible end-to-end verification before a real pilot.
 """
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ from .corpora import get_corpus
 from .llm_client import load_fixture_client, set_client
 from .types import ArmResult, DocumentRecord
 
-_ALL_ARMS = ("raw", "markitdown", "aksharamd", "docling")
-_SMOKE_DEFAULT_ARM = "aksharamd"
+_ALL_ARMS = ("raw", "markitdown", "aksharamd-reference", "marker", "docling")
+_SMOKE_DEFAULT_ARM = "aksharamd-reference"
 
 
 def _load_dotenv() -> None:
@@ -186,7 +186,7 @@ def _print_smoke_banner(results: Sequence[ArmResult]) -> None:
 @click.option(
     "--arms",
     "arms_str",
-    default="raw,markitdown,aksharamd",
+    default="raw,markitdown,aksharamd-reference,marker",
     show_default=True,
     help="Comma-separated arms.",
 )
@@ -228,7 +228,7 @@ def _print_smoke_banner(results: Sequence[ArmResult]) -> None:
     is_flag=True,
     help=(
         "Cheap end-to-end verification with the real Anthropic API: forces "
-        "--limit 1, --questions-per-doc 1, and a single arm (default 'aksharamd'; "
+        "--limit 1, --questions-per-doc 1, and a single arm (default 'aksharamd-reference'; "
         "any --arms value narrows to its first element). Costs ~$0.02."
     ),
 )

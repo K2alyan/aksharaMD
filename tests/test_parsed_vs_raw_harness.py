@@ -254,15 +254,15 @@ def test_qasper_corpus_loader_rejects_unknown_split() -> None:
 
 
 def test_parser_arm_produces_markdown_and_readiness_score() -> None:
-    """Running the aksharamd parser arm on a real (tiny) PDF yields markdown + a score."""
+    """Running the aksharamd-reference parser arm on a real (tiny) PDF yields markdown + a score."""
     pytest.importorskip("aksharamd")
-    arm = ParserArm(parser="aksharamd", answer_model="unused", judge_model="unused")
+    arm = ParserArm(parser="aksharamd-reference", answer_model="unused", judge_model="unused")
     pdf_bytes = TINY_PDF.read_bytes()
     extraction = arm.extract(pdf_bytes)
-    assert extraction.markdown, "expected non-empty markdown from aksharamd"
+    assert extraction.markdown, "expected non-empty markdown from aksharamd-reference"
     assert isinstance(extraction.readiness_score, int)
     assert 0 <= extraction.readiness_score <= 100
-    assert extraction.parser_name == "aksharamd"
+    assert extraction.parser_name == "aksharamd-reference"
 
 
 def test_parser_arm_skips_when_optional_dep_missing() -> None:
@@ -381,13 +381,13 @@ def _rows(*specs: tuple[str, int, float]) -> list[ArmResult]:
 
 def test_aggregate_computes_correlation_for_perfect_linear_relationship() -> None:
     rows = _rows(
-        ("aksharamd", 40, 0.4),
-        ("aksharamd", 60, 0.6),
-        ("aksharamd", 80, 0.8),
-        ("aksharamd", 100, 1.0),
+        ("aksharamd-reference",40, 0.4),
+        ("aksharamd-reference",60, 0.6),
+        ("aksharamd-reference",80, 0.8),
+        ("aksharamd-reference",100, 1.0),
     )
     summaries = {s.arm: s for s in aggregate.summarise(rows)}
-    ak = summaries["aksharamd"]
+    ak = summaries["aksharamd-reference"]
     assert ak.n == 4
     assert ak.n_scored == 4
     assert math.isclose(ak.pearson or 0.0, 1.0, abs_tol=1e-9)
@@ -439,7 +439,7 @@ def test_fixture_client_scopes_lookups_to_current_arm() -> None:
     client = load_fixture_client(LLM_FIXTURE)
     from benchmarks.parsed_vs_raw.llm_client import set_current_arm
 
-    set_current_arm("aksharamd")
+    set_current_arm("aksharamd-reference")
     ans = client.answer_from_markdown("What text is in the document?", "irrelevant", model="x")
     assert "Hello" in ans.text
     judge = client.judge("What text is in the document?", "Hello", ans.text, model="x")
@@ -497,7 +497,7 @@ def test_fixture_mode_end_to_end(tmp_path: Path) -> None:
                 "--questions-per-doc",
                 "2",
                 "--arms",
-                "raw,aksharamd",
+                "raw,aksharamd-reference",
                 "--answer-model",
                 "unused",
                 "--judge-model",
@@ -514,11 +514,11 @@ def test_fixture_mode_end_to_end(tmp_path: Path) -> None:
     assert (output / "summary.json").exists()
     rows_text = (output / "rows.csv").read_text(encoding="utf-8")
     assert "raw" in rows_text
-    assert "aksharamd" in rows_text
+    assert "aksharamd-reference" in rows_text
     assert "Hello parsed-vs-raw harness test." in rows_text
     summary_json = json.loads((output / "summary.json").read_text(encoding="utf-8"))
     arms_seen = {s["arm"] for s in summary_json}
-    assert arms_seen == {"raw", "aksharamd"}
+    assert arms_seen == {"raw", "aksharamd-reference"}
     # Reset the client so we don't poison subsequent tests.
     set_client(None)
 
@@ -565,7 +565,7 @@ def test_dry_run_writes_extraction_without_llm_call(tmp_path: Path) -> None:
                     "--questions-per-doc",
                     "1",
                     "--arms",
-                    "aksharamd",
+                    "aksharamd-reference",
                     "--answer-model",
                     "unused",
                     "--judge-model",
@@ -579,7 +579,7 @@ def test_dry_run_writes_extraction_without_llm_call(tmp_path: Path) -> None:
         if prev_key is not None:
             os.environ["ANTHROPIC_API_KEY"] = prev_key
     assert result.exit_code == 0, f"CLI failed: {result.output}\n{result.exception!r}"
-    dry_files = list((output / "dry_run" / "aksharamd").glob("*.md"))
+    dry_files = list((output / "dry_run" / "aksharamd-reference").glob("*.md"))
     assert dry_files, "dry-run should have written extracted markdown"
     assert (output / "rows.csv").exists()
 
@@ -704,7 +704,7 @@ def test_smoke_mode_forces_single_arm_single_doc_single_question(
                 "--questions-per-doc",
                 "10",
                 "--arms",
-                "raw,markitdown,aksharamd",
+                "raw,markitdown,aksharamd-reference",
                 "--answer-model",
                 "unused",
                 "--judge-model",
@@ -726,7 +726,7 @@ def test_smoke_mode_forces_single_arm_single_doc_single_question(
     # First element of --arms wins under --smoke: "raw".
     assert "raw" in rows_text
     assert "markitdown" not in rows_text
-    assert "aksharamd" not in rows_text
+    assert "aksharamd-reference" not in rows_text
     # Single arm x single doc x single question => a single data row.
     non_header_rows = [
         row for row in rows_text.strip().splitlines()[1:] if row.strip()
