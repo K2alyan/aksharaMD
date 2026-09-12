@@ -1,0 +1,28 @@
+{
+  "aksharamd": {
+    "What text is in the document?": {
+      "answer": "Hello parsed-vs-raw harness test.",
+      "judge": 10
+    },
+    "What is the title?": {
+      "answer": "Hello parsed-vs-raw harness test.",
+      "judge": 7
+    }
+  },
+  "raw": {
+    "What text is in the document?": {
+      "answer": "Hello parsed-vs-raw harness test.",
+      "judge": 10
+    },
+    "What is the title?": {
+      "answer": "Hello parsed-vs-raw harness test.",
+      "judge": 7
+    }
+  },
+  "*": {
+    "*": {
+      "answer": "fixture default answer",
+      "judge": 5
+    }
+  }
+}
