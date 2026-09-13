@@ -1083,3 +1083,154 @@ def test_early_failure_before_first_row_leaves_no_orphan_jsonl(tmp_path: Path) -
         "empty rows.jsonl must not be orphaned by an early corpus-load failure"
     )
     set_client(None)
+
+
+# -- Anthropic prompt caching wiring --------------------------------------
+
+
+class _RecordingAnthropic:
+    """Records the last ``messages.create`` call for cache_control inspection."""
+
+    last_kwargs: dict[str, Any] | None = None
+
+    class _Usage:
+        input_tokens = 10
+        output_tokens = 5
+        cache_creation_input_tokens = 100
+        cache_read_input_tokens = 0
+
+    class _Block:
+        type = "text"
+        text = "canned"
+
+    class _Msg:
+        content = [None]  # populated in __init__
+        usage = None
+
+        def __init__(self) -> None:
+            self.content = [_RecordingAnthropic._Block()]
+            self.usage = _RecordingAnthropic._Usage()
+
+    class _Messages:
+        def create(self, **kwargs: Any) -> Any:  # type: ignore[override]
+            _RecordingAnthropic.last_kwargs = kwargs
+            return _RecordingAnthropic._Msg()
+
+    def __init__(self) -> None:
+        self.messages = _RecordingAnthropic._Messages()
+
+
+def _install_recording_anthropic(monkeypatch: pytest.MonkeyPatch) -> type:
+    """Install a fake ``anthropic`` module that records calls; return the class."""
+    import sys
+    import types
+
+    _RecordingAnthropic.last_kwargs = None
+    fake_module = types.ModuleType("anthropic")
+    fake_module.Anthropic = _RecordingAnthropic  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "anthropic", fake_module)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    return _RecordingAnthropic
+
+
+def _first_user_content_blocks() -> list[dict[str, Any]]:
+    kwargs = _RecordingAnthropic.last_kwargs
+    assert kwargs is not None, "messages.create was not called"
+    messages = kwargs["messages"]
+    assert len(messages) == 1
+    assert messages[0]["role"] == "user"
+    content = messages[0]["content"]
+    assert isinstance(content, list), (
+        f"expected structured content blocks so cache_control can attach; got {type(content)!r}"
+    )
+    return content
+
+
+def test_answer_from_pdf_bytes_uses_cache_control(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw arm must mark the PDF document block ephemeral; question block must not carry cache_control."""
+    _install_recording_anthropic(monkeypatch)
+    from benchmarks.parsed_vs_raw.llm_client import _AnthropicClient  # noqa: PLC0415
+
+    client = _AnthropicClient()
+    resp = client.answer_from_pdf_bytes("What is X?", b"%PDF-1.4 fake", model="claude-haiku-4-5")
+    assert not resp.error, resp.error
+
+    blocks = _first_user_content_blocks()
+    assert len(blocks) == 2, f"expected [document, text] pair; got {len(blocks)} blocks"
+    doc_block, text_block = blocks
+    assert doc_block["type"] == "document"
+    assert doc_block.get("cache_control") == {"type": "ephemeral"}, (
+        f"PDF document block must carry ephemeral cache_control; got {doc_block.get('cache_control')!r}"
+    )
+    assert text_block["type"] == "text"
+    assert "cache_control" not in text_block, (
+        "question text block must not carry cache_control (it varies per call)"
+    )
+    # Cache stats propagate onto the LLMAnswer.
+    assert resp.cache_creation_input_tokens == 100
+    assert resp.cache_read_input_tokens == 0
+
+
+def test_answer_from_markdown_uses_cache_control(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parser arm must mark the markdown text block ephemeral; question block must not carry cache_control."""
+    _install_recording_anthropic(monkeypatch)
+    from benchmarks.parsed_vs_raw.llm_client import _AnthropicClient  # noqa: PLC0415
+
+    client = _AnthropicClient()
+    resp = client.answer_from_markdown(
+        "What is X?", "# Doc\nBody text here.", model="claude-haiku-4-5"
+    )
+    assert not resp.error, resp.error
+
+    blocks = _first_user_content_blocks()
+    assert len(blocks) == 2, f"expected [markdown, question] pair; got {len(blocks)} blocks"
+    md_block, q_block = blocks
+    assert md_block["type"] == "text"
+    assert md_block.get("cache_control") == {"type": "ephemeral"}, (
+        f"markdown text block must carry ephemeral cache_control; got {md_block.get('cache_control')!r}"
+    )
+    # The cacheable block wraps the doc body.
+    assert "Body text here." in md_block["text"]
+    assert q_block["type"] == "text"
+    assert "cache_control" not in q_block, (
+        "question text block must not carry cache_control (it varies per call)"
+    )
+    assert "What is X?" in q_block["text"]
+    assert resp.cache_creation_input_tokens == 100
+
+
+def test_judge_does_not_use_cache_control(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Judge routes through legacy ``_call_claude`` which sends a bare prompt with no cache_control."""
+    _install_recording_anthropic(monkeypatch)
+    # Force a numeric string so the judge parses to an int.
+    _RecordingAnthropic._Block.text = "7"
+    from benchmarks.parsed_vs_raw.llm_client import _AnthropicClient  # noqa: PLC0415
+
+    client = _AnthropicClient()
+    try:
+        score = client.judge(
+            "Q?", "expected", "actual answer", model="claude-sonnet-4-6"
+        )
+    finally:
+        _RecordingAnthropic._Block.text = "canned"
+
+    assert score == 7
+    kwargs = _RecordingAnthropic.last_kwargs
+    assert kwargs is not None
+    messages = kwargs["messages"]
+    # Legacy _call_claude sends content as a bare string. That alone
+    # cannot carry cache_control, which is the invariant this test locks.
+    for m in messages:
+        content = m["content"]
+        if isinstance(content, list):
+            for block in content:
+                assert "cache_control" not in block, (
+                    f"judge messages must not carry cache_control; found on block {block!r}"
+                )
+        else:
+            # Bare-string content cannot carry cache_control by construction.
+            assert isinstance(content, str)

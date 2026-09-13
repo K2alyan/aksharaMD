@@ -146,6 +146,10 @@ eval = [
     "python-Levenshtein>=0.25",
     "datasets>=2.0",
     "tiktoken>=0.7",
+    # gdown pulls DocBench + TAT-DQA from public Google Drive folders
+    # on first use of the parsed-vs-raw harness. Not required for
+    # QASPER (which fetches directly from AllenAI's S3 tarballs).
+    "gdown>=5.0",
     # optional comparison tools — install separately if needed:
     # pip install "unstructured[all-docs]"
     # pip install docling
