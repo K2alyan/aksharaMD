@@ -52,6 +52,9 @@ graphify-out/
 output/
 .aksharamd_cache/
 *.omnimark_cache/
+# parsed-vs-raw harness corpus cache (QASPER tarballs, DocBench + TAT-DQA
+# Drive downloads). Multi-GB; must never be committed.
+.cache/
 
 # Scratch files
 markitdown_*.md

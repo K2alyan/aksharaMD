@@ -3,8 +3,8 @@
 We intentionally do NOT import ``benchmarks.llm_qa_eval`` at module load
 time. That file has 934 lines of import-time side effects (dotenv load,
 stdout reconfigure) that we do not want to inherit whenever a harness
-consumer imports this module. Instead we lazily import the specific
-callables we need (``_call_claude`` and ``_judge``) inside functions.
+consumer imports this module. Instead we lazily import ``_judge`` inside
+the judge method.
 
 Both callables can be replaced with a fixture client via
 ``set_fixture_client``. This is how ``--fixture-mode`` and the tests run
@@ -27,6 +27,8 @@ class LLMAnswer:
     text: str
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
     error: str = ""
 
 
@@ -72,8 +74,36 @@ class _AnthropicClient:
     """Default client that goes through the real anthropic SDK."""
 
     def answer_from_markdown(self, question: str, markdown: str, *, model: str) -> LLMAnswer:
-        prompt = _markdown_prompt(question, markdown)
-        return _call_claude_text(prompt, model=model)
+        try:
+            import anthropic
+        except ImportError as exc:
+            return LLMAnswer(text="", error=f"anthropic not installed: {exc}")
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            return LLMAnswer(text="", error="ANTHROPIC_API_KEY not set")
+        try:
+            # Cache the markdown so the 5 follow-up questions this doc gets
+            # don't re-pay for it. Question text follows the cache breakpoint
+            # so it varies per call without invalidating the cached prefix.
+            msg = anthropic.Anthropic().messages.create(
+                model=model,
+                max_tokens=512,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": _markdown_context(markdown),
+                                "cache_control": {"type": "ephemeral"},
+                            },
+                            {"type": "text", "text": _markdown_question(question)},
+                        ],
+                    }
+                ],
+            )
+            return _answer_from_message(msg)
+        except Exception as exc:
+            return LLMAnswer(text="", error=str(exc))
 
     def answer_from_pdf_bytes(self, question: str, pdf_bytes: bytes, *, model: str) -> LLMAnswer:
         # PDF ingestion uses a ``document`` content block with base64
@@ -86,6 +116,9 @@ class _AnthropicClient:
             return LLMAnswer(text="", error="ANTHROPIC_API_KEY not set")
         b64 = base64.standard_b64encode(pdf_bytes).decode("ascii")
         try:
+            # Cache the PDF so the 5 follow-up questions this doc gets
+            # don't re-pay for it. Question text follows the cache breakpoint
+            # so it varies per call without invalidating the cached prefix.
             msg = anthropic.Anthropic().messages.create(
                 model=model,
                 max_tokens=512,
@@ -100,17 +133,14 @@ class _AnthropicClient:
                                     "media_type": "application/pdf",
                                     "data": b64,
                                 },
+                                "cache_control": {"type": "ephemeral"},
                             },
                             {"type": "text", "text": _raw_prompt(question)},
                         ],
                     }
                 ],
             )
-            return LLMAnswer(
-                text=_first_text_block(msg),
-                input_tokens=msg.usage.input_tokens,
-                output_tokens=msg.usage.output_tokens,
-            )
+            return _answer_from_message(msg)
         except Exception as exc:
             return LLMAnswer(text="", error=str(exc))
 
@@ -133,27 +163,16 @@ class _AnthropicClient:
         return int(result.score)
 
 
-def _call_claude_text(prompt: str, *, model: str) -> LLMAnswer:
-    """Text-only Anthropic call. Returns an ``LLMAnswer``."""
-    try:
-        import anthropic
-    except ImportError as exc:
-        return LLMAnswer(text="", error=f"anthropic not installed: {exc}")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return LLMAnswer(text="", error="ANTHROPIC_API_KEY not set")
-    try:
-        msg = anthropic.Anthropic().messages.create(
-            model=model,
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return LLMAnswer(
-            text=_first_text_block(msg),
-            input_tokens=msg.usage.input_tokens,
-            output_tokens=msg.usage.output_tokens,
-        )
-    except Exception as exc:
-        return LLMAnswer(text="", error=str(exc))
+def _answer_from_message(msg: Any) -> LLMAnswer:
+    """Build an LLMAnswer from an anthropic Message, capturing cache stats."""
+    usage = getattr(msg, "usage", None)
+    return LLMAnswer(
+        text=_first_text_block(msg),
+        input_tokens=getattr(usage, "input_tokens", 0) or 0,
+        output_tokens=getattr(usage, "output_tokens", 0) or 0,
+        cache_creation_input_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0,
+        cache_read_input_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+    )
 
 
 def _first_text_block(msg: Any) -> str:
@@ -170,13 +189,25 @@ def _first_text_block(msg: Any) -> str:
     return ""
 
 
-def _markdown_prompt(question: str, markdown: str) -> str:
+def _markdown_context(markdown: str) -> str:
+    """Stable, cacheable prefix wrapping the document markdown.
+
+    Kept separate from the question so the two land in different content
+    blocks: cache_control sits on this block, so all questions asked
+    against the same document share the cached prefix.
+    """
     return (
         "Answer the question strictly from the provided document text. "
         "If the answer is not in the text, reply exactly: 'Unanswerable from provided text'.\n\n"
-        f"=== DOCUMENT ===\n{markdown}\n=== END DOCUMENT ===\n\n"
-        f"Question: {question}\nAnswer:"
+        f"=== DOCUMENT ===\n{markdown}\n=== END DOCUMENT ===\n"
     )
+
+
+def _markdown_question(question: str) -> str:
+    # No leading newline: _markdown_context always ends with '\n' so
+    # concatenation already produces a clean paragraph break. A leading
+    # '\n' here would yield '\n\n' at the boundary.
+    return f"Question: {question}\nAnswer:"
 
 
 def _raw_prompt(question: str) -> str:

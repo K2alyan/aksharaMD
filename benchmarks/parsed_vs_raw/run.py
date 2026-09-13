@@ -6,7 +6,7 @@ Typical invocation:
         --corpus qasper --limit 5 --questions-per-doc 3 \\
         --arms raw,markitdown,aksharamd-reference,marker \\
         --answer-model claude-haiku-4-5-20251001 \\
-        --judge-model claude-haiku-4-5-20251001 \\
+        --judge-model claude-sonnet-4-6 \\
         --output benchmarks/results/parsed-vs-raw-qasper-pilot/
 
 ``--dry-run`` produces per-arm extractions on disk without calling any
@@ -296,7 +296,7 @@ def _print_smoke_banner(results: Sequence[ArmResult]) -> None:
 )
 @click.option(
     "--judge-model",
-    default="claude-haiku-4-5-20251001",
+    default="claude-sonnet-4-6",
     show_default=True,
     help="Anthropic model for LLM-as-judge scoring.",
 )
