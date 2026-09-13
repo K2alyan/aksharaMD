@@ -23,7 +23,6 @@ from benchmarks.parsed_vs_raw.corpora.docbench import (
 )
 from benchmarks.parsed_vs_raw.types import DocumentRecord
 
-
 # -- Shared tiny-PDF helper ---------------------------------------------
 
 
