@@ -18,6 +18,7 @@ from benchmarks.parsed_vs_raw.corpora import (
     get_corpus,
 )
 from benchmarks.parsed_vs_raw.corpora.docbench import (
+    _WARNED_UNKNOWN_FOLDERS,
     _domain_balanced_order,
     _domain_for_folder,
 )
@@ -161,12 +162,100 @@ def test_docbench_domain_balanced_limit(tmp_path: Path) -> None:
 
 
 def test_docbench_domain_for_folder_extracts_prefix() -> None:
-    """Domain prefix heuristic handles both underscore and hyphen forms."""
+    """Domain prefix heuristic handles both underscore and hyphen forms.
+
+    Filename-based fallback is not exercised here because these Paths do not
+    exist on disk; the loader silently skips filename inference and returns
+    ``unknown`` for the miss. Warning emission is now summary-only in
+    ``iter_documents`` so no warnings are asserted at this level.
+    """
     assert _domain_for_folder(Path("academia_001")) == "academia"
     assert _domain_for_folder(Path("finance-042")) == "finance"
     assert _domain_for_folder(Path("laws_xyz")) == "laws"
-    # Unknown prefix -> "unknown" (still iterable).
     assert _domain_for_folder(Path("misc_zzz")) == "unknown"
+
+
+def _make_pdf_only_folder(root: Path, folder_name: str, pdf_name: str) -> Path:
+    """Create a per-doc folder holding a single named PDF (no QA)."""
+    folder = root / folder_name
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / pdf_name).write_bytes(_tiny_pdf())
+    return folder
+
+
+def test_docbench_domain_from_filename_acl_old_style(tmp_path: Path) -> None:
+    """Old ACL Anthology IDs (P19-1598) classify as academia."""
+    folder = _make_pdf_only_folder(tmp_path, "999", "P19-1598.pdf")
+    assert _domain_for_folder(folder) == "academia"
+
+
+def test_docbench_domain_from_filename_acl_new_style(tmp_path: Path) -> None:
+    """New ACL Anthology IDs (2020.acl-main.408) classify as academia."""
+    folder = _make_pdf_only_folder(tmp_path, "999", "2020.acl-main.408.pdf")
+    assert _domain_for_folder(folder) == "academia"
+
+
+def test_docbench_domain_from_filename_ticker(tmp_path: Path) -> None:
+    """Stock-ticker annual-report filenames classify as finance."""
+    folder = _make_pdf_only_folder(tmp_path, "999", "NYSE_UNH_2020.pdf")
+    assert _domain_for_folder(folder) == "finance"
+
+
+def test_docbench_domain_from_filename_uscourts(tmp_path: Path) -> None:
+    """USCOURTS-prefixed federal court records classify as laws."""
+    folder = _make_pdf_only_folder(
+        tmp_path, "999", "USCOURTS-nmd-1_24-cr-00032-8.pdf"
+    )
+    assert _domain_for_folder(folder) == "laws"
+
+
+def test_docbench_domain_from_filename_loc_10digit(tmp_path: Path) -> None:
+    """10-digit Library of Congress IDs classify as laws."""
+    folder = _make_pdf_only_folder(tmp_path, "999", "2020720029.pdf")
+    assert _domain_for_folder(folder) == "laws"
+
+
+def test_docbench_domain_from_filename_nyt_date(tmp_path: Path) -> None:
+    """YYYYMMDD-named NYT-style scans classify as news."""
+    folder = _make_pdf_only_folder(tmp_path, "999", "20220817.pdf")
+    assert _domain_for_folder(folder) == "news"
+
+
+def test_docbench_domain_from_filename_state_dept(tmp_path: Path) -> None:
+    """State Department FBS_ prefixed reports classify as government."""
+    folder = _make_pdf_only_folder(
+        tmp_path, "999", "FBS_OES_28APR2023_PUBLIC.pdf"
+    )
+    assert _domain_for_folder(folder) == "government"
+
+
+def test_docbench_summary_warning_replaces_per_folder(tmp_path: Path) -> None:
+    """5 unknown folders should trigger exactly 1 summary warning, not 5."""
+    data_root = tmp_path / "data"
+    for idx in range(5):
+        folder = data_root / f"mystery_{idx}"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "opaque.pdf").write_bytes(_tiny_pdf())
+        (folder / f"mystery_{idx}_qa.jsonl").write_text(
+            json.dumps({"question": "q?", "answer": "a"}) + "\n",
+            encoding="utf-8",
+        )
+    _WARNED_UNKNOWN_FOLDERS.clear()
+
+    corpus = DocBenchCorpus(
+        cache_dir=tmp_path,
+        download_if_missing=False,
+        data_subdir="data",
+    )
+    with pytest.warns(UserWarning) as record:
+        docs = list(corpus.iter_documents())
+
+    assert len(docs) == 5
+    docbench_warnings = [
+        w for w in record if "DocBench:" in str(w.message)
+    ]
+    assert len(docbench_warnings) == 1
+    assert "5/5" in str(docbench_warnings[0].message)
 
 
 def test_docbench_domain_balanced_order_no_limit_groups_by_domain(tmp_path: Path) -> None:

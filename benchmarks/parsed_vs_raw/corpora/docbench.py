@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import warnings
 from collections.abc import Iterator
@@ -60,11 +61,92 @@ _DRIVE_FOLDER_URL = (
 _DOMAINS: tuple[str, ...] = ("academia", "finance", "government", "laws", "news")
 _UNKNOWN_DOMAIN = "unknown"
 
-# Module-level set tracking folders already warned about, so a corpus with
-# many unknown-prefix folders emits one warning per unique folder rather than
-# flooding stderr on every _domain_for_folder call (e.g. domain-balanced sort
-# calls it repeatedly).
+# Module-level set tracking folders already warned about. Real DocBench folders
+# are numeric (0, 1, 10, ...) so the folder-name prefix never matches; the
+# filename-based fallback in `_domain_from_pdf_filename` handles those cases.
+# We still track the unknowns here so `iter_documents` can emit a single
+# summary warning (rather than one per folder, which was 229 lines on real
+# DocBench). Kept as a set to preserve identity-based dedup for callers that
+# poke at internals.
 _WARNED_UNKNOWN_FOLDERS: set[str] = set()
+
+
+# Filename patterns that identify the domain of a DocBench PDF. Patterns are
+# tried in order; the first hit wins. All matched case-insensitively against
+# the bare filename (no directory component).
+#
+# Sources: manual inspection of all 229 filenames in the upstream Drive
+# release. See project notes for the classification table.
+_FILENAME_DOMAIN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # -- academia --
+    # ACL Anthology old-format IDs: P19-1598, W18-4401, N18-2084.
+    (re.compile(r"^[A-Z]\d{2}-\d{3,5}\.pdf$", re.IGNORECASE), "academia"),
+    # ACL Anthology new-format IDs: 2020.acl-main.408, 2020.emnlp-main.213,
+    # 2020.findings-emnlp.139, 2020.starsem-1.17.
+    (re.compile(r"^\d{4}\.\w+[-.]?\w*\.\d+\.pdf$", re.IGNORECASE), "academia"),
+    # arXiv IDs (post-2007 format): 1503.00841, 2103.15691v2.
+    (re.compile(r"^\d{4}\.\d{4,5}(v\d+)?\.pdf$", re.IGNORECASE), "academia"),
+    # -- finance --
+    # Stock-ticker annual reports: NYSE_UNH_2020, OTC_NSRGY_2020,
+    # ASX_AJY_2020, NYSE_BRK-A_2021.
+    (
+        re.compile(
+            r"^(NYSE|NASDAQ|OTC(MKTS)?|LSE|TYO|SEHK|ASX)_[A-Z-]+_\d{4}\.pdf$",
+            re.IGNORECASE,
+        ),
+        "finance",
+    ),
+    # Named company annual reports.
+    (
+        re.compile(
+            r"(roche|inditex|siemens|nestle|toyota|samsung|tencent|alibaba)[-_ ]",
+            re.IGNORECASE,
+        ),
+        "finance",
+    ),
+    # SEC filing types and generic financial-statement filenames.
+    (
+        re.compile(
+            r"(10-K|10-Q|annual.?report|earnings|financial.?statement)",
+            re.IGNORECASE,
+        ),
+        "finance",
+    ),
+    # -- laws --
+    # Federal court records.
+    (re.compile(r"^USCOURTS-", re.IGNORECASE), "laws"),
+    # Library of Congress 10-digit IDs: 2020720029, 2023555900, 2019713412.
+    (re.compile(r"^\d{10}\.pdf$", re.IGNORECASE), "laws"),
+    # -- government --
+    # State Department and federal-agency report prefixes.
+    (
+        re.compile(
+            r"^(FBS_|JRS-|INLSR|21-\d{5}-INLSR|International-Narcotics|"
+            r"Country_Reports|Tab-\d+-INCSR|INCSR-Vol|DoS-)",
+            re.IGNORECASE,
+        ),
+        "government",
+    ),
+    # Generic agency financial / federal report filenames.
+    (
+        re.compile(
+            r"(Agency.*Financial|DOS-FY|Federal[-_]|Agency.*Report|FY-?\d{4})",
+            re.IGNORECASE,
+        ),
+        "government",
+    ),
+    # -- news --
+    # YYYYMMDD-dated news scans (NYT front pages): 20220817, 20230616.
+    (re.compile(r"^\d{8}\.pdf$", re.IGNORECASE), "news"),
+    # Named news outlets.
+    (
+        re.compile(
+            r"(NYT|NewYorkTimes|Front[-_ ]?Page|BBC[_-]|WSJ[_-]|Guardian[_-])",
+            re.IGNORECASE,
+        ),
+        "news",
+    ),
+)
 
 
 class DocBenchCorpus(CorpusAdapter):
@@ -111,14 +193,27 @@ class DocBenchCorpus(CorpusAdapter):
             )
         ordered = _domain_balanced_order(doc_folders, limit=limit)
         emitted = 0
+        n_unknown = 0
+        n_total = 0
         for folder in ordered:
             if limit is not None and emitted >= limit:
-                return
+                break
             record = _folder_to_record(folder)
             if record is None:
                 continue
+            n_total += 1
+            if record.metadata.get("domain") == _UNKNOWN_DOMAIN:
+                n_unknown += 1
             yield record
             emitted += 1
+        # Single summary warning replaces the per-folder spam that would
+        # otherwise fire once for each of DocBench's ~229 numeric folders.
+        if n_unknown:
+            warnings.warn(
+                f"DocBench: {n_unknown}/{n_total} folders had no recognizable "
+                f"domain (from folder prefix or PDF filename)",
+                stacklevel=2,
+            )
 
     # -- Filesystem / download ----------------------------------------
 
@@ -215,25 +310,48 @@ def _find_qa_jsonl(folder: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def _domain_for_folder(folder: Path) -> str:
-    """Return the domain label for a folder based on its name prefix.
+def _domain_from_pdf_filename(filename: str) -> str | None:
+    """Classify a DocBench PDF filename into a domain, or None on no match.
 
-    Folder names in DocBench follow the convention ``<domain>_<idx>``
-    (e.g., ``academia_001``). If no known domain prefix matches the
-    folder is bucketed as ``unknown`` and iteration still emits it so
-    the pilot never silently drops documents.
+    The upstream Drive release names folders numerically (0, 1, 10, ...) and
+    encodes domain hints only in the PDF filename inside each folder. This
+    helper is tried as a fallback when `_domain_for_folder`'s prefix check
+    fails to find a known domain.
+    """
+    for pattern, domain in _FILENAME_DOMAIN_PATTERNS:
+        if pattern.search(filename):
+            return domain
+    return None
+
+
+def _domain_for_folder(folder: Path) -> str:
+    """Return the domain label for a DocBench per-doc folder.
+
+    Two heuristics are attempted, in order:
+
+    1. Folder-name prefix (``academia_001`` -> ``academia``). This is the
+       convention documented in the DocBench paper but not honoured in the
+       actual Drive release (which uses numeric folder IDs).
+    2. PDF-filename inference via `_domain_from_pdf_filename` on the first
+       ``*.pdf`` inside the folder. This is how real DocBench data resolves.
+
+    Falls back to ``_UNKNOWN_DOMAIN`` (still iterable) if neither matches.
+    The `_WARNED_UNKNOWN_FOLDERS` set is updated for downstream summary
+    reporting by `iter_documents`; no warning is emitted here.
     """
     name = folder.name.lower()
     for domain in _DOMAINS:
         if name == domain or name.startswith(f"{domain}_") or name.startswith(f"{domain}-"):
             return domain
-    if folder.name not in _WARNED_UNKNOWN_FOLDERS:
-        _WARNED_UNKNOWN_FOLDERS.add(folder.name)
-        warnings.warn(
-            f"DocBench doc {folder.name!r} has no recognized domain prefix; "
-            f"assigning 'unknown'",
-            stacklevel=2,
-        )
+    # Prefix miss -> try filename inference on the folder's PDF. Guarded so
+    # that a Path constructed in tests (no filesystem) doesn't crash.
+    if folder.is_dir():
+        pdf = _find_pdf(folder)
+        if pdf is not None:
+            inferred = _domain_from_pdf_filename(pdf.name)
+            if inferred is not None:
+                return inferred
+    _WARNED_UNKNOWN_FOLDERS.add(folder.name)
     return _UNKNOWN_DOMAIN
 
 
