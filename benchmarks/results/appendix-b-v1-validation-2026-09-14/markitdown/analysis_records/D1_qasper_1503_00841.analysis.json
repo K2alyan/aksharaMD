@@ -1,0 +1,157 @@
+{
+  "schema_version": "0.1",
+  "authorization": "A.1c",
+  "identity": {
+    "doc_id": "D1_qasper_1503_00841",
+    "parser": "markitdown",
+    "corpus_name": "qasper"
+  },
+  "corpus_capabilities": {
+    "corpus_name": "qasper",
+    "on_v1_manifest": true,
+    "supports_textual_gt": false,
+    "supports_layout_gt": false,
+    "supports_clause_span_gt": false,
+    "supports_downstream_qa_gt": true,
+    "supports_clean_native_fpr": false,
+    "not_applicable_reasons": {
+      "textual_gt": "QASPER does not provide XML full-text; use PMC-OA for W_DROPPED_CONTENT G1 evaluation.",
+      "layout_gt": "QASPER does not provide DocLayNet-style bboxes.",
+      "clause_span_gt": "QASPER does not provide clause span annotations; use CUAD.",
+      "clean_native_fpr": "QASPER is not the \u00a72.2 FPR-baseline corpus; use Federal Register / SEC."
+    }
+  },
+  "hashes": {
+    "source_sha256": "9ca21eaff3c946e95cc649e627db3a4b9e69d0f7397bae3e30d39be495261ba5",
+    "extraction_sha256": "8b871d2d4f7b8694d8870ae18adab71ee6ab02af2cd5a14db01ef81839816e42",
+    "normalized_sha256": "fa941a789780254f46921f7a2a2939a64663ef6f57ccd8498a0ddf864c308b72"
+  },
+  "instruments": {
+    "aksharamd_scoring_policy_version": "1.10",
+    "normalization_version": "2"
+  },
+  "stage_status": {
+    "source_ingestion": "EXECUTED",
+    "parser_execution": "EXECUTED",
+    "output_capture": "EXECUTED",
+    "normalization": "EXECUTED",
+    "ground_truth_ingestion": "EXECUTED",
+    "conventional_measurement": "EXECUTED",
+    "llm_answer_judge": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "downstream_rag": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "aksharamd_evaluation": "EXECUTED",
+    "detector_diagnostics": "EXECUTED",
+    "adjudication": "EXECUTED",
+    "provenance_recording": "EXECUTED"
+  },
+  "conventional_metric_summary": {
+    "metric": "word_overlap + number_overlap",
+    "pair_count": 7,
+    "per_qa": [
+      {
+        "question": "What background knowledge do they leverage?",
+        "answer_type": "extractive",
+        "gold_answer": "labeled features",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 2,
+        "word_gold": 2,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "What background knowledge do they leverage?",
+        "answer_type": "abstractive",
+        "gold_answer": "labelled features, which are words whose presence strongly indicates a specific class or topic",
+        "word_overlap_ratio": 0.7857142857142857,
+        "word_matched": 11,
+        "word_gold": 14,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "What are the three regularization terms?",
+        "answer_type": "extractive",
+        "gold_answer": "a regularization term associated with neutral features | the maximum entropy of class distribution regularization term | the KL divergence between reference and predicted class distribution",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 19,
+        "word_gold": 19,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "What are the three regularization terms?",
+        "answer_type": "extractive",
+        "gold_answer": "a regularization term associated with neutral features |  the maximum entropy of class distribution | KL divergence between reference and predicted class distribution",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 19,
+        "word_gold": 19,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "What NLP tasks do they consider?",
+        "answer_type": "abstractive",
+        "gold_answer": "text classification for themes including sentiment, web-page, science, medical and healthcare",
+        "word_overlap_ratio": 0.8181818181818182,
+        "word_matched": 9,
+        "word_gold": 11,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "How do they define robustness of a model?",
+        "answer_type": "abstractive",
+        "gold_answer": "ability to accurately classify texts even when the amount of prior knowledge for different classes is unbalanced, and when the class distribution of the dataset is unbalanced",
+        "word_overlap_ratio": 0.7142857142857143,
+        "word_matched": 15,
+        "word_gold": 21,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "How do they define robustness of a model?",
+        "answer_type": "abstractive",
+        "gold_answer": "Low sensitivity to bias in prior knowledge",
+        "word_overlap_ratio": 0.7142857142857143,
+        "word_matched": 5,
+        "word_gold": 7,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      }
+    ]
+  },
+  "aksharamd_result": {
+    "readiness_score": 95,
+    "quality_band": "HIGH",
+    "scoring_policy_version": "1.10"
+  },
+  "detector_diagnostics": {
+    "warning_codes": [],
+    "deduction_rule_ids": [],
+    "deduction_count": 0
+  },
+  "provenance": {
+    "adapter_provenance": {
+      "corpus_name": "qasper",
+      "release": "v0.3",
+      "split": "dev",
+      "cache_root": ".cache\\qasper"
+    },
+    "source_sha256": "9ca21eaff3c946e95cc649e627db3a4b9e69d0f7397bae3e30d39be495261ba5",
+    "output_sha256": "8b871d2d4f7b8694d8870ae18adab71ee6ab02af2cd5a14db01ef81839816e42",
+    "normalization_version": "2",
+    "assigned_partition": "held_out",
+    "authorization": "A.1c"
+  },
+  "timing": {
+    "total_elapsed_s": 1.5790000000270084,
+    "peak_rss_delta_mb": 0.4296875
+  }
+}

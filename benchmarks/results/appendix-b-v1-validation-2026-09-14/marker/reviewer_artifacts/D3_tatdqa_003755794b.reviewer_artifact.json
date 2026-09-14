@@ -1,0 +1,18 @@
+{
+  "pair_id": "9a739c542b2645a8",
+  "blinded_parser_hash": "ed5b8120601641c5",
+  "source_pdf_path": ".cache\\tat_dqa\\tat_docs\\dev\\003755794bbbbcffd0667b9600aeb0be.pdf",
+  "extraction_markdown_path": "benchmarks\\results\\authorization-a1c-final-2026-09-14\\marker\\D3_tatdqa_003755794b.md",
+  "normalized_markdown_path": "benchmarks\\results\\authorization-a1c-final-2026-09-14\\marker\\D3_tatdqa_003755794b.normalized.md",
+  "questions": {
+    "Q1_coverage": "Does the markdown appear to contain substantially all of the source's textual content? Answer: yes / mostly / partially / no.",
+    "Q2_fidelity": "Where content is present, is it recognizably faithful to the source, or are there stubs, gibberish, or corruptions? Answer: faithful / minor issues / significant corruption / mostly stub or junk.",
+    "Q3_downstream_usability": "If this markdown were the sole input to a RAG query system for this document, would answers to typical questions be usable, degraded, or wrong? Answer: usable / usable-with-caveats / degraded / wrong."
+  },
+  "mapping_reference": "appendix_b_v1::v1",
+  "provenance": {
+    "blinding_scheme": "sha256(doc_id::parser)[0:16]; parser_name sha256[0:16]",
+    "authorization": "A.1c",
+    "corpus_name": "tat_dqa"
+  }
+}

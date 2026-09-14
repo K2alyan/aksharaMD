@@ -1,0 +1,435 @@
+{
+  "mapping_id": "appendix_b_v1",
+  "version": "v1",
+  "mapping_frozen": true,
+  "source": "PROTOCOL_V1.md Appendix B \u2014 full 64-combination coverage under the proposed derivation rule.",
+  "derivation_note": "label = LABELS[max(rank(q1), rank(q2), rank(q3))]. Ranks are the position of each value in the ordered value list (0=best, 3=worst). Proposed under the Appendix B amendment PR; see the protocol doc for rationale and rejected alternatives.",
+  "q1_values": [
+    "yes",
+    "mostly",
+    "partially",
+    "no"
+  ],
+  "q2_values": [
+    "faithful",
+    "minor issues",
+    "significant corruption",
+    "mostly stub or junk"
+  ],
+  "q3_values": [
+    "usable",
+    "usable-with-caveats",
+    "degraded",
+    "wrong"
+  ],
+  "q1_ranks": {
+    "yes": 0,
+    "mostly": 1,
+    "partially": 2,
+    "no": 3
+  },
+  "q2_ranks": {
+    "faithful": 0,
+    "minor issues": 1,
+    "significant corruption": 2,
+    "mostly stub or junk": 3
+  },
+  "q3_ranks": {
+    "usable": 0,
+    "usable-with-caveats": 1,
+    "degraded": 2,
+    "wrong": 3
+  },
+  "severity_labels": [
+    "GOOD",
+    "MINOR",
+    "MAJOR",
+    "CATASTROPHIC"
+  ],
+  "rows": [
+    {
+      "q1": "yes",
+      "q2": "faithful",
+      "q3": "usable",
+      "label": "GOOD"
+    },
+    {
+      "q1": "yes",
+      "q2": "faithful",
+      "q3": "usable-with-caveats",
+      "label": "MINOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "faithful",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "faithful",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "minor issues",
+      "q3": "usable",
+      "label": "MINOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "minor issues",
+      "q3": "usable-with-caveats",
+      "label": "MINOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "minor issues",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "minor issues",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "significant corruption",
+      "q3": "usable",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "significant corruption",
+      "q3": "usable-with-caveats",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "significant corruption",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "yes",
+      "q2": "significant corruption",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "mostly stub or junk",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "mostly stub or junk",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "mostly stub or junk",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "yes",
+      "q2": "mostly stub or junk",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "faithful",
+      "q3": "usable",
+      "label": "MINOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "faithful",
+      "q3": "usable-with-caveats",
+      "label": "MINOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "faithful",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "faithful",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "minor issues",
+      "q3": "usable",
+      "label": "MINOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "minor issues",
+      "q3": "usable-with-caveats",
+      "label": "MINOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "minor issues",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "minor issues",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "significant corruption",
+      "q3": "usable",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "significant corruption",
+      "q3": "usable-with-caveats",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "significant corruption",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "mostly",
+      "q2": "significant corruption",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "mostly stub or junk",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "mostly stub or junk",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "mostly stub or junk",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "mostly",
+      "q2": "mostly stub or junk",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "faithful",
+      "q3": "usable",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "faithful",
+      "q3": "usable-with-caveats",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "faithful",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "faithful",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "minor issues",
+      "q3": "usable",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "minor issues",
+      "q3": "usable-with-caveats",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "minor issues",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "minor issues",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "significant corruption",
+      "q3": "usable",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "significant corruption",
+      "q3": "usable-with-caveats",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "significant corruption",
+      "q3": "degraded",
+      "label": "MAJOR"
+    },
+    {
+      "q1": "partially",
+      "q2": "significant corruption",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "mostly stub or junk",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "mostly stub or junk",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "mostly stub or junk",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "partially",
+      "q2": "mostly stub or junk",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "faithful",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "faithful",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "faithful",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "faithful",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "minor issues",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "minor issues",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "minor issues",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "minor issues",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "significant corruption",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "significant corruption",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "significant corruption",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "significant corruption",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "mostly stub or junk",
+      "q3": "usable",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "mostly stub or junk",
+      "q3": "usable-with-caveats",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "mostly stub or junk",
+      "q3": "degraded",
+      "label": "CATASTROPHIC"
+    },
+    {
+      "q1": "no",
+      "q2": "mostly stub or junk",
+      "q3": "wrong",
+      "label": "CATASTROPHIC"
+    }
+  ]
+}
