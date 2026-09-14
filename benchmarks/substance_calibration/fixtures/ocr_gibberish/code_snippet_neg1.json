@@ -1,0 +1,8 @@
+{
+  "document_id": "code_snippet_neg1",
+  "fixture_class": "ocr_gibberish",
+  "is_negative": true,
+  "expected_rules": [],
+  "expected_pages": [],
+  "notes": "Negative: legitimate Python code snippet with non-prose tokens (transform_batch, quote_char, ValueError, u2502). A naive dictionary-only detector would false-positive here; the real detector must tolerate code."
+}

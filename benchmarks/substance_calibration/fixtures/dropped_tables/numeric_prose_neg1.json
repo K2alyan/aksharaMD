@@ -1,0 +1,8 @@
+{
+  "document_id": "numeric_prose_neg1",
+  "fixture_class": "dropped_tables",
+  "is_negative": true,
+  "expected_rules": [],
+  "expected_pages": [],
+  "notes": "Negative: legitimate financial prose mentioning multiple numeric values. Would false-positive on a naive numeric-density detector. Real dropped-table detectors must distinguish prose narrative from flattened tables."
+}

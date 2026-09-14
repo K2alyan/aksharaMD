@@ -1,0 +1,8 @@
+{
+  "document_id": "leader_dot_toc_pos1",
+  "fixture_class": "dropped_tables",
+  "is_negative": false,
+  "expected_rules": ["W_TABLE_MISSING"],
+  "expected_pages": [1],
+  "notes": "Table of contents originally rendered as a two-column table (title | page) has been flattened to a single wrapped paragraph with leader dots retained inline. Existing W_TABLE_MISSING leader-dot detector should fire; Phase 3 W_DROPPED_REGION will corroborate once source PDF is added."
+}

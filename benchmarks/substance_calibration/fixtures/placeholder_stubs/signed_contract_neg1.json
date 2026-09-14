@@ -1,0 +1,8 @@
+{
+  "document_id": "signed_contract_neg1",
+  "fixture_class": "placeholder_stubs",
+  "is_negative": true,
+  "expected_rules": [],
+  "expected_pages": [],
+  "notes": "Negative: same form shape as stub_form_pos1 but with real names, dates, and IDs filled in. Detector must not fire on legitimate signed content."
+}

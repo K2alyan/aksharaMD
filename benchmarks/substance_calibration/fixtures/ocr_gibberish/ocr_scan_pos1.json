@@ -1,0 +1,8 @@
+{
+  "document_id": "ocr_scan_pos1",
+  "fixture_class": "ocr_gibberish",
+  "is_negative": false,
+  "expected_rules": ["W_GIBBERISH"],
+  "expected_pages": [1],
+  "notes": "Financial report with heavy character-substitution OCR corruption: cl->d, rn->m, l->1, o->0, e->c, u->n. Word-validity ratio should be low enough for gibberish detector to fire."
+}
