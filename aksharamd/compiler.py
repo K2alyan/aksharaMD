@@ -46,6 +46,7 @@ from .plugins.exporters import markdown as _md_exporter_pkg  # noqa: F401
 from .plugins.exporters import quality_assessment as _quality_assessment_exporter_pkg  # noqa: F401
 from .plugins.exporters.markdown import render_markdown
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
+from .plugins.validators import dropped_content as _dc_validator_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
 from .plugins.validators import gibberish as _gib_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401

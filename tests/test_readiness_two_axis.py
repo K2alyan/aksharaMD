@@ -18,8 +18,8 @@ from aksharamd.scoring.models import (
 _VALID_CATEGORIES = {"structural", "content", "meta"}
 
 
-def test_scoring_policy_version_is_1_9():
-    assert SCORING_POLICY_VERSION == "1.9"
+def test_scoring_policy_version_is_1_10():
+    assert SCORING_POLICY_VERSION == "1.10"
 
 
 def test_every_scoring_rule_has_a_valid_category():
@@ -145,12 +145,13 @@ def test_policy_category_distribution_matches_audit():
         content -> structural (+2 structural, -2 content).
     Bumped by P1.1: +1 content for W_PLACEHOLDER_STUB.
     Bumped by P2: +1 content for W_GIBBERISH.
-    Current: 7 structural, 16 content, 6 meta = 29 total. If this fails,
+    Bumped by P3: +1 content for W_DROPPED_CONTENT.
+    Current: 7 structural, 17 content, 6 meta = 30 total. If this fails,
     someone added or reclassified a rule without updating the audit record.
     """
     counts = {"structural": 0, "content": 0, "meta": 0}
     for rule in SCORING_POLICY.values():
         counts[rule.category] += 1
-    assert counts == {"structural": 7, "content": 16, "meta": 6}, (
+    assert counts == {"structural": 7, "content": 17, "meta": 6}, (
         f"category distribution drifted from audit: {counts}"
     )

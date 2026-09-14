@@ -335,18 +335,19 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_9(self):
-        assert SCORING_POLICY_VERSION == "1.9", (
-            "SCORING_POLICY_VERSION was bumped to 1.9 for P2 "
-            "GibberishValidator — registered W_GIBBERISH with cap at 84 "
-            "(experimental, content). Any subsequent policy change must "
-            "bump it again."
+    def test_version_is_1_10(self):
+        assert SCORING_POLICY_VERSION == "1.10", (
+            "SCORING_POLICY_VERSION was bumped to 1.10 for P3 "
+            "DroppedContentValidator — registered W_DROPPED_CONTENT "
+            "with cap at 69 RISKY (experimental, content, PDF-only). "
+            "Cross-references PDF text layer vs parsed markdown via "
+            "PyMuPDF. Any subsequent policy change must bump it again."
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.9"
+        assert result.scoring_policy_version == "1.10"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -360,7 +361,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.9"
+        assert result.scoring_policy_version == "1.10"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────

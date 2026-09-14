@@ -812,6 +812,69 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # W_DROPPED_CONTENT — score cap at 69 (RISKY band).
+    # Rationale: crown-jewel Phase 3 detector. Cross-references PDF text
+    # layer against parsed markdown; a ratio below 50% is direct evidence
+    # of catastrophic content loss (page or section silently dropped by
+    # the parser). Hard RISKY cap because the signal is unambiguous:
+    # if the markdown has less than half the source text, downstream
+    # RAG or LLM consumers will operate on incomplete data. Skips
+    # scanned PDFs, adapter-provided docs, and small (<100-word) PDFs.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _DC_CAP = 69
+    if warnings_by_code.get("W_DROPPED_CONTENT", 0):
+        dc_diag = doc.metadata.get("dropped_content_diagnostics", {})
+        dc_maturity = dc_diag.get("warning_maturity", "")
+        pdf_word_count = dc_diag.get("pdf_word_count", 0)
+        markdown_word_count = dc_diag.get("markdown_word_count", 0)
+        ratio = dc_diag.get("ratio", 0.0)
+        missing_words = dc_diag.get("missing_words", 0)
+        if score > _DC_CAP:
+            effective_penalty = score - _DC_CAP
+            score = _DC_CAP
+            notes.append(
+                "Parsed markdown retains less than half the source PDF's "
+                f"word count ({markdown_word_count}/{pdf_word_count}, "
+                f"{ratio:.1%}). At least {missing_words} words appear to "
+                f"have been silently dropped. Score capped at {_DC_CAP} "
+                "(RISKY band). [W_DROPPED_CONTENT]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_DROPPED_CONTENT",
+                description=f"Dropped content ({ratio:.1%}); score capped at {_DC_CAP}",
+                penalty=effective_penalty,
+                maturity=dc_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="markdown_pdf_word_ratio",
+                    metric_value=float(ratio),
+                    threshold=0.5,
+                    extras={
+                        "pdf_word_count": int(pdf_word_count),
+                        "markdown_word_count": int(markdown_word_count),
+                        "missing_words": int(missing_words),
+                    },
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_DROPPED_CONTENT",
+                description=f"Dropped content ({ratio:.1%}); cap ({_DC_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_DC_CAP}",
+                maturity=dc_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="markdown_pdf_word_ratio",
+                    metric_value=float(ratio),
+                    threshold=0.5,
+                    extras={
+                        "pdf_word_count": int(pdf_word_count),
+                        "markdown_word_count": int(markdown_word_count),
+                        "missing_words": int(missing_words),
+                    },
+                ),
+            ))
+
     # W_GIBBERISH — score cap at 84 (top of OK band).
     # Rationale: experimental-maturity signal (P2 pattern-based detector).
     # Non-standard character density or extreme repetition runs indicate

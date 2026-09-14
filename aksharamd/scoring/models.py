@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SCORING_POLICY_VERSION = "1.9"
+SCORING_POLICY_VERSION = "1.10"
 
 
 @dataclass
@@ -363,6 +363,21 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         ),
         max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
         formula="score = min(score, 84)  # top of OK band",
+        category="content",
+    ),
+    "W_DROPPED_CONTENT": ScoringRule(
+        rule_id="W_DROPPED_CONTENT",
+        description=(
+            "Score cap when the parsed markdown retains less than 50% of "
+            "the source PDF's word count — indicating the parser silently "
+            "dropped substantial content. Crown-jewel Phase 3 detector: "
+            "cross-references PDF text layer against parsed output via "
+            "PyMuPDF. Skips scanned PDFs (no text layer), adapter-provided "
+            "docs (file_type=md), and small PDFs (<100 words). Framed as "
+            "a lower bound per arXiv 2605.07293. Experimental maturity."
+        ),
+        max_penalty=31,  # cap at 69; max realized penalty is 100 - 69 = 31
+        formula="score = min(score, 69)  # RISKY band",
         category="content",
     ),
 }
