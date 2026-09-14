@@ -135,27 +135,24 @@ def _extract_marker(pdf_bytes: bytes) -> ExtractionOutput:
 
 
 def _extract_docling(pdf_bytes: bytes) -> ExtractionOutput:
+    """Docling wrapped as a ParserAdapter — routes through Compiler.
+
+    Prior to Authorization A.1 this ran a legacy path that returned
+    ``readiness_score=None``. A.1 requires Docling to be evaluated by
+    the same instrument as the other parser arms.
+    """
     try:
-        from docling.document_converter import DocumentConverter  # type: ignore[import-untyped]
-    except ImportError as exc:
-        raise ParserUnavailable("docling not installed") from exc
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as fh:
-        fh.write(pdf_bytes)
-        tmp_path = fh.name
+        from ..adapters.docling_adapter import DoclingAdapter
+    except ImportError as exc:  # pragma: no cover - defensive
+        raise ParserUnavailable(f"docling adapter import failed: {exc}") from exc
     try:
-        conv = DocumentConverter()
-        result = conv.convert(tmp_path)
-        markdown = result.document.export_to_markdown()
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-    # Docling still runs on the legacy path (raw output, no ParserAdapter
-    # wrapper yet). Its readiness score comes from routing the markdown
-    # through the Compiler with a synthetic PDF wrap; simpler and honest
-    # to leave it as None for now than to mix instruments. Follow-up: add
-    # a DoclingAdapter mirroring MarkItDownAdapter.
+        adapter = DoclingAdapter()
+    except RuntimeError as exc:
+        raise ParserUnavailable(str(exc)) from exc
+    markdown, ctx = _compile_pdf_bytes(pdf_bytes, parser_adapter=adapter)
     return ExtractionOutput(
         markdown=markdown,
-        readiness_score=None,
+        readiness_score=_readiness_from_ctx(ctx),
         parser_name="docling",
     )
 

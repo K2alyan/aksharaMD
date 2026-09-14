@@ -1,0 +1,17 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.2 (tags/v3.12.2:6abddd9, Feb  6 2024, 21:26:36) [MSC v.1937 64 bit (AMD64)]",
+  "packages": {
+    "aksharamd": "0.3.6",
+    "marker-pdf": "1.10.2",
+    "docling": "2.107.0",
+    "markitdown": "0.1.6",
+    "pymupdf": "1.28.2",
+    "pymupdf4llm": "1.27.2.3",
+    "torch": "2.12.1+cu126"
+  },
+  "eval_v1_versions": {
+    "normalization_version": "1"
+  },
+  "torch_cuda_available": true
+}
