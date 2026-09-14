@@ -689,7 +689,11 @@ def test_scoring_policy_version_unchanged():
     # substance_score computed properties on ReadinessResult.
     # Bumped 1.4 -> 1.5 by P0.2 DetectorBudget (2026-09-13):
     # registered W_DETECTOR_TIMEOUT informational rule (meta category).
+    # Bumped 1.5 -> 1.6 by P0 nit bundle (2026-09-13):
+    # renamed ReadinessResult.substance_score to .content_score, and
+    # flipped LARGE_BLOCK + COL_GENERIC_TABLES from content to structural
+    # per checker audit.
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.5"
+    assert SCORING_POLICY_VERSION == "1.6"

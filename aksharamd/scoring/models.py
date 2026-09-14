@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SCORING_POLICY_VERSION = "1.5"
+SCORING_POLICY_VERSION = "1.6"
 
 
 @dataclass
@@ -80,8 +80,14 @@ class ReadinessResult:
         return _axis_score(self.deductions, "structural")
 
     @property
-    def substance_score(self) -> int:
+    def content_score(self) -> int:
         """Sub-score from content-category deductions only. Bounded [0, 100].
+
+        Named to match the `content` category value on `ScoringRule`. External
+        marketing framing ("substance detectors") uses "substance"; the API
+        vocabulary uses "content" for consistency with industry terminology
+        (RAG evaluation frameworks — RAGAS, TruLens, DeepEval — also use
+        "content" for the extraction axis).
 
         See structural_score for handling of unknown rule_ids and caps.
         """
@@ -150,7 +156,10 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         description="Penalty for blocks >10 000 chars — likely parse/merge failure",
         max_penalty=10,
         formula="min(10, n × 4)",
-        category="content",
+        # Structural: fires on block-segmentation failure (text merged
+        # incorrectly across sections), not on corrupted content. Symmetric
+        # with HEADING_ISSUES. Category flipped 2026-09-13 per checker audit.
+        category="structural",
     ),
     "HEADING_ISSUES": ScoringRule(
         rule_id="HEADING_ISSUES",
@@ -231,7 +240,11 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         description="Penalty for tables with auto-generated column headers (Col1, Col2)",
         max_penalty=5,
         formula="min(5, n × 2)",
-        category="content",
+        # Structural: cell content is present but the header/body distinction
+        # was lost — the parser failed to recognize the header row as a
+        # header. Table-structure failure, not content-quality failure.
+        # Category flipped 2026-09-13 per checker audit.
+        category="structural",
     ),
     "NO_TEXT_IN_IMAGE": ScoringRule(
         rule_id="NO_TEXT_IN_IMAGE",

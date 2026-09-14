@@ -516,17 +516,20 @@ class Compiler:
         assert adapter is not None  # narrowed by caller
 
         source_path = Path(source)
-        try:
-            source_bytes = source_path.read_bytes()
-        except OSError as exc:
-            ctx.error("PARSE_FAILED", f"Could not read source bytes: {exc}")
-            return False
-
-        # Mirror onto ctx so substance detectors can compare parsed output
-        # against the source. Idempotent: the built-in-parser path in
-        # _run_pipeline populated the same field earlier; assigning the
-        # same bytes here is a no-op.
-        ctx.raw_source_bytes = source_bytes
+        # Reuse the size-gate-populated bytes if _run_pipeline already read
+        # them (the normal path). Only re-read from disk when the field is
+        # empty — e.g. an unusual caller invoking _run_parser_adapter
+        # without going through the size gate. Avoids a duplicate ~50 MB
+        # read on the common large-PDF case.
+        if ctx.raw_source_bytes is not None:
+            source_bytes = ctx.raw_source_bytes
+        else:
+            try:
+                source_bytes = source_path.read_bytes()
+            except OSError as exc:
+                ctx.error("PARSE_FAILED", f"Could not read source bytes: {exc}")
+                return False
+            ctx.raw_source_bytes = source_bytes
 
         # capture_id is the SHA-256 of the raw source bytes computed earlier;
         # fall back to a fresh digest if the file-size gate did not populate it.
