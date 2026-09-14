@@ -1,0 +1,6 @@
+{
+  "parser_id": "docling",
+  "parser_notes": "IBM Docling — VLM + layout-model parser. Fingerprint set starts empty (Docling is called out in the RAG-postmortem research for producing 'opaque output with no way to flag bad pages'; populate as stubs are identified).",
+  "catalog_version": "0",
+  "stubs": []
+}

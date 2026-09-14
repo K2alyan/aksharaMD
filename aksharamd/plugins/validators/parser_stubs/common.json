@@ -1,0 +1,19 @@
+{
+  "parser_id": "common",
+  "parser_notes": "Parser-agnostic baseline stubs — patterns observed across multiple parsers. Loaded for every scored document regardless of ctx.parser_name.",
+  "catalog_version": "1",
+  "stubs": [
+    {"pattern": "[image omitted]", "type": "literal", "notes": "Common convention for skipped image content"},
+    {"pattern": "[figure omitted]", "type": "literal", "notes": "Common convention for skipped figure content"},
+    {"pattern": "[table not extracted]", "type": "literal", "notes": "Common convention for parser table-extraction failure"},
+    {"pattern": "[table omitted]", "type": "literal", "notes": "Alternate form of table skip"},
+    {"pattern": "[chart omitted]", "type": "literal", "notes": "Chart-content skip"},
+    {"pattern": "<figure>", "type": "literal", "notes": "Bare figure tag left in output"},
+    {"pattern": "<image_placeholder>", "type": "literal", "notes": "Explicit image placeholder tag"},
+    {"pattern": "<image>", "type": "literal", "notes": "Bare image tag"},
+    {"pattern": "[image]", "type": "literal", "notes": "Bracketed image stub"},
+    {"pattern": "[figure]", "type": "literal", "notes": "Bracketed figure stub"},
+    {"pattern": "[table]", "type": "literal", "notes": "Bracketed table stub"},
+    {"pattern": "[chart]", "type": "literal", "notes": "Bracketed chart stub"}
+  ]
+}

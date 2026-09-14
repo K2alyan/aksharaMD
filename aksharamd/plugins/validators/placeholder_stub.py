@@ -66,7 +66,10 @@ This PR emits the warning; the follow-up PR wires the score cap.
 """
 from __future__ import annotations
 
+import json
+import logging
 import re
+from pathlib import Path
 
 from ...context import CompilationContext
 from ...models.block import BlockType
@@ -74,11 +77,15 @@ from ...scoring.detector_budget import DetectorBudget
 from ..base import ValidatorPlugin
 from ..registry import register_plugin
 
+logger = logging.getLogger(__name__)
+
 # Trigger A: bracketed placeholders (form-template style).
 BRACKET_PLACEHOLDER_RE = re.compile(r"\[[A-Z][A-Za-z ]{2,30}\]")
 
-# Trigger B: known parser-side extraction stubs. Case-insensitive literals.
-_EXTRACTION_STUBS: tuple[str, ...] = (
+# Trigger B baseline: hardcoded parser-agnostic stubs. Kept as an in-code
+# fallback for the (unlikely) case where the shipped `parser_stubs/`
+# catalog directory is missing or unreadable at runtime.
+_HARDCODED_EXTRACTION_STUBS: tuple[str, ...] = (
     "[image omitted]",
     "[figure omitted]",
     "[table not extracted]",
@@ -92,6 +99,69 @@ _EXTRACTION_STUBS: tuple[str, ...] = (
     "[table]",
     "[chart]",
 )
+
+# P4: parser-stub catalog directory. Each file is a JSON catalog for one
+# parser (schema documented in parser_stubs/README.md). Loaded at module
+# import time; small enough (< 1 kB per catalog) to hold in memory.
+_CATALOG_DIR = Path(__file__).resolve().parent / "parser_stubs"
+
+
+def _load_stub_catalog(parser_id: str) -> tuple[str, ...]:
+    """Return literal-type stub patterns from parser_stubs/<parser_id>.json.
+
+    Case-normalized to lowercase for consistency with the case-insensitive
+    substring search in _collect_signals. Returns empty tuple on any
+    error — missing file, malformed JSON, wrong shape — so the caller can
+    safely fall through to the hardcoded baseline.
+    """
+    if not parser_id:
+        return ()
+    path = _CATALOG_DIR / f"{parser_id}.json"
+    if not path.is_file():
+        return ()
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.debug("Failed to load stub catalog %s: %s", path, exc)
+        return ()
+    stubs = payload.get("stubs") or []
+    return tuple(
+        entry["pattern"].lower()
+        for entry in stubs
+        if isinstance(entry, dict)
+        and entry.get("type") == "literal"
+        and entry.get("pattern")
+    )
+
+
+# Module-level cache. Reload happens only on process restart — catalog
+# files are ship-time data, not runtime-mutable.
+_COMMON_CATALOG: tuple[str, ...] = _load_stub_catalog("common")
+
+
+def _effective_stub_catalog(parser_id: str = "") -> tuple[str, ...]:
+    """Merge common baseline + parser-specific catalog, deduped.
+
+    Falls back to _HARDCODED_EXTRACTION_STUBS if the common catalog file
+    is missing at runtime (defensive — the shipped package should always
+    contain it). Order preserved for deterministic diagnostics.
+    """
+    baseline = _COMMON_CATALOG if _COMMON_CATALOG else _HARDCODED_EXTRACTION_STUBS
+    parser_specific = _load_stub_catalog(parser_id.strip().lower()) if parser_id else ()
+    seen: set[str] = set()
+    merged: list[str] = []
+    for pattern in (*baseline, *parser_specific):
+        if pattern not in seen:
+            seen.add(pattern)
+            merged.append(pattern)
+    return tuple(merged)
+
+
+# Backwards-compat alias — tests and any external callers that imported
+# the constant still find it. Points at the current common catalog (or
+# hardcoded baseline if the catalog is missing).
+_EXTRACTION_STUBS: tuple[str, ...] = _effective_stub_catalog()
 
 # Trigger C: LLM refusal fingerprints. Case-insensitive.
 _LLM_REFUSAL_SUBSTRINGS: tuple[str, ...] = (
@@ -124,9 +194,18 @@ _ELIGIBLE_FILE_TYPES: frozenset[str] = frozenset(
 _BUDGET_MS: int = 500
 
 
-def _collect_signals(blocks: list) -> tuple[int, int, int, int, int]:
+def _collect_signals(
+    blocks: list,
+    extraction_stubs: tuple[str, ...] = (),
+) -> tuple[int, int, int, int, int]:
     """Return (bracket_count, extraction_stub_count, refusal_count,
-    underscore_run_count, nonempty_lines) across the given blocks."""
+    underscore_run_count, nonempty_lines) across the given blocks.
+
+    ``extraction_stubs`` is the effective catalog for this document
+    (common baseline + parser-specific per P4). If empty, falls back to
+    the module-level default.
+    """
+    stubs = extraction_stubs or _EXTRACTION_STUBS
     bracket_count = 0
     extraction_stub_count = 0
     refusal_count = 0
@@ -137,7 +216,7 @@ def _collect_signals(blocks: list) -> tuple[int, int, int, int, int]:
         bracket_count += len(BRACKET_PLACEHOLDER_RE.findall(content))
         underscore_run_count += len(UNDERSCORE_RUN_RE.findall(content))
         lower = content.lower()
-        for stub in _EXTRACTION_STUBS:
+        for stub in stubs:
             extraction_stub_count += lower.count(stub)
         for refusal in _LLM_REFUSAL_SUBSTRINGS:
             refusal_count += lower.count(refusal)
@@ -187,13 +266,18 @@ class PlaceholderStubValidator(ValidatorPlugin):
                 b for b in doc.blocks
                 if b.type in (BlockType.PARAGRAPH, BlockType.HEADING, BlockType.LIST)
             ]
+            # P4: pick up the parser identity from the compiler-populated
+            # ctx.parser_name field. Falls through gracefully to the common
+            # baseline if unknown.
+            parser_id = (ctx.parser_name or "").strip().lower()
+            effective_stubs = _effective_stub_catalog(parser_id)
             (
                 bracket_count,
                 extraction_stub_count,
                 refusal_count,
                 underscore_run_count,
                 nonempty_lines,
-            ) = _collect_signals(text_blocks)
+            ) = _collect_signals(text_blocks, effective_stubs)
 
             diagnostics: dict = {
                 "bracket_count": bracket_count,
@@ -201,6 +285,8 @@ class PlaceholderStubValidator(ValidatorPlugin):
                 "refusal_count": refusal_count,
                 "underscore_run_count": underscore_run_count,
                 "nonempty_lines": nonempty_lines,
+                "parser_id": parser_id or "unknown",
+                "catalog_size": len(effective_stubs),
                 "warned": False,
                 "warning_maturity": self.warning_maturity,
             }

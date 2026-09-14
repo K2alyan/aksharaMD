@@ -1,0 +1,6 @@
+{
+  "parser_id": "reference",
+  "parser_notes": "AksharaMD bundled PyMuPDF-based parser. Fingerprint set is deliberately empty at scaffold time — the reference parser is instrumented internally and its known failure modes surface through other detectors. Populate as parser-specific stubs are observed in the wild.",
+  "catalog_version": "0",
+  "stubs": []
+}

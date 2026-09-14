@@ -1,0 +1,9 @@
+{
+  "parser_id": "marker",
+  "parser_notes": "marker (VikParuchuri) — multi-format parser evolved from a PDF-focused OCR pipeline. Emits image placeholders in Markdown-image syntax and 'omitted' stubs when block extraction fails.",
+  "catalog_version": "1",
+  "stubs": [
+    {"pattern": "![image]", "type": "literal", "notes": "Bare image reference with no path — indicates image extractor produced no asset"},
+    {"pattern": "![](image", "type": "literal", "notes": "Partial image reference where alt text was dropped"}
+  ]
+}

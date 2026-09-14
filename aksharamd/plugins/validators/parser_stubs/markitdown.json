@@ -1,0 +1,8 @@
+{
+  "parser_id": "markitdown",
+  "parser_notes": "Microsoft MarkItDown — broad format converter. Known to produce zero headings and inline image references without alt text.",
+  "catalog_version": "1",
+  "stubs": [
+    {"pattern": "![Image]", "type": "literal", "notes": "MarkItDown's default image alt when no alt is available"}
+  ]
+}

@@ -1,15 +1,19 @@
-"""Tests for PlaceholderStubValidator — W_PLACEHOLDER_STUB (P1.1)."""
+"""Tests for PlaceholderStubValidator — W_PLACEHOLDER_STUB (P1.1 + P4)."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from aksharamd.context import CompilationContext
 from aksharamd.models.block import Block, BlockType, ExtractionConfidence
 from aksharamd.models.document import Document
 from aksharamd.plugins.validators.placeholder_stub import (
+    _CATALOG_DIR,
     BRACKET_PLACEHOLDER_RE,
     UNDERSCORE_RUN_RE,
     PlaceholderStubValidator,
+    _effective_stub_catalog,
+    _load_stub_catalog,
 )
 
 # ── Regex isolation ────────────────────────────────────────────────────────
@@ -244,3 +248,124 @@ def test_placeholder_stubs_fixture_negative_does_not_fire_the_detector():
         f"negative fixture {entry.document_id} incorrectly fired the detector; "
         f"diagnostics: {diag}"
     )
+
+
+# ── P4: parser-stub catalog loading ────────────────────────────────────────
+
+_KNOWN_PARSERS = ("common", "reference", "marker", "docling", "markitdown", "mineru")
+
+
+def test_all_ship_time_catalogs_exist():
+    for parser_id in _KNOWN_PARSERS:
+        path = _CATALOG_DIR / f"{parser_id}.json"
+        assert path.is_file(), f"missing shipped catalog: {path}"
+
+
+def test_all_ship_time_catalogs_parse_and_have_required_keys():
+    for parser_id in _KNOWN_PARSERS:
+        path = _CATALOG_DIR / f"{parser_id}.json"
+        with path.open("r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        assert payload["parser_id"] == parser_id, (
+            f"{parser_id}.json declares parser_id={payload.get('parser_id')!r}"
+        )
+        assert "stubs" in payload
+        assert isinstance(payload["stubs"], list)
+
+
+def test_common_catalog_has_nonempty_stubs():
+    """The common baseline must ship with real stub patterns."""
+    stubs = _load_stub_catalog("common")
+    assert len(stubs) >= 5, f"common catalog too sparse: {stubs}"
+
+
+def test_load_stub_catalog_returns_lowercase_patterns():
+    """Patterns are normalized to lowercase for case-insensitive matching."""
+    stubs = _load_stub_catalog("common")
+    for pattern in stubs:
+        assert pattern == pattern.lower(), f"pattern not lowercased: {pattern!r}"
+
+
+def test_load_unknown_parser_returns_empty():
+    assert _load_stub_catalog("does_not_exist_parser") == ()
+
+
+def test_load_empty_parser_id_returns_empty():
+    assert _load_stub_catalog("") == ()
+
+
+def test_effective_catalog_includes_common_baseline():
+    effective = _effective_stub_catalog()
+    common = _load_stub_catalog("common")
+    for pattern in common:
+        assert pattern in effective
+
+
+def test_effective_catalog_merges_parser_specific():
+    """Marker's catalog adds parser-specific stubs on top of common."""
+    common = _load_stub_catalog("common")
+    marker = _load_stub_catalog("marker")
+    effective = _effective_stub_catalog("marker")
+    for pattern in common:
+        assert pattern in effective
+    for pattern in marker:
+        assert pattern in effective
+
+
+def test_effective_catalog_dedupes_overlap():
+    """If a pattern appears in both common and parser-specific, it appears once."""
+    common = _load_stub_catalog("common")
+    # Pick any common pattern; it must appear in effective exactly once even
+    # if a parser-specific catalog happens to duplicate it.
+    effective = _effective_stub_catalog("markitdown")
+    for pattern in common:
+        assert effective.count(pattern) == 1, (
+            f"pattern {pattern!r} duplicated in effective catalog"
+        )
+
+
+def test_effective_catalog_unknown_parser_uses_only_common():
+    effective_unknown = _effective_stub_catalog("does_not_exist_parser")
+    effective_default = _effective_stub_catalog()
+    assert effective_unknown == effective_default
+
+
+def test_diagnostics_expose_parser_id_and_catalog_size():
+    """P4: the detector records which catalog resolved for this document."""
+    paragraphs = [
+        "Line one paragraph with real content and no stub markers.",
+        "Line two paragraph with real content.",
+    ] * 8
+    ctx = _make_doc(paragraphs)
+    ctx.parser_name = "marker"
+    PlaceholderStubValidator().execute(ctx)
+    diag = ctx.document.metadata["placeholder_stub_diagnostics"]
+    assert diag["parser_id"] == "marker"
+    assert diag["catalog_size"] >= len(_load_stub_catalog("common"))
+
+
+def test_diagnostics_parser_id_defaults_to_unknown_when_ctx_missing_name():
+    paragraphs = ["Line."] * 15
+    ctx = _make_doc(paragraphs)
+    # ctx.parser_name defaults to None on CompilationContext.
+    PlaceholderStubValidator().execute(ctx)
+    diag = ctx.document.metadata["placeholder_stub_diagnostics"]
+    assert diag["parser_id"] == "unknown"
+
+
+def test_parser_specific_stub_fires_on_parser_specific_content():
+    """Marker's `![Image]` pattern fires when marker is the parser."""
+    marker_stubs = _load_stub_catalog("marker")
+    if not marker_stubs:
+        # Marker catalog is currently non-empty by design; skip if that ever changes.
+        return
+    stub_literal = marker_stubs[0]
+    paragraphs = [
+        f"Body paragraph mentions {stub_literal} inline.",
+    ] + ["More body content."] * 12
+    ctx = _make_doc(paragraphs)
+    ctx.parser_name = "marker"
+    PlaceholderStubValidator().execute(ctx)
+    diag = ctx.document.metadata["placeholder_stub_diagnostics"]
+    assert diag["extraction_stub_count"] >= 1
+    assert diag["warned"] is True
