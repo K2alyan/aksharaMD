@@ -78,11 +78,25 @@ _EXTREME_RUN_LENGTH: int = 8   # any run of >=8 identical chars fires alone
 _LONG_RUN_LENGTH: int = 6      # >=6 identical alphanumeric chars — 3+ needed
 _LONG_RUN_COUNT_THRESHOLD: int = 3
 
-# Runs of 8+ identical NON-WHITESPACE characters. Whitespace runs would
-# false-positive on deeply indented code and formatted tables where
-# consecutive spaces are legitimate. Non-whitespace runs of 8+ are almost
-# always parser garbage — mojibake filler, symbol soup, catastrophic OCR.
-_EXTREME_RUN_RE = re.compile(r"(\S)\1{7,}")
+# Runs of 8+ identical characters, excluding whitespace AND known
+# decorative typography. Whitespace runs FP on deeply indented code.
+# The decorative-char exclusion catches legitimate scholarly typography
+# discovered during 2026-09-13 corpus testing on arxiv PDFs: section
+# separators like ``--------------------``, ``====================``,
+# ``....................``, and Unicode line-drawing runs. These are
+# authored typography, not parser garbage. The excluded set is
+# deliberately narrow — obscure symbols (``¤¤¤``, ``§§§``, ``†††``,
+# mojibake fillers) still fire, and alphanumeric runs (``aaaaaaaa``,
+# ``11111111``) still fire because those genuinely never appear as
+# authored typography.
+#
+# Excluded from extreme_run detection:
+#   - ASCII decoratives:  - = . _ * ~ # + | :
+#   - Box-drawing:        U+2500..U+257F range covers all box/border glyphs
+#   - Common em/en dashes: U+2013 – (en), U+2014 — (em), U+2015 ― (horiz bar)
+_EXTREME_RUN_RE = re.compile(
+    r"([^\s\-=._*~#+|:–—―─-╿])\1{7,}"
+)
 # Runs of 6+ identical alphanumeric characters.
 _LONG_ALNUM_RUN_RE = re.compile(r"([A-Za-z0-9])\1{5,}")
 

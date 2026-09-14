@@ -167,6 +167,73 @@ def test_long_run_needs_three_occurrences():
     assert "long_run" in diag["fired_triggers"]
 
 
+def test_decorative_dash_run_does_not_fire():
+    """Section separators like `--------------------` are legitimate typography."""
+    paragraphs = [
+        "First section header.",
+        "-" * 40,
+        "Body content follows.",
+    ] + ["More content."] * 12
+    ctx = _make_doc(paragraphs)
+    GibberishValidator().execute(ctx)
+    diag = ctx.document.metadata["gibberish_diagnostics"]
+    assert diag["warned"] is False, (
+        f"decorative dash run FP'd: extreme_run_count={diag.get('extreme_run_count')}"
+    )
+
+
+def test_decorative_equals_run_does_not_fire():
+    """Section separators like `====================` are legitimate typography."""
+    paragraphs = [
+        "First section header.",
+        "=" * 30,
+        "Body content follows.",
+    ] + ["More content."] * 12
+    ctx = _make_doc(paragraphs)
+    GibberishValidator().execute(ctx)
+    diag = ctx.document.metadata["gibberish_diagnostics"]
+    assert diag["warned"] is False
+
+
+def test_decorative_dots_and_underscores_do_not_fire():
+    """Ellipsis-like `..........` and underscore runs `__________` are typography."""
+    paragraphs = [
+        "Table of contents:",
+        "Chapter 1 " + "." * 25 + " page 3",
+        "Signature: " + "_" * 30,
+    ] + ["Body content."] * 12
+    ctx = _make_doc(paragraphs)
+    GibberishValidator().execute(ctx)
+    diag = ctx.document.metadata["gibberish_diagnostics"]
+    # Note: 3 underscore runs of >=5 chars would trip the underscore trigger
+    # in W_PLACEHOLDER_STUB — but not W_GIBBERISH. Confirm gibberish stays quiet.
+    assert diag["warned"] is False
+
+
+def test_unusual_symbol_run_still_fires():
+    """Obscure symbols like ¤¤¤ / §§§ / ††† are NOT decorative typography and must still fire."""
+    paragraphs = [
+        "Normal line one.",
+        "¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤",
+    ] + ["Body content."] * 12
+    ctx = _make_doc(paragraphs)
+    GibberishValidator().execute(ctx)
+    diag = ctx.document.metadata["gibberish_diagnostics"]
+    assert diag["warned"] is True
+    assert diag["extreme_run_count"] >= 1
+
+
+def test_alphanumeric_run_still_fires():
+    """`aaaaaaaa` and `1111111111` are never authored typography — always suspect."""
+    paragraphs = [
+        "Line one: aaaaaaaaaa here.",
+    ] + ["Body content."] * 12
+    ctx = _make_doc(paragraphs)
+    GibberishValidator().execute(ctx)
+    diag = ctx.document.metadata["gibberish_diagnostics"]
+    assert diag["warned"] is True
+
+
 def test_single_long_run_does_not_fire():
     """One run of 6 chars — below the 3-run threshold."""
     paragraphs = [
