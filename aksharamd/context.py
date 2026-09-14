@@ -118,6 +118,19 @@ class CompilationContext:
     # local sources can fall back to a lazy read.
     raw_source_bytes: bytes | None = field(default=None, repr=False, compare=False)
 
+    # Per-detector wall-clock measurements populated by the DetectorBudget
+    # context manager (P0.2). Keys are rule_ids or detector identifiers;
+    # values are elapsed milliseconds. Detectors that do not opt in are
+    # simply absent from the dict.
+    detector_timings: dict[str, float] = field(default_factory=dict)
+
+    # Names of detectors that exceeded their DetectorBudget in this
+    # compile. Populated in the same __exit__ that emits the informational
+    # W_DETECTOR_TIMEOUT warning; carried alongside detector_timings for
+    # operators that want a quick "which detectors were slow?" view
+    # without re-scanning the warnings list.
+    detector_timeouts: list[str] = field(default_factory=list)
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:

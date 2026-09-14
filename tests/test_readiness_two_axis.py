@@ -18,8 +18,8 @@ from aksharamd.scoring.models import (
 _VALID_CATEGORIES = {"structural", "content", "meta"}
 
 
-def test_scoring_policy_version_is_1_4():
-    assert SCORING_POLICY_VERSION == "1.4"
+def test_scoring_policy_version_is_1_5():
+    assert SCORING_POLICY_VERSION == "1.5"
 
 
 def test_every_scoring_rule_has_a_valid_category():
@@ -137,12 +137,14 @@ def test_meta_category_deductions_do_not_reduce_axis_scores():
 def test_policy_category_distribution_matches_audit():
     """Sanity check: category counts should match the 2026-09-13 audit.
 
-    5 structural, 16 content, 5 meta = 26 total. If this fails, someone
-    added or reclassified a rule without updating the audit record.
+    Original audit: 5 structural, 16 content, 5 meta = 26 total.
+    Bumped 2026-09-13 (P0.2): +1 meta for W_DETECTOR_TIMEOUT.
+    Current: 5 structural, 16 content, 6 meta = 27 total. If this fails,
+    someone added or reclassified a rule without updating the audit record.
     """
     counts = {"structural": 0, "content": 0, "meta": 0}
     for rule in SCORING_POLICY.values():
         counts[rule.category] += 1
-    assert counts == {"structural": 5, "content": 16, "meta": 5}, (
+    assert counts == {"structural": 5, "content": 16, "meta": 6}, (
         f"category distribution drifted from 2026-09-13 audit: {counts}"
     )

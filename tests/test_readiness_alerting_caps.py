@@ -335,18 +335,17 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_4(self):
-        assert SCORING_POLICY_VERSION == "1.4", (
-            "SCORING_POLICY_VERSION was bumped to 1.4 for P0.4 two-axis "
-            "ReadinessResult — added category field to ScoringRule and "
-            "structural_score / substance_score properties on "
-            "ReadinessResult; any subsequent policy change must bump it again"
+    def test_version_is_1_5(self):
+        assert SCORING_POLICY_VERSION == "1.5", (
+            "SCORING_POLICY_VERSION was bumped to 1.5 for P0.2 DetectorBudget "
+            "— registered W_DETECTOR_TIMEOUT informational rule (meta category); "
+            "any subsequent policy change must bump it again"
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.4"
+        assert result.scoring_policy_version == "1.5"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -360,7 +359,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.4"
+        assert result.scoring_policy_version == "1.5"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────
