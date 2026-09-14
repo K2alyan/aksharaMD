@@ -18,8 +18,8 @@ from aksharamd.scoring.models import (
 _VALID_CATEGORIES = {"structural", "content", "meta"}
 
 
-def test_scoring_policy_version_is_1_7():
-    assert SCORING_POLICY_VERSION == "1.7"
+def test_scoring_policy_version_is_1_8():
+    assert SCORING_POLICY_VERSION == "1.8"
 
 
 def test_every_scoring_rule_has_a_valid_category():
