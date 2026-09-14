@@ -1,20 +1,21 @@
-"""Adjudication scaffolding — Authorization A.1c.
+"""Adjudication scaffolding — Authorization A.1c + Appendix B amendment.
 
 Two responsibilities:
 
 1. **Reviewer artifacts.** Prepare a blinded reviewer-facing record for
    each ``(document, parser)`` pair. Reviewer sees the source PDF + the
-   normalized extracted markdown + three prewritten questions. Not sent
-   to any reviewer under A.1; the machinery merely proves it can build
-   the artifact and record its provenance.
+   normalized extracted markdown + three prewritten questions.
 
-2. **Severity mapping.** Load the mapping file (``mapping.v0.json``) —
-   which under A.1 contains ONLY the four diagonal rows Appendix B
-   explicitly specifies. Combinations not in the mapping are
-   *deliberately unresolved*; the ``map()`` method returns
-   ``UNRESOLVED_MAPPING`` rather than inventing a label. This preserves
-   the discipline that A.1 is measurement plumbing, not methodological
-   invention.
+2. **Severity mapping.** Load the mapping file. The default is now
+   ``mapping.v1.json`` (frozen; full 64-combination coverage), produced
+   by the Appendix B amendment. ``mapping.v0.json`` remains on disk as
+   historical evidence of the pre-amendment state (4 diagonal rows only)
+   and can be loaded explicitly via ``SeverityMapper.load(path=...)``.
+
+The v1 mapping is derived from the aggregation rule
+``label = LABELS[max(rank(q1), rank(q2), rank(q3))]``. Combinations still
+not present in whatever mapping file is loaded resolve to
+``UNRESOLVED_MAPPING``; ``map()`` never invents a label.
 """
 from __future__ import annotations
 
@@ -25,7 +26,13 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-MAPPING_FILE = Path(__file__).parent / "mapping.v0.json"
+# The default mapping now points at v1 — the full 64-combination
+# frozen mapping introduced by the Appendix B amendment. ``mapping.v0.json``
+# is preserved as historical evidence and can still be loaded explicitly
+# via ``SeverityMapper.load(path=Path("benchmarks/eval_v1/mapping.v0.json"))``
+# to reconstruct what methodology existed prior to that amendment.
+MAPPING_FILE = Path(__file__).parent / "mapping.v1.json"
+MAPPING_FILE_HISTORICAL_V0 = Path(__file__).parent / "mapping.v0.json"
 
 
 class SeverityLabel(StrEnum):

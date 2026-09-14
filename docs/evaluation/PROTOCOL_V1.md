@@ -696,15 +696,173 @@ This is unusually transparent for an OSS benchmark and is a deliberate design ch
 
 ### Appendix B — (Q1, Q2, Q3) → label mapping table
 
-*[Deterministic mapping; must be drafted and reviewer-tested during the pilot phase. Placeholder shape:]*
+**Status:** frozen for Authorization B under the Appendix B amendment
+PR. All 64 combinations resolve to a single label under the rule
+defined below. The machine-readable form lives at
+`benchmarks/eval_v1/mapping.v1.json` (`mapping_frozen: true`).
+`benchmarks/eval_v1/mapping.v0.json` is preserved on disk as historical
+evidence of the pre-amendment state (4 diagonal rows only, everything
+else `UNRESOLVED_MAPPING`).
 
-| Q1 (Coverage) | Q2 (Fidelity) | Q3 (Usability) | Label |
+#### B.1 Per-question severity ranks (justifications)
+
+Each of Q1/Q2/Q3 has a natural ordinal severity ranking derived from
+the value phrasing itself. Ranks are 0 (best) to 3 (worst) so a single
+aggregation function can span all three dimensions.
+
+**Q1 — Coverage.** *"Does the markdown appear to contain substantially
+all of the source's textual content?"*
+
+| Value | Rank | Justification |
+|---|---|---|
+| yes | 0 | Complete coverage — no observable content loss. |
+| mostly | 1 | Small gaps — a fraction of content is missing but the bulk is preserved. Aligns with §3.1's MINOR word-preservation band (85–95%). |
+| partially | 2 | Significant loss — a substantial share of content is missing. Aligns with §3.1's MAJOR band (50–85%). |
+| no | 3 | Largely absent — most of the source's textual content is not present. Aligns with §3.1's CATASTROPHIC band (< 50%). |
+
+**Q2 — Fidelity.** *"Where content is present, is it recognizably
+faithful to the source, or are there stubs, gibberish, or corruptions?"*
+
+| Value | Rank | Justification |
+|---|---|---|
+| faithful | 0 | Faithful — no observable corruption. |
+| minor issues | 1 | Local corruption — small pockets of gibberish, stubs, or artifacts, but overall structure survives. |
+| significant corruption | 2 | Widespread corruption — corruption is common enough to impair use, though some content is still faithful. |
+| mostly stub or junk | 3 | Predominantly non-content — §3.1's "extensive placeholder stubs in body" / "whole sections replaced with junk." |
+
+**Q3 — Downstream usability.** *"If this markdown were the sole input
+to a RAG query system for this document, would answers to typical
+questions be usable, degraded, or wrong?"*
+
+| Value | Rank | Justification |
+|---|---|---|
+| usable | 0 | RAG answers usable — no operational impact. |
+| usable-with-caveats | 1 | RAG answers usable but with modest degradation — §3.1's MINOR "RAG answers derivable with modest degradation." |
+| degraded | 2 | RAG answers noticeably worse — §3.1's MAJOR "downstream user will notice the impact." |
+| wrong | 3 | RAG answers wrong or misleading — §3.1's CATASTROPHIC "RAG or LLM ingestion will produce wrong or misleading answers." |
+
+Ranks are the position of each value in the ordered value list, i.e.
+`Q1_VALUES = ("yes", "mostly", "partially", "no")` with ranks 0..3, and
+similarly for Q2/Q3.
+
+#### B.2 Aggregation rule (proposed)
+
+> **`label = LABELS[max(rank(q1), rank(q2), rank(q3))]`**
+> where `LABELS = ("GOOD", "MINOR", "MAJOR", "CATASTROPHIC")`.
+
+**Rationale.** §3.1 defines the label bands as *the most severe
+independently sufficient failure condition*. CATASTROPHIC is defined
+with an OR — "< 50% of source words preserved **OR** extensive
+placeholder stubs in body **OR** whole sections replaced with junk."
+MAJOR and MINOR similarly enumerate ORs across the coverage, fidelity,
+and usability axes. The `max` aggregation captures this OR semantic
+exactly: any single dimension that reaches a given severity is
+sufficient to assign that severity, and no two "good" dimensions can
+offset one "bad" one.
+
+**This aggregation rule is proposed for review in this PR.** It is not
+pre-approved methodology. Alternatives that were considered and
+rejected:
+
+| Alternative | Rejected because |
+|---|---|
+| **Mean rank** (`round(mean(Q1, Q2, Q3))`) | Two "good" dimensions offset one "bad" dimension. E.g. `(yes, faithful, wrong)` → mean 1 → MINOR, but Q3="wrong" alone is CATASTROPHIC under §3.1. |
+| **Q3-dominant** (`severity = Q3_rank`) | Ignores Q1 and Q2 entirely. `(no, mostly stub or junk, usable)` → GOOD despite catastrophic coverage/fidelity, because a particular reviewer's question set happened to be answerable from a fragment. |
+| **Weighted sum** (e.g. `0.5·Q1 + 0.3·Q2 + 0.2·Q3`) | Weights themselves would need methodological justification we do not currently have; introduces arbitrariness the OR-semantic of §3.1 does not require. |
+| **Lexicographic** (Q1, then Q2, then Q3) | Same asymmetry problem as Q3-dominant applied in a different direction; also asymmetric across dimensions §3.1 treats symmetrically. |
+
+#### B.3 Coherence checks the amendment must pass
+
+1. **Diagonal preservation.** The four rows Appendix B specified before
+   the amendment must retain their labels:
+   - (yes, faithful, usable) → max(0,0,0) = 0 → **GOOD** ✓
+   - (mostly, faithful, usable-with-caveats) → max(1,0,1) = 1 → **MINOR** ✓
+   - (partially, minor issues, degraded) → max(2,1,2) = 2 → **MAJOR** ✓
+   - (no, mostly stub or junk, wrong) → max(3,3,3) = 3 → **CATASTROPHIC** ✓
+2. **Full coverage.** All 4×4×4 = 64 combinations map to a label; no
+   `UNRESOLVED_MAPPING` remains under v1.
+3. **Monotonicity.** For any `(q1, q2, q3)`, replacing any single
+   component with a higher-rank value cannot decrease the resulting
+   severity. Follows mathematically from the monotonicity of `max`;
+   asserted as a regression test.
+
+All three checks are asserted by `tests/test_eval_v1.py`.
+
+#### B.4 Full 64-combination mapping table
+
+The mapping is:
+
+| Q1 | Q2 | Q3 | Label |
 |---|---|---|---|
 | yes | faithful | usable | GOOD |
+| yes | faithful | usable-with-caveats | MINOR |
+| yes | faithful | degraded | MAJOR |
+| yes | faithful | wrong | CATASTROPHIC |
+| yes | minor issues | usable | MINOR |
+| yes | minor issues | usable-with-caveats | MINOR |
+| yes | minor issues | degraded | MAJOR |
+| yes | minor issues | wrong | CATASTROPHIC |
+| yes | significant corruption | usable | MAJOR |
+| yes | significant corruption | usable-with-caveats | MAJOR |
+| yes | significant corruption | degraded | MAJOR |
+| yes | significant corruption | wrong | CATASTROPHIC |
+| yes | mostly stub or junk | usable | CATASTROPHIC |
+| yes | mostly stub or junk | usable-with-caveats | CATASTROPHIC |
+| yes | mostly stub or junk | degraded | CATASTROPHIC |
+| yes | mostly stub or junk | wrong | CATASTROPHIC |
+| mostly | faithful | usable | MINOR |
 | mostly | faithful | usable-with-caveats | MINOR |
+| mostly | faithful | degraded | MAJOR |
+| mostly | faithful | wrong | CATASTROPHIC |
+| mostly | minor issues | usable | MINOR |
+| mostly | minor issues | usable-with-caveats | MINOR |
+| mostly | minor issues | degraded | MAJOR |
+| mostly | minor issues | wrong | CATASTROPHIC |
+| mostly | significant corruption | usable | MAJOR |
+| mostly | significant corruption | usable-with-caveats | MAJOR |
+| mostly | significant corruption | degraded | MAJOR |
+| mostly | significant corruption | wrong | CATASTROPHIC |
+| mostly | mostly stub or junk | usable | CATASTROPHIC |
+| mostly | mostly stub or junk | usable-with-caveats | CATASTROPHIC |
+| mostly | mostly stub or junk | degraded | CATASTROPHIC |
+| mostly | mostly stub or junk | wrong | CATASTROPHIC |
+| partially | faithful | usable | MAJOR |
+| partially | faithful | usable-with-caveats | MAJOR |
+| partially | faithful | degraded | MAJOR |
+| partially | faithful | wrong | CATASTROPHIC |
+| partially | minor issues | usable | MAJOR |
+| partially | minor issues | usable-with-caveats | MAJOR |
 | partially | minor issues | degraded | MAJOR |
+| partially | minor issues | wrong | CATASTROPHIC |
+| partially | significant corruption | usable | MAJOR |
+| partially | significant corruption | usable-with-caveats | MAJOR |
+| partially | significant corruption | degraded | MAJOR |
+| partially | significant corruption | wrong | CATASTROPHIC |
+| partially | mostly stub or junk | usable | CATASTROPHIC |
+| partially | mostly stub or junk | usable-with-caveats | CATASTROPHIC |
+| partially | mostly stub or junk | degraded | CATASTROPHIC |
+| partially | mostly stub or junk | wrong | CATASTROPHIC |
+| no | faithful | usable | CATASTROPHIC |
+| no | faithful | usable-with-caveats | CATASTROPHIC |
+| no | faithful | degraded | CATASTROPHIC |
+| no | faithful | wrong | CATASTROPHIC |
+| no | minor issues | usable | CATASTROPHIC |
+| no | minor issues | usable-with-caveats | CATASTROPHIC |
+| no | minor issues | degraded | CATASTROPHIC |
+| no | minor issues | wrong | CATASTROPHIC |
+| no | significant corruption | usable | CATASTROPHIC |
+| no | significant corruption | usable-with-caveats | CATASTROPHIC |
+| no | significant corruption | degraded | CATASTROPHIC |
+| no | significant corruption | wrong | CATASTROPHIC |
+| no | mostly stub or junk | usable | CATASTROPHIC |
+| no | mostly stub or junk | usable-with-caveats | CATASTROPHIC |
+| no | mostly stub or junk | degraded | CATASTROPHIC |
 | no | mostly stub or junk | wrong | CATASTROPHIC |
-| *[all remaining combinations enumerated during pilot]* | | | |
+
+The table and `benchmarks/eval_v1/mapping.v1.json` are generated from
+the same aggregation rule and asserted equal by a regression test. If a
+future amendment changes the rule or any row, both artifacts must
+change together and the v1 file becomes historical.
 
 ### Appendix C — Metric formulas
 

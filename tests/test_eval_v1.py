@@ -216,26 +216,111 @@ def test_corpus_capabilities_fields_present():
 # ---------------- adjudication.py ----------------------------------
 
 
-def test_severity_mapper_loads_only_appendix_b_diagonal():
-    from benchmarks.eval_v1.adjudication import UNRESOLVED_MAPPING, SeverityMapper
+def test_severity_mapper_default_loads_v1_full_64():
+    """The default mapping is v1 — full 64-combination coverage."""
+    from benchmarks.eval_v1.adjudication import SeverityMapper
 
     m = SeverityMapper.load()
-    # v0 loads only the four diagonal rows Appendix B specifies verbatim.
-    assert len(m.rows) == 4
-    # Diagonal rows resolve.
+    assert m.mapping_id == "appendix_b_v1"
+    assert m.mapping_frozen is True
+    assert len(m.rows) == 64
+    assert m.unresolved_combinations() == []
+
+
+def test_severity_mapper_diagonal_preserved_under_v1():
+    """The four Appendix B diagonal rows must retain their labels
+    under the v1 aggregation rule (coherence check §B.3)."""
+    from benchmarks.eval_v1.adjudication import SeverityMapper
+
+    m = SeverityMapper.load()
     assert m.map("yes", "faithful", "usable").value == "GOOD"
     assert m.map("mostly", "faithful", "usable-with-caveats").value == "MINOR"
     assert m.map("partially", "minor issues", "degraded").value == "MAJOR"
     assert m.map("no", "mostly stub or junk", "wrong").value == "CATASTROPHIC"
-    # An off-diagonal combination is deliberately not resolved.
-    assert m.map("yes", "minor issues", "degraded") == UNRESOLVED_MAPPING
 
 
-def test_severity_mapper_unresolved_count():
+def test_severity_mapper_full_coverage_no_unresolved():
+    """Under v1, every (q1, q2, q3) combination resolves to a label."""
+    from benchmarks.eval_v1.adjudication import UNRESOLVED_MAPPING, SeverityMapper
+
+    m = SeverityMapper.load()
+    for combo in m.all_combinations():
+        assert m.map(*combo) != UNRESOLVED_MAPPING, combo
+
+
+def test_severity_mapper_monotonicity():
+    """Worsening any one answer never improves severity.
+
+    For any (q1, q2, q3) and any single-dimension replacement to a
+    higher-rank value, the resulting label must have severity >= the
+    original. This is PROTOCOL_V1.md §B.3 coherence check 3.
+    """
     from benchmarks.eval_v1.adjudication import SeverityMapper
 
     m = SeverityMapper.load()
-    assert len(m.unresolved_combinations()) == 4 * 4 * 4 - 4  # 60
+    label_rank = {"GOOD": 0, "MINOR": 1, "MAJOR": 2, "CATASTROPHIC": 3}
+
+    def rank_of(q1: str, q2: str, q3: str) -> int:
+        return label_rank[m.map(q1, q2, q3).value]
+
+    axes = [
+        (m.q1_values, 0),
+        (m.q2_values, 1),
+        (m.q3_values, 2),
+    ]
+
+    for combo in m.all_combinations():
+        base_rank = rank_of(*combo)
+        for values, dim in axes:
+            base_val = combo[dim]
+            base_idx = values.index(base_val)
+            for higher_idx in range(base_idx + 1, len(values)):
+                new_combo = list(combo)
+                new_combo[dim] = values[higher_idx]
+                new_rank = rank_of(*new_combo)
+                assert new_rank >= base_rank, (
+                    f"monotonicity violated: {combo} -> rank {base_rank} "
+                    f"but {tuple(new_combo)} -> rank {new_rank} "
+                    f"(dimension {dim} worsened, severity dropped)"
+                )
+
+
+def test_severity_mapper_v1_matches_max_rank_formula():
+    """The v1 JSON file must match the aggregation rule
+    ``label = LABELS[max(rank(q1), rank(q2), rank(q3))]`` on every row.
+
+    If this test breaks, either mapping.v1.json was hand-edited away
+    from the rule (should not happen) or the rule itself was amended
+    (should coincide with a new mapping version and a new coherence
+    proof)."""
+    from benchmarks.eval_v1.adjudication import SeverityMapper
+
+    m = SeverityMapper.load()
+    labels = ("GOOD", "MINOR", "MAJOR", "CATASTROPHIC")
+    q1r = {v: i for i, v in enumerate(m.q1_values)}
+    q2r = {v: i for i, v in enumerate(m.q2_values)}
+    q3r = {v: i for i, v in enumerate(m.q3_values)}
+    for (q1, q2, q3), label in m.rows.items():
+        expected = labels[max(q1r[q1], q2r[q2], q3r[q3])]
+        assert label.value == expected, (q1, q2, q3, label, expected)
+
+
+def test_severity_mapper_v0_still_loadable_as_historical_evidence():
+    """The pre-amendment v0 mapping is preserved on disk so future
+    reviewers can reconstruct exactly what methodology existed at
+    Authorization A.1 time."""
+    from benchmarks.eval_v1.adjudication import (
+        MAPPING_FILE_HISTORICAL_V0,
+        UNRESOLVED_MAPPING,
+        SeverityMapper,
+    )
+
+    v0 = SeverityMapper.load(path=MAPPING_FILE_HISTORICAL_V0)
+    assert v0.mapping_id == "appendix_b_v0"
+    assert v0.mapping_frozen is False
+    assert len(v0.rows) == 4
+    # v0 refused to resolve off-diagonal combinations.
+    assert v0.map("yes", "minor issues", "degraded") == UNRESOLVED_MAPPING
 
 
 def test_reviewer_artifact_blinds_parser():
