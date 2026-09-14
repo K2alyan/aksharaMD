@@ -1,0 +1,42 @@
+{
+  "authorization": "A.1",
+  "phase": "a1b",
+  "documents": [
+    {
+      "doc_id": "D1_qasper_1503_00841",
+      "path": ".cache\\qasper\\1503.00841-29290de61c95.pdf",
+      "sha256": "9ca21eaff3c946e95cc649e627db3a4b9e69d0f7397bae3e30d39be495261ba5",
+      "size_bytes": 956266,
+      "origin_corpus": "QASPER (arXiv 1503.00841)",
+      "v1_corpus_member": true,
+      "stress_axis": "prose",
+      "rationale": "Prose-heavy academic paper. Exercises text extraction plus content-substance detectors (W_GIBBERISH, W_ENCODING_ARTIFACTS, W_PLACEHOLDER_STUB) and the \u00a76.2 QASPER-downstream loader seam. Permanently excluded from held-out V1 QASPER subset."
+    },
+    {
+      "doc_id": "D2_docbench_P19_1598",
+      "path": ".cache\\docbench\\0\\P19-1598.pdf",
+      "sha256": "1074c93b17355fc3b9175697f2cf5dbdd062a9d22f394c29856e154f91199563",
+      "size_bytes": 322546,
+      "origin_corpus": "DocBench (ACL paper P19-1598)",
+      "v1_corpus_member": false,
+      "stress_axis": "mixed",
+      "rationale": "ACL-style paper from DocBench. Exercises mixed structural content (equations, figures, references). CAVEAT: DocBench is not on the V1 corpus list per PROTOCOL_V1.md \u00a72.2. Using it here documents the fact that the V1 corpus-adapter seam is unexercised for a V1 corpus \u2014 a smoke-test finding."
+    },
+    {
+      "doc_id": "D3_tatdqa_003755794b",
+      "path": ".cache\\tat_dqa\\tat_docs\\dev\\003755794bbbbcffd0667b9600aeb0be.pdf",
+      "sha256": "b59bdb9725ac5345899a107f6cc894d5763521e3dbe2d5febf46ff31920d21c4",
+      "size_bytes": 1515862,
+      "origin_corpus": "TAT-DQA (financial report)",
+      "v1_corpus_member": true,
+      "stress_axis": "tables",
+      "rationale": "Financial-report page(s) with tables. Exercises structural detectors (W_TABLE_MISSING, W_MULTICOLUMN_ORDER, W_HEADER_FOOTER_TABLE_GARBLED). Permanently excluded from held-out V1 TAT-DQA subset."
+    }
+  ],
+  "parsers": [
+    "aksharamd-reference",
+    "marker",
+    "docling",
+    "markitdown"
+  ]
+}

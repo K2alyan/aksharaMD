@@ -1,0 +1,145 @@
+{
+  "schema_version": "0.1",
+  "authorization": "A.1c",
+  "identity": {
+    "doc_id": "D3_tatdqa_003755794b",
+    "parser": "markitdown",
+    "corpus_name": "tat_dqa"
+  },
+  "corpus_capabilities": {
+    "corpus_name": "tat_dqa",
+    "on_v1_manifest": true,
+    "supports_textual_gt": false,
+    "supports_layout_gt": false,
+    "supports_clause_span_gt": false,
+    "supports_downstream_qa_gt": true,
+    "supports_clean_native_fpr": false,
+    "not_applicable_reasons": {
+      "textual_gt": "TAT-DQA does not provide XML full-text.",
+      "layout_gt": "TAT-DQA does not provide DocLayNet-style bboxes.",
+      "clause_span_gt": "TAT-DQA does not provide clause span annotations.",
+      "clean_native_fpr": "TAT-DQA is a table-heavy financial corpus, not the FPR baseline."
+    }
+  },
+  "hashes": {
+    "source_sha256": "b59bdb9725ac5345899a107f6cc894d5763521e3dbe2d5febf46ff31920d21c4",
+    "extraction_sha256": "85c11df7d7e4541cde2ed2c9ead51a5d79a7fc3cbce2ecf0649f23f1d4417659",
+    "normalized_sha256": "876194e52f8a2f19ceac3a6bf29392567474410adf76148121f70e6dd0e3993f"
+  },
+  "instruments": {
+    "aksharamd_scoring_policy_version": "1.10",
+    "normalization_version": "1"
+  },
+  "stage_status": {
+    "source_ingestion": "EXECUTED",
+    "parser_execution": "EXECUTED",
+    "output_capture": "EXECUTED",
+    "normalization": "EXECUTED",
+    "ground_truth_ingestion": "EXECUTED",
+    "conventional_measurement": "EXECUTED",
+    "llm_answer_judge": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "downstream_rag": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "aksharamd_evaluation": "EXECUTED",
+    "detector_diagnostics": "EXECUTED",
+    "adjudication": "EXECUTED",
+    "provenance_recording": "EXECUTED"
+  },
+  "conventional_metric_summary": {
+    "metric": "word_overlap + number_overlap",
+    "pair_count": 6,
+    "per_qa": [
+      {
+        "question": "What does order intake represent?",
+        "answer_type": "span",
+        "gold_answer": "commitments from customers to purchase goods and/or services that will ultimately result in recognised revenue.",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 16,
+        "word_gold": 16,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 0
+      },
+      {
+        "question": "What is the final dividend per share proposed for 2019?",
+        "answer_type": "span",
+        "gold_answer": "3.45 cents per Ordinary share",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 5,
+        "word_gold": 5,
+        "number_overlap_ratio": 1.0,
+        "number_matched": 1,
+        "number_gold": 1
+      },
+      {
+        "question": "What is the change (%) for order intake between 2018 and 2019?",
+        "answer_type": "span",
+        "gold_answer": "13.2",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 1,
+        "word_gold": 1,
+        "number_overlap_ratio": 1.0,
+        "number_matched": 1,
+        "number_gold": 1
+      },
+      {
+        "question": "In which year was the gross margin (%) higher?",
+        "answer_type": "span",
+        "gold_answer": "2019",
+        "word_overlap_ratio": 1.0,
+        "word_matched": 1,
+        "word_gold": 1,
+        "number_overlap_ratio": 1.0,
+        "number_matched": 1,
+        "number_gold": 1
+      },
+      {
+        "question": "What was the change in closing cash?",
+        "answer_type": "arithmetic",
+        "gold_answer": "61.6",
+        "word_overlap_ratio": 0.0,
+        "word_matched": 0,
+        "word_gold": 1,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 1
+      },
+      {
+        "question": "For adjusted operating costs, what was the percentage change in the amount of before exceptional items, acquisition related costs, acquired intangible asset amortisation and share-based payment betwee",
+        "answer_type": "arithmetic",
+        "gold_answer": "-78.06",
+        "word_overlap_ratio": 0.0,
+        "word_matched": 0,
+        "word_gold": 1,
+        "number_overlap_ratio": 0.0,
+        "number_matched": 0,
+        "number_gold": 1
+      }
+    ]
+  },
+  "aksharamd_result": {
+    "readiness_score": 95,
+    "quality_band": "HIGH",
+    "scoring_policy_version": "1.10"
+  },
+  "detector_diagnostics": {
+    "warning_codes": [],
+    "deduction_rule_ids": [],
+    "deduction_count": 0
+  },
+  "provenance": {
+    "adapter_provenance": {
+      "corpus_name": "tat_dqa",
+      "split": "dev",
+      "cache_root": ".cache\\tat_dqa"
+    },
+    "source_sha256": "b59bdb9725ac5345899a107f6cc894d5763521e3dbe2d5febf46ff31920d21c4",
+    "output_sha256": "85c11df7d7e4541cde2ed2c9ead51a5d79a7fc3cbce2ecf0649f23f1d4417659",
+    "normalization_version": "1",
+    "assigned_partition": "held_out",
+    "authorization": "A.1c"
+  },
+  "timing": {
+    "total_elapsed_s": 0.2970000000204891,
+    "peak_rss_delta_mb": 11.1796875
+  }
+}

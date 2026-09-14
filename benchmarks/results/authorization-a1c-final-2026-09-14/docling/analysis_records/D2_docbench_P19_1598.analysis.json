@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "authorization": "A.1c",
+  "identity": {
+    "doc_id": "D2_docbench_P19_1598",
+    "parser": "docling",
+    "corpus_name": "docbench"
+  },
+  "corpus_capabilities": {
+    "corpus_name": "docbench",
+    "on_v1_manifest": false,
+    "supports_textual_gt": false,
+    "supports_layout_gt": false,
+    "supports_clause_span_gt": false,
+    "supports_downstream_qa_gt": false,
+    "supports_clean_native_fpr": false,
+    "not_applicable_reasons": {
+      "textual_gt": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2).",
+      "layout_gt": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2).",
+      "clause_span_gt": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2).",
+      "downstream_qa_gt": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2).",
+      "clean_native_fpr": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2)."
+    }
+  },
+  "hashes": {
+    "source_sha256": "1074c93b17355fc3b9175697f2cf5dbdd062a9d22f394c29856e154f91199563",
+    "extraction_sha256": "d78a7c2c72a4ddd48bbcd0ef0c551baeefe6957287d359f2ac9421803d7e2abe",
+    "normalized_sha256": "e36270f1eb0d2a982edaa4c22819fd716551e1d23bd14ada44386e4ead867b84"
+  },
+  "instruments": {
+    "aksharamd_scoring_policy_version": "1.10",
+    "normalization_version": "1"
+  },
+  "stage_status": {
+    "source_ingestion": "EXECUTED",
+    "parser_execution": "EXECUTED",
+    "output_capture": "EXECUTED",
+    "normalization": "EXECUTED",
+    "ground_truth_ingestion": "NOT_APPLICABLE",
+    "conventional_measurement": "NOT_APPLICABLE",
+    "llm_answer_judge": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "downstream_rag": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+    "aksharamd_evaluation": "EXECUTED",
+    "detector_diagnostics": "EXECUTED",
+    "adjudication": "EXECUTED",
+    "provenance_recording": "EXECUTED"
+  },
+  "conventional_metric_summary": {},
+  "aksharamd_result": {
+    "readiness_score": 95,
+    "quality_band": "HIGH",
+    "scoring_policy_version": "1.10"
+  },
+  "detector_diagnostics": {
+    "warning_codes": [],
+    "deduction_rule_ids": [],
+    "deduction_count": 0
+  },
+  "provenance": {
+    "adapter_provenance": {
+      "corpus_name": "docbench",
+      "on_v1_manifest": false,
+      "note": "DocBench is not on the V1 corpus manifest (PROTOCOL_V1.md \u00a72.2)."
+    },
+    "source_sha256": "1074c93b17355fc3b9175697f2cf5dbdd062a9d22f394c29856e154f91199563",
+    "output_sha256": "d78a7c2c72a4ddd48bbcd0ef0c551baeefe6957287d359f2ac9421803d7e2abe",
+    "normalization_version": "1",
+    "assigned_partition": "held_out",
+    "authorization": "A.1c"
+  },
+  "timing": {
+    "total_elapsed_s": 10.405999999959022,
+    "peak_rss_delta_mb": 34.39453125
+  }
+}

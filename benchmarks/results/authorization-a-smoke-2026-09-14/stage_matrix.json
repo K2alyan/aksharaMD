@@ -1,0 +1,43 @@
+{
+  "source_ingestion": {
+    "status": "ATTEMPTED",
+    "notes": "Source PDFs loaded from local .cache/ paths. No corpus-manifest or corpus-adapter for V1 G1-GT corpora (PMC-OA, DocLayNet, Federal Register/SEC, CUAD) exists. The 3-doc smoke chose already-staged PDFs, one of which (D2 DocBench) is not on the V1 corpus list."
+  },
+  "parser_execution": {
+    "status": "ATTEMPTED",
+    "success_count": 12,
+    "total": 12
+  },
+  "output_capture": {
+    "status": "ATTEMPTED",
+    "notes": "Per-pair markdown written under <output>/<parser>/<doc_id>.md and SHA-256 recorded."
+  },
+  "ground_truth_ingestion": {
+    "status": "SKIPPED",
+    "notes": "No GT-ingestion pipeline exists for any V1 corpus. PROTOCOL_V1.md \u00a710.1 item 11 requires benchmarks/eval_v1/ground_truth/ with code for PMC-OA XML, DocLayNet bboxes, CUAD spans; none present."
+  },
+  "normalization": {
+    "status": "SKIPPED",
+    "notes": "PROTOCOL_V1.md \u00a710.1 item 12 requires a normalization implementation applied uniformly across parsers before comparison. Not implemented for V1; only per-adapter post-processing exists in benchmarks/parsed_vs_raw/adapters/."
+  },
+  "conventional_measurements": {
+    "status": "SKIPPED",
+    "notes": "PMC-OA word-overlap script and TEDS-adapted table script (PROTOCOL_V1.md \u00a710.1 item 16) do not exist. Existing parsed_vs_raw uses an LLM judge for answer quality, which is not the same instrument."
+  },
+  "aksharamd_evaluation": {
+    "status": "ATTEMPTED",
+    "notes": "AksharaMD score captured for 9/12 pairs. Docling pairs lack a score because Docling has no ParserAdapter wrapper (readiness_score None by design of the current benchmarks/parsed_vs_raw path)."
+  },
+  "detector_diagnostics": {
+    "status": "ATTEMPTED",
+    "notes": "warning_codes and deduction rule_ids captured for Compiler-routed parsers. Docling: not captured (no adapter)."
+  },
+  "labeling_adjudication_workflow": {
+    "status": "SKIPPED",
+    "notes": "No reviewer workflow, no (Q1,Q2,Q3)\u2192label mapping table (PROTOCOL_V1.md \u00a710.1 item 17, Appendix B), no reviewer instructions or presentation format. Authorization A did not attempt to build these; smoke test only exercises infrastructure that already exists or is minimal plumbing."
+  },
+  "provenance_artifact_recording": {
+    "status": "ATTEMPTED",
+    "notes": "Per-pair provenance (started_at, elapsed_s, RSS delta, output SHA-256, byte count) recorded. Full study-freeze manifest (\u00a710.1) NOT created \u2014 that is Authorization C, prohibited under A."
+  }
+}
