@@ -416,7 +416,7 @@ The freeze is the single most important methodological guardrail in this protoco
 
 ### 10.1 Study Freeze Manifest
 
-At freeze time, the following are captured in a single reproducibility anchor at `docs/evaluation/STUDY_FREEZE_MANIFEST_V1.md`. The manifest either contains or references (with SHA-256 hashes) every item below. It is the artifact the paper cites as the reproducibility bundle.
+At freeze time, the following are captured in a single reproducibility anchor at `docs/evaluation/STUDY_FREEZE_MANIFEST_V1.md`. **This file does not exist yet — it is a future artifact, produced at freeze time (Authorization C, §0.1).** No empty scaffold is created now; the manifest is meaningful only when the values it captures are settled. The manifest either contains or references (with SHA-256 hashes) every item below. It is the artifact the paper cites as the reproducibility bundle.
 
 **AksharaMD side:**
 
@@ -478,7 +478,7 @@ Any item on this list that changes between the freeze and the held-out run **inv
 
 ### 10.4 Amendment procedure
 
-- Post-freeze, any change to the protocol or implementation becomes a **published amendment** at `docs/evaluation/AMENDMENTS.md`.
+- Post-freeze, any change to the protocol or implementation becomes a **published amendment** at `docs/evaluation/AMENDMENTS.md`. **This file does not exist yet — it is a future artifact, opened at freeze time and appended to as amendments are proposed.** No empty scaffold is created now; the file is meaningful only when there is an amendment to record.
 - Amendments cannot alter the interpretation of already-run held-out data. They apply only to future runs (V2 or later).
 - Every amendment includes: (a) the observation that motivated it, (b) the specific change, (c) which prior claim (if any) is affected, (d) whether the affected claim requires a re-run to remain valid.
 
