@@ -522,6 +522,12 @@ class Compiler:
             ctx.error("PARSE_FAILED", f"Could not read source bytes: {exc}")
             return False
 
+        # Mirror onto ctx so substance detectors can compare parsed output
+        # against the source. Idempotent: the built-in-parser path in
+        # _run_pipeline populated the same field earlier; assigning the
+        # same bytes here is a no-op.
+        ctx.raw_source_bytes = source_bytes
+
         # capture_id is the SHA-256 of the raw source bytes computed earlier;
         # fall back to a fresh digest if the file-size gate did not populate it.
         source_hash = ctx.capture_id or hashlib.sha256(source_bytes).hexdigest()
@@ -1057,7 +1063,11 @@ class Compiler:
                         f"Set AKSHARAMD_MAX_FILE_BYTES to raise the limit.",
                     )
                     return ctx, stage_timings, t0
-                ctx.capture_id = hashlib.sha256(Path(source).read_bytes()).hexdigest()
+                # Read once, use twice: hash for capture_id, mirror onto ctx
+                # so substance detectors can compare parsed output vs source.
+                _source_bytes = Path(source).read_bytes()
+                ctx.capture_id = hashlib.sha256(_source_bytes).hexdigest()
+                ctx.raw_source_bytes = _source_bytes
             except OSError:
                 pass  # missing file handled by parser with a clearer message
 
