@@ -399,6 +399,72 @@ def test_bootstrap_by_document_flags_degenerate_on_small_n():
     assert r.n_documents == 3
     assert r.n_observations == 6
     assert r.degenerate is True  # N=3 << 20
+    assert r.parser_matrix_balanced is True
+    assert r.observations_per_document == (2, 2, 2)
+    assert r.aggregation == "per_document"
+
+
+def test_bootstrap_by_document_rejects_unbalanced_matrix_by_default():
+    from benchmarks.eval_v1.statistics import (
+        UnbalancedParserMatrixError,
+        bootstrap_by_document,
+    )
+
+    docs = ["d1", "d2", "d3"]
+    # d3 is missing a parser observation — silent flattening would
+    # underweight it, so §11.2 requires a hard stop by default.
+    obs = {"d1": [0.8, 0.9], "d2": [0.5, 0.6], "d3": [0.7]}
+    with pytest.raises(UnbalancedParserMatrixError, match="unbalanced"):
+        bootstrap_by_document(docs, obs, n_resamples=50)
+
+
+def test_bootstrap_by_document_missing_doc_is_unbalanced():
+    from benchmarks.eval_v1.statistics import (
+        UnbalancedParserMatrixError,
+        bootstrap_by_document,
+    )
+
+    # d3 not present in the mapping at all — treated as zero observations,
+    # which is an imbalance and must be caught.
+    docs = ["d1", "d2", "d3"]
+    obs = {"d1": [0.8, 0.9], "d2": [0.5, 0.6]}
+    with pytest.raises(UnbalancedParserMatrixError):
+        bootstrap_by_document(docs, obs, n_resamples=50)
+
+
+def test_bootstrap_by_document_records_imbalance_when_opted_in():
+    from benchmarks.eval_v1.statistics import bootstrap_by_document
+
+    docs = ["d1", "d2", "d3"]
+    obs = {"d1": [0.8, 0.9], "d2": [0.5, 0.6], "d3": [0.7]}
+    r = bootstrap_by_document(docs, obs, n_resamples=200, require_balanced=False)
+    assert r.parser_matrix_balanced is False
+    assert r.observations_per_document == (2, 2, 1)
+    assert r.n_observations == 5
+
+
+def test_bootstrap_by_document_per_document_vs_pooled_differ_when_appropriate():
+    from benchmarks.eval_v1.statistics import bootstrap_by_document
+
+    # Construct a case where per-document mean and pooled mean of the
+    # SAME point estimate diverge: d3 has a single extreme observation,
+    # so pooled weights it 1/5 while per_document weights it 1/3.
+    docs = ["d1", "d2", "d3"]
+    obs = {"d1": [0.0, 0.0], "d2": [0.0, 0.0], "d3": [1.0]}
+
+    per_doc = bootstrap_by_document(
+        docs, obs, n_resamples=100, require_balanced=False, aggregation="per_document"
+    )
+    pooled = bootstrap_by_document(
+        docs, obs, n_resamples=100, require_balanced=False, aggregation="pooled"
+    )
+
+    # per_document: mean([0.0, 0.0, 1.0]) = 1/3
+    # pooled:      mean([0.0, 0.0, 0.0, 0.0, 1.0]) = 1/5
+    assert abs(per_doc.estimator_value - (1 / 3)) < 1e-9
+    assert abs(pooled.estimator_value - (1 / 5)) < 1e-9
+    assert per_doc.aggregation == "per_document"
+    assert pooled.aggregation == "pooled"
 
 
 def test_per_observation_bootstrap_forbidden():
