@@ -2221,6 +2221,87 @@ def inspect_payload(payload_path: str) -> None:
     console.print(Panel(pt, title="[bold]LLM Payload Summary[/]", border_style="cyan"))
 
 
+# ── Consensus audit (P5) ─────────────────────────────────────────────────
+#
+# Cross-parser comparison against a source PDF. Given N pre-parsed markdown
+# outputs from different parsers, computes per-parser fidelity ratios and a
+# Jaccard pairwise similarity matrix. Offline (no parsers run here).
+
+
+@main.command("audit")
+@click.argument("source_pdf", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--parsed",
+    "parsed_entries",
+    multiple=True,
+    metavar="NAME=PATH",
+    required=True,
+    help=(
+        "A parser-id + path pair, e.g. --parsed marker=out_marker.md. "
+        "Pass once per parser you want to compare (min 1)."
+    ),
+)
+@click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON instead of the human-readable table.",
+)
+def audit(source_pdf: str, parsed_entries: tuple[str, ...], json_output: bool) -> None:
+    """Cross-parser consensus audit against a source PDF.
+
+    Compares the per-parser word coverage against the source PDF's text
+    layer and produces a pairwise Jaccard similarity matrix so you can
+    see which parsers agree and which are outliers on THIS document.
+
+    The audit is OFFLINE — it does not run parsers. Provide pre-parsed
+    markdown outputs via --parsed name=path. This keeps the audit
+    lightweight (no heavy parser dependencies) and applies uniformly
+    to any parser, present or future.
+
+    Example:
+        aksharamd audit sample.pdf \\
+            --parsed reference=out_ref.md \\
+            --parsed marker=out_marker.md \\
+            --parsed docling=out_docling.md
+    """
+    from .consensus_audit import format_json, format_report, run_audit
+
+    parsed_files: dict[str, Path] = {}
+    for entry in parsed_entries:
+        if "=" not in entry:
+            console.print(
+                f"[red]--parsed expects NAME=PATH, got {entry!r}[/]"
+            )
+            raise SystemExit(2)
+        name, _, path = entry.partition("=")
+        name = name.strip()
+        path = path.strip()
+        if not name or not path:
+            console.print(
+                f"[red]--parsed NAME=PATH must have non-empty name and path (got {entry!r})[/]"
+            )
+            raise SystemExit(2)
+        if name in parsed_files:
+            console.print(
+                f"[red]--parsed given twice for parser {name!r}[/]"
+            )
+            raise SystemExit(2)
+        parsed_files[name] = Path(path)
+
+    try:
+        result = run_audit(Path(source_pdf), parsed_files)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise SystemExit(1) from exc
+
+    if json_output:
+        click.echo(format_json(result))
+    else:
+        click.echo(format_report(result))
+
+
 # ── Models lifecycle (PR 98) ──────────────────────────────────────────────
 #
 # The four ``aksharamd models`` subcommands cover install / verify / status /
