@@ -96,9 +96,9 @@ def run_one(doc: SmokeDoc, parser: str, output_dir: Path) -> PairOutcome:
 
     # Import extractors lazily to isolate import failures per parser.
     from benchmarks.parsed_vs_raw.arms.parser_arm import (
+        _EXTRACTORS,
         ExtractionOutput,
         ParserUnavailable,
-        _EXTRACTORS,
     )
 
     started = datetime.now(UTC).isoformat()
@@ -125,9 +125,7 @@ def run_one(doc: SmokeDoc, parser: str, output_dir: Path) -> PairOutcome:
         detector_diagnostic_count=0,
     )
 
-    try:
-        extractor = _EXTRACTORS[parser]
-    except KeyError:
+    if parser not in _EXTRACTORS:
         outcome_kwargs["elapsed_s"] = time.monotonic() - t0
         outcome_kwargs["error_class"] = "UnknownParser"
         outcome_kwargs["error_msg"] = f"parser {parser!r} not in _EXTRACTORS"

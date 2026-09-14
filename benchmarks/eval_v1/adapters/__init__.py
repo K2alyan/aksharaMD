@@ -13,8 +13,8 @@ under A.1 per the user's correction ("no speculative corpus stubs").
 An interface is enough; adapters ship when a subsequent authorization
 actually exercises those corpora.
 """
-from .qasper_v1 import QasperV1Adapter
 from .docbench_non_v1 import DocBenchNonV1Adapter
+from .qasper_v1 import QasperV1Adapter
 from .tat_dqa_v1 import TatDqaV1Adapter
 
 __all__ = ["QasperV1Adapter", "DocBenchNonV1Adapter", "TatDqaV1Adapter"]

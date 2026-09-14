@@ -29,7 +29,7 @@
   },
   "instruments": {
     "aksharamd_scoring_policy_version": "1.10",
-    "normalization_version": "1"
+    "normalization_version": "2"
   },
   "stage_status": {
     "source_ingestion": "EXECUTED",
@@ -64,12 +64,12 @@
     },
     "source_sha256": "1074c93b17355fc3b9175697f2cf5dbdd062a9d22f394c29856e154f91199563",
     "output_sha256": "d78a7c2c72a4ddd48bbcd0ef0c551baeefe6957287d359f2ac9421803d7e2abe",
-    "normalization_version": "1",
+    "normalization_version": "2",
     "assigned_partition": "held_out",
     "authorization": "A.1c"
   },
   "timing": {
-    "total_elapsed_s": 10.405999999959022,
-    "peak_rss_delta_mb": 34.39453125
+    "total_elapsed_s": 7.170999999972992,
+    "peak_rss_delta_mb": 12.984375
   }
 }

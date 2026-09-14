@@ -21,15 +21,14 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
-
 
 MAPPING_FILE = Path(__file__).parent / "mapping.v0.json"
 
 
-class SeverityLabel(str, Enum):
+class SeverityLabel(StrEnum):
     GOOD = "GOOD"
     MINOR = "MINOR"
     MAJOR = "MAJOR"
@@ -50,7 +49,7 @@ class SeverityMapper:
     q3_values: tuple[str, ...]
 
     @classmethod
-    def load(cls, path: Path = MAPPING_FILE) -> "SeverityMapper":
+    def load(cls, path: Path = MAPPING_FILE) -> SeverityMapper:
         raw = json.loads(path.read_text(encoding="utf-8"))
         rows: dict[tuple[str, str, str], SeverityLabel] = {}
         for r in raw["rows"]:
@@ -165,7 +164,7 @@ def prepare_reviewer_artifact(
     mapping: SeverityMapper,
     extra_provenance: dict[str, Any] | None = None,
 ) -> ReviewerArtifact:
-    pair_hash = hashlib.sha256(f"{doc_id}::{parser}".encode("utf-8")).hexdigest()[:16]
+    pair_hash = hashlib.sha256(f"{doc_id}::{parser}".encode()).hexdigest()[:16]
     return ReviewerArtifact(
         pair_id=pair_hash,
         blinded_parser_hash=_blind_parser(parser),

@@ -31,31 +31,46 @@ modeltorenderinformationithasneverseen
 Figure 1: Linked WikiText-2 Example. A localized
 before, as well as generate out-of-vocabulary
 knowledge graph containing facts that are (possibly)
-tokens. WealsointroducetheLinkedWikiTextconveyedinthesentenceabove.Thegraphisbuiltbyit-
+tokens. WealsointroducetheLinkedWikiText-
+conveyedinthesentenceabove.Thegraphisbuiltbyit-
 2dataset,1acorpusofannotatedtextalignedto
 erativelylinkingeachdetectedentitytoWikidata,then
 theWikidataknowledgegraphwhosecontents
 adding any relations to previously mentioned entities.
-(roughly)matchthepopularWikiText-2benchNotethatnotallentitiesareconnected,potentiallydue
+(roughly)matchthepopularWikiText-2bench-
+Notethatnotallentitiesareconnected,potentiallydue
 mark(Merityetal.,2017). Inexperiments,we
 tomissingrelationsinWikidata.
-demonstrate that the KGLM achieves significantly better performance than a strong baseline language model. We additionally comtraining. Forinstance,whenconditionedonthetext
-paredifferentlanguagemodels’abilitytocomat the top of Figure 1, an AWD-LSTM language
+demonstrate that the KGLM achieves signifi-
+cantly better performance than a strong base-
+line language model. We additionally com-
+training. Forinstance,whenconditionedonthetext
+paredifferentlanguagemodels’abilitytocom-
+at the top of Figure 1, an AWD-LSTM language
 plete sentences requiring factual knowledge,
 and show that the KGLM outperforms even model (Merity et al., 2018) trained on Wikitext-2
-verylargelanguagemodelsingeneratingfacts. assigns higher probability to the word “PlayStation”than“GameBoy”,eventhoughthissentence
+verylargelanguagemodelsingeneratingfacts. assigns higher probability to the word “PlaySta-
+tion”than“GameBoy”,eventhoughthissentence
 1 Introduction appears verbatim in the training data. This is not
-surprising—existingmodelsrepresentthedistribuFor language models to generate plausible sention over the entire vocabulary directly, whether
+surprising—existingmodelsrepresentthedistribu-
+For language models to generate plausible sen-
+tion over the entire vocabulary directly, whether
 tences,theymustbebothsyntacticallycoherentas
 theyarecommonwords,referencestorealworld
-wellasconsistentwiththeworldtheydescribe. Alentities,orfactualinformationlikedatesandnumthoughlanguagemodelsarequiteskilledatgenerat-
+wellasconsistentwiththeworldtheydescribe. Al-
+entities,orfactualinformationlikedatesandnum-
+thoughlanguagemodelsarequiteskilledatgenerat-
 bers. As a result, language models are unable to
 inggrammaticalsentences,andpreviousworkhas
-generate factually correct sentences, do not genshownthatlanguagemodelsalsopossesssomede-
+generate factually correct sentences, do not gen-
+shownthatlanguagemodelsalsopossesssomede-
 eralizetorare/unseenentities,andoftenomitrare
-greeofcommon-sensereasoningandbasicknowltokensfromthevocabulary(insteadgeneratingUNedge (Vinyals and Le, 2015; Serban et al., 2016;
+greeofcommon-sensereasoningandbasicknowl-
+tokensfromthevocabulary(insteadgeneratingUN-
+edge (Vinyals and Le, 2015; Serban et al., 2016;
 KNOWN tokens).
-Trinh and Le, 2019), their ability to generate facWe introduce the knowledge graph language
+Trinh and Le, 2019), their ability to generate fac-
+We introduce the knowledge graph language
 tually correct text is quite limited. The clearest
 model (KGLM), a neural language model with
 limitationofexistinglanguagemodelsisthatthey,
@@ -210,7 +225,8 @@ elseE ← E .
 Theparametricdistributionsusedinthegenerative
 For the model to refer to an entity it has already
 mentioned, we introduce a Reflexive relation that process above are defined as follows. We begin
-self-relates,i.e. p = efor(p,Reflexive,e). by computing the hidden state h t using the formula in Eqn (1). We then split the vector into
+self-relates,i.e. p = efor(p,Reflexive,e). by computing the hidden state h t using the for-
+mula in Eqn (1). We then split the vector into
 Anillustrationofthisprocessandthevariables
 three components: h = [h ;h ;h ], which
 is provided in Figure 2, for generating a token in t t,x t,p t,r
@@ -252,15 +268,19 @@ t
 For these reasons we introduce the Linked
 p(p ) = softmax(v ·h ) WikiText-2 dataset, consisting of (approximately)
 t p t,p
-the same articles appearing in the WikiText-2 lanoverallp ∈ E t ,thenpicktherelationr t using guage modeling corpus, but linked to the Wikidata (Vrandecˇic ́ and Krötzsch, 2014) knowledge
+the same articles appearing in the WikiText-2 lan-
+overallp ∈ E t ,thenpicktherelationr t using guage modeling corpus, but linked to the Wiki-
+data (Vrandecˇic ́ and Krötzsch, 2014) knowledge
 p(r ) = softmax(v ·h )
-t r t,r graph. Because the text closely matches, modelstrainedonLinkedWikiText-2canbecompared
+t r t,r graph. Because the text closely matches, mod-
+elstrainedonLinkedWikiText-2canbecompared
 over all r ∈ {r|(p ,r,e) ∈ KG }. The combina-
 t t
 to models trained on WikiText-2. Furthermore,
 tion of p and r determine the entity e (which
 t t t
-because many of the facts in Wikidata are demust satisfy (p ,r ,e ) ∈ KG ; if there are multi-
+because many of the facts in Wikidata are de-
+must satisfy (p ,r ,e ) ∈ KG ; if there are multi-
 t t t t
 rivedfromWikipediaarticles,theknowledgegraph
 pleoptionsoneischosenatrandom).
@@ -274,17 +294,20 @@ systemannotatesonedocumentatatime,andcon-
 h . If there is an entity to render, we construct
 t,x sists of entity linking, relation annotations, and
 the distribution over the original vocabulary and
-post-processing. The following paragraphs deavocabularycontainingallthetokensthatappear
+post-processing. The following paragraphs de-
+avocabularycontainingallthetokensthatappear
 scribeeachstepindetail.
 in aliases of e . This distribution is conditioned
 t
-Initial entity annotations We begin by identifyon e in addition to x . To compute the scores
+Initial entity annotations We begin by identify-
+on e in addition to x . To compute the scores
 t t
 over the original vocabulary, h is replaced by inganinitialsetofentitymentionswithinthetext.
 t,x
 h′ = W [h ;v ] where W is a learned Theprimarysourceofthesementionsisthehuman-
 t,x proj t,x et proj
-providedlinksbetweenWikipediaarticles. Whenweightmatrixthatprojectstheconcatenatedvector
+providedlinksbetweenWikipediaarticles. When-
+weightmatrixthatprojectstheconcatenatedvector
 intothesamevectorspaceash . everaspanoftextislinkedtoanotherWikipedia
 t,x
 article, we associate its corresponding Wikidata
@@ -301,14 +324,17 @@ j
 occur. Accordingly, we use the neural-el (Gupta
 p(x = a ) ∝ exp σ h′ T W a etal.,2017)entitylinkertoidentifyadditionallinks
 t j h (cid:16) t,x copy(cid:17) ji
-(cid:0) (cid:1) toWikidata,andidentifycoreferencesusingStanfordCoreNLP2 tocoverpronouns,nominals,and
+(cid:0) (cid:1) toWikidata,andidentifycoreferencesusingStan-
+fordCoreNLP2 tocoverpronouns,nominals,and
 othertokensmissedbythelinker.
 3 LinkedWikiText-2
 Localknowledgegraph Thenextstepiteratively
-Modelingaside,oneoftheprimarybarrierstoin- createsagenerativestoryfortheentitiesusingrelacorporatingfactualknowledgeintolanguagemod- tionsintheknowledgegraphaswellasidentifies
+Modelingaside,oneoftheprimarybarrierstoin- createsagenerativestoryfortheentitiesusingrela-
+corporatingfactualknowledgeintolanguagemod- tionsintheknowledgegraphaswellasidentifies
 elsisthattrainingdataishardtoobtain. Standard newentities. Todothis,weprocessthetexttoken
 language modeling corpora consist only of text, bytoken. Eachtimeanentityisencountered,we
-and thus are unable to describe which entities or addalloftherelatedentitiesinWikidataascandifactseachtokenisreferringto. Incontrast,while
+and thus are unable to describe which entities or addalloftherelatedentitiesinWikidataascandi-
+factseachtokenisreferringto. Incontrast,while
 relationextractiondatasetslinktexttoaknowledge 2https://stanfordnlp.github.io/CoreNLP/
 5965
 
@@ -351,7 +377,8 @@ trainingknowledgegraphlanguagemodels.
 approach for quantities, using the pint library in DatasetStatistics StatisticsforLinkedWikiText-2
 Pythontohandlethedifferentwaysofexpressing areprovidedinTable2. Inthiscorpus,morethan
 units(e.g. "g","gram",...). Sincetherearemany 10%ofthetokensareconsideredentitytokens,i.e.
-waystoexpressanumericalquantity,weonlyren- theyaregeneratedasfactualreferencestoinformaderthequantityatthelevelofprecisionsupplied tion in the knowledge graph. Each entity is only
+waystoexpressanumericalquantity,weonlyren- theyaregeneratedasfactualreferencestoinforma-
+derthequantityatthelevelofprecisionsupplied tion in the knowledge graph. Each entity is only
 byWikidata,anddonotperformunitconversions. mentionedafewtimes(lessthan5onaverage,with
 alongtail),andwithmorethanthousanddifferent
 Example Annotation An example annotation is
@@ -365,7 +392,8 @@ torefertoexternalsourcesofinformation.
 languagemodel(KGLM).Theentitymentionedfor
 mosttokensherearehuman-providedlinks,apart Differences from WikiText-2 Although our
 from “1989” that is linked to 04-21-1989 by the datasetisdesignedtocloselyreplicateWikiText-2,
-stringmatchingprocess. Theannotationsindicate therearesomedifferencesthatpreventdirectcomwhichoftheentitiesarenewandrelated basedon parison. Firstly,thereareminorvariationsintext
+stringmatchingprocess. Theannotationsindicate therearesomedifferencesthatpreventdirectcom-
+whichoftheentitiesarenewandrelated basedon parison. Firstly,thereareminorvariationsintext
 whethertheyarereachablebyentitieslinkedsofar, acrossarticlesduetoeditsbetweendownloaddates.
 clearly making a mistake for side-scrolling game Secondly,accordingtocorrespondencewithMerity
 and platform video game due to missing links in etal.(2017),WikiText-2wascollectedbyquerying
@@ -611,14 +639,18 @@ neural network based language model. In Proc. of
 INTERSPEECH.
 Alec Radford, Jeff Wu, Rewon Child, David Luan,
 DarioAmodei,andIlyaSutskever.2019. Language
-modelsareunsupervisedmultitasklearners. Technicalreport,OpenAI.
+modelsareunsupervisedmultitasklearners. Techni-
+calreport,OpenAI.
 Ehud Reiter and Robert Dale. 1997. Building applied
-natural language generation systems. Natural LanguageEngineering,3(1):57–87.
+natural language generation systems. Natural Lan-
+guageEngineering,3(1):57–87.
 IulianV.Serban, AlessandroSordoni, YoshuaBengio,
 AaronCourville,andJoellePineau.2016. Building
-end-to-enddialoguesystemsusinggenerativehierarchicalneuralnetworkmodels. InProc.ofAAAI.
+end-to-enddialoguesystemsusinggenerativehierar-
+chicalneuralnetworkmodels. InProc.ofAAAI.
 Georgios P. Spithourakis and Sebastian Riedel. 2018.
-Numeracyforlanguagemodels: Evaluatingandimprovingtheirabilitytopredictnumbers. InProc.of
+Numeracyforlanguagemodels: Evaluatingandim-
+provingtheirabilitytopredictnumbers. InProc.of
 ACL.
 Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky,
 Ilya Sutskever, and Ruslan Salakhutdinov. 2014.
@@ -631,15 +663,21 @@ Joerg Ueberla. 1994. Analysing a simple language
 modelÂ·some general conclusions for language
 modelsforspeechrecognition. ComputerSpeech&
 Language,8(2):153–176.
-Oriol Vinyals and Quoc V. Le. 2015. A neural conversational model. Proc. of ICML Deep Learning
+Oriol Vinyals and Quoc V. Le. 2015. A neural con-
+versational model. Proc. of ICML Deep Learning
 Workshop.
-Denny Vrandecˇic ́ and Markus Krötzsch. 2014. Wikidata: Afreecollaborativeknowledgebase. CommunicationsoftheACM,57(10):78–85.
+Denny Vrandecˇic ́ and Markus Krötzsch. 2014. Wiki-
+data: Afreecollaborativeknowledgebase. Commu-
+nicationsoftheACM,57(10):78–85.
 Li Wan, Matthew Zeiler, Sixin Zhang, Yann LeCun,
-andRobFergus.2013. Regularizationofneuralnetworksusingdropconnect. InProc.ofICML.
+andRobFergus.2013. Regularizationofneuralnet-
+worksusingdropconnect. InProc.ofICML.
 Sam Wiseman, Stuart M. Shieber, and Alexander M.
-Rush.2017. Challengesindata-to-documentgeneration. InProc.ofEMNLP.
+Rush.2017. Challengesindata-to-documentgener-
+ation. InProc.ofEMNLP.
 Zhilin Yang, Zihang Dai, Ruslan Salakhutdinov, and
-WilliamWCohen.2018. Breakingthesoftmaxbottleneck:Ahigh-rankRNNlanguagemodel. InProc.
+WilliamWCohen.2018. Breakingthesoftmaxbot-
+tleneck:Ahigh-rankRNNlanguagemodel. InProc.
 ofICLR.
 Zichao Yang, Phil Blunsom, Chris Dyer, and Wang
 Ling. 2017. Reference-aware language models. In

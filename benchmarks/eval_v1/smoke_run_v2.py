@@ -50,18 +50,15 @@ from .conventional_metrics import (
 )
 from .corpus_adapter import V1CorpusAdapter
 from .corpus_split import assign_partition
-from .normalization import get_default_normalizer, NORMALIZATION_VERSION
+from .normalization import NORMALIZATION_VERSION, get_default_normalizer
 from .smoke_manifest import SMOKE_DOCS, V1_PARSERS, SmokeDoc
 from .stages import (
     StageResult,
-    StageStatus,
     defect,
     executed,
     infrastructure_ready_not_executed,
     not_applicable,
-    requires_review,
 )
-
 
 # Doc-id → corpus-native identifier the V1 adapter expects.
 _DOC_ID_TO_CORPUS_KEY: dict[str, tuple[str, str]] = {
@@ -304,8 +301,8 @@ def _pair_stages(
         doc_id=doc.doc_id,
         parser=parser,
         source_pdf_path=str(source.path),
-        extraction_markdown_path=str((out_dir / f"{doc.doc_id}.md")),
-        normalized_markdown_path=str((out_dir / f"{doc.doc_id}.normalized.md")),
+        extraction_markdown_path=str(out_dir / f"{doc.doc_id}.md"),
+        normalized_markdown_path=str(out_dir / f"{doc.doc_id}.normalized.md"),
         mapping=mapping,
         extra_provenance={"corpus_name": corpus_name},
     )
@@ -406,7 +403,6 @@ def summarize_matrix(pair_summaries: list[dict[str, Any]]) -> dict[str, Any]:
         for stage_dict in ps["stages"]:
             stage_name = stage_dict["stage"]
             status = stage_dict["status"]
-            reason = stage_dict.get("reason", "")
             matrix.setdefault(stage_name, {}).setdefault(doc_id, {})[parser] = status
             tally.setdefault(stage_name, {}).setdefault(status, 0)
             tally[stage_name][status] += 1

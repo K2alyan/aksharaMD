@@ -17,9 +17,7 @@ Authorization C.
 """
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import Any
-
 
 ANALYSIS_RECORD_SCHEMA_VERSION = "0.1"
 

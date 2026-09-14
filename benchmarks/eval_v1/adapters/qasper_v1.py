@@ -19,7 +19,6 @@ from ..corpus_adapter import (
     V1CorpusAdapter,
 )
 
-
 _CACHE_ROOT = Path(".cache/qasper")
 _DEV_JSON_NAME = "qasper-dev-v0.3.json"
 

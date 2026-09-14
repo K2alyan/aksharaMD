@@ -14,9 +14,8 @@ from __future__ import annotations
 
 import random
 import statistics
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
-
 
 DEFAULT_N_RESAMPLES = 10_000
 

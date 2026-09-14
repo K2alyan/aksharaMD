@@ -10,23 +10,20 @@ is validated by rerunning `smoke_run_v2.py`, not by these tests.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-
 
 # ---------------- stages.py ----------------------------------------
 
 
 def test_stage_status_executed_forbids_reason():
-    from benchmarks.eval_v1.stages import StageStatus, StageResult
+    from benchmarks.eval_v1.stages import StageResult, StageStatus
 
     with pytest.raises(ValueError, match="EXECUTED must not carry a reason"):
         StageResult(stage="s", status=StageStatus.EXECUTED, reason="nope")
 
 
 def test_stage_status_non_executed_requires_reason():
-    from benchmarks.eval_v1.stages import StageStatus, StageResult
+    from benchmarks.eval_v1.stages import StageResult, StageStatus
 
     for status in (
         StageStatus.NOT_APPLICABLE,
@@ -51,25 +48,116 @@ def test_stage_result_to_dict_round_trip():
 # ---------------- normalization.py ---------------------------------
 
 
-def test_normalizer_applies_expected_rules():
+def test_normalizer_applies_narrow_v1_rules_only():
+    """V1 normalization is NFKC + LF only. Everything else is deferred."""
+    from benchmarks.eval_v1.normalization import (
+        NORMALIZATION_VERSION,
+        UnicodeWhitespaceNormalizer,
+    )
+
+    # Compat ligature (NFKC-collapsible) + CRLF line endings.
+    md = "ﬁle\r\ntext"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    # NFKC unpacks the ligature.
+    assert "ﬁ" not in out.text
+    assert "file" in out.text
+    # CRLF unified to LF.
+    assert "\r" not in out.text
+    # Version recorded.
+    assert out.version == NORMALIZATION_VERSION == "2"
+    # Only these two rules ran.
+    assert set(out.rules_applied).issubset({"nfkc", "lf_line_endings"})
+
+
+def test_normalizer_does_not_strip_frontmatter():
+    """Frontmatter stripping was removed from V1 — it can collide with
+    a leading thematic break + heading + thematic break pattern."""
     from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
 
-    md = "---\ntitle: X\n---\nHello­world pro-\ncessing\r\n\n\n\nend  "
+    md = "---\ntitle: X\n---\nbody"
     out = UnicodeWhitespaceNormalizer().normalize(md)
-    # Frontmatter stripped
-    assert "title:" not in out.text
-    # Soft hyphen removed
-    assert "Hello­world" not in out.text
-    # Dehyphenated
-    assert "processing" in out.text
-    # CRLF collapsed
-    assert "\r" not in out.text
-    # Blank runs collapsed
-    assert "\n\n\n" not in out.text
-    # Trailing spaces removed
-    assert "end  " not in out.text
-    # Version recorded
-    assert out.version == "1"
+    assert "title: X" in out.text
+
+
+def test_normalizer_does_not_remove_soft_hyphens():
+    """Soft hyphens can appear inside code payloads intentionally; V1
+    does not strip them, per Authorization A.1 review."""
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "Hello­world"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "­" in out.text
+
+
+def test_normalizer_does_not_dehyphenate_across_linebreaks():
+    """Dehyphenation was rejected because it can alter identifiers in
+    code and change tokenization semantically."""
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "pre-\nprocessing"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "pre-\nprocessing" in out.text
+    assert "preprocessing" not in out.text
+
+
+def test_normalizer_preserves_fenced_code_indentation():
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "```python\ndef foo():\n    return 42\n```\n"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "```python" in out.text
+    assert "    return 42" in out.text
+    assert "```\n" in out.text
+
+
+def test_normalizer_preserves_indented_code_block():
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "text\n\n    x = 1\n    y = 2\n"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "    x = 1" in out.text
+    assert "    y = 2" in out.text
+
+
+def test_normalizer_preserves_markdown_table():
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "| col1 | col2 |\n|---|---|\n| a  | b  |\n| c  | d  |\n"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "| col1 | col2 |" in out.text
+    assert "|---|---|" in out.text
+    assert "| a  | b  |" in out.text
+    assert "| c  | d  |" in out.text
+
+
+def test_normalizer_preserves_heading_syntax():
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "# H1\n\n## H2\n\n### H3\n"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "# H1" in out.text
+    assert "## H2" in out.text
+    assert "### H3" in out.text
+
+
+def test_normalizer_preserves_list_nesting():
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "- top\n  - nested\n    - deep\n"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "- top" in out.text
+    assert "  - nested" in out.text
+    assert "    - deep" in out.text
+
+
+def test_normalizer_preserves_trailing_double_space_hard_break():
+    """Two trailing spaces are a Markdown hard line break; V1
+    normalization must not strip them."""
+    from benchmarks.eval_v1.normalization import UnicodeWhitespaceNormalizer
+
+    md = "line one  \nline two"
+    out = UnicodeWhitespaceNormalizer().normalize(md)
+    assert "line one  \n" in out.text
 
 
 # ---------------- conventional_metrics.py --------------------------
@@ -129,7 +217,7 @@ def test_corpus_capabilities_fields_present():
 
 
 def test_severity_mapper_loads_only_appendix_b_diagonal():
-    from benchmarks.eval_v1.adjudication import SeverityMapper, UNRESOLVED_MAPPING
+    from benchmarks.eval_v1.adjudication import UNRESOLVED_MAPPING, SeverityMapper
 
     m = SeverityMapper.load()
     # v0 loads only the four diagonal rows Appendix B specifies verbatim.

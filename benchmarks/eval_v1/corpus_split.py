@@ -7,13 +7,13 @@ here define how a downstream authorization will assign splits.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Iterable
 
 
-class Partition(str, Enum):
+class Partition(StrEnum):
     DEV = "dev"
     CAL = "cal"
     HELD_OUT = "held_out"

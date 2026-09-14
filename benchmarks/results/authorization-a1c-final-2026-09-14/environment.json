@@ -11,7 +11,7 @@
     "torch": "2.12.1+cu126"
   },
   "eval_v1_versions": {
-    "normalization_version": "1"
+    "normalization_version": "2"
   },
   "torch_cuda_available": true
 }

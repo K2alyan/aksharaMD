@@ -28,7 +28,7 @@ We introduce the *knowledge graph language model* (KGLM), a neural language mode
 
 Figure 1 illustrates how the KGLM works. Initially, the graph is empty and the model uses the entity Super Mario Land to render the first three tokens, thus adding it and its relations to the local knowledge graph. After generating the next two tokens ("*is*", "*a*") using the standard language model, the model selects Super Mario Land as the parent entity, Publication Date as the relation to render, and copies one of the tokens of the date entity as the token ("*1989*" in this case).
 
-To facilitate research on knowledge graph-based language modeling, we collect the distantly supervised *Linked WikiText-2* dataset. The underlying text closely matches *WikiText-2* \(Merity et al., 2017\), a popular benchmark for language modeling, allowing comparisons against existing models. The tokens in the text are linked to entities in Wikidata (Vrandeciˇ c and Krötzsch ́ , 2014\) using a combination of human-provided links and off-theshelf linking and coreference models. We also use relations between these entities in Wikidata to construct plausible reasons for why an entity may have been mentioned: it could either be related to an entity that is already mentioned (including itself) or a brand new, unrelated entity for the document.
+To facilitate research on knowledge graph-based language modeling, we collect the distantly supervised *Linked WikiText-2* dataset. The underlying text closely matches *WikiText-2* \(Merity et al., 2017\), a popular benchmark for language modeling, allowing comparisons against existing models. The tokens in the text are linked to entities in Wikidata (Vrandeciˇ c and Krötzsch  ́ , 2014\) using a combination of human-provided links and off-theshelf linking and coreference models. We also use relations between these entities in Wikidata to construct plausible reasons for why an entity may have been mentioned: it could either be related to an entity that is already mentioned (including itself) or a brand new, unrelated entity for the document.
 
 We train and evaluate the KGLM on *Linked WikiText-2*. When compared against AWD-LSTM, a recent and performant language model, KGLM obtains not only a lower overall perplexity, but also a substantially lower *unknown-penalized* perplexity \(Ueberla, 1994; Ahn et al., 2016\), a metric that allows fair comparisons between models that accurately model rare tokens and ones that predict them to be *unknown*. We also compare *factual completion* capabilities of these models, where they predict the next word after a factual sentence (e.g., "*Barack is married to* ") and show that KGLM is significantly more accurate. Lastly, we show that the model is able to generate accurate facts for rare entities, and can be *controlled* via modifications the knowledge graph.
 
@@ -65,9 +65,9 @@ Figure 2: KGLM Illustration. When trying to generate the token following "*publi
 - Decide the *type* of x<sup>t</sup> , which we denote by tt : whether it is a reference to an entity in KG<t (related), a reference to an entity not in KG<t (new), or not an entity mention (∅).
 - If t<sup>t</sup> = new then choose the upcoming entity e<sup>t</sup> from the set of all entities E.
 - If t<sup>t</sup> = related then:
- - Choose a parent entity p<sup>t</sup> from E<t.
- - Choose a factual relation r<sup>t</sup> to render, r<sup>t</sup> ∈ {(p, r, e) ∈ KG<t|p = pt}.
- - Choose e<sup>t</sup> as one of the tail entities, e<sup>t</sup> ∈ {e|(p<sup>t</sup> , r<sup>t</sup> , e) ∈ KG<t}.
+  - Choose a parent entity p<sup>t</sup> from E<t.
+  - Choose a factual relation r<sup>t</sup> to render, r<sup>t</sup> ∈ {(p, r, e) ∈ KG<t|p = pt}.
+  - Choose e<sup>t</sup> as one of the tail entities, e<sup>t</sup> ∈ {e|(p<sup>t</sup> , r<sup>t</sup> , e) ∈ KG<t}.
 - If t<sup>t</sup> = ∅ then e<sup>t</sup> = ∅.
 - Generate x<sup>t</sup> conditioned on e<sup>t</sup> , potentially copying one of et's aliases.
 - If e<sup>t</sup> ∈ E / <t, then E<(t+1) ← E<t ∪ {et}, else E<(t+1) ← E<t.
@@ -311,7 +311,7 @@ First and foremost, we would like to thank Stephen Merity for sharing the materi
 - <span id="page-9-2"></span>Trieu H. Trinh and Quoc V. Le. 2019. Do language models have common sense? In *Proc. of ICLR.*
 - <span id="page-9-4"></span>Joerg Ueberla. 1994. [Analysing a simple language](https://doi.org/https://doi.org/10.1006/csla.1994.1007) modelÂ·[some general conclusions for language](https://doi.org/https://doi.org/10.1006/csla.1994.1007) [models for speech recognition.](https://doi.org/https://doi.org/10.1006/csla.1994.1007) *Computer Speech & Language*, 8(2):153 – 176.
 - <span id="page-9-0"></span>Oriol Vinyals and Quoc V. Le. 2015. A neural conversational model. *Proc. of ICML Deep Learning Workshop*.
-- <span id="page-9-3"></span>Denny Vrandeciˇ c and Markus Krötzsch. 2014. ́ [Wiki](https://doi.org/10.1145/2629489)[data: A free collaborative knowledgebase.](https://doi.org/10.1145/2629489) *Communications of the ACM*, 57(10):78–85.
+- <span id="page-9-3"></span>Denny Vrandeciˇ c and Markus Krötzsch. 2014.  ́ [Wiki](https://doi.org/10.1145/2629489)[data: A free collaborative knowledgebase.](https://doi.org/10.1145/2629489) *Communications of the ACM*, 57(10):78–85.
 - <span id="page-9-8"></span>Li Wan, Matthew Zeiler, Sixin Zhang, Yann LeCun, and Rob Fergus. 2013. Regularization of neural networks using dropconnect. In *Proc. of ICML*.
 - <span id="page-9-6"></span>Sam Wiseman, Stuart M. Shieber, and Alexander M. Rush. 2017. Challenges in data-to-document generation. In *Proc. of EMNLP*.
 - <span id="page-9-13"></span>Zhilin Yang, Zihang Dai, Ruslan Salakhutdinov, and William W Cohen. 2018. Breaking the softmax bottleneck: A high-rank RNN language model. In *Proc. of ICLR*.

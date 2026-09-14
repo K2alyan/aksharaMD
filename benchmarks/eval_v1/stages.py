@@ -32,11 +32,11 @@ valid outcomes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class StageStatus(str, Enum):
+class StageStatus(StrEnum):
     EXECUTED = "EXECUTED"
     NOT_APPLICABLE = "NOT_APPLICABLE"
     DEFECT = "DEFECT"

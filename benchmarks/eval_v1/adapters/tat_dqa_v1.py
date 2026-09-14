@@ -13,7 +13,6 @@ from ..corpus_adapter import (
     V1CorpusAdapter,
 )
 
-
 _CACHE_ROOT = Path(".cache/tat_dqa")
 _DEV_JSON = _CACHE_ROOT / "tatdqa_dataset_dev.json"
 

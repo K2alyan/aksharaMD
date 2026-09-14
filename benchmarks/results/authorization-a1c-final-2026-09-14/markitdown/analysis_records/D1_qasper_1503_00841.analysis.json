@@ -24,11 +24,11 @@
   "hashes": {
     "source_sha256": "9ca21eaff3c946e95cc649e627db3a4b9e69d0f7397bae3e30d39be495261ba5",
     "extraction_sha256": "8b871d2d4f7b8694d8870ae18adab71ee6ab02af2cd5a14db01ef81839816e42",
-    "normalized_sha256": "191a5efc277f9e07aa2743f471f96a5eed106e0d553dd60813ac6f55585e3068"
+    "normalized_sha256": "fa941a789780254f46921f7a2a2939a64663ef6f57ccd8498a0ddf864c308b72"
   },
   "instruments": {
     "aksharamd_scoring_policy_version": "1.10",
-    "normalization_version": "1"
+    "normalization_version": "2"
   },
   "stage_status": {
     "source_ingestion": "EXECUTED",
@@ -146,12 +146,12 @@
     },
     "source_sha256": "9ca21eaff3c946e95cc649e627db3a4b9e69d0f7397bae3e30d39be495261ba5",
     "output_sha256": "8b871d2d4f7b8694d8870ae18adab71ee6ab02af2cd5a14db01ef81839816e42",
-    "normalization_version": "1",
+    "normalization_version": "2",
     "assigned_partition": "held_out",
     "authorization": "A.1c"
   },
   "timing": {
-    "total_elapsed_s": 3.030999999959022,
-    "peak_rss_delta_mb": 0.54296875
+    "total_elapsed_s": 1.3589999999967404,
+    "peak_rss_delta_mb": 0.4375
   }
 }

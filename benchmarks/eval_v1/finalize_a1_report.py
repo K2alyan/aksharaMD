@@ -10,7 +10,6 @@ from pathlib import Path
 
 from benchmarks.eval_v1.adjudication import SeverityMapper
 
-
 STAGE_ORDER = [
     "source_ingestion",
     "parser_execution",

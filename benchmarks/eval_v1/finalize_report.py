@@ -65,30 +65,14 @@ def recommendation_md(outcomes: list[dict], matrix: dict) -> str:
     scored = sum(1 for o in outcomes if o.get("readiness_score") is not None)
 
     fixes: list[str] = [
-        "Wrap Docling as a `ParserAdapter` mirroring `MarkItDownAdapter`, "
-        "so Docling routes through the Compiler and produces a readiness_score "
-        "computed by the same instrument as the other three parsers. Without "
-        "this, cross-parser comparison against Docling at Authorization B is "
-        "invalid.",
-        "Move or rename adapters so `benchmarks/parser_adapters/` (per "
-        "PROTOCOL_V1.md §7.1) either exists at the referenced path or the "
-        "protocol text is amended to point at "
-        "`benchmarks/parsed_vs_raw/adapters/`.",
-        "Build `benchmarks/eval_v1/ground_truth/` with corpus adapters + "
-        "GT-ingestion for each V1 G1 corpus that the pilot will exercise "
-        "(at minimum PMC-OA XML text + one of DocLayNet bbox / CUAD span).",
-        "Build the corpus acquisition scripts and split-assignment logic "
-        "(§8.2 deterministic hashing) for the V1 corpora that will feed the "
-        "pilot.",
-        "Build the normalization pass (§10.1 item 12) applied uniformly to "
-        "every parser output before any comparison.",
-        "Build conventional-metric implementations (§10.1 item 16): "
-        "PMC-OA word-overlap and TEDS-adapted table comparator.",
-        "Draft and pilot the (Q1, Q2, Q3) → label mapping table "
-        "(Appendix B) and the reviewer instructions + blinding scaffolding "
-        "(§10.1 items 17-19).",
-        "Extend the harness to bootstrap by document per §11.2, before any "
-        "pilot summary numbers are produced.",
+        "Wrap Docling as a `ParserAdapter` mirroring `MarkItDownAdapter`, so Docling routes through the Compiler and produces a readiness_score computed by the same instrument as the other three parsers. Without this, cross-parser comparison against Docling at Authorization B is invalid.",
+        "Move or rename adapters so `benchmarks/parser_adapters/` (per PROTOCOL_V1.md §7.1) either exists at the referenced path or the protocol text is amended to point at `benchmarks/parsed_vs_raw/adapters/`.",
+        "Build `benchmarks/eval_v1/ground_truth/` with corpus adapters + GT-ingestion for each V1 G1 corpus that the pilot will exercise (at minimum PMC-OA XML text + one of DocLayNet bbox / CUAD span).",
+        "Build the corpus acquisition scripts and split-assignment logic (§8.2 deterministic hashing) for the V1 corpora that will feed the pilot.",
+        "Build the normalization pass (§10.1 item 12) applied uniformly to every parser output before any comparison.",
+        "Build conventional-metric implementations (§10.1 item 16): PMC-OA word-overlap and TEDS-adapted table comparator.",
+        "Draft and pilot the (Q1, Q2, Q3) → label mapping table (Appendix B) and the reviewer instructions + blinding scaffolding (§10.1 items 17-19).",
+        "Extend the harness to bootstrap by document per §11.2, before any pilot summary numbers are produced.",
     ]
 
     reasoning = (

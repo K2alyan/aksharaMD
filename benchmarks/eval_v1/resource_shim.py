@@ -8,8 +8,9 @@ from __future__ import annotations
 
 def current_rss_mb() -> float | None:
     try:
-        import psutil  # type: ignore
         import os
+
+        import psutil  # type: ignore
 
         return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
     except Exception:
