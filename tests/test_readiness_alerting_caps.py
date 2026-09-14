@@ -335,18 +335,18 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_3(self):
-        assert SCORING_POLICY_VERSION == "1.3", (
-            "SCORING_POLICY_VERSION was bumped to 1.3 for Phase 3.5 cap "
-            "attachment on W_IMAGE_ONLY_TEXT_BAR_FAIL and "
-            "W_TABLE_EXPECTED_NOT_EXTRACTED; any subsequent policy "
-            "change must bump it again"
+    def test_version_is_1_4(self):
+        assert SCORING_POLICY_VERSION == "1.4", (
+            "SCORING_POLICY_VERSION was bumped to 1.4 for P0.4 two-axis "
+            "ReadinessResult — added category field to ScoringRule and "
+            "structural_score / substance_score properties on "
+            "ReadinessResult; any subsequent policy change must bump it again"
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.3"
+        assert result.scoring_policy_version == "1.4"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -360,7 +360,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.3"
+        assert result.scoring_policy_version == "1.4"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────
