@@ -1,0 +1,8 @@
+{
+  "document_id": "stub_form_pos1",
+  "fixture_class": "placeholder_stubs",
+  "is_negative": false,
+  "expected_rules": ["W_PLACEHOLDER_STUB"],
+  "expected_pages": [1],
+  "notes": "Employment verification form with multiple bracketed placeholder tokens ([Employee ID], [Signature], [Date], [Witness Name and Signature]) in body content. Bracketed tokens surrounded by real prose should fire the pattern detector."
+}

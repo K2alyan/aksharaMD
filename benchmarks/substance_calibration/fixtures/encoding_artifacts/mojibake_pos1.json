@@ -1,0 +1,8 @@
+{
+  "document_id": "mojibake_pos1",
+  "fixture_class": "encoding_artifacts",
+  "is_negative": false,
+  "expected_rules": ["W_ENCODING_ARTIFACTS"],
+  "expected_pages": [1],
+  "notes": "UTF-8 double-encoded mojibake throughout body content: Ã©, Ã§, Ã¤, Ã¯, Ã¶, Ã¼ patterns from Latin-1 -> UTF-8 -> UTF-8 chain. Right-single-quote characters (Ã¢â‚¬â„¢) also present."
+}
