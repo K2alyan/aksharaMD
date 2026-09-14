@@ -683,7 +683,11 @@ def test_scoring_policy_version_unchanged():
     # W_ENCODING_ARTIFACTS (2026-08-20).
     # Bumped 1.2 -> 1.3 by Phase 3.5 cap attachment for
     # W_IMAGE_ONLY_TEXT_BAR_FAIL and W_TABLE_EXPECTED_NOT_EXTRACTED
-    # (2026-08-20). Any subsequent policy change must bump this again.
+    # (2026-08-20).
+    # Bumped 1.3 -> 1.4 by P0.4 two-axis ReadinessResult (2026-09-13):
+    # added `category` field to ScoringRule and structural_score /
+    # substance_score computed properties on ReadinessResult.
+    # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.3"
+    assert SCORING_POLICY_VERSION == "1.4"
