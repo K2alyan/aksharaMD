@@ -687,7 +687,9 @@ def test_scoring_policy_version_unchanged():
     # Bumped 1.3 -> 1.4 by P0.4 two-axis ReadinessResult (2026-09-13):
     # added `category` field to ScoringRule and structural_score /
     # substance_score computed properties on ReadinessResult.
+    # Bumped 1.4 -> 1.5 by P0.2 DetectorBudget (2026-09-13):
+    # registered W_DETECTOR_TIMEOUT informational rule (meta category).
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.4"
+    assert SCORING_POLICY_VERSION == "1.5"

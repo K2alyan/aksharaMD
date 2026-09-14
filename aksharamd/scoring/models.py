@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SCORING_POLICY_VERSION = "1.4"
+SCORING_POLICY_VERSION = "1.5"
 
 
 @dataclass
@@ -306,6 +306,17 @@ SCORING_POLICY: dict[str, ScoringRule] = {
     "AUTO_OCR_BACKEND_FALLBACK": ScoringRule(
         rule_id="AUTO_OCR_BACKEND_FALLBACK",
         description="Informational: Auto Policy v1 fell back from preferred backend",
+        max_penalty=0,
+        formula="0 (informational only)",
+        category="meta",
+    ),
+    "W_DETECTOR_TIMEOUT": ScoringRule(
+        rule_id="W_DETECTOR_TIMEOUT",
+        description=(
+            "Informational: a detector exceeded its per-detector wall-clock "
+            "budget under the DetectorBudget primitive (P0.2). Measure-and-warn "
+            "only; the detector's result is still consumed. No score penalty."
+        ),
         max_penalty=0,
         formula="0 (informational only)",
         category="meta",
