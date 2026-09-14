@@ -70,9 +70,9 @@ import re
 
 from ...context import CompilationContext
 from ...models.block import BlockType
+from ...scoring.detector_budget import DetectorBudget
 from ..base import ValidatorPlugin
 from ..registry import register_plugin
-from ...scoring.detector_budget import DetectorBudget
 
 # Trigger A: bracketed placeholders (form-template style).
 BRACKET_PLACEHOLDER_RE = re.compile(r"\[[A-Z][A-Za-z ]{2,30}\]")
