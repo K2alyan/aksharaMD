@@ -9,18 +9,15 @@ the corpus is exhaustive.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
 from benchmarks.substance_calibration.corpus import (
     FIXTURE_CLASSES,
-    SubstanceCorpusEntry,
     fixture_class_dir,
     iter_substance_corpus,
     list_fixture_class,
 )
-
 
 # ── Scaffold presence ──────────────────────────────────────────────────────
 
