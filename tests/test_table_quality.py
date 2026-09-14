@@ -698,7 +698,12 @@ def test_scoring_policy_version_unchanged():
     # Bumped 1.7 -> 1.8 by P1.1 cap wiring (2026-09-13):
     # W_PLACEHOLDER_STUB now caps at 84 (top of OK band) for experimental
     # maturity per detection-vs-scoring separation follow-up.
+    # Bumped 1.8 -> 1.9 by P2 GibberishValidator (2026-09-13):
+    # registered W_GIBBERISH with cap at 84 (experimental, content) —
+    # detects mojibake byte fragments, symbol junk, and extreme character
+    # repetition. Letter-substitution OCR corruption is out of scope
+    # (deferred to a future language-model P2 v2 detector).
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.8"
+    assert SCORING_POLICY_VERSION == "1.9"
