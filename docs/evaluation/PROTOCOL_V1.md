@@ -696,10 +696,10 @@ This is unusually transparent for an OSS benchmark and is a deliberate design ch
 
 ### Appendix B — (Q1, Q2, Q3) → label mapping table
 
-**Status:** frozen for Authorization B under the Appendix B amendment
-PR. All 64 combinations resolve to a single label under the rule
-defined below. The machine-readable form lives at
-`benchmarks/eval_v1/mapping.v1.json` (`mapping_frozen: true`).
+**Status:** becomes frozen for Authorization B upon merge of the
+Appendix B amendment PR. All 64 combinations resolve to a single label
+under the rule defined below. The machine-readable form lives at
+`benchmarks/eval_v1/mapping.v1.json` (`mapping_frozen: true` post-merge).
 `benchmarks/eval_v1/mapping.v0.json` is preserved on disk as historical
 evidence of the pre-amendment state (4 diagonal rows only, everything
 else `UNRESOLVED_MAPPING`).

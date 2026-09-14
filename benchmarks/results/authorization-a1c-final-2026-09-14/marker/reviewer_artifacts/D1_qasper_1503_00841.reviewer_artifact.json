@@ -9,7 +9,7 @@
     "Q2_fidelity": "Where content is present, is it recognizably faithful to the source, or are there stubs, gibberish, or corruptions? Answer: faithful / minor issues / significant corruption / mostly stub or junk.",
     "Q3_downstream_usability": "If this markdown were the sole input to a RAG query system for this document, would answers to typical questions be usable, degraded, or wrong? Answer: usable / usable-with-caveats / degraded / wrong."
   },
-  "mapping_reference": "appendix_b_v1::v1",
+  "mapping_reference": "appendix_b_v0::v0",
   "provenance": {
     "blinding_scheme": "sha256(doc_id::parser)[0:16]; parser_name sha256[0:16]",
     "authorization": "A.1c",

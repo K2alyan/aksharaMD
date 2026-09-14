@@ -1,0 +1,307 @@
+{
+  "per_stage_matrix": {
+    "source_ingestion": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "parser_execution": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "output_capture": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "normalization": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "ground_truth_ingestion": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "NOT_APPLICABLE",
+        "marker": "NOT_APPLICABLE",
+        "docling": "NOT_APPLICABLE",
+        "markitdown": "NOT_APPLICABLE"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "conventional_measurement": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "NOT_APPLICABLE",
+        "marker": "NOT_APPLICABLE",
+        "docling": "NOT_APPLICABLE",
+        "markitdown": "NOT_APPLICABLE"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "llm_answer_judge": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      }
+    },
+    "downstream_rag": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "marker": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "docling": "INFRASTRUCTURE_READY_NOT_EXECUTED",
+        "markitdown": "INFRASTRUCTURE_READY_NOT_EXECUTED"
+      }
+    },
+    "aksharamd_evaluation": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "detector_diagnostics": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "adjudication": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "provenance_recording": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    },
+    "analysis_record": {
+      "D1_qasper_1503_00841": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D2_docbench_P19_1598": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      },
+      "D3_tatdqa_003755794b": {
+        "aksharamd-reference": "EXECUTED",
+        "marker": "EXECUTED",
+        "docling": "EXECUTED",
+        "markitdown": "EXECUTED"
+      }
+    }
+  },
+  "tally_by_stage": {
+    "source_ingestion": {
+      "EXECUTED": 12
+    },
+    "parser_execution": {
+      "EXECUTED": 12
+    },
+    "output_capture": {
+      "EXECUTED": 12
+    },
+    "normalization": {
+      "EXECUTED": 12
+    },
+    "ground_truth_ingestion": {
+      "EXECUTED": 8,
+      "NOT_APPLICABLE": 4
+    },
+    "conventional_measurement": {
+      "EXECUTED": 8,
+      "NOT_APPLICABLE": 4
+    },
+    "llm_answer_judge": {
+      "INFRASTRUCTURE_READY_NOT_EXECUTED": 12
+    },
+    "downstream_rag": {
+      "INFRASTRUCTURE_READY_NOT_EXECUTED": 12
+    },
+    "aksharamd_evaluation": {
+      "EXECUTED": 12
+    },
+    "detector_diagnostics": {
+      "EXECUTED": 12
+    },
+    "adjudication": {
+      "EXECUTED": 12
+    },
+    "provenance_recording": {
+      "EXECUTED": 12
+    },
+    "analysis_record": {
+      "EXECUTED": 12
+    }
+  }
+}

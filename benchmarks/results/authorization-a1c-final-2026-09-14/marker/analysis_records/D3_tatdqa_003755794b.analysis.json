@@ -139,7 +139,7 @@
     "authorization": "A.1c"
   },
   "timing": {
-    "total_elapsed_s": 2.2189999999827705,
-    "peak_rss_delta_mb": 24.73046875
+    "total_elapsed_s": 2.280999999959022,
+    "peak_rss_delta_mb": 15.9296875
   }
 }
