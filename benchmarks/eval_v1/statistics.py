@@ -22,15 +22,19 @@ Two orthogonal design decisions matter for correctness:
      when the parser matrix is balanced.
 
 2. **Balanced parser matrix enforcement** — B1's per-document
-   observation lists are the ~4 parser outputs (Docling, Marker,
-   MinerU, olmOCR). If any parser is missing for any document, silently
-   flattening reweights the estimator. ``require_balanced=True``
-   (default) refuses to proceed on an unbalanced input; the caller must
-   either drop the affected documents, treat missing parsers as an
-   outcome (see §11.2 non-blocking follow-up), or explicitly opt in via
+   observation lists are the parser outputs enumerated by the V1
+   parser slate defined in ``PROTOCOL_V1.md`` §7. If any parser is
+   missing for any document, silently flattening reweights the
+   estimator. ``require_balanced=True`` (default) refuses to proceed on
+   an unbalanced input; the caller must either drop the affected
+   documents, treat missing parsers as an outcome (see §11.2
+   non-blocking follow-up), or explicitly opt in via
    ``require_balanced=False``. When opted in, the imbalance is exposed
    on the result as ``parser_matrix_balanced=False`` and per-document
    observation counts, so no downstream reader can miss it.
+
+   This module does not own the parser slate; it enforces balance
+   semantics over whatever observation lists the caller supplies.
 
 Under A.1c this module was plumbing only. B1a is the first authorized
 use, so the tightened semantics land here before any real corpus flows
