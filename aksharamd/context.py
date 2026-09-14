@@ -107,6 +107,17 @@ class CompilationContext:
     # ``ctx.document.file_type`` stays as ``md``.
     parser_provided_via_adapter: bool = False
 
+    # Raw source bytes captured at the compiler boundary. Populated for
+    # both the built-in-parser path (bytes read for capture_id hashing are
+    # mirrored here) and the parser-adapter path (ParserInput.data is
+    # mirrored here). Consumed by substance-detection Tiers 3+ (geometric
+    # cross-reference, dropped-region detection) that need to compare the
+    # parsed output against the source. Excluded from repr/compare because
+    # a large binary buffer in the default repr would be catastrophic.
+    # Access via ``raw_bytes()`` rather than the field directly so unknown
+    # local sources can fall back to a lazy read.
+    raw_source_bytes: bytes | None = field(default=None, repr=False, compare=False)
+
     def add_issue(self, issue: ValidationIssue) -> None:
         self.validation.issues.append(issue)
         if issue.severity == Severity.ERROR:
@@ -117,3 +128,34 @@ class CompilationContext:
 
     def error(self, code: str, message: str, **kwargs) -> None:
         self.add_issue(ValidationIssue(severity=Severity.ERROR, code=code, message=message, **kwargs))
+
+    # 200 MB safety cap on the lazy fallback path — normal compiler-driven
+    # population is already gated by AKSHARAMD_MAX_FILE_BYTES upstream.
+    _LAZY_BYTES_CAP: int = 200 * 1024 * 1024
+
+    def raw_bytes(self) -> bytes | None:
+        """Return the raw source bytes, or None if unavailable.
+
+        Preferred access point for substance detectors that compare parsed
+        output against the source. Returns the field when populated
+        (the compiler mirrors bytes here at the parse boundary). Falls
+        back to a lazy read of ``self.source`` when the field is empty
+        and the source is a readable local file within the 200 MB cap.
+        Never fetches from URL/S3.
+        """
+        if self.raw_source_bytes is not None:
+            return self.raw_source_bytes
+        if not self.source:
+            return None
+        try:
+            from pathlib import Path as _Path
+            p = _Path(self.source)
+            if not p.is_file():
+                return None
+            if p.stat().st_size > self._LAZY_BYTES_CAP:
+                return None
+            data = p.read_bytes()
+        except OSError:
+            return None
+        self.raw_source_bytes = data  # memoize
+        return data
