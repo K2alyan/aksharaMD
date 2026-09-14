@@ -1,0 +1,6 @@
+{
+  "parser_id": "mineru",
+  "parser_notes": "OpenDataLab MinerU — dual layout + VLM PDF engine. Fingerprint set starts empty; populate as stubs are identified.",
+  "catalog_version": "0",
+  "stubs": []
+}
