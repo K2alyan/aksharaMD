@@ -812,6 +812,68 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # W_GIBBERISH — score cap at 84 (top of OK band).
+    # Rationale: experimental-maturity signal (P2 pattern-based detector).
+    # Non-standard character density or extreme repetition runs indicate
+    # the parser produced non-linguistic content. Softer cap than the
+    # RISKY-band signals (69) — the detector does NOT catch letter-
+    # substitution OCR corruption (deferred to language-model P2 v2), so
+    # it under-reports and a hard RISKY cap would be too aggressive.
+    # Same treatment as W_PLACEHOLDER_STUB for experimental signals.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _GIB_CAP = 84
+    if warnings_by_code.get("W_GIBBERISH", 0):
+        gib_diag = doc.metadata.get("gibberish_diagnostics", {})
+        gib_maturity = gib_diag.get("warning_maturity", "")
+        non_standard_density = gib_diag.get("non_standard_density", 0.0)
+        extreme_run_count = gib_diag.get("extreme_run_count", 0)
+        long_run_count = gib_diag.get("long_run_count", 0)
+        fired_triggers = gib_diag.get("fired_triggers", [])
+        if score > _GIB_CAP:
+            effective_penalty = score - _GIB_CAP
+            score = _GIB_CAP
+            notes.append(
+                "Gibberish content detected in extracted output — the "
+                "output contains at-least-N non-linguistic patterns "
+                f"(mojibake, symbol junk, or extreme repetition). Score "
+                f"capped at {_GIB_CAP} (top of OK band). [W_GIBBERISH]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_GIBBERISH",
+                description=f"Gibberish content; score capped at {_GIB_CAP}",
+                penalty=effective_penalty,
+                maturity=gib_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="non_standard_density",
+                    metric_value=float(non_standard_density),
+                    threshold=0.15,
+                    extras={
+                        "extreme_run_count": int(extreme_run_count),
+                        "long_run_count": int(long_run_count),
+                        "fired_triggers": list(fired_triggers),
+                    },
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_GIBBERISH",
+                description=f"Gibberish content; cap ({_GIB_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_GIB_CAP}",
+                maturity=gib_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="non_standard_density",
+                    metric_value=float(non_standard_density),
+                    threshold=0.15,
+                    extras={
+                        "extreme_run_count": int(extreme_run_count),
+                        "long_run_count": int(long_run_count),
+                        "fired_triggers": list(fired_triggers),
+                    },
+                ),
+            ))
+
     # W_IMAGE_ONLY_TEXT_BAR_FAIL — score cap at 69 (RISKY band).
     # Rationale: candidate-maturity signal. Ratified per
     # docs/calibration/USP_CLAIM_V1.md §5.2 (text-only bar). A PDF classified

@@ -335,19 +335,18 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_8(self):
-        assert SCORING_POLICY_VERSION == "1.8", (
-            "SCORING_POLICY_VERSION was bumped to 1.8 for P1.1 cap "
-            "wiring — W_PLACEHOLDER_STUB now caps at 84 (top of OK band) "
-            "for experimental maturity per detection-vs-scoring "
-            "separation follow-up. Any subsequent policy change must "
+    def test_version_is_1_9(self):
+        assert SCORING_POLICY_VERSION == "1.9", (
+            "SCORING_POLICY_VERSION was bumped to 1.9 for P2 "
+            "GibberishValidator — registered W_GIBBERISH with cap at 84 "
+            "(experimental, content). Any subsequent policy change must "
             "bump it again."
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.8"
+        assert result.scoring_policy_version == "1.9"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -361,7 +360,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.8"
+        assert result.scoring_policy_version == "1.9"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────

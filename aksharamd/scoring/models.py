@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SCORING_POLICY_VERSION = "1.8"
+SCORING_POLICY_VERSION = "1.9"
 
 
 @dataclass
@@ -344,6 +344,22 @@ SCORING_POLICY: dict[str, ScoringRule] = {
             "bound per arXiv 2605.07293. Experimental maturity — "
             "softer cap while the P0.5 corpus grows beyond one "
             "positive + one negative per class."
+        ),
+        max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
+        formula="score = min(score, 84)  # top of OK band",
+        category="content",
+    ),
+    "W_GIBBERISH": ScoringRule(
+        rule_id="W_GIBBERISH",
+        description=(
+            "Score cap when the extracted output contains gibberish — "
+            "high non-standard-character density (mojibake byte fragments, "
+            "symbol junk) or extreme character repetition indicating parser "
+            "failure. Framed as a lower bound per arXiv 2605.07293. "
+            "Experimental maturity — pattern-based, does not catch "
+            "letter-substitution OCR corruption (rn->m, cl->d); that "
+            "failure mode is deferred to a future language-model-based "
+            "P2 v2 detector."
         ),
         max_penalty=16,  # cap at 84; max realized penalty is 100 - 84 = 16
         formula="score = min(score, 84)  # top of OK band",

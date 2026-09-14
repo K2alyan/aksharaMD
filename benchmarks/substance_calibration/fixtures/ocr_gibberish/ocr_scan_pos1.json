@@ -4,5 +4,5 @@
   "is_negative": false,
   "expected_rules": ["W_GIBBERISH"],
   "expected_pages": [1],
-  "notes": "Financial report with heavy character-substitution OCR corruption: cl->d, rn->m, l->1, o->0, e->c, u->n. Word-validity ratio should be low enough for gibberish detector to fire."
+  "notes": "Financial report with mojibake byte fragments (Ã), symbol junk (¤¤¤, §§§, †††, ###), and extreme character-repetition runs (aaaaaaa) — the failure modes P2's pattern-based W_GIBBERISH detector catches. Prior fixture used letter-substitution OCR corruption (rn->m, cl->d) which requires a language-model approach and is deferred to a future P2 v2 detector. Rewrite noted in the P2 PR body."
 }

@@ -47,6 +47,7 @@ from .plugins.exporters import quality_assessment as _quality_assessment_exporte
 from .plugins.exporters.markdown import render_markdown
 from .plugins.optimizers import token as _optimizer_pkg  # noqa: F401
 from .plugins.validators import encoding_artifacts as _ea_validator_pkg  # noqa: F401
+from .plugins.validators import gibberish as _gib_validator_pkg  # noqa: F401
 from .plugins.validators import header_footer_table as _hft_validator_pkg  # noqa: F401
 from .plugins.validators import multicolumn as _multicolumn_validator_pkg  # noqa: F401
 from .plugins.validators import placeholder_stub as _ps_validator_pkg  # noqa: F401
