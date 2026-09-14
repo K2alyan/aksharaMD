@@ -695,7 +695,10 @@ def test_scoring_policy_version_unchanged():
     # per checker audit.
     # Bumped 1.6 -> 1.7 by P1.1 PlaceholderStubValidator (2026-09-13):
     # registered W_PLACEHOLDER_STUB (experimental, content, detection-only).
+    # Bumped 1.7 -> 1.8 by P1.1 cap wiring (2026-09-13):
+    # W_PLACEHOLDER_STUB now caps at 84 (top of OK band) for experimental
+    # maturity per detection-vs-scoring separation follow-up.
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.7"
+    assert SCORING_POLICY_VERSION == "1.8"

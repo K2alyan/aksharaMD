@@ -742,6 +742,76 @@ def compute_confidence(ctx: CompilationContext) -> ReadinessResult:
                 ),
             ))
 
+    # W_PLACEHOLDER_STUB — score cap at 84 (top of OK band).
+    # Rationale: experimental-maturity signal (P1.1 detector). Pattern-based
+    # detection reports a LOWER BOUND on stub content (per arXiv 2605.07293);
+    # bracketed placeholders, extraction stubs (<figure>, [Image omitted]),
+    # LLM refusal fingerprints, and underscored form blanks all indicate the
+    # extracted output contains stub or placeholder text where real content
+    # was expected. Softer cap than the RISKY-band signals (69) while the
+    # evidence base grows — the P0.5 corpus is 1 positive + 1 negative per
+    # class, promoted from experimental to candidate once broader
+    # calibration lands. Same treatment as W_HEADER_FOOTER_TABLE_GARBLED
+    # for experimental-maturity signals.
+    # See docs/calibration/SCORING_POLICY.md for the cap decision.
+    _PS_CAP = 84
+    if warnings_by_code.get("W_PLACEHOLDER_STUB", 0):
+        ps_diag = doc.metadata.get("placeholder_stub_diagnostics", {})
+        ps_maturity = ps_diag.get("warning_maturity", "")
+        bracket_count = ps_diag.get("bracket_count", 0)
+        extraction_stub_count = ps_diag.get("extraction_stub_count", 0)
+        refusal_count = ps_diag.get("refusal_count", 0)
+        underscore_run_count = ps_diag.get("underscore_run_count", 0)
+        fired_triggers = ps_diag.get("fired_triggers", [])
+        if score > _PS_CAP:
+            effective_penalty = score - _PS_CAP
+            score = _PS_CAP
+            notes.append(
+                "Placeholder or stub content detected in extracted output — "
+                "the extracted markdown contains at-least-N stub markers where "
+                f"real content was expected. Score capped at {_PS_CAP} "
+                "(top of OK band). [W_PLACEHOLDER_STUB]"
+            )
+            deductions.append(DeductionRecord(
+                rule_id="W_PLACEHOLDER_STUB",
+                description=f"Placeholder/stub content; score capped at {_PS_CAP}",
+                penalty=effective_penalty,
+                maturity=ps_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="fired_trigger_count",
+                    metric_value=float(len(fired_triggers)),
+                    threshold=1.0,
+                    extras={
+                        "bracket_count": int(bracket_count),
+                        "extraction_stub_count": int(extraction_stub_count),
+                        "refusal_count": int(refusal_count),
+                        "underscore_run_count": int(underscore_run_count),
+                        "fired_triggers": list(fired_triggers),
+                    },
+                ),
+            ))
+        else:
+            deductions.append(DeductionRecord(
+                rule_id="W_PLACEHOLDER_STUB",
+                description=f"Placeholder/stub content; cap ({_PS_CAP}) did not apply",
+                penalty=0,
+                suppressed=True,
+                suppression_reason=f"score already <= {_PS_CAP}",
+                maturity=ps_maturity,
+                evidence=ReadinessEvidence(
+                    metric_name="fired_trigger_count",
+                    metric_value=float(len(fired_triggers)),
+                    threshold=1.0,
+                    extras={
+                        "bracket_count": int(bracket_count),
+                        "extraction_stub_count": int(extraction_stub_count),
+                        "refusal_count": int(refusal_count),
+                        "underscore_run_count": int(underscore_run_count),
+                        "fired_triggers": list(fired_triggers),
+                    },
+                ),
+            ))
+
     # W_IMAGE_ONLY_TEXT_BAR_FAIL — score cap at 69 (RISKY band).
     # Rationale: candidate-maturity signal. Ratified per
     # docs/calibration/USP_CLAIM_V1.md §5.2 (text-only bar). A PDF classified

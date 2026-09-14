@@ -335,18 +335,19 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_7(self):
-        assert SCORING_POLICY_VERSION == "1.7", (
-            "SCORING_POLICY_VERSION was bumped to 1.7 for P1.1 "
-            "PlaceholderStubValidator — registered W_PLACEHOLDER_STUB "
-            "(experimental, content, detection-only). Any subsequent "
-            "policy change must bump it again."
+    def test_version_is_1_8(self):
+        assert SCORING_POLICY_VERSION == "1.8", (
+            "SCORING_POLICY_VERSION was bumped to 1.8 for P1.1 cap "
+            "wiring — W_PLACEHOLDER_STUB now caps at 84 (top of OK band) "
+            "for experimental maturity per detection-vs-scoring "
+            "separation follow-up. Any subsequent policy change must "
+            "bump it again."
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.7"
+        assert result.scoring_policy_version == "1.8"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -360,7 +361,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.7"
+        assert result.scoring_policy_version == "1.8"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────
@@ -536,3 +537,118 @@ class TestTableExpectedNotExtractedCap:
         assert len(te) == 1
         assert te[0].suppressed is True
         assert te[0].penalty == 0
+
+
+# ── W_PLACEHOLDER_STUB — cap at 84 (top of OK) ────────────────────────────────
+
+class TestPlaceholderStubCap:
+    """Cap regression for P1.1 placeholder-stub detector.
+
+    Experimental maturity — softer cap at 84 (top of OK band) while the
+    P0.5 corpus grows beyond 1 positive + 1 negative per class. Fires on
+    any of four triggers: bracket placeholders, extraction stubs,
+    LLM refusals, underscored form blanks.
+    """
+
+    def test_warning_caps_at_84(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_PLACEHOLDER_STUB"],
+            metadata_extras={
+                "placeholder_stub_diagnostics": {
+                    "bracket_count": 5,
+                    "extraction_stub_count": 0,
+                    "refusal_count": 0,
+                    "underscore_run_count": 0,
+                    "nonempty_lines": 42,
+                    "fired_triggers": ["bracket_placeholder"],
+                    "warning_maturity": "experimental",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 84, (
+            f"W_PLACEHOLDER_STUB must cap score at 84 (top of OK); got {result.score}"
+        )
+        # Softer than RISKY (69) — cap stays above OK unless another rule dinges.
+        assert result.score >= 70
+
+    def test_extraction_stub_trigger_also_caps(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_PLACEHOLDER_STUB"],
+            metadata_extras={
+                "placeholder_stub_diagnostics": {
+                    "bracket_count": 0,
+                    "extraction_stub_count": 3,
+                    "refusal_count": 0,
+                    "underscore_run_count": 0,
+                    "nonempty_lines": 40,
+                    "fired_triggers": ["extraction_stub"],
+                    "warning_maturity": "experimental",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        assert result.score <= 84
+
+    def test_deduction_recorded_with_maturity_and_evidence(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=["W_PLACEHOLDER_STUB"],
+            metadata_extras={
+                "placeholder_stub_diagnostics": {
+                    "bracket_count": 4,
+                    "extraction_stub_count": 1,
+                    "refusal_count": 0,
+                    "underscore_run_count": 3,
+                    "nonempty_lines": 55,
+                    "fired_triggers": [
+                        "bracket_placeholder",
+                        "extraction_stub",
+                        "underscore_run",
+                    ],
+                    "warning_maturity": "experimental",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        ps = [d for d in result.deductions if d.rule_id == "W_PLACEHOLDER_STUB"]
+        assert len(ps) == 1
+        assert ps[0].maturity == "experimental"
+        assert ps[0].penalty > 0
+        assert ps[0].suppressed is False
+        assert ps[0].evidence is not None
+        assert ps[0].evidence.metric_name == "fired_trigger_count"
+        assert ps[0].evidence.metric_value == 3.0
+        assert ps[0].evidence.extras.get("bracket_count") == 4
+        assert ps[0].evidence.extras.get("extraction_stub_count") == 1
+        assert ps[0].evidence.extras.get("underscore_run_count") == 3
+
+    def test_suppressed_when_score_already_below_cap(self):
+        ctx = _clean_pdf_ctx(
+            warning_codes=[
+                "W_PLACEHOLDER_STUB",
+                "GLYPH_ARTIFACTS",  # -25
+            ],
+            metadata_extras={
+                "placeholder_stub_diagnostics": {
+                    "bracket_count": 5,
+                    "extraction_stub_count": 0,
+                    "refusal_count": 0,
+                    "underscore_run_count": 0,
+                    "nonempty_lines": 40,
+                    "fired_triggers": ["bracket_placeholder"],
+                    "warning_maturity": "experimental",
+                    "warned": True,
+                },
+            },
+        )
+        result = compute_confidence(ctx)
+        # Base pdf=87 -25 = 62; 62 < 84 → cap does not apply.
+        assert result.score <= 84
+        ps = [d for d in result.deductions if d.rule_id == "W_PLACEHOLDER_STUB"]
+        assert len(ps) == 1
+        assert ps[0].suppressed is True
+        assert ps[0].penalty == 0
+        assert "already" in ps[0].suppression_reason
