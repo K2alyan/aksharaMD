@@ -16,6 +16,19 @@ This protocol does not:
 - Attempt to prove AksharaMD is superior to any existing benchmark or tool. The comparative claim we care about is *complementarity* (§6.1), not aggregate superiority.
 - Establish per-parser recommendations or a public parser leaderboard. If the data supports one, it is a downstream artifact of the study; the study is not designed around it.
 
+## 0.1 What merging this protocol does and does not authorize
+
+Merging `PROTOCOL_V1.md` to `develop` is approval of **the methodology only**. It is not authorization to execute the held-out benchmark.
+
+Downstream execution is **staged and each stage requires a separate authorization** against this frozen protocol:
+
+1. **Authorization A — 3-document infrastructure smoke test.** Verifies every adapter runs, every ground-truth pipeline produces expected labels, every detector returns output. No results claim.
+2. **Authorization B — ~20-document methodological pilot.** Calibrate the rubric, measure inter-annotator agreement, refine metrics, discover pathological runtime and normalization bugs. No V1 claims yet.
+3. **Authorization C — freeze (§10).** Once pilot exit criteria (§9.2) are satisfied, freeze the study via the Study Freeze Manifest (§10.1). No further protocol changes without an amendment (§10.4).
+4. **Authorization D — held-out execution.** Run the frozen protocol on the held-out corpus. Only after this stage is any L1-L3 claim in §1.2 supportable.
+
+The next authorization to seek after merging this protocol is Authorization A only.
+
 ---
 
 ## 1. Study design overview
@@ -54,8 +67,8 @@ This is the master table for the study. Every public claim we plan to make must 
 |---|---|---|
 | **Detects catastrophic silent omissions** (L1) | Held-out oracle-grounded dropped-content evaluation on PMC-OA subset | Recall < 0.70 on documents where source XML shows > 30% word loss (rationale §12.1) |
 | **Low false-alarm burden on clean documents** (L1) | Clean-native held-out corpus (Federal Register / SEC subset) | FPR > 0.05 across the three new content-axis detectors combined (rationale §12.2) |
-| **Score reflects extraction quality** (L2) | Adjudicated severity labels vs score, per document | Weak (Spearman < 0.5) or non-monotonic score/severity relationship on the calibration set (rationale §12.3) |
-| **Cap thresholds correspond to meaningful quality steps** (L2) | Distribution of adjudicated severity labels above/below each cap value | ≥ 30% of documents scored just below a cap have severity indistinguishable from those just above (rationale §12.4) |
+| **Score reflects extraction quality** (L2) | Held-out adjudicated severity labels vs score, per document (calibration set establishes/tests the relationship; held-out corpus independently verifies it under the frozen scoring rule) | Weak (Spearman < 0.5) or non-monotonic score/severity relationship on the **held-out** set (rationale §12.3) |
+| **Cap thresholds correspond to meaningful quality steps** (L2) | Distribution of adjudicated severity labels above/below each cap value on the **held-out** set (calibration set may inform threshold selection pre-freeze; held-out is the validation) | ≥ 30% of documents scored just below a cap have severity indistinguishable from those just above **on the held-out set** (rationale §12.4). Failure here fails V1 — no post-hoc cap tuning is permitted. |
 | **Adds information beyond conventional metrics** (L3) | Adjudicated disagreement quadrants (§6.1) with an external metric | The novel-information cells (Conv=GOOD/AKS=BAD and Conv=BAD/AKS=GOOD) together < 15% of the disagreement quadrant, adjudicated as genuine and useful < 50% of the time (rationale §12.5) |
 | **Localizes extraction problems** (L3) | Diagnostic-location adjudication on the disagreement quadrant | ≥ 30% of "silent-failure" flags produce localization that reviewers cannot map to a specific offending region within reasonable effort (rationale §12.6) |
 | **Helps explain downstream RAG failures** (L3) | Controlled RAG demonstration (§6.2) | Extraction warnings correlate at Spearman < 0.3 with downstream QA-answer failures, or a placebo control (random flags at the same rate) explains equally well (rationale §12.7) |
@@ -93,7 +106,7 @@ Each candidate corpus is listed with (a) what kind of ground truth it provides, 
 | **QASPER** (arXiv papers with QA pairs) | QA pairs with reference answers | Downstream RAG demonstration (§6.2) | Answer quality depends on many upstream factors besides extraction | G2 for answer-quality adjudication |
 | **TAT-DQA** (financial tables with QA pairs) | QA pairs on tabular content | Downstream RAG demonstration for table-heavy content | Table-focused; not representative of prose | G2 for answer-quality adjudication |
 
-**REVIEW DECISION 2.2.a:** Include RealDocBench (arXiv 2606.07401) as a fifth ground-truth corpus for regulated-doc field-level QA? Adds ~200 documents in insurance/finance/gov domains with field-level annotations. **Alternatives:** (i) include as G1 for field-level content presence; (ii) defer to V2 because setup is nontrivial; (iii) include only in the development set to guide detector calibration. **Recommendation:** (ii) defer to V2 to keep V1 focused; V1 already has G1 coverage from PMC-OA (textual) and DocLayNet (structural) and CUAD (span).
+**RESOLVED (Decision 2.2.a):** RealDocBench (arXiv 2606.07401) is **deferred to V2**. V1 already has enough moving parts and G1 coverage from PMC-OA (textual) and DocLayNet (structural) and CUAD (span). RealDocBench is added later as external replication / generalization evidence.
 
 ### 2.3 Ground-truth × detector matrix
 
@@ -135,7 +148,7 @@ Four labels, defined **before** any parser is run. Labels are the ground-truth a
 | **MAJOR** | The extraction is significantly compromised. Downstream user will notice the impact. | 50–85% of source words preserved; substantial tables or sections lost; noticeable gibberish or stubs. |
 | **CATASTROPHIC** | The extraction is functionally broken. Downstream RAG or LLM ingestion will produce wrong or misleading answers. | < 50% of source words preserved (matches W_DROPPED_CONTENT threshold at cap 69); OR extensive placeholder stubs in body; OR whole sections replaced with junk. |
 
-**REVIEW DECISION 3.1.a:** four-level scheme (GOOD/MINOR/MAJOR/CATASTROPHIC) vs. three-level (GOOD/DEGRADED/BROKEN) vs. five-level with an OK band between MINOR and MAJOR. **Alternatives** cited in the Meurs-DeFilippis IAA literature; four labels are the most common in extraction-QA IAA studies. **Recommendation:** four levels as above. Reasoning: matches the RISKY/OK/HIGH bands already used internally in AksharaMD, so results are directly interpretable against existing cap thresholds; three levels loses cap-84-vs-cap-69 distinguishability; five levels multiplies reviewer disagreement without adding actionable resolution.
+**RESOLVED (Decision 3.1.a):** **Four-level scheme approved** as documented (GOOD / MINOR / MAJOR / CATASTROPHIC). Reasoning: matches the RISKY/OK/HIGH bands already used internally in AksharaMD so results are directly interpretable against existing cap thresholds; three levels loses cap-84-vs-cap-69 distinguishability; five levels creates false precision and multiplies reviewer disagreement without adding actionable resolution.
 
 ### 3.2 Labeling rubric
 
@@ -156,7 +169,12 @@ The deterministic mapping table is a critical protocol artifact: without it, rev
 - **Tie-breaker rule:** If the two labels differ by ≤ 1 level (e.g., MINOR vs. MAJOR), take the lower-quality label conservatively. If they differ by ≥ 2 levels, a third adjudicator resolves.
 - **Training:** Each reviewer completes a 20-example training set (drawn from the development corpus, NOT the held-out corpus) and must achieve ≥ 80% agreement with a gold-standard label set before scoring counts.
 - **Inter-annotator agreement (IAA) target:** Cohen's κ ≥ 0.7 across the pilot set. If IAA falls below 0.7, the rubric must be refined and reviewers retrained before the full held-out run.
-- **REVIEW DECISION 3.3.a:** Who are the reviewers? **Alternatives:** (i) protocol authors as V1 reviewers, with a public statement about the conflict of interest; (ii) recruited external reviewers via a domain-appropriate crowd platform; (iii) hybrid — protocol authors do development-set labeling, external reviewers do held-out labeling. **Recommendation:** (iii) hybrid. Protocol authors label the ~20-doc pilot to refine the rubric; external reviewers label the held-out set to remove the conflict of interest. Requires small budget (~$500-1500) for external labeling; commit up front.
+- **RESOLVED (Decision 3.3.a):** **Hybrid sourcing approved with stricter held-out rules.**
+  - Protocol authors label the ~20-doc pilot to refine the rubric. Authors' pilot labels do NOT contribute to any held-out result.
+  - Held-out labeling is done by **independent external reviewers** blinded to (a) parser identity, (b) AksharaMD score, (c) AksharaMD warning codes, and (d) any other detector output, wherever operationally feasible.
+  - Where a specific adjudication task requires visibility into AksharaMD's flag (e.g., the localization actionability question in §6.3 requires seeing the diagnostic location), the reviewer is blinded to the *conclusion* — they answer "can this flag be mapped to a specific region?" without seeing whether AksharaMD scored the document high or low overall.
+  - Held-out disagreement adjudication (§6.1) is the highest-stakes reviewer task and must run under full blinding: reviewer sees the parser output and source PDF and answers the prewritten questions independently of any tool's verdict.
+  - Budget: ~$500-1500 for external labeling committed up front.
 
 ### 3.4 Blinding and order randomization
 
@@ -212,24 +230,36 @@ Each detector is evaluated according to the strongest tier of evidence available
 
 ## 5. Score validity
 
-Score validity is measured on the calibration corpus **only** — the held-out corpus is used exclusively for detector-validity and product-utility measurements after the freeze (§10). Otherwise the held-out data would inform the score-calibration process and the frozen thresholds would be over-fit.
+Score validity is measured in **two distinct phases:**
 
-### 5.1 Monotonicity and severity correlation
+- **Phase A — Calibration (pre-freeze).** On the calibration corpus, establish and confirm the scoring rule's behavior. This phase is where any parameter selection or threshold confirmation happens. Adjustments to the scoring implementation, if any, are made here and must be committed **before** the freeze.
+- **Phase B — Held-out validation (post-freeze).** On the held-out corpus, using the frozen scoring rule, re-compute the same severity correlation and cap-distinguishability tests. This is the actual validation. **If held-out score validity fails, it fails V1.** No post-hoc scoring changes are permitted. The failure becomes a candidate finding for V2 protocol amendment.
 
-- **Method:** For each `(document, parser)` in the calibration set, obtain the human severity label (§3) and the AksharaMD score. Compute Spearman rank correlation.
-- **Also compute** correlation between `structural_score` and structure-related severity aspects (from Q1 in §3.2); and between `content_score` and content-related severity aspects (Q2 in §3.2). Two-axis-receipt validity depends on this decomposition making sense.
-- **Predeclared:** overall Spearman ≥ 0.5; per-axis Spearman ≥ 0.4 on the corpus subset where the axis is applicable (rationale §12.3).
+The calibration corpus is where you learn what the scoring rule is; the held-out corpus is where you verify that the frozen scoring rule generalizes. Both are required for the L2 claim.
 
-### 5.2 Cap-value validation
+### 5.1 Phase A — Calibration analysis (pre-freeze)
 
-- **Method:** Sort calibration `(document, parser)` pairs by score. For each cap value (currently 69, 84), compute the distribution of adjudicated severity labels for documents scoring just below vs. just above the cap.
-- **Predeclared:** for each cap value, the severity distribution above and below the cap must be distinguishable at Mann–Whitney U p < 0.05 with ≥ 20 documents in each side of the boundary. If not, the cap value is a candidate for revision in V2.
-- **Predeclared:** ≥ 30% of documents just below a cap should NOT be severity-indistinguishable from those just above (rationale §12.4). Failure here means the cap does not correspond to a meaningful quality step.
+- **Method:** For each `(document, parser)` in the **calibration** set, obtain the human severity label (§3) and the AksharaMD score. Compute Spearman rank correlation. Also compute per-axis correlations (structural_score vs Q1; content_score vs Q2).
+- **Also:** sort calibration pairs by score and inspect the distribution of severity labels above/below each cap value (currently 69, 84). If the current caps do not correspond to visible severity steps in the calibration data, propose new cap values here — *before* the freeze — with documented rationale. Post-freeze cap changes are prohibited.
+- **Output:** the frozen scoring rule (with any calibration-informed adjustments) plus an internal calibration report documenting the observed correlations. The calibration report itself is not a V1 claim — it is the input to the held-out validation.
+
+### 5.2 Phase B — Held-out validation (post-freeze, frozen scoring rule)
+
+- **Method:** On the **held-out** corpus, using the scoring rule from the freeze, compute:
+  - Spearman rank correlation between AksharaMD score and human severity label.
+  - Per-axis Spearman (structural_score vs Q1 aspects, content_score vs Q2 aspects).
+  - Distribution of severity labels above and below each cap value.
+- **Predeclared thresholds (rationales in §12):**
+  - Overall Spearman ≥ 0.5 (rationale §12.3).
+  - Per-axis Spearman ≥ 0.4 where the axis is applicable.
+  - For each cap value: severity distributions above vs below the cap distinguishable at Mann–Whitney U p < 0.05 with ≥ 20 documents on each side.
+  - ≥ 30% of documents just below a cap must NOT be severity-indistinguishable from those just above (rationale §12.4).
+- **Failure handling:** if any held-out score-validity threshold fails, **the L2 claim fails V1.** No post-hoc adjustments to the scoring rule, caps, or threshold values. The observation is recorded in `POST_FREEZE_OBSERVATIONS.md` (§10.3) as evidence for the V2 protocol amendment.
 
 ### 5.3 Cap-attribution honesty
 
 - Score-capped deductions (`IMAGE_PLACEHOLDER_NO_FALLBACK`, `W_*` cap rules) contribute their realized penalty to the axis score in the current implementation. This is documented as a known imprecision in `aksharamd/scoring/models.py` and PR #159.
-- **The V1 study measures the current implementation as shipped.** If cap-attribution imprecision degrades score validity below the §5.1 threshold, that becomes evidence for a V2 refinement — not a reason to change the implementation mid-study.
+- **The V1 study measures the current implementation as shipped.** If cap-attribution imprecision degrades held-out score validity below the §5.2 thresholds, that becomes evidence for a V2 refinement — not a reason to change the implementation mid-study.
 
 ---
 
@@ -277,9 +307,9 @@ Four parsers. Version-pinned in the frozen `benchmark-v1-frozen` tag.
 | `docling` | `docling` | VLM + layout model | Heavy dependencies; some known memory issues on large PDFs |
 | `markitdown` | `markitdown` (Microsoft) | Broad-format converter | Fast, CPU-only |
 
-**REVIEW DECISION 7.a:** Add `mineru` and/or `unlimited_ocr` (bundled OCR backend) to V1? **Alternatives:** (i) add both — three OCR-heavy parsers plus reference gives strongest architectural coverage but multiplies compute; (ii) defer both to V2 — V1 stays with the four above; (iii) add `mineru` only. **Recommendation:** (ii) defer both. Rationale: `mineru` requires 14 GB VRAM and complex install; `unlimited_ocr` is architecturally similar; V1's four parsers already span three distinct families (direct, VLM+layout ×2, broad-format converter), which is sufficient for the L3 disagreement claim.
+**RESOLVED (Decision 7.a):** **Four parsers approved for V1** as documented. `mineru` and `unlimited_ocr` deferred to V2. Rationale: V1's four parsers already span three distinct architectural families (direct PDF text-layer, VLM+layout ×2, broad-format converter), which is sufficient for the L3 disagreement claim without multiplying compute and setup costs. V2 broadening can be motivated by V1 evidence.
 
-**REVIEW DECISION 7.b:** Cloud parsers (`LlamaParse`, `Reducto`) in V1? **Alternatives:** (i) yes — the story is stronger if commercial parsers are in the set; (ii) no — cost, API-key management, and revocable-service risk (a parser could become unavailable during the run) make the study less reproducible. **Recommendation:** (ii) no in V1. If we ever add commercial parsers, the study needs a separate ethics + reproducibility clause; not V1 scope.
+**RESOLVED (Decision 7.b):** **Cloud parsers (LlamaParse, Reducto) excluded from V1.** Reproducibility concerns (API drift, key management, revocable service risk, per-call cost) complicate the first validation study unnecessarily. If we ever add commercial parsers, the study will need a separate ethics + reproducibility clause; not V1 scope.
 
 ### 7.1 Parser adapter contract
 
@@ -312,7 +342,7 @@ Four parsers. Version-pinned in the frozen `benchmark-v1-frozen` tag.
 
 ### 8.3 Sample size — held-out target
 
-**REVIEW DECISION 8.3.a:** Total held-out corpus size. **Alternatives:** (i) ~100 docs (fast, tight statistics on aggregate but noisy per-cell); (ii) ~200 docs (balances tightness and coverage); (iii) ~400 docs (best per-cell power but doubles labeling cost and compute). **Recommendation:** (ii) ~200 docs at ~50 per candidate corpus. Rationale: for the disagreement 2×2 to have useful power in the "silent failure" cell, we need at least ~20 documents there; assuming disagreement occurs on ~20% of documents and the silent-failure cell is ~half of that, ~200 documents gives ~20 silent-failure cases per parser. See §11 for the worked calculation.
+**RESOLVED (Decision 8.3.a):** **~200 documents approved provisionally, NOT as a hard N.** The final held-out N is determined by the failure-event-count requirement below (§8.4). The ~200 figure is a working estimate for compute and labeling budget only. If the pilot reveals that natural-prevalence event counts are lower than assumed, N grows accordingly; if enrichment (see §8.4) sufficiently supplies event counts, N may stay at ~200 with clear enrichment disclosure. **The statistical plan (§11.4), not budget convenience, decides the final number.**
 
 ### 8.4 Failure-event count vs document count
 
@@ -320,7 +350,12 @@ Document count is NOT the correct statistical estimand for detector recall. Dete
 
 **A corpus of 200 pristine PDFs would tell us essentially nothing about catastrophic-failure recall.** The corpus mix must include documents where each failure class is expected to occur, at rates sufficient to compute per-detector recall with reasonable confidence intervals.
 
-**REVIEW DECISION 8.4.a:** How to ensure per-class event counts? **Alternatives:** (i) purposive sampling — deliberately include corpora / parsers known to produce failures (e.g., docling on very large PDFs; markitdown on complex tables); (ii) enrichment — start with a random sample and add known-failure cases from prior benchmarks; (iii) accept whatever occurs naturally. **Recommendation:** (ii) enrichment. Add a known-failure supplement drawn from prior AksharaMD-flagged cases (transparently disclosed in results) to guarantee each detector has ≥ 15 events for recall estimation. This is enrichment sampling, not selection bias, provided it is disclosed and the aggregate rate is not claimed as representative.
+**RESOLVED (Decision 8.4.a):** **Enrichment approved with mandatory separation.** The held-out corpus is partitioned into two subsets that are analyzed and reported **separately, never combined into a single headline number:**
+
+1. **Naturalistic subset** — random sampling from the candidate corpora. Answers the question *"How does AksharaMD behave on documents encountered without deliberately selecting failures?"* Aggregate FPR, natural-prevalence detector-fire rates, and precision-on-flagged-cases on this subset alone.
+2. **Challenge subset** — enrichment with known-failure cases drawn from prior AksharaMD-flagged runs and from documents where reference-corpus GT indicates catastrophic events. Answers *"When meaningful extraction failures actually occur, how good is AksharaMD at detecting them?"* Recall, precision on the enriched cases.
+
+The two subsets carry distinct estimand columns in every reported table (see §11.1). Aggregate metrics that mix both are **prohibited** — they would silently smuggle enrichment bias into a naturalistic-sounding claim. Enrichment must be transparently disclosed: source of enriched documents, size of the enrichment, and its rationale.
 
 ---
 
@@ -377,18 +412,56 @@ If any pilot exit criterion fails, do NOT proceed to freeze. Document the failur
 
 The freeze is the single most important methodological guardrail in this protocol. If the freeze fails operationally, the study reduces to a development-set report and cannot support any L1-L3 claim.
 
-### 10.1 What gets frozen
+**Two things must be frozen: AksharaMD *and* the entire evaluation machinery.** Otherwise the goalposts can move without any AksharaMD modification — e.g., a change to XML preprocessing, label mapping, exclusion logic, or conventional-metric implementation shifts what is measured while AksharaMD stays untouched.
 
-At freeze time, the following are pinned:
+### 10.1 Study Freeze Manifest
+
+At freeze time, the following are captured in a single reproducibility anchor at `docs/evaluation/STUDY_FREEZE_MANIFEST_V1.md`. The manifest either contains or references (with SHA-256 hashes) every item below. It is the artifact the paper cites as the reproducibility bundle.
+
+**AksharaMD side:**
 
 1. **Git tag** — `benchmark-v1-frozen` — created on develop, points at a specific commit.
-2. **AksharaMD implementation** — all detectors, thresholds, scoring policy, cap values, priority ordering, catalog contents.
-3. **Ground-truth pipelines** — code for extracting XML text, DocLayNet bboxes, CUAD spans.
-4. **Labels** — the deterministic (Q1, Q2, Q3) → label mapping table (Appendix B).
-5. **Corpus assignments** — dev/cal/held-out per document, published in `CORPUS_MANIFEST.md`.
-6. **Parser versions** — exact package versions for each adapter, published in `PROTOCOL_V1.md` §7.
-7. **Metric definitions** — every computation formula, published in Appendix C.
-8. **Predeclared criteria** — every number and rationale in §12.
+2. **AksharaMD implementation** — all detectors, thresholds, scoring policy, cap values, priority ordering.
+3. **Detector constants** — every numerical threshold in every validator, listed by name and value.
+4. **Score caps** — every cap value (currently 69, 84) with its rule id.
+5. **Parser-stub catalog contents** — `parser_stubs/*.json` at frozen commit, hashed.
+
+**Parser side:**
+
+6. **Parser versions** — exact package versions for each of the four V1 parsers, plus dependency lockfile.
+7. **Parser configuration** — every non-default flag, environment variable, or setting passed to each parser.
+
+**Corpus side:**
+
+8. **Corpus manifest + hashes** — every document with SHA-256, source URL, acquisition instructions.
+9. **Document partition assignment** — dev/cal/held-out labeling per document, published in `CORPUS_MANIFEST.md`.
+10. **Naturalistic / challenge subset partition** — which held-out documents are enrichment (§8.4) and which are naturalistic, hashed.
+
+**Ground-truth pipeline:**
+
+11. **Ground-truth transformation procedures** — code for extracting XML text, DocLayNet bboxes, CUAD spans; committed under `benchmarks/eval_v1/ground_truth/`, hashed.
+12. **Normalization implementation** — every whitespace / hyphenation / Unicode / case-folding transformation applied before comparison, on both sides of any comparison.
+13. **Parser-output cleanup** — any post-parser normalization (e.g., stripping frontmatter, trimming trailing whitespace) applied uniformly across all parsers.
+
+**Metric side:**
+
+14. **Metric definitions** — every computation formula, published in Appendix C, committed as executable code.
+15. **Evaluation scripts** — end-to-end analysis pipeline from raw run outputs to reported numbers, under `benchmarks/eval_v1/analysis/`.
+16. **Conventional-metric implementations** — reference implementations of the "conventional" metrics used in the §6.1 disagreement analysis (e.g., PMC-OA word-overlap script, TEDS-as-adapted).
+
+**Adjudication side:**
+
+17. **Failure-label mapping table** — the deterministic (Q1, Q2, Q3) → label table (Appendix B).
+18. **Reviewer instructions** — verbatim question wording, presentation format, blinding rules.
+19. **Adjudication rubric versions** — every rubric a reviewer sees during held-out labeling, versioned.
+
+**Analysis-plan side:**
+
+20. **Exclusion rules** — the pre-declared exclusion criteria (§14) with any pilot-informed extensions.
+21. **Statistical analysis plan** — every estimand, CI method, correction procedure from §11.
+22. **Predeclared thresholds** — every number and rationale in §12.
+
+Any item on this list that changes between the freeze and the held-out run **invalidates the current held-out run and requires a full rerun.** The manifest is the operational definition of "frozen."
 
 ### 10.2 Execution rules during held-out run
 
@@ -415,29 +488,43 @@ At freeze time, the following are pinned:
 
 ### 11.1 Estimands
 
+Every estimand is computed **separately** for the naturalistic subset and the challenge subset (§8.4). Combined-subset numbers are prohibited in headline reporting; they silently smuggle enrichment bias.
+
 The primary estimands are:
 
-- **Detector precision** = TP / (TP + FP) per detector, per corpus.
-- **Detector recall** = TP / (TP + FN) per detector, per corpus, on documents where the failure class occurred.
-- **Detector FPR** = FP / (FP + TN) per detector, on documents where the failure class did not occur (clean corpus).
-- **Score/severity Spearman ρ** overall and per axis.
-- **Cap-value distinguishability** — Mann–Whitney U on severity labels above vs. below each cap.
-- **Disagreement rate** — proportion of `(document, parser)` in each 2×2 cell.
+- **Detector precision** = TP / (TP + FP) per detector, **per subset (naturalistic vs challenge)**, per corpus.
+- **Detector recall** = TP / (TP + FN) per detector, **on the challenge subset** (recall requires known failure events, so recall on the naturalistic subset alone would be too underpowered to interpret).
+- **Detector FPR** = FP / (FP + TN) per detector, **on the naturalistic subset only** (FPR on enriched corpora is meaningless because enrichment intentionally raises the failure rate).
+- **Score/severity Spearman ρ** overall and per axis, on the held-out set, computed per subset and reported side by side.
+- **Cap-value distinguishability** — Mann–Whitney U on severity labels above vs. below each cap, held-out only.
+- **Disagreement rate** — proportion of `(document, parser)` in each 2×2 cell, per subset.
 - **Downstream RAGAS correlation** — Spearman ρ between AksharaMD score and RAGAS answer-quality delta.
 - **Localization actionability rate** — proportion of flags reviewers can map to a specific region within 60s.
 
-### 11.2 Confidence intervals and uncertainty
+### 11.2 Document-level clustering and paired-parser structure
 
-- Bootstrap 95% CIs (10 000 resamples) for every point estimate.
-- Report `n` for every ratio; do not report a bare percentage without denominator.
+**Critical:** parser outputs on the same document are not independent. Four parsers processing the same PDF share the document's underlying difficulty — a horrible scanned PDF may make all four fail. `200 documents × 4 parsers = 800` observations are therefore **not 800 independent samples**.
+
+The analysis must account for this in three ways:
+
+1. **Bootstrap by document, not by observation.** Resample documents with replacement; for each resampled document, take all four parser outputs together. Compute the estimand on each bootstrap sample; take percentile CIs across resamples. This preserves the clustering structure. Analysis code must implement bootstrap-by-document; naive per-observation bootstrap is prohibited.
+2. **Paired parser comparisons.** When comparing parsers (e.g., disagreement rates, per-parser fidelity), use paired tests over documents (Wilcoxon signed-rank, or paired-percentile bootstrap). This exploits the shared-document structure and *strengthens* parser comparisons because both parsers were tested on identical inputs.
+3. **Mixed-effects modeling (optional, for exploratory questions).** For estimands where document and parser effects are both of interest — e.g., "how much of the score variance is explained by document difficulty vs. parser identity?" — a linear mixed-effects model with document as a random effect is appropriate. Predeclare which questions require this before running.
+
+**Failure to account for clustering inflates confidence and can produce apparent significance where none exists.** No headline number is reported without a bootstrap-by-document CI.
+
+### 11.3 Confidence intervals and uncertainty
+
+- Bootstrap 95% CIs (10 000 resamples), **resampling by document** per §11.2.
+- Report `n` for every ratio (both document count and observation count where they differ).
 - No p-values as pass/fail thresholds. Use CI-based interpretation.
 
-### 11.3 Multiple comparisons
+### 11.4 Multiple comparisons
 
 - Where multiple detectors × multiple corpora × multiple thresholds are compared, apply Benjamini-Hochberg correction for any exploratory findings.
 - Predeclared criteria (§12) are NOT corrected — they are single pre-registered tests each.
 
-### 11.4 Sample size rationale (worked example — silent-failure disagreement)
+### 11.5 Sample size rationale (worked example — silent-failure disagreement)
 
 For the L3 "silent-failure" claim to be defensible, the (Conv=GOOD / AksharaMD=BAD) cell must be non-trivial in size.
 
@@ -447,7 +534,14 @@ For the L3 "silent-failure" claim to be defensible, the (Conv=GOOD / AksharaMD=B
 - 40 cases / 10% cell rate → ~400 (document × parser) pairs per parser.
 - 4 parsers × ~100 documents = 400 pairs per parser (assuming each document runs through each parser). Suggests ~100 held-out documents. Doubling to ~200 provides tighter per-cell CIs and buffer for exclusions.
 
-**Recommendation:** ~200 held-out documents. Documented as ± ~0.10 CI half-width on the primary disagreement estimand. Adjust for V2 based on observed cell rates.
+**Working estimate:** ~200 held-out documents. Documented as ± ~0.10 CI half-width on the primary disagreement estimand.
+
+**However, the final N is determined by event counts, not by this rough calculation.** Per §8.4 the corpus is partitioned into naturalistic and challenge subsets, each with its own reporting. Per §11.2 the analysis bootstraps by document, so the effective independent-sample count is document count, not (document × parser) count. The pilot must confirm:
+
+- The naturalistic subset produces at least ~40 documents per parser landing in the disagreement quadrants.
+- The challenge subset produces at least ~15 failure-event documents per detector for recall estimation.
+
+If either count is short after the pilot, expand N before the freeze. **N is a consequence of the statistical plan, not an input to it.** Post-freeze N changes are prohibited.
 
 ---
 
@@ -570,6 +664,28 @@ Depending on which predeclared criteria are met, the following table maps outcom
 
 **A study where the "silent-failure detector" framing is not earned publishes a paper titled honestly** — for instance, *"An independent extraction-quality signal for PDF-derived RAG pipelines: V1 validation of a per-document scoring approach."* The framing is scaled to the evidence, not the other way around.
 
+### 15.1 Required closing structure of the Results document
+
+The eventual `docs/evaluation/RESULTS_V1.md` (produced post-held-out-run) must **literally end** with the following three explicit lists, unpadded:
+
+```
+CLAIMS EARNED
+✓ L1 — <detector name>: <estimand> = <value> [<CI>]; predeclared threshold met (§12.<n>).
+✓ L2 — <specific claim>: <estimand> = <value> [<CI>]; predeclared threshold met (§12.<n>).
+✓ L3 — <specific claim>: <estimand> = <value> [<CI>]; predeclared threshold met (§12.<n>).
+
+CLAIMS NOT EARNED (studied, did not meet threshold — no public claim will be made)
+✗ L3 — <specific claim>: <estimand> = <value> [<CI>]; predeclared threshold NOT met (§12.<n>).
+
+CLAIMS FALSIFIED (studied and actively contradicted)
+✗ <specific claim>: <estimand> = <value> [<CI>]; direction reversed / null hypothesis maintained (§12.<n>).
+
+CLAIMS NOT ADDRESSED IN V1
+- <specific claim>: study not powered / corpus not present / deferred to V2.
+```
+
+This is unusually transparent for an OSS benchmark and is a deliberate design choice: **the report shows the receipt rather than merely reporting a number.** Any subsequent public communication about AksharaMD must trace back to a specific "CLAIMS EARNED" entry. Marketing copy that references a "CLAIMS NOT EARNED" or "CLAIMS FALSIFIED" line is prohibited.
+
 ---
 
 ## Appendices
@@ -606,19 +722,21 @@ Depending on which predeclared criteria are met, the following table maps outcom
 
 *[To be produced during pilot. 20 pilot documents with gold-standard labels for reviewer calibration.]*
 
-### Appendix G — REVIEW DECISION queue
+### Appendix G — REVIEW DECISION queue — ALL RESOLVED
 
-The following decisions in this document remain unresolved and require answers before Milestone 1 pilot can begin.
+All seven V1 review decisions are resolved. In-doc references at their respective sections carry `RESOLVED (Decision N.n.x):` headers with the applied ruling.
 
-| # | Section | Decision |
-|---|---|---|
-| 1 | §2.2 | Include RealDocBench? (recommended: defer to V2) |
-| 2 | §3.1 | Failure taxonomy level count (recommended: 4-level as documented) |
-| 3 | §3.3 | Reviewer sourcing (recommended: hybrid — authors pilot, externals held-out) |
-| 4 | §7 | V1 parser slate size (recommended: 4 as documented, defer mineru / unlimited_ocr / cloud) |
-| 5 | §7.b | Cloud parsers in V1? (recommended: no) |
-| 6 | §8.3 | Total held-out corpus size (recommended: ~200) |
-| 7 | §8.4 | Failure-event enrichment strategy (recommended: enrichment with disclosure) |
+| # | Section | Decision | Resolution |
+|---|---|---|---|
+| 1 | §2.2 | Include RealDocBench? | **Defer to V2.** External replication / generalization. |
+| 2 | §3.1 | Failure taxonomy level count | **4 levels approved** (GOOD / MINOR / MAJOR / CATASTROPHIC). |
+| 3 | §3.3 | Reviewer sourcing | **Hybrid approved with stricter held-out rules.** Authors pilot only; externals held-out with full blinding to parser identity, score, and warning codes wherever operationally feasible. |
+| 4 | §7 | V1 parser slate size | **4 parsers approved.** `mineru` and `unlimited_ocr` deferred to V2. |
+| 5 | §7.b | Cloud parsers in V1? | **Excluded.** Reproducibility and API-drift concerns. |
+| 6 | §8.3 | Total held-out corpus size | **~200 provisional, NOT a hard N.** Final N determined by the event-count calculation (§11.5), not by budget convenience. |
+| 7 | §8.4 | Failure-event enrichment strategy | **Enrichment approved with mandatory separation.** Naturalistic subset and challenge subset are analyzed and reported separately. Aggregate metrics that combine them are prohibited. |
+
+No open decisions remain. Milestone 1 pilot can be authorized under Authorization A (§0.1) once this protocol is merged.
 
 ---
 
