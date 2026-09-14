@@ -693,7 +693,9 @@ def test_scoring_policy_version_unchanged():
     # renamed ReadinessResult.substance_score to .content_score, and
     # flipped LARGE_BLOCK + COL_GENERIC_TABLES from content to structural
     # per checker audit.
+    # Bumped 1.6 -> 1.7 by P1.1 PlaceholderStubValidator (2026-09-13):
+    # registered W_PLACEHOLDER_STUB (experimental, content, detection-only).
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.6"
+    assert SCORING_POLICY_VERSION == "1.7"

@@ -335,19 +335,18 @@ class TestNonAlertingWarningsDoNotCap:
 # ── SCORING_POLICY_VERSION receipt ────────────────────────────────────────────
 
 class TestScoringPolicyVersionReceipt:
-    def test_version_is_1_6(self):
-        assert SCORING_POLICY_VERSION == "1.6", (
-            "SCORING_POLICY_VERSION was bumped to 1.6 for P0 nit bundle "
-            "(2026-09-13) — renamed ReadinessResult.substance_score to "
-            ".content_score for API-vocabulary consistency, and flipped "
-            "LARGE_BLOCK + COL_GENERIC_TABLES from content to structural "
-            "per checker audit; any subsequent policy change must bump it again"
+    def test_version_is_1_7(self):
+        assert SCORING_POLICY_VERSION == "1.7", (
+            "SCORING_POLICY_VERSION was bumped to 1.7 for P1.1 "
+            "PlaceholderStubValidator — registered W_PLACEHOLDER_STUB "
+            "(experimental, content, detection-only). Any subsequent "
+            "policy change must bump it again."
         )
 
     def test_receipt_carries_version(self):
         result = compute_confidence(_clean_pdf_ctx())
         assert result.scoring_policy_version == SCORING_POLICY_VERSION
-        assert result.scoring_policy_version == "1.6"
+        assert result.scoring_policy_version == "1.7"
 
     def test_capped_result_still_carries_version(self):
         ctx = _clean_pdf_ctx(
@@ -361,7 +360,7 @@ class TestScoringPolicyVersionReceipt:
             },
         )
         result = compute_confidence(ctx)
-        assert result.scoring_policy_version == "1.6"
+        assert result.scoring_policy_version == "1.7"
 
 
 # ── W_IMAGE_ONLY_TEXT_BAR_FAIL — cap at 69 (RISKY) ────────────────────────────

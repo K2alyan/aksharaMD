@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SCORING_POLICY_VERSION = "1.6"
+SCORING_POLICY_VERSION = "1.7"
 
 
 @dataclass
@@ -333,5 +333,19 @@ SCORING_POLICY: dict[str, ScoringRule] = {
         max_penalty=0,
         formula="0 (informational only)",
         category="meta",
+    ),
+    "W_PLACEHOLDER_STUB": ScoringRule(
+        rule_id="W_PLACEHOLDER_STUB",
+        description=(
+            "Placeholder or stub content detected in extracted output — "
+            "unfilled form templates (bracket/underscore), parser stubs "
+            "([Image omitted], <figure>), or LLM refusal responses "
+            "(experimental maturity — P1.1 detector; score cap TBD in "
+            "the detection-vs-scoring-separation follow-up PR). "
+            "Framed as a lower bound per arXiv 2605.07293."
+        ),
+        max_penalty=0,  # detection-only in P1.1; cap attaches in follow-up
+        formula="0 (detection-only; cap TBD in follow-up PR)",
+        category="content",
     ),
 }
