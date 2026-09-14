@@ -1,7 +1,7 @@
 """Tests for the two-axis ReadinessResult introduced in P0.4.
 
 Every SCORING_POLICY rule carries a `category` (structural | content | meta).
-ReadinessResult exposes computed `structural_score` and `substance_score`
+ReadinessResult exposes computed `structural_score` and `content_score`
 properties that partition deductions along that axis. The single `score`
 attribute is unchanged.
 """
@@ -18,8 +18,8 @@ from aksharamd.scoring.models import (
 _VALID_CATEGORIES = {"structural", "content", "meta"}
 
 
-def test_scoring_policy_version_is_1_5():
-    assert SCORING_POLICY_VERSION == "1.5"
+def test_scoring_policy_version_is_1_6():
+    assert SCORING_POLICY_VERSION == "1.6"
 
 
 def test_every_scoring_rule_has_a_valid_category():
@@ -49,10 +49,10 @@ def test_structural_score_deducts_only_structural_penalties():
         ],
     )
     assert result.structural_score == 80
-    assert result.substance_score == 85
+    assert result.content_score == 85
 
 
-def test_substance_score_deducts_only_content_penalties():
+def test_content_score_deducts_only_content_penalties():
     result = ReadinessResult(
         score=100,
         deductions=[
@@ -61,7 +61,9 @@ def test_substance_score_deducts_only_content_penalties():
             DeductionRecord(rule_id="HEADING_ISSUES", description="", penalty=6),
         ],
     )
-    assert result.substance_score == 65
+    assert result.content_score == 65
+    # HEADING_ISSUES is structural (penalty 6); LARGE_BLOCK is now
+    # structural too but not in this fixture.
     assert result.structural_score == 94
 
 
@@ -86,7 +88,7 @@ def test_suppressed_deductions_do_not_affect_axis_scores():
         ],
     )
     assert result.structural_score == 100
-    assert result.substance_score == 100
+    assert result.content_score == 100
 
 
 def test_axis_scores_clamp_at_zero():
@@ -98,7 +100,7 @@ def test_axis_scores_clamp_at_zero():
         ],
     )
     assert result.structural_score == 0
-    assert result.substance_score == 0
+    assert result.content_score == 0
 
 
 def test_unknown_rule_id_does_not_contribute_to_either_axis():
@@ -109,13 +111,13 @@ def test_unknown_rule_id_does_not_contribute_to_either_axis():
         ],
     )
     assert result.structural_score == 100
-    assert result.substance_score == 100
+    assert result.content_score == 100
 
 
 def test_empty_deductions_produce_perfect_axis_scores():
     result = ReadinessResult(score=100)
     assert result.structural_score == 100
-    assert result.substance_score == 100
+    assert result.content_score == 100
 
 
 def test_meta_category_deductions_do_not_reduce_axis_scores():
@@ -131,20 +133,22 @@ def test_meta_category_deductions_do_not_reduce_axis_scores():
         ],
     )
     assert result.structural_score == 100
-    assert result.substance_score == 100
+    assert result.content_score == 100
 
 
 def test_policy_category_distribution_matches_audit():
-    """Sanity check: category counts should match the 2026-09-13 audit.
+    """Sanity check: category counts should match the audit lineage.
 
-    Original audit: 5 structural, 16 content, 5 meta = 26 total.
-    Bumped 2026-09-13 (P0.2): +1 meta for W_DETECTOR_TIMEOUT.
-    Current: 5 structural, 16 content, 6 meta = 27 total. If this fails,
+    Original audit (2026-09-13, P0.4): 5 structural, 16 content, 5 meta.
+    Bumped by P0.2: +1 meta for W_DETECTOR_TIMEOUT.
+    Bumped by P0 nit bundle: LARGE_BLOCK + COL_GENERIC_TABLES flipped
+        content -> structural (+2 structural, -2 content).
+    Current: 7 structural, 14 content, 6 meta = 27 total. If this fails,
     someone added or reclassified a rule without updating the audit record.
     """
     counts = {"structural": 0, "content": 0, "meta": 0}
     for rule in SCORING_POLICY.values():
         counts[rule.category] += 1
-    assert counts == {"structural": 5, "content": 16, "meta": 6}, (
-        f"category distribution drifted from 2026-09-13 audit: {counts}"
+    assert counts == {"structural": 7, "content": 14, "meta": 6}, (
+        f"category distribution drifted from audit: {counts}"
     )
