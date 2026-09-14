@@ -703,7 +703,12 @@ def test_scoring_policy_version_unchanged():
     # detects mojibake byte fragments, symbol junk, and extreme character
     # repetition. Letter-substitution OCR corruption is out of scope
     # (deferred to a future language-model P2 v2 detector).
+    # Bumped 1.9 -> 1.10 by P3 DroppedContentValidator (2026-09-13):
+    # registered W_DROPPED_CONTENT with cap at 69 RISKY (experimental,
+    # content, PDF-only). Crown-jewel geometric cross-reference detector
+    # that catches silently dropped pages/sections by comparing PDF
+    # text-layer word count against parsed markdown word count.
     # Any subsequent policy change must bump this again.
     # See docs/calibration/SCORING_POLICY.md.
     from aksharamd.scoring import SCORING_POLICY_VERSION
-    assert SCORING_POLICY_VERSION == "1.9"
+    assert SCORING_POLICY_VERSION == "1.10"
