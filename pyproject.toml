@@ -150,6 +150,12 @@ eval = [
     # on first use of the parsed-vs-raw harness. Not required for
     # QASPER (which fetches directly from AllenAI's S3 tarballs).
     "gdown>=5.0",
+    # B1a-3 DocLayNet acquisition uses HfFileSystem + pyarrow to do
+    # true HTTP range reads against pinned dataset revisions on
+    # Hugging Face (avoids downloading full 519 MB shards for the
+    # prove-one). Kept out of runtime aksharamd deps.
+    "huggingface-hub>=0.24",
+    "pyarrow>=15.0",
     # optional comparison tools — install separately if needed:
     # pip install "unstructured[all-docs]"
     # pip install docling

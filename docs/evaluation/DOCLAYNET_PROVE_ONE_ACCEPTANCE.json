@@ -1,0 +1,193 @@
+{
+  "checks_passed": 36,
+  "checks_total": 36,
+  "dataset_commit_sha": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+  "dataset_id": "docling-project/DocLayNet-v1.2",
+  "extraction_rules_version": "1",
+  "page_dir": "corpus\\eval_v1\\doclaynet\\985f92c22c06023059535a99784ffec21369541548bedfbe30cfce7b3aa7bd5f",
+  "page_hash": "985f92c22c06023059535a99784ffec21369541548bedfbe30cfce7b3aa7bd5f",
+  "results": [
+    {
+      "detail": "resolver=docling-project/DocLayNet-v1.2",
+      "name": "resolver.dataset_id_matches",
+      "ok": true
+    },
+    {
+      "detail": "resolver_sha=0daf93102e2e..., manifest_sha=0daf93102e2e...",
+      "name": "resolver.commit_sha_matches_manifest",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.schema_version_matches_constant",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.distribution.dataset_id",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.distribution.dataset_commit_sha",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.distribution.shard_key",
+      "ok": true
+    },
+    {
+      "detail": "split=train",
+      "name": "manifest.distribution.split_is_train",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.png_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.annotations_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.pdf_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "got media_type=application/pdf",
+      "name": "adapter.ingest_source_media_type_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_sha256_matches_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_path_is_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_provenance_dataset_commit_sha",
+      "ok": true
+    },
+    {
+      "detail": "png_sha256=55a11509107b...",
+      "name": "adapter.ingest_source_preserves_png_anchor",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_anchor_carries_coord_geometry",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.acquire_returns_pdf_not_png",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.gt_kind_bbox_layout",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.gt_provenance_extraction_rules_version",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.gt_provenance_dataset_commit_sha",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.coord_space_kind_png_pixels",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.coord_space_coco_width_positive",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.coord_space_coco_height_positive",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.coord_space_original_width_positive",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.coord_space_original_height_positive",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.no_expected_reading_order_field",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.no_table_cell_structure_field",
+      "ok": true
+    },
+    {
+      "detail": "table_count=1",
+      "name": "gt.contains_at_least_one_Table_region",
+      "ok": true
+    },
+    {
+      "detail": "non_text_non_table_regions=11",
+      "name": "gt.contains_at_least_one_non_text_structural_region",
+      "ok": true
+    },
+    {
+      "detail": "sx=0.597073",
+      "name": "convert.scale_x_positive",
+      "ok": true
+    },
+    {
+      "detail": "sy=0.772683",
+      "name": "convert.scale_y_positive",
+      "ok": true
+    },
+    {
+      "detail": "tested 16 bboxes",
+      "name": "convert.every_bbox_inside_page_within_1px",
+      "ok": true
+    },
+    {
+      "detail": "max_reverse_error=1.14e-13",
+      "name": "convert.reversible_within_numerical_tolerance",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.manifest_mtime_unchanged",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.source_sha256_stable",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.gt_annotations_sha256_stable",
+      "ok": true
+    }
+  ],
+  "verdict": "PASS",
+  "verified_utc": "2026-09-15T03:15:40+00:00"
+}
