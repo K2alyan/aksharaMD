@@ -99,7 +99,7 @@ Each candidate corpus is listed with (a) what kind of ground truth it provides, 
 | Corpus | GT type | Adjudicates | Limits | Tier |
 |---|---|---|---|---|
 | **PMC-OA** (PubMed Central Open Access XML + PDF pairs) | Full-text XML | W_DROPPED_CONTENT (word-set overlap), gibberish (against ground-truth prose vocabulary) | XML/PDF are separately authored; pixel-perfect equality is NOT a valid criterion. Ground truth is *textual content*, not layout or rendering. | G1 for textual omission; G3 for layout |
-| **DocLayNet** (IBM layout annotations on ~80k pages) | Layout bboxes + block types | Structural detectors (W_MULTICOLUMN_ORDER, W_TABLE_MISSING, W_HEADER_FOOTER_TABLE_GARBLED), table geometry | Layout truth ≠ text-content truth. Cannot adjudicate W_DROPPED_CONTENT directly. | G1 for structural detectors |
+| **DocLayNet** (IBM layout annotations on ~80k pages) | Layout bboxes + block types (region-level) | Structural region localization: table-region presence + geometry, header/footer-region presence + geometry, block-category assignment | Layout truth ≠ text-content truth. Cannot adjudicate W_DROPPED_CONTENT directly. Reading order is NOT directly labelled (see §2.4 caveat 4). Does NOT supply table-cell structure — no rows/columns/headers — and therefore does NOT support TEDS (see §2.4 caveat 5). | G1 for what it directly annotates (see §2.4 caveats 4–5) |
 | **Federal Register / SEC filings** (native-authored PDFs) | Source authorship known; typography clean | Baseline / FPR — the study's "no failure expected" corpus for the three new content-axis detectors | Text-authoritative comparison not always available; treat primarily as a false-positive-rate corpus. | G2 (via human adjudication of any flagged case) |
 | **CUAD** (contract clause span annotations) | Character-offset spans for clause types | Localization; dropped-content within clause spans | Only annotated for legal contract clauses; not general-purpose | G1 for clause-level content presence |
 | **ParseBench / RealDoc-Bench** (LlamaIndex, existing evaluation harnesses) | Rule-based scoring, ~2k pages, 167k rules | Cross-check against existing conventional metrics | Represents a *conventional* metric; useful for §6.1 disagreement analysis, not as ground truth. | Not GT — external comparator. |
@@ -118,20 +118,22 @@ This matrix is the single most important artifact of §2. It specifies **for eve
 | W_GIBBERISH | G2 — human review of any fires | — | — | **G2 — FPR baseline** | — |
 | W_PLACEHOLDER_STUB | G2 — human review of any fires | — | G2 — placeholder in place of clause | **G2 — FPR baseline** | — |
 | W_ENCODING_ARTIFACTS | G2 — human review; can also cross-check mojibake byte patterns which are directly observable | — | — | G2 — FPR baseline | — |
-| W_TABLE_MISSING | — | **G1 — table bbox present but no MD table** | — | G2 — FPR baseline | — |
-| W_MULTICOLUMN_ORDER (existing) | — | **G1 — reading-order via bbox sequence** | — | G2 — FPR baseline | — |
-| W_HEADER_FOOTER_TABLE_GARBLED (existing) | — | G1 — table near page furniture | — | G2 — FPR baseline | — |
+| W_TABLE_MISSING | — | **G1 — table-region bbox present but no MD table** (direct: table-region annotation) | — | G2 — FPR baseline | — |
+| W_MULTICOLUMN_ORDER (existing) | — | Geometric proxy from block-bbox sequence (**not** direct G1: reading order is not labelled — see §2.4 caveat 4) | — | G2 — FPR baseline | — |
+| W_HEADER_FOOTER_TABLE_GARBLED (existing) | — | Geometric proxy: table-region bbox adjacent to page-header / page-footer regions (**not** direct G1: "garbled" is a derived judgement) | — | G2 — FPR baseline | — |
 | Aggregate score | — | — | — | — | G2 — adjudicated severity + downstream correlation |
 
 **Reads:** rows are detectors; columns are corpora. Cells state the strongest evidence available. Empty cells mean the corpus cannot adjudicate that detector.
 
 ### 2.4 Ground-truth mapping caveats
 
-Three specific caveats must be documented in any results derived from this matrix:
+Five specific caveats must be documented in any results derived from this matrix:
 
 1. **PMC-OA XML text is authoritative for textual content, NOT for layout or rendering.** The comparison metric must be word-set (or n-gram-set) overlap, not character-perfect equality. Different valid representations of the same text (e.g., hyphenation, whitespace normalization, section reordering) do not count as omissions.
 2. **DocLayNet bboxes are page-anchored.** A parser that produces valid content but attaches it to a different page cannot be adjudicated as "correct" via DocLayNet alone. Combine with PMC-OA style word-set truth where the same document appears in both.
 3. **FPR-baseline corpora must be *demonstrably clean* to the extent feasible.** Federal Register PDFs are natively authored, but if a detector fires on a Federal Register document, the finding must be human-adjudicated before it is counted as an FPR event. It might be a genuine detection.
+4. **DocLayNet does NOT directly annotate reading order.** DocLayNet supplies per-page region bounding boxes and block-category labels (`Text`, `Title`, `List-item`, `Table`, `Picture`, `Caption`, `Section-header`, `Page-header`, `Page-footer`, `Footnote`, `Formula`). Reading order across those blocks is a geometric inference (left-to-right within columns, top-to-bottom across columns). Any use of DocLayNet to adjudicate `W_MULTICOLUMN_ORDER` or similar order-sensitive detectors is a **derived criterion built on a geometric proxy**, not a direct G1 comparison. Reports based on this criterion must state so explicitly and must not describe the resulting evidence as "G1 validated reading order."
+5. **DocLayNet does NOT supply table-cell structure.** The `Table` category is a region-only bounding box: no rows, no columns, no headers, no cell grid. TEDS (Tree-Edit-Distance-based Similarity) requires a cell-level HTML/DOM oracle, and therefore **cannot be computed from DocLayNet**. §6.1 uses **table-region localization** (IoU-style geometric agreement between parser-reported table regions and DocLayNet's `Table` bboxes) as the DocLayNet-side metric. Any TEDS-style adjudication would require a different corpus (PubTables-1M / FinTabNet / PubTabNet), which is out of V1 scope by Decision 2.2.a and remains deferred to V2.
 
 ---
 
@@ -214,9 +216,13 @@ Each detector is evaluated according to the strongest tier of evidence available
 - Category (a) is G1-adjacent — the byte patterns are objectively present or not. Category (b) requires G2 adjudication.
 - **Metrics:** Category-(a) precision (near-perfect expected). Category-(b) adjudicated precision. FPR on clean-native corpus.
 
-### 4.5 W_TABLE_MISSING, W_MULTICOLUMN_ORDER, W_HEADER_FOOTER_TABLE_GARBLED (existing detectors) — G1 layout-oracle
+### 4.5 W_TABLE_MISSING, W_MULTICOLUMN_ORDER, W_HEADER_FOOTER_TABLE_GARBLED (existing detectors) — DocLayNet-based adjudication
 
-- **Method:** Use DocLayNet's layout bboxes as the ground truth. For each firing, check whether the corresponding page has a table/multicolumn/header-footer region per DocLayNet, and whether the markdown captures it.
+- **Method:** Use DocLayNet's per-page region bounding boxes and block-category labels as the ground truth surface.
+  - **W_TABLE_MISSING** is adjudicated as **direct G1**: a page has a `Table` region iff DocLayNet annotates one; the detector should fire iff the parser's markdown does not capture a corresponding table.
+  - **W_MULTICOLUMN_ORDER** is adjudicated as a **derived criterion** built on a geometric proxy — DocLayNet does not directly label reading order (see §2.4 caveat 4). Expected order is inferred from block bboxes (left-to-right within columns, top-to-bottom across columns); disagreement between the inferred order and the parser output is the fired-vs-not signal. Reports must describe this as "geometric-proxy adjudication," not as "G1 reading order."
+  - **W_HEADER_FOOTER_TABLE_GARBLED** is adjudicated as a **derived criterion**: DocLayNet directly labels `Page-header`, `Page-footer`, and `Table` regions, but "garbled" is a downstream judgement over the parser's markdown given the geometric adjacency of those regions. Reports must describe this as "geometric-proxy adjudication," not as "G1 garbling."
+- **Table geometry** is limited to **table-region localization** (IoU-style geometric agreement). DocLayNet does not supply cell structure and therefore does not support TEDS — see §2.4 caveat 5.
 - These are **existing** detectors carried into the study. Their inclusion is important because (a) score-validity depends on all detectors, not just the new ones, and (b) evaluating only the new detectors would be a coverage lie.
 - **Predeclared thresholds:** the existing published maturity ratings (candidate / experimental) are the current claim; the V1 study either confirms them or motivates a downgrade.
 
@@ -269,7 +275,7 @@ Product utility is the L3 claim — the most important one for the product story
 
 ### 6.1 Bidirectional disagreement analysis
 
-- **Method:** For every `(document, parser)` in the held-out set, compute (a) AksharaMD's verdict (BAD if score < 70 or any capping W_ fires; else GOOD) and (b) a conventional-extraction-metric verdict (per-corpus: PMC-OA word-overlap for PMC-OA, TEDS for DocLayNet tables, per ParseBench's own rubric for ParseBench pages).
+- **Method:** For every `(document, parser)` in the held-out set, compute (a) AksharaMD's verdict (BAD if score < 70 or any capping W_ fires; else GOOD) and (b) a conventional-extraction-metric verdict (per-corpus: PMC-OA word-overlap for PMC-OA; **table-region localization** — IoU-style geometric agreement between parser-reported table regions and DocLayNet's `Table` bboxes — for DocLayNet tables (see §2.4 caveat 5: DocLayNet does not supply cell structure, so TEDS is not applicable); per ParseBench's own rubric for ParseBench pages).
 - Populate the 2×2:
 
 | | AksharaMD GOOD | AksharaMD BAD |
@@ -447,7 +453,7 @@ At freeze time, the following are captured in a single reproducibility anchor at
 
 14. **Metric definitions** — every computation formula, published in Appendix C, committed as executable code.
 15. **Evaluation scripts** — end-to-end analysis pipeline from raw run outputs to reported numbers, under `benchmarks/eval_v1/analysis/`.
-16. **Conventional-metric implementations** — reference implementations of the "conventional" metrics used in the §6.1 disagreement analysis (e.g., PMC-OA word-overlap script, TEDS-as-adapted).
+16. **Conventional-metric implementations** — reference implementations of the "conventional" metrics used in the §6.1 disagreement analysis (e.g., PMC-OA word-overlap script; DocLayNet table-region-localization IoU script — NOT TEDS, per §2.4 caveat 5).
 
 **Adjudication side:**
 
@@ -866,7 +872,7 @@ change together and the v1 file becomes historical.
 
 ### Appendix C — Metric formulas
 
-*[To be produced during pilot. All formulas for precision, recall, FPR, Spearman ρ, Mann–Whitney U, bootstrap CI, per-corpus word-overlap, TEDS as adapted for our purposes.]*
+*[To be produced during pilot. All formulas for precision, recall, FPR, Spearman ρ, Mann–Whitney U, bootstrap CI, per-corpus word-overlap, DocLayNet table-region-localization IoU. TEDS is NOT part of V1 — DocLayNet does not supply cell structure; see §2.4 caveat 5.]*
 
 ### Appendix D — Sample-size worked calculations
 
