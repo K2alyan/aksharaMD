@@ -1,0 +1,222 @@
+{
+  "fingerprint": {
+    "checkpoint_schema_version": "1",
+    "corpus": "pmc_oa",
+    "eligibility_rule_version": "1",
+    "exclusion_ledger_sha256": "345630bf8624f7c4a7616fa74def61a924e1d5954a51de389953c1a5018ed082",
+    "selection_algorithm_version": "1",
+    "source_snapshot_identity_sha256": "1b68b4df5c1e8ae9bfd06569f7ad39ad9d248856eb523022c9631b8f5201fafd"
+  },
+  "payload": {
+    "eligible_candidates": [
+      {
+        "canonical_id": "PMC3569185.1",
+        "metadata": {
+          "citation": "Acta Crystallogr Sect E Struct Rep Online. 2013 Jan 9;69(Pt 2):m86. doi: 10.1107/S1600536812051136",
+          "license_code": "CC BY",
+          "pmcid": "PMC3569185",
+          "pmid": 23424429,
+          "title": "Di-\u03bc-chlorido-bis\u00ad{[2-(di-tert-butyl\u00adphosphan\u00adyl)biphenyl-3-yl-\u03ba2 C 3,P]palladium(II)} dichloro\u00admethane disolvate",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC4160324.1",
+        "metadata": {
+          "citation": "Nanoscale Res Lett. 2014 Sep 3;9(1):464. doi: 10.1186/1556-276X-9-464",
+          "license_code": "CC BY",
+          "pmcid": "PMC4160324",
+          "pmid": 25246869,
+          "title": "Improvement in the breakdown endurance of high-\u03ba dielectric by utilizing stacking technology and adding sufficient inter",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC12303665.1",
+        "metadata": {
+          "citation": "Surg Case Rep. 2025 Jul 15;11(1):25-0293. doi: 10.70352/scrj.cr.25-0293",
+          "license_code": "CC BY",
+          "pmcid": "PMC12303665",
+          "pmid": 40726830,
+          "title": "Transmesocolic Hernia of the Ascending Colon: A Rare Cause of Small Bowel Obstruction in an Older Patient",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC10454006.1",
+        "metadata": {
+          "citation": "Healthcare (Basel). 2023 Aug 18;11(16):2336. doi: 10.3390/healthcare11162336",
+          "license_code": "CC BY",
+          "pmcid": "PMC10454006",
+          "pmid": 37628533,
+          "title": "Drivers of Patients\u2019 Behavioral Intention toward Public and Private Clinics\u2019 Services",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC7773825.1",
+        "metadata": {
+          "citation": "Front Mol Biosci. 2020 Dec 17;7:605236. doi: 10.3389/fmolb.2020.605236",
+          "license_code": "CC BY",
+          "pmcid": "PMC7773825",
+          "pmid": 33392262,
+          "title": "Structural Characterization of SARS-CoV-2: Where We Are, and Where We Need to Be",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC6839998.1",
+        "metadata": {
+          "citation": "Innov Aging. 2019 Nov 8;3(Suppl 1):S516. doi: 10.1093/geroni/igz038.1903",
+          "license_code": "CC BY",
+          "pmcid": "PMC6839998",
+          "pmid": null,
+          "title": "EXAMINATION OF TRUST IN THE HEALTH CARE SYSTEM AMONG OLDER IMMIGRANTS RESIDING IN THE MIDWEST",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC5773191.1",
+        "metadata": {
+          "citation": "PLoS One. 2018 Jan 18;13(1):e0190941. doi: 10.1371/journal.pone.0190941",
+          "license_code": "CC BY",
+          "pmcid": "PMC5773191",
+          "pmid": 29346444,
+          "title": "Social and structural barriers for adherence to methadone maintenance treatment among Vietnamese opioid dependence patie",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC6374309.1",
+        "metadata": {
+          "citation": "Front Psychol. 2019 Feb 7;10:193. doi: 10.3389/fpsyg.2019.00193",
+          "license_code": "CC BY",
+          "pmcid": "PMC6374309",
+          "pmid": 30792679,
+          "title": "Training for Coherence Formation When Learning From Text and Picture and the Interplay With Learners\u2019 Prior Knowledge",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC8381808.1",
+        "metadata": {
+          "citation": "Beilstein J Org Chem. 2021 Aug 19;17:2095\u2013101. doi: 10.3762/bjoc.17.136",
+          "license_code": "CC BY",
+          "pmcid": "PMC8381808",
+          "pmid": 34476016,
+          "title": "An initiator- and catalyst-free hydrogel coating process for 3D printed medical-grade poly(\u03b5-caprolactone)",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC3544647.1",
+        "metadata": {
+          "citation": "J Foot Ankle Res. 2012 Nov 26;5:29. doi: 10.1186/1757-1146-5-29",
+          "license_code": "CC BY",
+          "pmcid": "PMC3544647",
+          "pmid": 23181771,
+          "title": "Importance and challenges of measuring intrinsic foot muscle strength",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC3328247.1",
+        "metadata": {
+          "citation": "Diagn Pathol. 2012 Feb 2;7:14. doi: 10.1186/1746-1596-7-14",
+          "license_code": "CC BY",
+          "pmcid": "PMC3328247",
+          "pmid": 22300665,
+          "title": "EGFR, CD10 and proliferation marker Ki67 expression in ameloblastoma: possible role in local recurrence",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC7256328.1",
+        "metadata": {
+          "citation": "iScience. 2020 May 12;23(6):101151. doi: 10.1016/j.isci.2020.101151",
+          "license_code": "CC BY",
+          "pmcid": "PMC7256328",
+          "pmid": 32450515,
+          "title": "BMAL1 Associates with NOP58 in the Nucleolus and Contributes to Pre-rRNA Processing",
+          "version": 1
+        }
+      }
+    ],
+    "snapshot": {
+      "dev_assignment_count_before_metadata_eligibility": 911944,
+      "eligibility_evaluation": "lazy_deterministic_rank_walk",
+      "eligible_records_found_before_stop": 12,
+      "excluded_before_rank_walk": 0,
+      "ineligible_head": [
+        {
+          "canonical_id": "PMC11441047.1",
+          "reason": "license_not_CC_BY:CC BY-NC"
+        },
+        {
+          "canonical_id": "PMC4231923.1",
+          "reason": "license_not_CC_BY:null"
+        },
+        {
+          "canonical_id": "PMC8885366.1",
+          "reason": "license_not_CC_BY:CC BY-NC-ND"
+        },
+        {
+          "canonical_id": "PMC11232747.1",
+          "reason": "license_not_CC_BY:CC BY-NC-SA"
+        },
+        {
+          "canonical_id": "PMC13331649.1",
+          "reason": "license_not_CC_BY:CC BY-NC"
+        },
+        {
+          "canonical_id": "PMC2665039.1",
+          "reason": "license_not_CC_BY:TDM"
+        }
+      ],
+      "metadata_records_probed": 18,
+      "population_distinct_pmcids_after_latest_version_resolution": 9129850,
+      "population_snapshot_total_metadata_records": 9284625,
+      "rank_walk_stopping_rule": "stop after 12 eligible DEV candidates",
+      "snapshot_identity": {
+        "manifest_bytes_len": 1221,
+        "manifest_sha256": "d7bbf63494fddd134d72c2aa4d3c9ca370be6787f1bfe021a38f06b06e32cd67",
+        "manifest_url": "https://pmc-oa-opendata.s3.amazonaws.com/inventory-reports/pmc-oa-opendata/metadata/2026-09-01T01-00Z/manifest.json",
+        "shards": [
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/49c6aee8-c648-45be-b569-79df5878fc20.csv.gz",
+            "md5_from_manifest": "dff696f4b1567015afebb25e9f2cc7b7",
+            "sha256_computed": "77e4e2fb9613ab6d4de11fb161cd20783f811d743972f3ae13ffecbb42f9dd70",
+            "size": 54365551
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/8c0d9b16-1216-4159-8ef3-ce544d9337a3.csv.gz",
+            "md5_from_manifest": "ec16b131b270986064808ae528659acb",
+            "sha256_computed": "ac814f1bf9214a4eb6cb4497930596123c6a6f666ed1cff29d7bbf8785683e91",
+            "size": 80163926
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/57d6adc1-d0f6-4ad2-8cff-ff7202e1d449.csv.gz",
+            "md5_from_manifest": "1a2562efd73b697898593d3f221ee9b2",
+            "sha256_computed": "8c4c809bf627f44328ce1a700afbe14cbd5183af17a837fa2d5afaaac0484013",
+            "size": 6901466
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/4e322d64-efba-4b65-a9ad-1aca0ec0936b.csv.gz",
+            "md5_from_manifest": "36042713554d9a9e0f3fc68cff0e85c1",
+            "sha256_computed": "e5b43654ba3c37288bc76e5912870a81334ad717c001092e25fffd7a8f6d6734",
+            "size": 79273543
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/5825c0aa-1b74-4ad2-b8dd-5379514240ea.csv.gz",
+            "md5_from_manifest": "49e70201eb12ff9899cdf07f9f237b87",
+            "sha256_computed": "59e583c3a439651034e81e8eb5ab30b339512f6a6395269cac05358564ea252e",
+            "size": 26627627
+          }
+        ],
+        "snapshot_utc": "2026-09-01T01-00Z"
+      },
+      "source": "pmc-oa-opendata inventory"
+    }
+  },
+  "payload_sha256": "28f99d0535cef56c7a641c05f1d9891f7f05527533710f2c3024adbba2ea901e"
+}

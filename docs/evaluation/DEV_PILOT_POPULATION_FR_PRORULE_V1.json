@@ -1,0 +1,2095 @@
+{
+  "fingerprint": {
+    "checkpoint_schema_version": "1",
+    "corpus": "federal_register",
+    "eligibility_rule_version": "1",
+    "exclusion_ledger_sha256": "345630bf8624f7c4a7616fa74def61a924e1d5954a51de389953c1a5018ed082",
+    "selection_algorithm_version": "1",
+    "source_snapshot_identity_sha256": "a01033de692d270cd5bd8accb715d0f0ce0f420bdf9fa5fc06f3cab13aeb8e3a"
+  },
+  "payload": {
+    "eligible_candidates": [
+      {
+        "canonical_id": "2024-29239",
+        "metadata": {
+          "citation": "90 FR 6967",
+          "document_number": "2024-29239",
+          "granule_id": "2024-29239",
+          "has_xml": true,
+          "package_id": "FR-2025-01-21",
+          "page_length": 71,
+          "publication_date": "2025-01-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2024-30578",
+        "metadata": {
+          "citation": "90 FR 266",
+          "document_number": "2024-30578",
+          "granule_id": "2024-30578",
+          "has_xml": true,
+          "package_id": "FR-2025-01-03",
+          "page_length": 3,
+          "publication_date": "2025-01-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2024-31219",
+        "metadata": {
+          "citation": "90 FR 1909",
+          "document_number": "2024-31219",
+          "granule_id": "2024-31219",
+          "has_xml": true,
+          "package_id": "FR-2025-01-10",
+          "page_length": 1,
+          "publication_date": "2025-01-10",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2024-31227",
+        "metadata": {
+          "citation": "90 FR 3734",
+          "document_number": "2024-31227",
+          "granule_id": "2024-31227",
+          "has_xml": true,
+          "package_id": "FR-2025-01-15",
+          "page_length": 19,
+          "publication_date": "2025-01-15",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2024-31578",
+        "metadata": {
+          "citation": "90 FR 4701",
+          "document_number": "2024-31578",
+          "granule_id": "2024-31578",
+          "has_xml": true,
+          "package_id": "FR-2025-01-16",
+          "page_length": 7,
+          "publication_date": "2025-01-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2024-31693",
+        "metadata": {
+          "citation": "90 FR 1049",
+          "document_number": "2024-31693",
+          "granule_id": "2024-31693",
+          "has_xml": true,
+          "package_id": "FR-2025-01-07",
+          "page_length": 2,
+          "publication_date": "2025-01-07",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00312",
+        "metadata": {
+          "citation": "90 FR 4687",
+          "document_number": "2025-00312",
+          "granule_id": "2025-00312",
+          "has_xml": true,
+          "package_id": "FR-2025-01-16",
+          "page_length": 5,
+          "publication_date": "2025-01-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00376",
+        "metadata": {
+          "citation": "90 FR 2644",
+          "document_number": "2025-00376",
+          "granule_id": "2025-00376",
+          "has_xml": true,
+          "package_id": "FR-2025-01-13",
+          "page_length": 2,
+          "publication_date": "2025-01-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00493",
+        "metadata": {
+          "citation": "90 FR 7653",
+          "document_number": "2025-00493",
+          "granule_id": "2025-00493",
+          "has_xml": true,
+          "package_id": "FR-2025-01-22",
+          "page_length": 1,
+          "publication_date": "2025-01-22",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00501",
+        "metadata": {
+          "citation": "90 FR 3092",
+          "document_number": "2025-00501",
+          "granule_id": "2025-00501",
+          "has_xml": true,
+          "package_id": "FR-2025-01-14",
+          "page_length": 16,
+          "publication_date": "2025-01-14",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00616",
+        "metadata": {
+          "citation": "90 FR 3761",
+          "document_number": "2025-00616",
+          "granule_id": "2025-00616",
+          "has_xml": true,
+          "package_id": "FR-2025-01-15",
+          "page_length": 3,
+          "publication_date": "2025-01-15",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00847",
+        "metadata": {
+          "citation": "90 FR 4707",
+          "document_number": "2025-00847",
+          "granule_id": "2025-00847",
+          "has_xml": true,
+          "package_id": "FR-2025-01-16",
+          "page_length": 2,
+          "publication_date": "2025-01-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00957",
+        "metadata": {
+          "citation": "90 FR 6654",
+          "document_number": "2025-00957",
+          "granule_id": "2025-00957",
+          "has_xml": true,
+          "package_id": "FR-2025-01-17",
+          "page_length": 53,
+          "publication_date": "2025-01-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-00974",
+        "metadata": {
+          "citation": "90 FR 5743",
+          "document_number": "2025-00974",
+          "granule_id": "2025-00974",
+          "has_xml": true,
+          "package_id": "FR-2025-01-17",
+          "page_length": 4,
+          "publication_date": "2025-01-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-01030",
+        "metadata": {
+          "citation": "90 FR 5759",
+          "document_number": "2025-01030",
+          "granule_id": "2025-01030",
+          "has_xml": true,
+          "package_id": "FR-2025-01-17",
+          "page_length": 3,
+          "publication_date": "2025-01-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-01079",
+        "metadata": {
+          "citation": "90 FR 5761",
+          "document_number": "2025-01079",
+          "granule_id": "2025-01079",
+          "has_xml": true,
+          "package_id": "FR-2025-01-17",
+          "page_length": 2,
+          "publication_date": "2025-01-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-01458",
+        "metadata": {
+          "citation": "90 FR 7998",
+          "document_number": "2025-01458",
+          "granule_id": "2025-01458",
+          "has_xml": true,
+          "package_id": "FR-2025-01-23",
+          "page_length": 4,
+          "publication_date": "2025-01-23",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-01949",
+        "metadata": {
+          "citation": "90 FR 8499",
+          "document_number": "2025-01949",
+          "granule_id": "2025-01949",
+          "has_xml": true,
+          "package_id": "FR-2025-01-30",
+          "page_length": 7,
+          "publication_date": "2025-01-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-01968",
+        "metadata": {
+          "citation": "90 FR 8507",
+          "document_number": "2025-01968",
+          "granule_id": "2025-01968",
+          "has_xml": true,
+          "package_id": "FR-2025-01-30",
+          "page_length": 4,
+          "publication_date": "2025-01-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02069",
+        "metadata": {
+          "citation": "90 FR 8914",
+          "document_number": "2025-02069",
+          "granule_id": "2025-02069",
+          "has_xml": true,
+          "package_id": "FR-2025-02-04",
+          "page_length": 2,
+          "publication_date": "2025-02-04",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02212",
+        "metadata": {
+          "citation": "90 FR 9013",
+          "document_number": "2025-02212",
+          "granule_id": "2025-02212",
+          "has_xml": true,
+          "package_id": "FR-2025-02-05",
+          "page_length": 3,
+          "publication_date": "2025-02-05",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02633",
+        "metadata": {
+          "citation": "90 FR 9695",
+          "document_number": "2025-02633",
+          "granule_id": "2025-02633",
+          "has_xml": true,
+          "package_id": "FR-2025-02-18",
+          "page_length": 4,
+          "publication_date": "2025-02-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02845",
+        "metadata": {
+          "citation": "90 FR 9957",
+          "document_number": "2025-02845",
+          "granule_id": "2025-02845",
+          "has_xml": true,
+          "package_id": "FR-2025-02-20",
+          "page_length": 2,
+          "publication_date": "2025-02-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02869",
+        "metadata": {
+          "citation": "90 FR 10044",
+          "document_number": "2025-02869",
+          "granule_id": "2025-02869",
+          "has_xml": true,
+          "package_id": "FR-2025-02-21",
+          "page_length": 2,
+          "publication_date": "2025-02-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-02913",
+        "metadata": {
+          "citation": "90 FR 10043",
+          "document_number": "2025-02913",
+          "granule_id": "2025-02913",
+          "has_xml": true,
+          "package_id": "FR-2025-02-21",
+          "page_length": 2,
+          "publication_date": "2025-02-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03100",
+        "metadata": {
+          "citation": "90 FR 10876",
+          "document_number": "2025-03100",
+          "granule_id": "2025-03100",
+          "has_xml": true,
+          "package_id": "FR-2025-02-28",
+          "page_length": 1,
+          "publication_date": "2025-02-28",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03144",
+        "metadata": {
+          "citation": "90 FR 10708",
+          "document_number": "2025-03144",
+          "granule_id": "2025-03144",
+          "has_xml": true,
+          "package_id": "FR-2025-02-26",
+          "page_length": 2,
+          "publication_date": "2025-02-26",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03146",
+        "metadata": {
+          "citation": "90 FR 10799",
+          "document_number": "2025-03146",
+          "granule_id": "2025-03146",
+          "has_xml": true,
+          "package_id": "FR-2025-02-27",
+          "page_length": 3,
+          "publication_date": "2025-02-27",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03606",
+        "metadata": {
+          "citation": "90 FR 11498",
+          "document_number": "2025-03606",
+          "granule_id": "2025-03606",
+          "has_xml": true,
+          "package_id": "FR-2025-03-07",
+          "page_length": 3,
+          "publication_date": "2025-03-07",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03786",
+        "metadata": {
+          "citation": "90 FR 11594",
+          "document_number": "2025-03786",
+          "granule_id": "2025-03786",
+          "has_xml": true,
+          "package_id": "FR-2025-03-10",
+          "page_length": 2,
+          "publication_date": "2025-03-10",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03801",
+        "metadata": {
+          "citation": "90 FR 11931",
+          "document_number": "2025-03801",
+          "granule_id": "2025-03801",
+          "has_xml": true,
+          "package_id": "FR-2025-03-13",
+          "page_length": 7,
+          "publication_date": "2025-03-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03883",
+        "metadata": {
+          "citation": "90 FR 11815",
+          "document_number": "2025-03883",
+          "granule_id": "2025-03883",
+          "has_xml": true,
+          "package_id": "FR-2025-03-12",
+          "page_length": 3,
+          "publication_date": "2025-03-12",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-03940",
+        "metadata": {
+          "citation": "90 FR 12501",
+          "document_number": "2025-03940",
+          "granule_id": "2025-03940",
+          "has_xml": true,
+          "package_id": "FR-2025-03-18",
+          "page_length": 4,
+          "publication_date": "2025-03-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04010",
+        "metadata": {
+          "citation": "90 FR 11906",
+          "document_number": "2025-04010",
+          "granule_id": "2025-04010",
+          "has_xml": true,
+          "package_id": "FR-2025-03-13",
+          "page_length": 3,
+          "publication_date": "2025-03-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04035",
+        "metadata": {
+          "citation": "90 FR 12239",
+          "document_number": "2025-04035",
+          "granule_id": "2025-04035",
+          "has_xml": true,
+          "package_id": "FR-2025-03-17",
+          "page_length": 5,
+          "publication_date": "2025-03-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04083",
+        "metadata": {
+          "citation": "90 FR 12942",
+          "document_number": "2025-04083",
+          "granule_id": "2025-04083",
+          "has_xml": true,
+          "package_id": "FR-2025-03-19",
+          "page_length": 91,
+          "publication_date": "2025-03-19",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04276",
+        "metadata": {
+          "citation": "90 FR 12510",
+          "document_number": "2025-04276",
+          "granule_id": "2025-04276",
+          "has_xml": true,
+          "package_id": "FR-2025-03-18",
+          "page_length": 13,
+          "publication_date": "2025-03-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04443",
+        "metadata": {
+          "citation": "90 FR 12694",
+          "document_number": "2025-04443",
+          "granule_id": "2025-04443",
+          "has_xml": true,
+          "package_id": "FR-2025-03-19",
+          "page_length": 2,
+          "publication_date": "2025-03-19",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04802",
+        "metadata": {
+          "citation": "90 FR 13314",
+          "document_number": "2025-04802",
+          "granule_id": "2025-04802",
+          "has_xml": true,
+          "package_id": "FR-2025-03-21",
+          "page_length": 3,
+          "publication_date": "2025-03-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04985",
+        "metadata": {
+          "citation": "90 FR 14213",
+          "document_number": "2025-04985",
+          "granule_id": "2025-04985",
+          "has_xml": true,
+          "package_id": "FR-2025-03-31",
+          "page_length": 5,
+          "publication_date": "2025-03-31",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-04986",
+        "metadata": {
+          "citation": "90 FR 13571",
+          "document_number": "2025-04986",
+          "granule_id": "2025-04986",
+          "has_xml": true,
+          "package_id": "FR-2025-03-25",
+          "page_length": 3,
+          "publication_date": "2025-03-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-05014",
+        "metadata": {
+          "citation": "90 FR 13578",
+          "document_number": "2025-05014",
+          "granule_id": "2025-05014",
+          "has_xml": true,
+          "package_id": "FR-2025-03-25",
+          "page_length": 2,
+          "publication_date": "2025-03-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-05492",
+        "metadata": {
+          "citation": "90 FR 14221",
+          "document_number": "2025-05492",
+          "granule_id": "2025-05492",
+          "has_xml": true,
+          "package_id": "FR-2025-03-31",
+          "page_length": 2,
+          "publication_date": "2025-03-31",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-05907",
+        "metadata": {
+          "citation": "90 FR 14933",
+          "document_number": "2025-05907",
+          "granule_id": "2025-05907",
+          "has_xml": true,
+          "package_id": "FR-2025-04-07",
+          "page_length": 3,
+          "publication_date": "2025-04-07",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-05927",
+        "metadata": {
+          "citation": "90 FR 15213",
+          "document_number": "2025-05927",
+          "granule_id": "2025-05927",
+          "has_xml": true,
+          "package_id": "FR-2025-04-09",
+          "page_length": 6,
+          "publication_date": "2025-04-09",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-06125",
+        "metadata": {
+          "citation": "90 FR 15324",
+          "document_number": "2025-06125",
+          "granule_id": "2025-06125",
+          "has_xml": true,
+          "package_id": "FR-2025-04-10",
+          "page_length": 3,
+          "publication_date": "2025-04-10",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-06330",
+        "metadata": {
+          "citation": "90 FR 16093",
+          "document_number": "2025-06330",
+          "granule_id": "2025-06330",
+          "has_xml": true,
+          "package_id": "FR-2025-04-17",
+          "page_length": 9,
+          "publication_date": "2025-04-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-06570",
+        "metadata": {
+          "citation": "90 FR 16101",
+          "document_number": "2025-06570",
+          "granule_id": "2025-06570",
+          "has_xml": true,
+          "package_id": "FR-2025-04-17",
+          "page_length": 2,
+          "publication_date": "2025-04-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-06729",
+        "metadata": {
+          "citation": "90 FR 16469",
+          "document_number": "2025-06729",
+          "granule_id": "2025-06729",
+          "has_xml": true,
+          "package_id": "FR-2025-04-18",
+          "page_length": 6,
+          "publication_date": "2025-04-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-07110",
+        "metadata": {
+          "citation": "90 FR 17350",
+          "document_number": "2025-07110",
+          "granule_id": "2025-07110",
+          "has_xml": true,
+          "package_id": "FR-2025-04-25",
+          "page_length": 3,
+          "publication_date": "2025-04-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-07837",
+        "metadata": {
+          "citation": "90 FR 18934",
+          "document_number": "2025-07837",
+          "granule_id": "2025-07837",
+          "has_xml": true,
+          "package_id": "FR-2025-05-05",
+          "page_length": 16,
+          "publication_date": "2025-05-05",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-07929",
+        "metadata": {
+          "citation": "90 FR 19264",
+          "document_number": "2025-07929",
+          "granule_id": "2025-07929",
+          "has_xml": true,
+          "package_id": "FR-2025-05-07",
+          "page_length": 3,
+          "publication_date": "2025-05-07",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08078",
+        "metadata": {
+          "citation": "90 FR 19660",
+          "document_number": "2025-08078",
+          "granule_id": "2025-08078",
+          "has_xml": true,
+          "package_id": "FR-2025-05-09",
+          "page_length": 3,
+          "publication_date": "2025-05-09",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08297",
+        "metadata": {
+          "citation": "90 FR 20264",
+          "document_number": "2025-08297",
+          "granule_id": "2025-08297",
+          "has_xml": true,
+          "package_id": "FR-2025-05-13",
+          "page_length": 2,
+          "publication_date": "2025-05-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08569",
+        "metadata": {
+          "citation": "90 FR 20939",
+          "document_number": "2025-08569",
+          "granule_id": "2025-08569",
+          "has_xml": true,
+          "package_id": "FR-2025-05-16",
+          "page_length": 4,
+          "publication_date": "2025-05-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08572",
+        "metadata": {
+          "citation": "90 FR 20942",
+          "document_number": "2025-08572",
+          "granule_id": "2025-08572",
+          "has_xml": true,
+          "package_id": "FR-2025-05-16",
+          "page_length": 3,
+          "publication_date": "2025-05-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08598",
+        "metadata": {
+          "citation": "90 FR 20868",
+          "document_number": "2025-08598",
+          "granule_id": "2025-08598",
+          "has_xml": true,
+          "package_id": "FR-2025-05-16",
+          "page_length": 6,
+          "publication_date": "2025-05-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08705",
+        "metadata": {
+          "citation": "90 FR 20985",
+          "document_number": "2025-08705",
+          "granule_id": "2025-08705",
+          "has_xml": true,
+          "package_id": "FR-2025-05-16",
+          "page_length": 12,
+          "publication_date": "2025-05-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-08929",
+        "metadata": {
+          "citation": "90 FR 21439",
+          "document_number": "2025-08929",
+          "granule_id": "2025-08929",
+          "has_xml": true,
+          "package_id": "FR-2025-05-20",
+          "page_length": 3,
+          "publication_date": "2025-05-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09129",
+        "metadata": {
+          "citation": "90 FR 21702",
+          "document_number": "2025-09129",
+          "granule_id": "2025-09129",
+          "has_xml": true,
+          "package_id": "FR-2025-05-21",
+          "page_length": 4,
+          "publication_date": "2025-05-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09161",
+        "metadata": {
+          "citation": "90 FR 21876",
+          "document_number": "2025-09161",
+          "granule_id": "2025-09161",
+          "has_xml": true,
+          "package_id": "FR-2025-05-22",
+          "page_length": 3,
+          "publication_date": "2025-05-22",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09279",
+        "metadata": {
+          "citation": "90 FR 23768",
+          "document_number": "2025-09279",
+          "granule_id": "2025-09279",
+          "has_xml": true,
+          "package_id": "FR-2025-06-04",
+          "page_length": 44,
+          "publication_date": "2025-06-04",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09717",
+        "metadata": {
+          "citation": "90 FR 22957",
+          "document_number": "2025-09717",
+          "granule_id": "2025-09717",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 4,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09721",
+        "metadata": {
+          "citation": "90 FR 22878",
+          "document_number": "2025-09721",
+          "granule_id": "2025-09721",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 4,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09729",
+        "metadata": {
+          "citation": "90 FR 22883",
+          "document_number": "2025-09729",
+          "granule_id": "2025-09729",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 3,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09732",
+        "metadata": {
+          "citation": "90 FR 22906",
+          "document_number": "2025-09732",
+          "granule_id": "2025-09732",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 5,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09737",
+        "metadata": {
+          "citation": "90 FR 22872",
+          "document_number": "2025-09737",
+          "granule_id": "2025-09737",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 2,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-09743",
+        "metadata": {
+          "citation": "90 FR 22995",
+          "document_number": "2025-09743",
+          "granule_id": "2025-09743",
+          "has_xml": true,
+          "package_id": "FR-2025-05-30",
+          "page_length": 5,
+          "publication_date": "2025-05-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10067",
+        "metadata": {
+          "citation": "90 FR 23467",
+          "document_number": "2025-10067",
+          "granule_id": "2025-10067",
+          "has_xml": true,
+          "package_id": "FR-2025-06-03",
+          "page_length": 11,
+          "publication_date": "2025-06-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10305",
+        "metadata": {
+          "citation": "90 FR 27819",
+          "document_number": "2025-10305",
+          "granule_id": "2025-10305",
+          "has_xml": true,
+          "package_id": "FR-2025-06-30",
+          "page_length": 4,
+          "publication_date": "2025-06-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10324",
+        "metadata": {
+          "citation": "90 FR 24083",
+          "document_number": "2025-10324",
+          "granule_id": "2025-10324",
+          "has_xml": true,
+          "package_id": "FR-2025-06-06",
+          "page_length": 3,
+          "publication_date": "2025-06-06",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10611",
+        "metadata": {
+          "citation": "90 FR 24774",
+          "document_number": "2025-10611",
+          "granule_id": "2025-10611",
+          "has_xml": true,
+          "package_id": "FR-2025-06-12",
+          "page_length": 2,
+          "publication_date": "2025-06-12",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10759",
+        "metadata": {
+          "citation": "90 FR 25000",
+          "document_number": "2025-10759",
+          "granule_id": "2025-10759",
+          "has_xml": true,
+          "package_id": "FR-2025-06-13",
+          "page_length": 3,
+          "publication_date": "2025-06-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-10764",
+        "metadata": {
+          "citation": "90 FR 25002",
+          "document_number": "2025-10764",
+          "granule_id": "2025-10764",
+          "has_xml": true,
+          "package_id": "FR-2025-06-13",
+          "page_length": 3,
+          "publication_date": "2025-06-13",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11073",
+        "metadata": {
+          "citation": "90 FR 25432",
+          "document_number": "2025-11073",
+          "granule_id": "2025-11073",
+          "has_xml": true,
+          "package_id": "FR-2025-06-16",
+          "page_length": 51,
+          "publication_date": "2025-06-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11125",
+        "metadata": {
+          "citation": "90 FR 25530",
+          "document_number": "2025-11125",
+          "granule_id": "2025-11125",
+          "has_xml": true,
+          "package_id": "FR-2025-06-17",
+          "page_length": 2,
+          "publication_date": "2025-06-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11264",
+        "metadata": {
+          "citation": "90 FR 25984",
+          "document_number": "2025-11264",
+          "granule_id": "2025-11264",
+          "has_xml": true,
+          "package_id": "FR-2025-06-18",
+          "page_length": 3,
+          "publication_date": "2025-06-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11270",
+        "metadata": {
+          "citation": "90 FR 25923",
+          "document_number": "2025-11270",
+          "granule_id": "2025-11270",
+          "has_xml": true,
+          "package_id": "FR-2025-06-18",
+          "page_length": 7,
+          "publication_date": "2025-06-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11271",
+        "metadata": {
+          "citation": "90 FR 25918",
+          "document_number": "2025-11271",
+          "granule_id": "2025-11271",
+          "has_xml": true,
+          "package_id": "FR-2025-06-18",
+          "page_length": 1,
+          "publication_date": "2025-06-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11360",
+        "metadata": {
+          "citation": "90 FR 26244",
+          "document_number": "2025-11360",
+          "granule_id": "2025-11360",
+          "has_xml": true,
+          "package_id": "FR-2025-06-20",
+          "page_length": 22,
+          "publication_date": "2025-06-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11413",
+        "metadata": {
+          "citation": "90 FR 26469",
+          "document_number": "2025-11413",
+          "granule_id": "2025-11413",
+          "has_xml": true,
+          "package_id": "FR-2025-06-23",
+          "page_length": 14,
+          "publication_date": "2025-06-23",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11477",
+        "metadata": {
+          "citation": "90 FR 26684",
+          "document_number": "2025-11477",
+          "granule_id": "2025-11477",
+          "has_xml": true,
+          "package_id": "FR-2025-06-23",
+          "page_length": 38,
+          "publication_date": "2025-06-23",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11488",
+        "metadata": {
+          "citation": "90 FR 26463",
+          "document_number": "2025-11488",
+          "granule_id": "2025-11488",
+          "has_xml": true,
+          "package_id": "FR-2025-06-23",
+          "page_length": 4,
+          "publication_date": "2025-06-23",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11582",
+        "metadata": {
+          "citation": "90 FR 26771",
+          "document_number": "2025-11582",
+          "granule_id": "2025-11582",
+          "has_xml": true,
+          "package_id": "FR-2025-06-24",
+          "page_length": 5,
+          "publication_date": "2025-06-24",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11616",
+        "metadata": {
+          "citation": "90 FR 28400",
+          "document_number": "2025-11616",
+          "granule_id": "2025-11616",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 4,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11618",
+        "metadata": {
+          "citation": "90 FR 28438",
+          "document_number": "2025-11618",
+          "granule_id": "2025-11618",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 3,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11637",
+        "metadata": {
+          "citation": "90 FR 28349",
+          "document_number": "2025-11637",
+          "granule_id": "2025-11637",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 6,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11848",
+        "metadata": {
+          "citation": "90 FR 28247",
+          "document_number": "2025-11848",
+          "granule_id": "2025-11848",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 4,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-11925",
+        "metadata": {
+          "citation": "90 FR 27487",
+          "document_number": "2025-11925",
+          "granule_id": "2025-11925",
+          "has_xml": true,
+          "package_id": "FR-2025-06-27",
+          "page_length": 3,
+          "publication_date": "2025-06-27",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12032",
+        "metadata": {
+          "citation": "90 FR 27822",
+          "document_number": "2025-12032",
+          "granule_id": "2025-12032",
+          "has_xml": true,
+          "package_id": "FR-2025-06-30",
+          "page_length": 3,
+          "publication_date": "2025-06-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12131",
+        "metadata": {
+          "citation": "90 FR 28597",
+          "document_number": "2025-12131",
+          "granule_id": "2025-12131",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 4,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12174",
+        "metadata": {
+          "citation": "90 FR 28690",
+          "document_number": "2025-12174",
+          "granule_id": "2025-12174",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 4,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12188",
+        "metadata": {
+          "citation": "90 FR 28639",
+          "document_number": "2025-12188",
+          "granule_id": "2025-12188",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 3,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12191",
+        "metadata": {
+          "citation": "90 FR 28626",
+          "document_number": "2025-12191",
+          "granule_id": "2025-12191",
+          "has_xml": true,
+          "package_id": "FR-2025-07-01",
+          "page_length": 4,
+          "publication_date": "2025-07-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12448",
+        "metadata": {
+          "citation": "90 FR 29512",
+          "document_number": "2025-12448",
+          "granule_id": "2025-12448",
+          "has_xml": true,
+          "package_id": "FR-2025-07-03",
+          "page_length": 1,
+          "publication_date": "2025-07-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-12642",
+        "metadata": {
+          "citation": "90 FR 30024",
+          "document_number": "2025-12642",
+          "granule_id": "2025-12642",
+          "has_xml": true,
+          "package_id": "FR-2025-07-08",
+          "page_length": 4,
+          "publication_date": "2025-07-08",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-13258",
+        "metadata": {
+          "citation": "90 FR 32118",
+          "document_number": "2025-13258",
+          "granule_id": "2025-13258",
+          "has_xml": true,
+          "package_id": "FR-2025-07-16",
+          "page_length": 232,
+          "publication_date": "2025-07-16",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-13937",
+        "metadata": {
+          "citation": "90 FR 34781",
+          "document_number": "2025-13937",
+          "granule_id": "2025-13937",
+          "has_xml": true,
+          "package_id": "FR-2025-07-24",
+          "page_length": 4,
+          "publication_date": "2025-07-24",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-14146",
+        "metadata": {
+          "citation": "90 FR 35441",
+          "document_number": "2025-14146",
+          "granule_id": "2025-14146",
+          "has_xml": true,
+          "package_id": "FR-2025-07-28",
+          "page_length": 5,
+          "publication_date": "2025-07-28",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-14528",
+        "metadata": {
+          "citation": "90 FR 36003",
+          "document_number": "2025-14528",
+          "granule_id": "2025-14528",
+          "has_xml": true,
+          "package_id": "FR-2025-07-31",
+          "page_length": 3,
+          "publication_date": "2025-07-31",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-14675",
+        "metadata": {
+          "citation": "90 FR 36400",
+          "document_number": "2025-14675",
+          "granule_id": "2025-14675",
+          "has_xml": true,
+          "package_id": "FR-2025-08-04",
+          "page_length": 3,
+          "publication_date": "2025-08-04",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-14687",
+        "metadata": {
+          "citation": "90 FR 36415",
+          "document_number": "2025-14687",
+          "granule_id": "2025-14687",
+          "has_xml": true,
+          "package_id": "FR-2025-08-04",
+          "page_length": 3,
+          "publication_date": "2025-08-04",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15212",
+        "metadata": {
+          "citation": "90 FR 38614",
+          "document_number": "2025-15212",
+          "granule_id": "2025-15212",
+          "has_xml": true,
+          "package_id": "FR-2025-08-11",
+          "page_length": 2,
+          "publication_date": "2025-08-11",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15218",
+        "metadata": {
+          "citation": "90 FR 38615",
+          "document_number": "2025-15218",
+          "granule_id": "2025-15218",
+          "has_xml": true,
+          "package_id": "FR-2025-08-11",
+          "page_length": 4,
+          "publication_date": "2025-08-11",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15459",
+        "metadata": {
+          "citation": "90 FR 39139",
+          "document_number": "2025-15459",
+          "granule_id": "2025-15459",
+          "has_xml": true,
+          "package_id": "FR-2025-08-14",
+          "page_length": 4,
+          "publication_date": "2025-08-14",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15461",
+        "metadata": {
+          "citation": "90 FR 39144",
+          "document_number": "2025-15461",
+          "granule_id": "2025-15461",
+          "has_xml": true,
+          "package_id": "FR-2025-08-14",
+          "page_length": 5,
+          "publication_date": "2025-08-14",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15491",
+        "metadata": {
+          "citation": "90 FR 39161",
+          "document_number": "2025-15491",
+          "granule_id": "2025-15491",
+          "has_xml": true,
+          "package_id": "FR-2025-08-14",
+          "page_length": 13,
+          "publication_date": "2025-08-14",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15749",
+        "metadata": {
+          "citation": "90 FR 40257",
+          "document_number": "2025-15749",
+          "granule_id": "2025-15749",
+          "has_xml": true,
+          "package_id": "FR-2025-08-19",
+          "page_length": 6,
+          "publication_date": "2025-08-19",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15914",
+        "metadata": {
+          "citation": "90 FR 40548",
+          "document_number": "2025-15914",
+          "granule_id": "2025-15914",
+          "has_xml": true,
+          "package_id": "FR-2025-08-20",
+          "page_length": 2,
+          "publication_date": "2025-08-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15985",
+        "metadata": {
+          "citation": "90 FR 40790",
+          "document_number": "2025-15985",
+          "granule_id": "2025-15985",
+          "has_xml": true,
+          "package_id": "FR-2025-08-21",
+          "page_length": 2,
+          "publication_date": "2025-08-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-15987",
+        "metadata": {
+          "citation": "90 FR 40793",
+          "document_number": "2025-15987",
+          "granule_id": "2025-15987",
+          "has_xml": true,
+          "package_id": "FR-2025-08-21",
+          "page_length": 3,
+          "publication_date": "2025-08-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16012",
+        "metadata": {
+          "citation": "90 FR 40786",
+          "document_number": "2025-16012",
+          "granule_id": "2025-16012",
+          "has_xml": true,
+          "package_id": "FR-2025-08-21",
+          "page_length": 4,
+          "publication_date": "2025-08-21",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16088",
+        "metadata": {
+          "citation": "90 FR 40993",
+          "document_number": "2025-16088",
+          "granule_id": "2025-16088",
+          "has_xml": true,
+          "package_id": "FR-2025-08-22",
+          "page_length": 24,
+          "publication_date": "2025-08-22",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16227",
+        "metadata": {
+          "citation": "90 FR 41359",
+          "document_number": "2025-16227",
+          "granule_id": "2025-16227",
+          "has_xml": true,
+          "package_id": "FR-2025-08-25",
+          "page_length": 7,
+          "publication_date": "2025-08-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16333",
+        "metadata": {
+          "citation": "90 FR 41530",
+          "document_number": "2025-16333",
+          "granule_id": "2025-16333",
+          "has_xml": true,
+          "package_id": "FR-2025-08-26",
+          "page_length": 13,
+          "publication_date": "2025-08-26",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16352",
+        "metadata": {
+          "citation": "90 FR 41520",
+          "document_number": "2025-16352",
+          "granule_id": "2025-16352",
+          "has_xml": true,
+          "package_id": "FR-2025-08-26",
+          "page_length": 4,
+          "publication_date": "2025-08-26",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16554",
+        "metadata": {
+          "citation": "90 FR 42070",
+          "document_number": "2025-16554",
+          "granule_id": "2025-16554",
+          "has_xml": true,
+          "package_id": "FR-2025-08-28",
+          "page_length": 46,
+          "publication_date": "2025-08-28",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-16836",
+        "metadata": {
+          "citation": "90 FR 42552",
+          "document_number": "2025-16836",
+          "granule_id": "2025-16836",
+          "has_xml": true,
+          "package_id": "FR-2025-09-03",
+          "page_length": 5,
+          "publication_date": "2025-09-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-17041",
+        "metadata": {
+          "citation": "90 FR 43030",
+          "document_number": "2025-17041",
+          "granule_id": "2025-17041",
+          "has_xml": true,
+          "package_id": "FR-2025-09-05",
+          "page_length": 38,
+          "publication_date": "2025-09-05",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-17081",
+        "metadata": {
+          "citation": "90 FR 42885",
+          "document_number": "2025-17081",
+          "granule_id": "2025-17081",
+          "has_xml": true,
+          "package_id": "FR-2025-09-05",
+          "page_length": 3,
+          "publication_date": "2025-09-05",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-17246",
+        "metadata": {
+          "citation": "90 FR 43400",
+          "document_number": "2025-17246",
+          "granule_id": "2025-17246",
+          "has_xml": true,
+          "package_id": "FR-2025-09-09",
+          "page_length": 3,
+          "publication_date": "2025-09-09",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-17498",
+        "metadata": {
+          "citation": "90 FR 43983",
+          "document_number": "2025-17498",
+          "granule_id": "2025-17498",
+          "has_xml": true,
+          "package_id": "FR-2025-09-11",
+          "page_length": 4,
+          "publication_date": "2025-09-11",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-17518",
+        "metadata": {
+          "citation": "90 FR 43987",
+          "document_number": "2025-17518",
+          "granule_id": "2025-17518",
+          "has_xml": true,
+          "package_id": "FR-2025-09-11",
+          "page_length": 1,
+          "publication_date": "2025-09-11",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-18467",
+        "metadata": {
+          "citation": "90 FR 45928",
+          "document_number": "2025-18467",
+          "granule_id": "2025-18467",
+          "has_xml": true,
+          "package_id": "FR-2025-09-24",
+          "page_length": 3,
+          "publication_date": "2025-09-24",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-18566",
+        "metadata": {
+          "citation": "90 FR 46092",
+          "document_number": "2025-18566",
+          "granule_id": "2025-18566",
+          "has_xml": true,
+          "package_id": "FR-2025-09-25",
+          "page_length": 7,
+          "publication_date": "2025-09-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-18738",
+        "metadata": {
+          "citation": "90 FR 46362",
+          "document_number": "2025-18738",
+          "granule_id": "2025-18738",
+          "has_xml": true,
+          "package_id": "FR-2025-09-26",
+          "page_length": 4,
+          "publication_date": "2025-09-26",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-18924",
+        "metadata": {
+          "citation": "90 FR 47136",
+          "document_number": "2025-18924",
+          "granule_id": "2025-18924",
+          "has_xml": true,
+          "package_id": "FR-2025-09-30",
+          "page_length": 33,
+          "publication_date": "2025-09-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-19018",
+        "metadata": {
+          "citation": "90 FR 46776",
+          "document_number": "2025-19018",
+          "granule_id": "2025-19018",
+          "has_xml": true,
+          "package_id": "FR-2025-09-30",
+          "page_length": 2,
+          "publication_date": "2025-09-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-19220",
+        "metadata": {
+          "citation": "90 FR 47240",
+          "document_number": "2025-19220",
+          "granule_id": "2025-19220",
+          "has_xml": true,
+          "package_id": "FR-2025-10-01",
+          "page_length": 3,
+          "publication_date": "2025-10-01",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-19363",
+        "metadata": {
+          "citation": "90 FR 47713",
+          "document_number": "2025-19363",
+          "granule_id": "2025-19363",
+          "has_xml": true,
+          "package_id": "FR-2025-10-02",
+          "page_length": 4,
+          "publication_date": "2025-10-02",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-19756",
+        "metadata": {
+          "citation": "90 FR 49148",
+          "document_number": "2025-19756",
+          "granule_id": "2025-19756",
+          "has_xml": true,
+          "package_id": "FR-2025-11-03",
+          "page_length": 30,
+          "publication_date": "2025-11-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-20444",
+        "metadata": {
+          "citation": "90 FR 52270",
+          "document_number": "2025-20444",
+          "granule_id": "2025-20444",
+          "has_xml": true,
+          "package_id": "FR-2025-11-20",
+          "page_length": 19,
+          "publication_date": "2025-11-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-20496",
+        "metadata": {
+          "citation": "90 FR 52318",
+          "document_number": "2025-20496",
+          "granule_id": "2025-20496",
+          "has_xml": true,
+          "package_id": "FR-2025-11-20",
+          "page_length": 2,
+          "publication_date": "2025-11-20",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-20898",
+        "metadata": {
+          "citation": "90 FR 53251",
+          "document_number": "2025-20898",
+          "granule_id": "2025-20898",
+          "has_xml": true,
+          "package_id": "FR-2025-11-25",
+          "page_length": 5,
+          "publication_date": "2025-11-25",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-21456",
+        "metadata": {
+          "citation": "90 FR 54894",
+          "document_number": "2025-21456",
+          "granule_id": "2025-21456",
+          "has_xml": true,
+          "package_id": "FR-2025-11-28",
+          "page_length": 137,
+          "publication_date": "2025-11-28",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-21506",
+        "metadata": {
+          "citation": "90 FR 54619",
+          "document_number": "2025-21506",
+          "granule_id": "2025-21506",
+          "has_xml": true,
+          "package_id": "FR-2025-11-28",
+          "page_length": 15,
+          "publication_date": "2025-11-28",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-21785",
+        "metadata": {
+          "citation": "90 FR 55699",
+          "document_number": "2025-21785",
+          "granule_id": "2025-21785",
+          "has_xml": true,
+          "package_id": "FR-2025-12-03",
+          "page_length": 3,
+          "publication_date": "2025-12-03",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-22011",
+        "metadata": {
+          "citation": "90 FR 56076",
+          "document_number": "2025-22011",
+          "granule_id": "2025-22011",
+          "has_xml": true,
+          "package_id": "FR-2025-12-05",
+          "page_length": 1,
+          "publication_date": "2025-12-05",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-22230",
+        "metadata": {
+          "citation": "90 FR 56697",
+          "document_number": "2025-22230",
+          "granule_id": "2025-22230",
+          "has_xml": true,
+          "package_id": "FR-2025-12-08",
+          "page_length": 3,
+          "publication_date": "2025-12-08",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-22489",
+        "metadata": {
+          "citation": "90 FR 57399",
+          "document_number": "2025-22489",
+          "granule_id": "2025-22489",
+          "has_xml": true,
+          "package_id": "FR-2025-12-11",
+          "page_length": 3,
+          "publication_date": "2025-12-11",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-22632",
+        "metadata": {
+          "citation": "90 FR 57722",
+          "document_number": "2025-22632",
+          "granule_id": "2025-22632",
+          "has_xml": true,
+          "package_id": "FR-2025-12-12",
+          "page_length": 3,
+          "publication_date": "2025-12-12",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-22674",
+        "metadata": {
+          "citation": "90 FR 57726",
+          "document_number": "2025-22674",
+          "granule_id": "2025-22674",
+          "has_xml": true,
+          "package_id": "FR-2025-12-12",
+          "page_length": 2,
+          "publication_date": "2025-12-12",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-23085",
+        "metadata": {
+          "citation": "90 FR 58539",
+          "document_number": "2025-23085",
+          "granule_id": "2025-23085",
+          "has_xml": true,
+          "package_id": "FR-2025-12-17",
+          "page_length": 3,
+          "publication_date": "2025-12-17",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-23254",
+        "metadata": {
+          "citation": "90 FR 59083",
+          "document_number": "2025-23254",
+          "granule_id": "2025-23254",
+          "has_xml": true,
+          "package_id": "FR-2025-12-18",
+          "page_length": 2,
+          "publication_date": "2025-12-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-23459",
+        "metadata": {
+          "citation": "90 FR 59419",
+          "document_number": "2025-23459",
+          "granule_id": "2025-23459",
+          "has_xml": true,
+          "package_id": "FR-2025-12-19",
+          "page_length": 4,
+          "publication_date": "2025-12-19",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-23857",
+        "metadata": {
+          "citation": "90 FR 60586",
+          "document_number": "2025-23857",
+          "granule_id": "2025-23857",
+          "has_xml": true,
+          "package_id": "FR-2025-12-29",
+          "page_length": 3,
+          "publication_date": "2025-12-29",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "2025-23976",
+        "metadata": {
+          "citation": "90 FR 61112",
+          "document_number": "2025-23976",
+          "granule_id": "2025-23976",
+          "has_xml": true,
+          "package_id": "FR-2025-12-30",
+          "page_length": 2,
+          "publication_date": "2025-12-30",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      },
+      {
+        "canonical_id": "C1-2025-08929",
+        "metadata": {
+          "citation": "90 FR 26778",
+          "document_number": "C1-2025-08929",
+          "granule_id": "C1-2025-08929",
+          "has_xml": true,
+          "package_id": "FR-2025-06-24",
+          "page_length": 1,
+          "publication_date": "2025-06-24",
+          "type": "Proposed Rule",
+          "volume": 90
+        }
+      }
+    ],
+    "snapshot": {
+      "api_enum": "PRORULE",
+      "eligibility_evaluation": "eager_full_materialization",
+      "ineligible_head": [],
+      "n_eligible": 148,
+      "n_list_rows": 1498,
+      "stratum": "Proposed Rule"
+    }
+  },
+  "payload_sha256": "06738db0d68c06e07730ee6ac837f2df446b6934ebe9c3c6bbe907f46712a608"
+}
