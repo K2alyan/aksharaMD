@@ -1,0 +1,234 @@
+{
+  "checks_passed": 44,
+  "checks_total": 44,
+  "doc_dir": "corpus\\eval_v1\\federal_register\\2026-18630",
+  "document_number": "2026-18630",
+  "extraction_rules_version": "1",
+  "granule_id": "2026-18630",
+  "package_id": "FR-2026-09-11",
+  "publication_date": "2026-09-11",
+  "results": [
+    {
+      "detail": "",
+      "name": "manifest.schema_version_matches_constant",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.distribution.source_is_fr_api",
+      "ok": true
+    },
+    {
+      "detail": "lte=2026-09-11",
+      "name": "manifest.distribution.population_publication_date_lte_is_iso",
+      "ok": true
+    },
+    {
+      "detail": "gte=2026-09-05",
+      "name": "manifest.distribution.population_publication_date_gte_is_iso",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.distribution.date_range_gte_le_lte",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.document_number_present",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.publication_date_iso",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.volume_present_and_int",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.type_present",
+      "ok": true
+    },
+    {
+      "detail": "manifest=FR-2026-09-11 url=FR-2026-09-11",
+      "name": "govinfo.package_id_matches_pdf_url_parse",
+      "ok": true
+    },
+    {
+      "detail": "manifest=2026-18630 url=2026-18630",
+      "name": "govinfo.granule_id_matches_pdf_url_parse",
+      "ok": true
+    },
+    {
+      "detail": "granule_id=2026-18630 document_number=2026-18630",
+      "name": "govinfo.granule_id_equals_document_number",
+      "ok": true
+    },
+    {
+      "detail": "package_id=FR-2026-09-11 publication_date=2026-09-11",
+      "name": "govinfo.package_id_date_matches_publication_date",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.pdf_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.xml_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.api_json_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "volume=91",
+      "name": "filter.volume_ge_60",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "filter.type_is_rule",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.supports_clean_native_fpr",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.supports_textual_gt_is_false",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.textual_gt_reason_cites_caveat_3",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.supports_layout_gt_is_false",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.supports_clause_span_gt_is_false",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "capabilities.supports_downstream_qa_gt_is_false",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_media_type_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_sha256_matches_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_path_is_pdf",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_source_role_records_authoritative",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_records_pinned_date_lte",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_adjudication_support_records_xml",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.kind_is_fpr_baseline",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.provenance_extraction_rules_version",
+      "ok": true
+    },
+    {
+      "detail": "forbidden field 'oracle_text' would signal G1 semantics",
+      "name": "gt.data_has_no_oracle_text_field",
+      "ok": true
+    },
+    {
+      "detail": "forbidden field 'expected_text' would signal G1 semantics",
+      "name": "gt.data_has_no_expected_text_field",
+      "ok": true
+    },
+    {
+      "detail": "forbidden field 'expected_prose' would signal G1 semantics",
+      "name": "gt.data_has_no_expected_prose_field",
+      "ok": true
+    },
+    {
+      "detail": "forbidden field 'word_set' would signal G1 semantics",
+      "name": "gt.data_has_no_word_set_field",
+      "ok": true
+    },
+    {
+      "detail": "forbidden field 'tokens' would signal G1 semantics",
+      "name": "gt.data_has_no_tokens_field",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.contract_meaning_records_g2_adjudication_semantics",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.contract_native_authored_pdf_definition_recorded",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "gt.provenance_records_pinned_date_lte",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.manifest_mtime_unchanged",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.pdf_sha256_stable",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.gt_xml_sha256_stable",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "ledger.selected_document_recorded",
+      "ok": true
+    }
+  ],
+  "verdict": "PASS",
+  "verified_utc": "2026-09-15T03:42:59+00:00"
+}
