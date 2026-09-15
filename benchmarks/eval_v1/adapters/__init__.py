@@ -12,12 +12,15 @@ DocLayNet, Federal Register/SEC, and CUAD adapters ship when the
 corresponding authorization exercises them.
 """
 from .docbench_non_v1 import DocBenchNonV1Adapter
+from .doclaynet_v1 import DocLayNetAsset, DocLayNetV1Adapter
 from .pmc_oa_v1 import PmcOaAsset, PmcOaV1Adapter
 from .qasper_v1 import QasperV1Adapter
 from .tat_dqa_v1 import TatDqaV1Adapter
 
 __all__ = [
     "DocBenchNonV1Adapter",
+    "DocLayNetAsset",
+    "DocLayNetV1Adapter",
     "PmcOaAsset",
     "PmcOaV1Adapter",
     "QasperV1Adapter",

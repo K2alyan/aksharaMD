@@ -940,6 +940,272 @@ def test_pmc_oa_traversal_paragraph_inside_fig_is_not_counted_as_body_paragraph(
     assert stats.included_paragraphs == 2
 
 
+# ---- DocLayNet adapter (B1a-3) ----------------------------------
+
+
+def _write_doclaynet_fixture(tmp_path):
+    """Write a schema-v1 DocLayNet page fixture on disk.
+
+    Mirrors what ``benchmarks.eval_v1.acquisition.doclaynet_hf.acquire_page``
+    produces: PNG + PDF + annotations JSON + local manifest under
+    ``<page_hash>/``. A tiny 4-byte PNG stand-in is fine for adapter
+    tests — we assert on schema and hash consistency, not on image
+    semantics.
+    """
+    import hashlib
+    import json
+
+    from benchmarks.eval_v1.acquisition.doclaynet_hf import (
+        MANIFEST_SCHEMA_VERSION,
+    )
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetAsset
+
+    page_hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    page_dir = tmp_path / page_hash
+    page_dir.mkdir()
+
+    png_bytes = b"\x89PNG\r\n\x1a\n_synthetic_fixture_not_a_real_png_"
+    pdf_bytes = b"%PDF-1.4\n%synthetic-fixture-not-a-real-pdf\n"
+    png_path = page_dir / f"{page_hash}.png"
+    pdf_path = page_dir / f"{page_hash}.pdf"
+    ann_path = page_dir / f"{page_hash}.annotations.json"
+    png_path.write_bytes(png_bytes)
+    pdf_path.write_bytes(pdf_bytes)
+
+    annotations_payload = {
+        "coco_categories": [
+            {"id": 1, "name": "Caption"},
+            {"id": 9, "name": "Table"},
+            {"id": 10, "name": "Text"},
+            {"id": 11, "name": "Title"},
+        ],
+        "coordinate_space": {
+            "kind": "png_pixels",
+            "coco_width": 1025,
+            "coco_height": 1025,
+            "original_width": 612.0,
+            "original_height": 792.0,
+            "note": "Bboxes are in COCO PNG-pixel space.",
+        },
+        "annotations": [
+            {"category_id": 11, "category": "Title", "bbox_png": [100.0, 50.0, 400.0, 40.0], "area": 16000.0},
+            {"category_id": 10, "category": "Text", "bbox_png": [80.0, 120.0, 800.0, 200.0], "area": 160000.0},
+            {"category_id": 9, "category": "Table", "bbox_png": [80.0, 400.0, 800.0, 300.0], "area": 240000.0},
+            {"category_id": 1, "category": "Caption", "bbox_png": [80.0, 720.0, 400.0, 20.0], "area": 8000.0},
+        ],
+    }
+    ann_path.write_text(json.dumps(annotations_payload, indent=2, sort_keys=True))
+    ann_bytes = ann_path.read_bytes()
+
+    manifest = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "corpus": "doclaynet",
+        "page_hash": page_hash,
+        "acquired_utc": "2026-09-14T18:00:00+00:00",
+        "distribution": {
+            "source": "huggingface_datasets_parquet",
+            "dataset_id": "docling-project/DocLayNet-v1.2",
+            "dataset_commit_sha": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+            "dataset_last_modified_utc": "2025-02-10T16:33:40.000Z",
+            "hf_api_url": "https://huggingface.co/api/datasets/docling-project/DocLayNet-v1.2",
+            "shard_key": "data/train-00000-of-00072.parquet",
+            "shard_sha256": None,
+            "split": "train",
+        },
+        "image_id": 42,
+        "original_filename": "synthetic.pdf",
+        "page_no": 3,
+        "doc_category": "financial_reports",
+        "collection": "synthetic_collection",
+        "num_pages_in_original": 10,
+        "modalities": ["layout"],
+        "precedence": None,
+        "coordinate_space": annotations_payload["coordinate_space"],
+        "annotations_summary": {
+            "n_annotations": 4,
+            "category_distribution": {"Title": 1, "Text": 1, "Table": 1, "Caption": 1},
+        },
+        "png": {
+            "path": png_path.name,
+            "sha256": hashlib.sha256(png_bytes).hexdigest(),
+            "size_bytes": len(png_bytes),
+        },
+        "pdf": {
+            "path": pdf_path.name,
+            "sha256": hashlib.sha256(pdf_bytes).hexdigest(),
+            "size_bytes": len(pdf_bytes),
+            "present_in_distribution": True,
+        },
+        "annotations_file": {
+            "path": ann_path.name,
+            "sha256": hashlib.sha256(ann_bytes).hexdigest(),
+            "size_bytes": len(ann_bytes),
+        },
+        "selection": {"authorization": "B1a-3", "role": "test-fixture", "discovery": {}},
+    }
+    manifest_path = page_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+
+    return DocLayNetAsset(
+        page_hash=page_hash,
+        manifest_path=manifest_path,
+        annotations_path=ann_path,
+        png_path=png_path,
+        pdf_path=pdf_path,
+    )
+
+
+def test_doclaynet_capabilities_declare_layout_g1_only():
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetV1Adapter
+
+    caps = DocLayNetV1Adapter({}).capabilities()
+    assert caps.corpus_name == "doclaynet"
+    assert caps.on_v1_manifest is True
+    assert caps.supports_layout_gt is True
+    for f in (
+        "supports_textual_gt",
+        "supports_clause_span_gt",
+        "supports_downstream_qa_gt",
+        "supports_clean_native_fpr",
+    ):
+        assert getattr(caps, f) is False
+        stage_key = f.removeprefix("supports_")
+        assert stage_key in caps.not_applicable_reasons
+    # Layout is the supported role and should NOT be in the NA dict.
+    assert "layout_gt" not in caps.not_applicable_reasons
+
+
+def test_doclaynet_ingest_source_uses_manifest_hashes(tmp_path):
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import (
+        CORPUS_NAME,
+        DocLayNetV1Adapter,
+    )
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    adapter = DocLayNetV1Adapter({asset.page_hash: asset})
+    si = adapter.ingest_source(asset.page_hash)
+    assert si.doc_id == asset.page_hash
+    assert si.media_type == "image/png"
+    assert si.path == asset.png_path
+    assert si.provenance["corpus"] == CORPUS_NAME
+    assert si.provenance["source_kind"] == "huggingface_datasets_parquet"
+    assert si.provenance["page_hash"] == asset.page_hash
+    assert si.provenance["dataset_id"] == "docling-project/DocLayNet-v1.2"
+    assert len(si.provenance["dataset_commit_sha"]) == 40
+    assert si.provenance["split"] == "train"
+    assert si.provenance["pdf_present_in_distribution"] is True
+
+
+def test_doclaynet_ingest_source_rejects_hash_mismatch(tmp_path):
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetV1Adapter
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    asset.png_path.write_bytes(b"\x89PNG\r\n\x1a\n_tampered_")
+    adapter = DocLayNetV1Adapter({asset.page_hash: asset})
+    with pytest.raises(RuntimeError, match="cache is inconsistent"):
+        adapter.ingest_source(asset.page_hash)
+
+
+def test_doclaynet_ground_truth_primitive_oracle_only(tmp_path):
+    """Adapter must NOT emit derived fields — no reading order, no cell grid."""
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import (
+        EXTRACTION_RULES_VERSION,
+        GT_KIND,
+        DocLayNetV1Adapter,
+    )
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    gt = DocLayNetV1Adapter({asset.page_hash: asset}).ingest_ground_truth(
+        asset.page_hash
+    )
+    assert gt is not None
+    assert gt.kind == GT_KIND
+    assert gt.provenance["extraction_rules_version"] == EXTRACTION_RULES_VERSION
+
+    # Primitive oracle only.
+    assert "expected_reading_order" not in gt.data
+    assert "table_cell_structure" not in gt.data
+
+    # What IS present.
+    assert gt.data["page_hash"] == asset.page_hash
+    assert gt.data["coordinate_space"]["kind"] == "png_pixels"
+    assert gt.data["coordinate_space"]["coco_width"] == 1025
+    assert gt.data["coordinate_space"]["original_width"] == 612.0
+    assert len(gt.data["annotations"]) == 4
+    assert {a["category"] for a in gt.data["annotations"]} == {
+        "Title", "Text", "Table", "Caption",
+    }
+
+    # `precedence` recorded as null (v1.0 field absent in v1.2 Parquet).
+    assert gt.provenance["precedence"] is None
+
+
+def test_doclaynet_convert_bbox_png_to_pdf_points_reversible():
+    """Coordinate-space conversion round-trip — silent-tank-recall guard."""
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import convert_bbox_to_pdf_points
+
+    cw, ch = 1025, 1025
+    ow, oh = 612.0, 792.0
+    bbox_png = (100.0, 50.0, 400.0, 40.0)
+    conv = convert_bbox_to_pdf_points(bbox_png, cw, ch, ow, oh)
+    # Manual expected values from linear scale.
+    sx, sy = ow / cw, oh / ch
+    expected = (100.0 * sx, 50.0 * sy, 400.0 * sx, 40.0 * sy)
+    for got, want in zip(conv, expected, strict=True):
+        assert abs(got - want) < 1e-9
+
+    # Reverse — must round-trip within numerical tolerance.
+    reversed_bbox = tuple(v / (sx if i % 2 == 0 else sy) for i, v in enumerate(conv))
+    for got, want in zip(reversed_bbox, bbox_png, strict=True):
+        assert abs(got - want) < 1e-9
+
+
+def test_doclaynet_convert_bbox_rejects_bad_input():
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import convert_bbox_to_pdf_points
+
+    with pytest.raises(ValueError, match="non-zero"):
+        convert_bbox_to_pdf_points((0.0, 0.0, 1.0, 1.0), 0, 1025, 612.0, 792.0)
+    with pytest.raises(ValueError, match="4 elements"):
+        convert_bbox_to_pdf_points((0.0, 0.0, 1.0), 1025, 1025, 612.0, 792.0)
+
+
+def test_doclaynet_apply_page_filters_locked_set():
+    """The lightweight structural filter: table + non-Text non-Table + count bounds."""
+    from benchmarks.eval_v1.acquisition.doclaynet_hf import (
+        NAME_TO_CATEGORY_ID,
+        apply_page_filters,
+    )
+
+    T = NAME_TO_CATEGORY_ID["Table"]
+    TXT = NAME_TO_CATEGORY_ID["Text"]
+    TITLE = NAME_TO_CATEGORY_ID["Title"]
+
+    # OK: 10 annotations, has Table + Title (non-Text non-Table)
+    ok_cats = [T, TITLE] + [TXT] * 8
+    d = apply_page_filters({"category_id": ok_cats})
+    assert d.ok is True
+
+    # too few
+    d = apply_page_filters({"category_id": [T, TITLE, TXT]})
+    assert d.ok is False and d.reason.startswith("n_annotations_lt_")
+
+    # too many
+    d = apply_page_filters({"category_id": [T] + [TXT] * 250})
+    assert d.ok is False and d.reason.startswith("n_annotations_gt_")
+
+    # no Table
+    d = apply_page_filters({"category_id": [TITLE] + [TXT] * 10})
+    assert d.ok is False and d.reason == "no_table_region"
+
+    # Only Table and Text — no additional non-Text structural region
+    d = apply_page_filters({"category_id": [T] + [TXT] * 10})
+    assert d.ok is False and d.reason == "no_additional_non_text_structural_region"
+
+    # no annotations
+    d = apply_page_filters({"category_id": []})
+    assert d.ok is False and d.reason == "no_annotations"
+
+
 def test_pmc_oa_aws_apply_metadata_filters_locked_set():
     from benchmarks.eval_v1.acquisition.pmc_oa_aws import (
         PmcVersionMetadata,
