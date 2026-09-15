@@ -110,12 +110,14 @@ def run(article_dir: Path, report_path: Path) -> bool:
     _check(
         checks,
         "pdf.md5_matches_metadata_url",
-        md.md5_from_url(md.pdf_url) == hashlib.md5(pdf_bytes).hexdigest(),  # noqa: S324
+        md.md5_from_url(md.pdf_url)
+        == hashlib.md5(pdf_bytes, usedforsecurity=False).hexdigest(),
     )
     _check(
         checks,
         "xml.md5_matches_metadata_url",
-        md.md5_from_url(md.xml_url) == hashlib.md5(xml_bytes).hexdigest(),  # noqa: S324
+        md.md5_from_url(md.xml_url)
+        == hashlib.md5(xml_bytes, usedforsecurity=False).hexdigest(),
     )
 
     # 3. JATS-internal PMCID matches
@@ -135,7 +137,11 @@ def run(article_dir: Path, report_path: Path) -> bool:
         "manifest.xml_sha256_matches",
         _sha256(xml_bytes) == manifest["xml"]["sha256"],
     )
-    assert asset.metadata_json_path is not None
+    if asset.metadata_json_path is None:
+        raise RuntimeError(
+            "asset.metadata_json_path is required for the AWS-era manifest "
+            "acceptance test — v2 acquisition always populates it."
+        )
     _check(
         checks,
         "manifest.metadata_sha256_matches",
@@ -161,7 +167,11 @@ def run(article_dir: Path, report_path: Path) -> bool:
     # 6. Adapter ingest_ground_truth
     print("[accept] --- 6. Adapter ingest_ground_truth ---")
     gt = adapter.ingest_ground_truth(asset.pmcid)
-    assert gt is not None
+    if gt is None:
+        raise RuntimeError(
+            f"adapter returned no ground truth for {asset.pmcid}; PMC-OA "
+            "adapter must always supply GT for cached articles."
+        )
     body_text = gt.data["body_text"]
     tokens = gt.data["tokens"]
     _check(checks, "adapter.body_text_nonempty", bool(body_text and body_text.strip()))
@@ -225,7 +235,7 @@ def run(article_dir: Path, report_path: Path) -> bool:
     # We test the actual claim by looking for substantive contiguous
     # substrings of each reference entry in body_text.
     print("[accept] --- 8. Ref-list entries excluded (contiguous-substring test) ---")
-    from xml.etree import ElementTree as ET
+    from defusedxml import ElementTree as ET  # type: ignore[import-untyped]
 
     root = ET.fromstring(xml_bytes)
     ref_entries: list[str] = [

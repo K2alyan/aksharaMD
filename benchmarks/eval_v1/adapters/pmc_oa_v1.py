@@ -8,13 +8,15 @@ n-gram overlap, never character-perfect equality.
 Provenance model:
 
 - The adapter is strictly offline. It consumes ``PmcOaAsset`` records
-  populated by ``benchmarks/eval_v1/acquisition/pmc_oa.py``.
-- Each ``PmcOaAsset`` points at a per-article ``manifest.json`` produced
-  during acquisition. That manifest is the authoritative provenance
-  bundle (URLs, hashes, license, citation, PMCID, acquisition
-  timestamp). The adapter surfaces the manifest onto the returned
-  ``SourceIngestion`` and ``GroundTruth`` records rather than
-  reconstructing provenance ad hoc.
+  populated by ``benchmarks/eval_v1/acquisition/pmc_oa_aws.py``
+  (the AWS distribution helper). The adapter itself never opens a
+  socket.
+- Each ``PmcOaAsset`` points at BOTH the canonical PMC per-version
+  metadata JSON (external authoritative source of truth for identity,
+  license, and version flags) AND a per-article ``manifest.json``
+  (our locally-generated provenance receipt — NOT a surrogate for
+  the canonical JSON). The adapter reads whichever one is
+  authoritative for each field.
 
 JATS oracle transformation (``extraction_rules_version="1"``):
 
@@ -48,8 +50,18 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-from xml.etree import ElementTree as ET
+from typing import TYPE_CHECKING, Any
+
+# JATS is external XML; use the hardened defusedxml frontend so
+# entity-expansion / external-entity attacks on the oracle path are
+# structurally impossible. ElementTree types remain compatible.
+from defusedxml import ElementTree as ET  # type: ignore[import-untyped]  # noqa: N817
+
+if TYPE_CHECKING:
+    # defusedxml re-exposes fromstring/iterparse but not Element itself.
+    # Import the type from the stdlib under TYPE_CHECKING so no stdlib
+    # XML parser is reachable at runtime — the import never executes.
+    from xml.etree.ElementTree import Element  # nosec B405  (type-only, TYPE_CHECKING-guarded)
 
 from benchmarks.eval_v1.corpus_adapter import (
     CorpusCapabilities,
@@ -122,7 +134,7 @@ class ExtractionStats:
     equations_unrepresented: int
 
 
-def _text(el: ET.Element) -> str:
+def _text(el: Element) -> str:
     return "".join(el.itertext())
 
 
@@ -136,7 +148,7 @@ def _norm_whitespace(s: str) -> str:
     return re.sub(r"\s+", " ", s or "").strip()
 
 
-def _remove_children(el: ET.Element, predicate) -> int:  # type: ignore[no-untyped-def]
+def _remove_children(el: Element, predicate) -> int:  # type: ignore[no-untyped-def]
     """Detach direct + nested children matching ``predicate`` in place.
 
     Returns the count removed. Text after the removed element is
@@ -152,11 +164,11 @@ def _remove_children(el: ET.Element, predicate) -> int:  # type: ignore[no-untyp
     return removed
 
 
-def _is_math(el: ET.Element) -> bool:
+def _is_math(el: Element) -> bool:
     return _strip_ns(el.tag) == "math"
 
 
-def _extract_equation_alt(el: ET.Element) -> tuple[str | None, str | None, str | None]:
+def _extract_equation_alt(el: Element) -> tuple[str | None, str | None, str | None]:
     """Return ``(alttext, tex_math_text, text_children)`` if present."""
     alttext = el.attrib.get("alttext") or None
     tex_math = None
@@ -383,40 +395,78 @@ def _transform_jats(
     tables: list[dict[str, Any]] = []
     captions: list[str] = []
 
+    # Recursive descent from <body> in document order. Each semantic
+    # region — table-wrap, fig, caption, fn — is a leaf: we handle its
+    # text explicitly and do NOT continue descending into it. That
+    # guarantees each semantic region emits its text exactly once
+    # (e.g., a table caption is emitted from its <fig>/<table-wrap>
+    # container, never AGAIN as a stray <caption> or its inner <p>).
     if body is not None:
-        # Walk in document order, emitting extracted text per element type.
-        for el in body.iter():
+        counts = {
+            "paragraphs": 0, "sections": 0, "cells": 0,
+            "captions": 0, "footnotes": 0,
+        }
+
+        def walk(el: Element) -> None:
             tag = _strip_ns(el.tag)
-            if tag == "title":
-                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
-                if text:
-                    body_pieces.append(text)
-                    included_section_titles += 1
-            elif tag == "p":
-                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
-                if text:
-                    body_pieces.append(text)
-                    included_paragraphs += 1
-            elif tag == "caption":
-                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
-                if text:
-                    captions.append(text)
-                    body_pieces.append(text)
-                    included_captions += 1
-            elif tag == "fn":
-                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
-                if text:
-                    body_pieces.append(text)
-                    included_footnotes += 1
-            elif tag == "table-wrap":
+            if tag == "table-wrap":
                 table_record, cell_count = _extract_table(el)
-                if table_record["rows"]:
+                if table_record["rows"] or table_record["caption"]:
                     tables.append(table_record)
-                    included_table_cells += cell_count
+                    counts["cells"] += cell_count
                     for row in table_record["rows"]:
                         row_text = " | ".join(row)
                         if row_text.strip():
                             body_pieces.append(row_text)
+                    if table_record["caption"]:
+                        captions.append(table_record["caption"])
+                        body_pieces.append(table_record["caption"])
+                        counts["captions"] += 1
+                return  # leaf: do NOT descend into table-wrap
+            if tag == "fig":
+                for cap in el.findall("caption"):
+                    text = _norm_whitespace(_render_inline(cap, excluded=_XREF_TAGS))
+                    if text:
+                        captions.append(text)
+                        body_pieces.append(text)
+                        counts["captions"] += 1
+                return  # leaf: do NOT descend into fig
+            if tag == "caption":
+                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
+                if text:
+                    captions.append(text)
+                    body_pieces.append(text)
+                    counts["captions"] += 1
+                return  # leaf
+            if tag == "fn":
+                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
+                if text:
+                    body_pieces.append(text)
+                    counts["footnotes"] += 1
+                return  # leaf
+            if tag == "title":
+                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
+                if text:
+                    body_pieces.append(text)
+                    counts["sections"] += 1
+                return  # section titles have no meaningful descendants for the oracle
+            if tag == "p":
+                text = _norm_whitespace(_render_inline(el, excluded=_XREF_TAGS))
+                if text:
+                    body_pieces.append(text)
+                    counts["paragraphs"] += 1
+                return  # paragraph text is captured whole; don't emit inner nodes
+            for child in el:
+                walk(child)
+
+        for child in body:
+            walk(child)
+
+        included_paragraphs = counts["paragraphs"]
+        included_section_titles = counts["sections"]
+        included_table_cells = counts["cells"]
+        included_captions = counts["captions"]
+        included_footnotes = counts["footnotes"]
 
         # Equation accounting is done on the original tree, not the
         # rendered body_text, so ``equations_unrepresented`` reflects the
@@ -463,12 +513,12 @@ def _transform_jats(
     return core, stats, tables, captions
 
 
-def _first_text(root: ET.Element, xpath: str) -> str:
+def _first_text(root: Element, xpath: str) -> str:
     el = root.find(xpath)
     return _text(el) if el is not None else ""
 
 
-def _render_inline(el: ET.Element, *, excluded: set[str]) -> str:
+def _render_inline(el: Element, *, excluded: set[str]) -> str:
     """Render an element's text while omitting ``excluded`` child tags.
 
     Preserves the *referent* content (e.g., footnote body inside ``<fn>``
@@ -490,7 +540,7 @@ def _render_inline(el: ET.Element, *, excluded: set[str]) -> str:
     return "".join(parts)
 
 
-def _extract_table(table_wrap: ET.Element) -> tuple[dict[str, Any], int]:
+def _extract_table(table_wrap: Element) -> tuple[dict[str, Any], int]:
     """Extract cell text row-by-row with boundaries preserved.
 
     Returns ``(record, cell_count)`` where ``record`` is

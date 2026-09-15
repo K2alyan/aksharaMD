@@ -849,6 +849,97 @@ def test_pmc_oa_acquisition_manifest_schema_constant():
     assert MANIFEST_SCHEMA_VERSION == "2"
 
 
+# ---- Regression: JATS traversal must not double-count semantic regions ----
+
+_MINIMAL_JATS_WITH_TABLE_AND_FIG = """<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front><article-meta>
+    <article-id pub-id-type="pmcid">PMC0000002</article-id>
+    <title-group><article-title>Traversal Regression Fixture</article-title></title-group>
+    <abstract><p>Short abstract.</p></abstract>
+  </article-meta></front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Body paragraph one.</p>
+      <fig id="F1">
+        <label>Figure 1</label>
+        <caption><p>UNIQUE_FIGURE_CAPTION_TOKEN</p></caption>
+      </fig>
+      <p>Body paragraph two.</p>
+      <table-wrap id="T1">
+        <label>Table 1</label>
+        <caption><p>UNIQUE_TABLE_CAPTION_TOKEN</p></caption>
+        <table>
+          <tbody>
+            <tr><td>UNIQUE_TABLE_CELL_TOKEN</td><td>42</td></tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <fn-group>
+        <fn id="fn1"><p>UNIQUE_FOOTNOTE_TOKEN preserved.</p></fn>
+      </fn-group>
+    </sec>
+  </body>
+</article>
+""".strip().encode("utf-8")
+
+
+def test_pmc_oa_traversal_emits_each_semantic_region_once():
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import _transform_jats
+
+    core, stats, tables, captions = _transform_jats(_MINIMAL_JATS_WITH_TABLE_AND_FIG)
+    body_text = core["body_text"]
+
+    # Each semantic region appears in body_text exactly once.
+    assert body_text.count("UNIQUE_FIGURE_CAPTION_TOKEN") == 1
+    assert body_text.count("UNIQUE_TABLE_CAPTION_TOKEN") == 1
+    assert body_text.count("UNIQUE_TABLE_CELL_TOKEN") == 1
+    assert body_text.count("UNIQUE_FOOTNOTE_TOKEN") == 1
+
+    # Body paragraphs stay body paragraphs; captions/cells/footnotes are
+    # NOT counted as ordinary paragraphs.
+    assert stats.included_paragraphs == 2, (
+        "expected exactly 2 body <p> paragraphs; caption <p>, footnote <p>, "
+        "and table-cell content must not inflate this counter. "
+        f"got included_paragraphs={stats.included_paragraphs}"
+    )
+
+    # Section title counted separately.
+    assert stats.included_section_titles == 1
+
+    # Both figure caption and table caption were emitted; each was
+    # counted once.
+    assert stats.included_captions == 2
+
+    # Footnote counted separately.
+    assert stats.included_footnotes == 1
+
+    # Table cell counter is semantically distinct from paragraphs.
+    assert stats.included_table_cells == 2  # 1 row × 2 cells
+
+    # And the enumerated collections reflect the same counts.
+    assert len(captions) == 2
+    assert len(tables) == 1
+    assert len(tables[0]["rows"]) == 1
+    assert tables[0]["rows"][0] == ["UNIQUE_TABLE_CELL_TOKEN", "42"]
+
+
+def test_pmc_oa_traversal_paragraph_inside_fig_is_not_counted_as_body_paragraph():
+    """The <p> inside a <fig><caption> is caption content, not a body paragraph."""
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import _transform_jats
+
+    core, stats, _tables, _captions = _transform_jats(
+        _MINIMAL_JATS_WITH_TABLE_AND_FIG
+    )
+    body_text = core["body_text"]
+    # Sanity: caption text is present exactly once (from the fig handler,
+    # NOT again from a stray <p> visit).
+    assert body_text.count("UNIQUE_FIGURE_CAPTION_TOKEN") == 1
+    # Sanity: included_paragraphs excludes the caption's inner <p>.
+    assert stats.included_paragraphs == 2
+
+
 def test_pmc_oa_aws_apply_metadata_filters_locked_set():
     from benchmarks.eval_v1.acquisition.pmc_oa_aws import (
         PmcVersionMetadata,

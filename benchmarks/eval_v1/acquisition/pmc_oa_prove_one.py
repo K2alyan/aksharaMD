@@ -30,21 +30,22 @@ import json
 import re
 import sys
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree as ET
+
+# External S3-listing XML — parse via the hardened defusedxml frontend.
+from defusedxml import ElementTree as ET  # type: ignore[import-untyped]
 
 from benchmarks.eval_v1.acquisition.pmc_oa_aws import (
     BUCKET_HTTPS,
-    USER_AGENT,
     AcquisitionError,
     EligibilityDecision,
     acquire_article,
     apply_metadata_filters,
     fetch_metadata,
+    http_get_pmc,
     jats_pmcid_matches,
     list_versions_for_pmcid,
 )
@@ -90,21 +91,12 @@ class ProveOneRun:
     selected: CandidateOutcome | None = None
 
 
-def _http_get(url: str, *, timeout: int = 60) -> bytes:
-    req = urllib.request.Request(  # noqa: S310 (PMC bucket only)
-        url,
-        headers={"User-Agent": USER_AGENT},
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-        return resp.read()
-
-
 def _list_metadata_page(start_after: str, max_keys: int) -> tuple[list[str], bool]:
     """Return (keys, is_truncated) for one page of ``metadata/`` listing."""
     q = f"?list-type=2&prefix=metadata/&max-keys={max_keys}"
     if start_after:
         q += f"&start-after={urllib.parse.quote(start_after, safe='')}"
-    body = _http_get(BUCKET_HTTPS + q)
+    body, _headers = http_get_pmc(BUCKET_HTTPS + q)
     root = ET.fromstring(body)
     keys = [
         c.find("s3:Key", _S3_NS).text or ""  # type: ignore[union-attr]
@@ -327,7 +319,9 @@ def run(
         post_fetch_attempts += 1
 
         try:
-            xml_bytes = _http_get(BUCKET_HTTPS + urllib.parse.quote(md.object_key("xml"), safe="/"))
+            xml_bytes, _headers = http_get_pmc(
+                BUCKET_HTTPS + urllib.parse.quote(md.object_key("xml"), safe="/")
+            )
         except Exception as e:  # noqa: BLE001
             result.outcomes.append(CandidateOutcome(
                 pmcid=pmcid, version=latest,

@@ -55,10 +55,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree as ET
+
+# JATS / S3-listing XML are external inputs; parse with the hardened
+# defusedxml frontend so entity-expansion / external-entity attacks
+# are structurally impossible, not just unlikely.
+from defusedxml import ElementTree as ET  # type: ignore[import-untyped]
 
 BUCKET = "pmc-oa-opendata"
-BUCKET_HTTPS = f"https://{BUCKET}.s3.amazonaws.com/"
+BUCKET_HOST = f"{BUCKET}.s3.amazonaws.com"
+BUCKET_HTTPS = f"https://{BUCKET_HOST}/"
+_ALLOWED_HOSTS = frozenset({BUCKET_HOST})
+_ALLOWED_SCHEMES = frozenset({"https"})
 USER_AGENT = "aksharamd-eval-v1/1.0 (+contact: ksrkklabs@gmail.com)"
 MANIFEST_SCHEMA_VERSION = "2"
 
@@ -78,14 +85,46 @@ class AcquisitionError(RuntimeError):
 # --- low-level HTTP / S3 ------------------------------------------
 
 
-def _http_get(url: str, *, timeout: int = 60) -> tuple[bytes, dict[str, str]]:
-    req = urllib.request.Request(  # noqa: S310 (allowlist: PMC S3 bucket)
-        url,
-        headers={"User-Agent": USER_AGENT},
-    )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+def _require_pmc_url(url: str) -> None:
+    """Fail closed on any URL outside the PMC OA S3 allowlist.
+
+    This is the trust boundary: below this point ``urlopen`` is only
+    called against URLs we've structurally proven are HTTPS + on the
+    canonical PMC OA host. Bandit's S310 warning is satisfied by the
+    gate, not by suppression comments.
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in _ALLOWED_SCHEMES:
+        raise AcquisitionError(
+            f"refuse to fetch {url!r}: scheme {parsed.scheme!r} is not in "
+            f"the allowlist {sorted(_ALLOWED_SCHEMES)}"
+        )
+    if parsed.netloc not in _ALLOWED_HOSTS:
+        raise AcquisitionError(
+            f"refuse to fetch {url!r}: host {parsed.netloc!r} is not in "
+            f"the allowlist {sorted(_ALLOWED_HOSTS)}"
+        )
+
+
+def http_get_pmc(url: str, *, timeout: int = 60) -> tuple[bytes, dict[str, str]]:
+    """Fetch ``url`` from the PMC OA S3 bucket over HTTPS.
+
+    Enforces the allowlist gate before opening a socket. Callers use
+    this instead of ``urllib.request.urlopen`` directly.
+    """
+    _require_pmc_url(url)
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    # nosec B310: URL scheme + host are validated by ``_require_pmc_url``
+    # immediately above. Bandit cannot infer that gate; the allowlist
+    # makes the call safe by construction.
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
         headers = {k.lower(): v for k, v in resp.headers.items()}
         return resp.read(), headers
+
+
+# Kept as private alias for internal call sites; new code should use
+# ``http_get_pmc`` explicitly.
+_http_get = http_get_pmc
 
 
 def _sha256(b: bytes) -> str:
@@ -93,7 +132,10 @@ def _sha256(b: bytes) -> str:
 
 
 def _md5(b: bytes) -> str:
-    return hashlib.md5(b).hexdigest()  # noqa: S324 (integrity cross-check only)
+    # Non-security use: cross-check against PMC's per-file MD5 and the
+    # S3 ETag. ``usedforsecurity=False`` makes the intent explicit and
+    # satisfies Bandit S324.
+    return hashlib.md5(b, usedforsecurity=False).hexdigest()
 
 
 def _strip_etag(raw: str | None) -> str | None:
