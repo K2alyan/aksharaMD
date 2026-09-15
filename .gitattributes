@@ -1,0 +1,21 @@
+# Force CRLF checkout for frozen B1a-5a study artifacts.
+#
+# DEV_PILOT_EXCLUSION_UNION.jsonl was originally written by
+# dry_selection.py on Windows in text mode, so its on-disk line
+# endings are CRLF. The SHA-256 of the CRLF file bytes is recorded
+# inside every phase-checkpoint fingerprint AND in the manifest's
+# exclusion_summary.union_ledger_sha256. That baked-in hash is the
+# integrity anchor of the whole B1a-5a artifact chain.
+#
+# With eol=crlf, Git checks the file out with CRLF endings on every
+# platform (Windows, Linux CI, macOS). sha256_file() then produces
+# the same hash everywhere, matching what MANIFEST_V1 recorded.
+# The blob itself stays LF-normalized internally; only checkout
+# behavior is pinned.
+#
+# The .json and .md files are covered for the same reason: to keep
+# every study artifact byte-stable across platforms even though only
+# the JSONL is currently the subject of a raw-bytes SHA check.
+docs/evaluation/DEV_PILOT_*.jsonl text eol=crlf
+docs/evaluation/DEV_PILOT_*.json  text eol=crlf
+docs/evaluation/DEV_PILOT_*.md    text eol=crlf
