@@ -1300,6 +1300,394 @@ def test_doclaynet_apply_page_filters_locked_set():
     assert d.ok is False and d.reason == "no_annotations"
 
 
+# ---- Federal Register adapter (B1a-4) ---------------------------
+
+
+def _write_federal_register_fixture(tmp_path):
+    """Write a schema-v1 Federal Register document fixture on disk."""
+    import hashlib
+    import json
+
+    from benchmarks.eval_v1.acquisition.federal_register_api import (
+        MANIFEST_SCHEMA_VERSION,
+    )
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterAsset,
+    )
+
+    doc_number = "2024-12345"
+    pub_date = "2024-06-14"
+    package_id = f"FR-{pub_date}"
+    granule_id = doc_number
+    doc_dir = tmp_path / doc_number
+    doc_dir.mkdir()
+
+    api_json = {
+        "document_number": doc_number,
+        "publication_date": pub_date,
+        "type": "Rule",
+        "volume": 89,
+        "citation": "89 FR 51234",
+        "title": "Synthetic Test Rule",
+        "action": "Final rule.",
+        "abstract": "A synthetic Federal Register rule for adapter unit tests.",
+        "agencies": [{"raw_name": "TEST AGENCY", "name": "Test Agency", "id": 999}],
+        "start_page": 51234,
+        "end_page": 51241,
+        "page_length": 8,
+        "docket_ids": ["TEST-2024-0001"],
+        "cfr_references": [{"title": 40, "part": 60}],
+        "pdf_url": f"https://www.govinfo.gov/content/pkg/{package_id}/pdf/{doc_number}.pdf",
+        "full_text_xml_url": f"https://www.federalregister.gov/documents/full_text/xml/{doc_number}.xml",
+        "html_url": f"https://www.federalregister.gov/documents/{pub_date.replace('-', '/')}/{doc_number}/synthetic-test-rule",
+    }
+    api_bytes = json.dumps(api_json, indent=2, sort_keys=True).encode()
+    pdf_bytes = b"%PDF-1.4\n%synthetic-federal-register-rule-fixture\n"
+    xml_bytes = b"<?xml version='1.0'?><FRDOC><TITLE>Synthetic Test Rule</TITLE></FRDOC>"
+
+    pdf_path = doc_dir / f"{doc_number}.pdf"
+    xml_path = doc_dir / f"{doc_number}.xml"
+    api_json_path = doc_dir / f"{doc_number}.api.json"
+    pdf_path.write_bytes(pdf_bytes)
+    xml_path.write_bytes(xml_bytes)
+    api_json_path.write_bytes(api_bytes)
+
+    manifest = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "corpus": "federal_register",
+        "document_number": doc_number,
+        "acquired_utc": "2026-09-14T20:00:00+00:00",
+        "distribution": {
+            "source": "federal_register_api_v1",
+            "fr_api_host": "https://www.federalregister.gov",
+            "govinfo_host": "https://www.govinfo.gov",
+            "population_publication_date_gte": "2024-06-10",
+            "population_publication_date_lte": "2024-06-14",
+        },
+        "citation": api_json["citation"],
+        "publication_date": pub_date,
+        "volume": 89,
+        "type": "Rule",
+        "title": api_json["title"],
+        "action": api_json["action"],
+        "abstract": api_json["abstract"],
+        "agencies": api_json["agencies"],
+        "start_page": 51234,
+        "end_page": 51241,
+        "page_length": 8,
+        "docket_ids": api_json["docket_ids"],
+        "cfr_references": api_json["cfr_references"],
+        "govinfo": {
+            "package_id": package_id,
+            "granule_id": granule_id,
+            "detail_url": f"https://www.govinfo.gov/app/details/{package_id}/{granule_id}",
+        },
+        "api_json": {
+            "path": api_json_path.name,
+            "sha256": hashlib.sha256(api_bytes).hexdigest(),
+            "size_bytes": len(api_bytes),
+            "url": f"https://www.federalregister.gov/api/v1/documents/{doc_number}.json",
+        },
+        "pdf": {
+            "path": pdf_path.name,
+            "canonical_url": api_json["pdf_url"],
+            "sha256": hashlib.sha256(pdf_bytes).hexdigest(),
+            "size_bytes": len(pdf_bytes),
+            "role": "parser_input_authoritative_record",
+        },
+        "xml": {
+            "path": xml_path.name,
+            "canonical_url": api_json["full_text_xml_url"],
+            "sha256": hashlib.sha256(xml_bytes).hexdigest(),
+            "size_bytes": len(xml_bytes),
+            "role": "g2_adjudication_support_only",
+            "note": "Per GPO FR-XML User Guide: derived from SGML; documented-lossy on tables.",
+        },
+        "selection": {"authorization": "B1a-4", "role": "test-fixture", "discovery": {}},
+    }
+    manifest_path = doc_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+
+    return FederalRegisterAsset(
+        document_number=doc_number,
+        publication_date=pub_date,
+        package_id=package_id,
+        granule_id=granule_id,
+        pdf_path=pdf_path,
+        xml_path=xml_path,
+        api_json_path=api_json_path,
+        manifest_path=manifest_path,
+    )
+
+
+def test_federal_register_capabilities_declare_g2_fpr_only():
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterV1Adapter,
+    )
+
+    caps = FederalRegisterV1Adapter({}).capabilities()
+    assert caps.corpus_name == "federal_register"
+    assert caps.on_v1_manifest is True
+    assert caps.supports_clean_native_fpr is True
+    # Locked: NO G1 text oracle claim, ever.
+    assert caps.supports_textual_gt is False
+    # Reason must cite §2.4 caveat 3 explicitly.
+    assert "caveat 3" in caps.not_applicable_reasons["textual_gt"]
+    for f in ("supports_layout_gt", "supports_clause_span_gt", "supports_downstream_qa_gt"):
+        assert getattr(caps, f) is False
+
+
+def test_federal_register_ingest_source_is_pdf_with_xml_adjudication_only(tmp_path):
+    """PDF is the parser source; XML surfaces under adjudication_support ONLY."""
+    import hashlib
+
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        CORPUS_NAME,
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    adapter = FederalRegisterV1Adapter({asset.document_number: asset})
+    si = adapter.ingest_source(asset.document_number)
+    assert si.doc_id == asset.document_number
+    assert si.media_type == "application/pdf"
+    assert si.path == asset.pdf_path
+    assert si.sha256 == hashlib.sha256(asset.pdf_path.read_bytes()).hexdigest()
+    assert si.provenance["corpus"] == CORPUS_NAME
+    assert si.provenance["source_role"] == "parser_input_authoritative_record"
+    assert si.provenance["document_number"] == asset.document_number
+    assert si.provenance["volume"] == 89
+    assert si.provenance["type"] == "Rule"
+    assert si.provenance["package_id"] == asset.package_id
+    assert si.provenance["granule_id"] == asset.granule_id
+    # XML is present on provenance under adjudication_support, with the
+    # G2-only role annotation.
+    adj = si.provenance["adjudication_support"]
+    assert adj["role"] == "g2_adjudication_support_only"
+    assert adj["xml_sha256"] == hashlib.sha256(asset.xml_path.read_bytes()).hexdigest()
+
+
+def test_federal_register_acquire_returns_pdf(tmp_path):
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    adapter = FederalRegisterV1Adapter({asset.document_number: asset})
+    assert adapter.acquire(asset.document_number) == asset.pdf_path
+
+
+def test_federal_register_ingest_source_rejects_pdf_drift(tmp_path):
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    asset.pdf_path.write_bytes(b"%PDF-1.4\n%tampered\n")
+    adapter = FederalRegisterV1Adapter({asset.document_number: asset})
+    with pytest.raises(RuntimeError, match="cache is inconsistent"):
+        adapter.ingest_source(asset.document_number)
+
+
+def test_federal_register_ingest_source_rejects_xml_drift(tmp_path):
+    """XML drift is also a hard fail — the adjudication-support artifact must be pinned."""
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    asset.xml_path.write_bytes(b"<?xml version='1.0'?><FRDOC>tampered</FRDOC>")
+    adapter = FederalRegisterV1Adapter({asset.document_number: asset})
+    with pytest.raises(RuntimeError, match="adjudication-support artifact has drifted"):
+        adapter.ingest_source(asset.document_number)
+
+
+def test_federal_register_ground_truth_is_fpr_contract_not_text_oracle(tmp_path):
+    """GroundTruth must record the corpus contract and expose NO G1 text fields."""
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        EXTRACTION_RULES_VERSION,
+        GT_KIND,
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    gt = FederalRegisterV1Adapter(
+        {asset.document_number: asset}
+    ).ingest_ground_truth(asset.document_number)
+    assert gt is not None
+    assert gt.kind == GT_KIND
+    assert gt.provenance["extraction_rules_version"] == EXTRACTION_RULES_VERSION
+
+    # ABSOLUTELY MUST NOT be present — these would signal G1 semantics.
+    for forbidden in (
+        "oracle_text",
+        "expected_text",
+        "expected_prose",
+        "word_set",
+        "tokens",
+    ):
+        assert forbidden not in gt.data, (
+            f"field {forbidden!r} would signal G1 semantics on Federal Register; "
+            f"protocol §2.4 caveat 3 forbids this"
+        )
+
+    # Contract semantics recorded.
+    contract = gt.data["contract"]
+    assert contract["kind"] == "fpr_baseline"
+    assert "human adjudication" in contract["meaning"].lower()
+    assert "born-digital" in contract["native_authored_pdf_definition"]
+
+    # Adjudication-support surfaces XML hash + G2-only role.
+    adj = gt.data["adjudication_support"]
+    assert adj["role"] == "g2_adjudication_support_only"
+
+
+def test_federal_register_ground_truth_survives_xml_absent(tmp_path):
+    """Asset shape allows xml_path=None; adapter must not crash."""
+    import json
+
+    from benchmarks.eval_v1.adapters.federal_register_v1 import (
+        FederalRegisterAsset,
+        FederalRegisterV1Adapter,
+    )
+
+    asset = _write_federal_register_fixture(tmp_path)
+    # Rewrite manifest to drop the xml entry (simulate a future rendered
+    # PDF from a source that doesn't ship XML). Also drop the xml file.
+    manifest = json.loads(asset.manifest_path.read_text())
+    manifest["xml"] = {"path": None, "sha256": None, "size_bytes": None}
+    asset.manifest_path.write_text(json.dumps(manifest, sort_keys=True))
+    asset.xml_path.unlink()
+    asset_no_xml = FederalRegisterAsset(
+        document_number=asset.document_number,
+        publication_date=asset.publication_date,
+        package_id=asset.package_id,
+        granule_id=asset.granule_id,
+        pdf_path=asset.pdf_path,
+        api_json_path=asset.api_json_path,
+        manifest_path=asset.manifest_path,
+        xml_path=None,
+    )
+    adapter = FederalRegisterV1Adapter({asset_no_xml.document_number: asset_no_xml})
+    # ingest_source must still succeed (PDF is the source).
+    si = adapter.ingest_source(asset_no_xml.document_number)
+    assert si.media_type == "application/pdf"
+    # adjudication_support is empty when XML absent — that's fine.
+    assert si.provenance["adjudication_support"] == {}
+    gt = adapter.ingest_ground_truth(asset_no_xml.document_number)
+    assert gt is not None
+    assert gt.kind == "fpr_baseline"
+    # Contract still recorded.
+    assert gt.data["contract"]["kind"] == "fpr_baseline"
+
+
+def test_federal_register_apply_prove_one_filters_locked_set():
+    """Filter set: type=Rule, volume>=60, pdf+xml urls, 2<=page_length<=50."""
+    from benchmarks.eval_v1.acquisition.federal_register_api import (
+        FrDocumentDetail,
+        apply_prove_one_filters,
+    )
+
+    def _detail(**overrides):
+        base = dict(
+            document_number="2024-99999",
+            citation="89 FR 99999",
+            publication_date="2024-06-14",
+            volume=89,
+            type="Rule",
+            title="T",
+            action=None,
+            abstract=None,
+            agencies=(),
+            start_page=1,
+            end_page=8,
+            page_length=8,
+            docket_ids=(),
+            cfr_references=(),
+            pdf_url="https://www.govinfo.gov/content/pkg/FR-2024-06-14/pdf/2024-99999.pdf",
+            full_text_xml_url="https://www.federalregister.gov/full_text/xml/2024-99999.xml",
+            body_html_url=None,
+            raw_text_url=None,
+            mods_url=None,
+            html_url="https://www.federalregister.gov/documents/foo",
+            json_url=None,
+            executive_order_number=None,
+            presidential_document_number=None,
+            raw={},
+        )
+        base.update(overrides)
+        return FrDocumentDetail(**base)
+
+    # OK
+    assert apply_prove_one_filters(_detail()).ok is True
+
+    # type not Rule -> reject
+    d = apply_prove_one_filters(_detail(type="Notice"))
+    assert d.ok is False and d.reason.startswith("type_not_Rule")
+
+    # volume < 60 -> reject (ground-truth-integrity)
+    d = apply_prove_one_filters(_detail(volume=59))
+    assert d.ok is False and d.reason.startswith("volume_lt_60")
+
+    # volume missing -> reject
+    d = apply_prove_one_filters(_detail(volume=None))
+    assert d.ok is False and d.reason == "volume_missing"
+
+    # No pdf_url -> reject
+    d = apply_prove_one_filters(_detail(pdf_url=""))
+    assert d.ok is False and d.reason == "no_pdf_url"
+
+    # No XML -> reject (required for prove-one)
+    d = apply_prove_one_filters(_detail(full_text_xml_url=None))
+    assert d.ok is False and d.reason.startswith("no_full_text_xml_url")
+
+    # page_length too small
+    d = apply_prove_one_filters(_detail(page_length=1))
+    assert d.ok is False and d.reason.startswith("page_length_lt_")
+
+    # page_length too large
+    d = apply_prove_one_filters(_detail(page_length=999))
+    assert d.ok is False and d.reason.startswith("page_length_gt_")
+
+    # pdf_url not a canonical GovInfo URL
+    d = apply_prove_one_filters(
+        _detail(pdf_url="https://example.invalid/random.pdf")
+    )
+    assert d.ok is False and d.reason.startswith("pdf_url_not_govinfo")
+
+
+def test_federal_register_govinfo_ids_from_pdf_url_parses_canonical():
+    from benchmarks.eval_v1.acquisition.federal_register_api import (
+        AcquisitionError,
+        govinfo_ids_from_pdf_url,
+    )
+
+    pkg, gran = govinfo_ids_from_pdf_url(
+        "https://www.govinfo.gov/content/pkg/FR-2024-06-14/pdf/2024-12345.pdf"
+    )
+    assert pkg == "FR-2024-06-14"
+    assert gran == "2024-12345"
+
+    with pytest.raises(AcquisitionError):
+        govinfo_ids_from_pdf_url("https://example.invalid/foo.pdf")
+
+
+def test_federal_register_compute_safe_cutoff_skips_weekends():
+    from datetime import date
+
+    from benchmarks.eval_v1.acquisition.federal_register_api import (
+        compute_safe_cutoff,
+    )
+
+    # Monday 2024-06-17: back 2 business days is Thursday 2024-06-13.
+    monday = date(2024, 6, 17)
+    assert compute_safe_cutoff(monday, business_days=2) == date(2024, 6, 13)
+
+    # Wednesday: back 2 business days is Monday.
+    wednesday = date(2024, 6, 19)
+    assert compute_safe_cutoff(wednesday, business_days=2) == date(2024, 6, 17)
+
+
 def test_pmc_oa_aws_apply_metadata_filters_locked_set():
     from benchmarks.eval_v1.acquisition.pmc_oa_aws import (
         PmcVersionMetadata,

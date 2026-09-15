@@ -1,0 +1,53 @@
+{
+  "authorization": "B1a-4",
+  "candidate_trail_head": [
+    {
+      "document_number": "2026-18558",
+      "page_length": 1,
+      "rank_key": "00831f79f34a883b7121374582d597c3f323ed51b5a76e3ee171be9cbea5d818",
+      "reason": "page_length_lt_2:1  (engineering bound)",
+      "stage": "metadata_filter",
+      "volume": 91
+    }
+  ],
+  "counts": {
+    "n_rejected_pre_fetch": 1,
+    "outcomes": 1,
+    "selected": 1
+  },
+  "discovery": {
+    "finished_utc": "2026-09-15T03:42:52+00:00",
+    "method": "fr-api-v1-rule-window-walk",
+    "method_version": "1",
+    "n_details_fetched_before_selection": 2,
+    "n_list_entries_in_window": 46,
+    "ordering_rule": "SHA-256(document_number) ascending",
+    "started_utc": "2026-09-15T03:42:51+00:00"
+  },
+  "distribution": {
+    "population_publication_date_gte": "2026-09-05",
+    "population_publication_date_lte": "2026-09-11",
+    "source": "federal_register_api_v1"
+  },
+  "filters": {
+    "notes": "PRESDOCU excluded by design. XML is fetched but treated as G2 adjudication support only, never as G1 oracle.",
+    "structural": [
+      "type == 'Rule'",
+      "volume >= 60  (ground-truth-integrity: pre-1995 issues are digitized scans)",
+      "pdf_url present and matches GovInfo canonical FR PDF pattern",
+      "full_text_xml_url present (required for prove-one so G2 support path is exercised)",
+      "2 <= page_length <= 50  (engineering bound, not a claimed population percentile)"
+    ]
+  },
+  "role": "corpus-adapter prove-one",
+  "selected": {
+    "cached_dir": "corpus\\eval_v1\\federal_register\\2026-18630",
+    "document_number": "2026-18630",
+    "page_length": 3,
+    "pdf_sha256": "36143c701ab2629f77f633d776f7e0786481cea4131b88d0c5b8c75a21c30dc4",
+    "rank_key": "04013fc9277c98c12fa7a28002bbc62de31ae63985612174b146b2fd4aa0ae12",
+    "volume": 91,
+    "xml_sha256": "e45206f9f00d5e732c7d89685d020d1b3c768a9afeaa88e6ef62a04a1788d1d5"
+  },
+  "version_policy": "one document_number -> one document. Population is bounded by the pinned publication_date range recorded in distribution.*"
+}
