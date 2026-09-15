@@ -517,3 +517,471 @@ def test_smoke_manifest_has_three_dev_docs():
     # Four V1 parsers per PROTOCOL_V1.md §7.
     assert len(V1_PARSERS) == 4
     assert set(V1_PARSERS) == {"aksharamd-reference", "marker", "docling", "markitdown"}
+
+
+# ---------------- adapters/pmc_oa_v1.py ----------------------------
+
+_MINIMAL_JATS = """<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML">
+  <front>
+    <article-meta>
+      <article-id pub-id-type="pmc">PMC0000001</article-id>
+      <title-group>
+        <article-title>Bootstrap Semantics for Document Clustered Analysis</article-title>
+      </title-group>
+      <abstract>
+        <p>The abstract discusses <xref rid="B1" ref-type="bibr">[1]</xref> the
+        clustered bootstrap for parser evaluation studies.</p>
+      </abstract>
+      <permissions>
+        <license license-type="open-access">
+          <license-p>This is an open access article under CC BY.</license-p>
+        </license>
+      </permissions>
+    </article-meta>
+  </front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Document level resampling preserves within-document correlation
+      structure, as noted by <xref rid="B2" ref-type="bibr">[2]</xref>.</p>
+    </sec>
+    <sec>
+      <title>Methods</title>
+      <p>We define the balanced parser matrix condition.</p>
+      <fn-group>
+        <fn id="fn1"><p>Footnote text is preserved in the oracle.</p></fn>
+      </fn-group>
+      <disp-formula id="eq1">
+        <mml:math alttext="x + y = z"><mml:mi>x</mml:mi></mml:math>
+      </disp-formula>
+      <disp-formula id="eq2">
+        <mml:math><mml:mi>alpha</mml:mi></mml:math>
+      </disp-formula>
+      <table-wrap id="T1">
+        <label>Table 1</label>
+        <caption><p>Parser matrix balance across the pilot corpus.</p></caption>
+        <table>
+          <thead>
+            <tr><th>Parser</th><th>Documents</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>reference</td><td>20</td></tr>
+            <tr><td>marker</td><td>20</td></tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <fig id="F1">
+        <label>Figure 1</label>
+        <caption><p>Overview of the resampling procedure.</p></caption>
+      </fig>
+    </sec>
+  </body>
+  <back>
+    <ref-list>
+      <ref id="B1"><label>1</label><mixed-citation>Excluded from oracle.</mixed-citation></ref>
+      <ref id="B2"><label>2</label><mixed-citation>Also excluded.</mixed-citation></ref>
+    </ref-list>
+  </back>
+</article>
+""".strip().encode("utf-8")
+
+
+def _write_pmc_oa_fixture(tmp_path):
+    """Write a schema-v2 (AWS-era) PMC-OA fixture on disk.
+
+    Mirrors what ``benchmarks.eval_v1.acquisition.pmc_oa_aws.acquire_article``
+    produces: side-by-side ``<PMCID>.<v>.{json,pdf,xml}`` inside the
+    versioned prefix, plus a v2 ``manifest.json`` provenance receipt.
+    """
+    import hashlib
+    import json
+
+    from benchmarks.eval_v1.acquisition.pmc_oa_aws import MANIFEST_SCHEMA_VERSION
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import PmcOaAsset
+
+    pmcid = "PMC0000001"
+    version = 1
+    art_dir = tmp_path / f"{pmcid}.{version}"
+    art_dir.mkdir()
+    pdf_bytes = b"%PDF-1.4\n%synthetic-fixture-not-a-real-pdf\n"
+    xml_bytes = _MINIMAL_JATS
+    pdf_path = art_dir / f"{pmcid}.{version}.pdf"
+    xml_path = art_dir / f"{pmcid}.{version}.xml"
+    metadata_json_path = art_dir / f"{pmcid}.{version}.json"
+    pdf_path.write_bytes(pdf_bytes)
+    xml_path.write_bytes(xml_bytes)
+
+    metadata_json = {
+        "pmcid": pmcid,
+        "version": version,
+        "title": "Bootstrap Semantics for Document Clustered Analysis",
+        "citation": "Test Author. Bootstrap Semantics. J. Fake Sci. 2026.",
+        "doi": None,
+        "pmid": None,
+        "license_code": "CC BY",
+        "is_pmc_openaccess": True,
+        "is_retracted": False,
+        "is_manuscript": False,
+        "is_historical_ocr": False,
+        "mid": None,
+        "pdf_url": f"s3://pmc-oa-opendata/{pmcid}.{version}/{pmcid}.{version}.pdf?md5={hashlib.md5(pdf_bytes).hexdigest()}",
+        "xml_url": f"s3://pmc-oa-opendata/{pmcid}.{version}/{pmcid}.{version}.xml?md5={hashlib.md5(xml_bytes).hexdigest()}",
+        "text_url": None,
+        "media_urls": [],
+    }
+    metadata_json_bytes = json.dumps(metadata_json, indent=2, sort_keys=True).encode()
+    metadata_json_path.write_bytes(metadata_json_bytes)
+
+    manifest = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "corpus": "pmc_oa",
+        "pmcid": pmcid,
+        "version": version,
+        "article_key_prefix": f"{pmcid}.{version}/",
+        "acquired_utc": "2026-09-14T17:00:00+00:00",
+        "distribution": {
+            "source": "aws_open_data_pmc_oa",
+            "bucket": "pmc-oa-opendata",
+            "https_base_url": "https://pmc-oa-opendata.s3.amazonaws.com/",
+            "inventory_snapshot_utc": None,
+            "inventory_manifest_sha256": None,
+        },
+        "metadata_object": {
+            "key": f"metadata/{pmcid}.{version}.json",
+            "size_bytes": len(metadata_json_bytes),
+            "sha256": hashlib.sha256(metadata_json_bytes).hexdigest(),
+        },
+        "pdf": {
+            "key": f"{pmcid}.{version}/{pmcid}.{version}.pdf",
+            "canonical_url": metadata_json["pdf_url"],
+            "size_bytes": len(pdf_bytes),
+            "sha256": hashlib.sha256(pdf_bytes).hexdigest(),
+            "md5": hashlib.md5(pdf_bytes).hexdigest(),
+            "etag": hashlib.md5(pdf_bytes).hexdigest(),
+            "md5_from_metadata": hashlib.md5(pdf_bytes).hexdigest(),
+        },
+        "xml": {
+            "key": f"{pmcid}.{version}/{pmcid}.{version}.xml",
+            "canonical_url": metadata_json["xml_url"],
+            "size_bytes": len(xml_bytes),
+            "sha256": hashlib.sha256(xml_bytes).hexdigest(),
+            "md5": hashlib.md5(xml_bytes).hexdigest(),
+            "etag": hashlib.md5(xml_bytes).hexdigest(),
+            "md5_from_metadata": hashlib.md5(xml_bytes).hexdigest(),
+            "pmcid_in_jats": pmcid,
+        },
+        "license": {
+            "license_code_from_metadata": "CC BY",
+            "license_type_from_xml": "open-access",
+            "license_text_from_xml": "This is an open access article under CC BY.",
+        },
+        "flags_from_metadata": {
+            "is_pmc_openaccess": True,
+            "is_retracted": False,
+            "is_manuscript": False,
+            "is_historical_ocr": False,
+        },
+        "citation": metadata_json["citation"],
+        "doi": None,
+        "pmid": None,
+    }
+    manifest_path = art_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+    asset = PmcOaAsset(
+        pmcid=pmcid,
+        pdf_path=pdf_path,
+        xml_path=xml_path,
+        manifest_path=manifest_path,
+        version=version,
+        metadata_json_path=metadata_json_path,
+    )
+    return asset
+
+
+def test_pmc_oa_capabilities_declare_textual_g1_only():
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import PmcOaV1Adapter
+
+    adapter = PmcOaV1Adapter({})
+    caps = adapter.capabilities()
+    assert caps.corpus_name == "pmc_oa"
+    assert caps.on_v1_manifest is True
+    assert caps.supports_textual_gt is True
+    for f in (
+        "supports_layout_gt",
+        "supports_clause_span_gt",
+        "supports_downstream_qa_gt",
+        "supports_clean_native_fpr",
+    ):
+        assert getattr(caps, f) is False
+        stage_key = f.removeprefix("supports_")
+        assert "§2.2" in caps.not_applicable_reasons[stage_key]
+
+
+def test_pmc_oa_ingest_source_uses_manifest_hashes(tmp_path):
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import (
+        CORPUS_NAME,
+        PmcOaV1Adapter,
+    )
+
+    asset = _write_pmc_oa_fixture(tmp_path)
+    adapter = PmcOaV1Adapter({asset.pmcid: asset})
+    si = adapter.ingest_source(asset.pmcid)
+    assert si.doc_id == asset.pmcid
+    assert si.media_type == "application/pdf"
+    assert si.path == asset.pdf_path
+    assert si.provenance["corpus"] == CORPUS_NAME
+    assert si.provenance["source_kind"] == "aws_open_data_pmc_oa"
+    assert si.provenance["pmcid"] == asset.pmcid
+    assert si.provenance["version"] == asset.version
+    assert si.provenance["bucket"] == "pmc-oa-opendata"
+    assert si.provenance["pdf_key"].endswith(".pdf")
+    assert si.provenance["pdf_canonical_url"].startswith("s3://")
+    assert si.provenance["pdf_md5"]  # non-empty MD5 recorded
+    assert si.provenance["manifest_path"] == str(asset.manifest_path)
+    assert si.provenance["metadata_json_path"] == str(asset.metadata_json_path)
+
+
+def test_pmc_oa_ingest_source_rejects_hash_mismatch(tmp_path):
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import PmcOaV1Adapter
+
+    asset = _write_pmc_oa_fixture(tmp_path)
+    # Corrupt the PDF on disk after the manifest was written.
+    asset.pdf_path.write_bytes(b"%PDF-1.4\n%tampered\n")
+    adapter = PmcOaV1Adapter({asset.pmcid: asset})
+    with pytest.raises(RuntimeError, match="cache is inconsistent"):
+        adapter.ingest_source(asset.pmcid)
+
+
+def test_pmc_oa_ground_truth_preserves_ordered_tokens(tmp_path):
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import (
+        EXTRACTION_RULES_VERSION,
+        GT_KIND,
+        PmcOaV1Adapter,
+    )
+
+    asset = _write_pmc_oa_fixture(tmp_path)
+    adapter = PmcOaV1Adapter({asset.pmcid: asset})
+    gt = adapter.ingest_ground_truth(asset.pmcid)
+    assert gt is not None
+    assert gt.kind == GT_KIND
+    assert gt.provenance["extraction_rules_version"] == EXTRACTION_RULES_VERSION
+    assert gt.provenance["xml_sha256"]  # non-empty
+    # License comes from the canonical PMC metadata JSON, not our manifest.
+    assert gt.provenance["license_code_from_metadata"] == "CC BY"
+    assert gt.provenance["flags_from_metadata"]["is_pmc_openaccess"] is True
+    assert gt.provenance["flags_from_metadata"]["is_historical_ocr"] is False
+
+    data = gt.data
+    # Title, abstract, body prose, table cell contents, and caption text
+    # must all appear in body_text; ref-list content must not.
+    assert "Bootstrap Semantics" in data["title"]
+    assert "clustered bootstrap" in data["abstract"]
+    assert "Document level resampling" in data["body_text"]
+    assert "Footnote text is preserved" in data["body_text"]
+    assert "Parser matrix balance" in data["body_text"]
+    assert "reference" in data["body_text"]  # table cell
+    assert "Excluded from oracle" not in data["body_text"]
+
+    # Ordered tokens with multiplicity — no set semantics baked in.
+    assert isinstance(data["tokens"], list)
+    assert data["tokens"] == [t.lower() for t in data["tokens"]]
+    # "the" appears many times in the fixture; multiplicity > 1 proves
+    # the oracle is not a set.
+    assert data["tokens"].count("the") > 1
+
+    # Tables preserved with cell boundaries.
+    assert data["tables"], "expected at least one table"
+    t = data["tables"][0]
+    assert t["label"] == "Table 1"
+    assert ["reference", "20"] in t["rows"]
+
+    # Captions preserved separately for auditability.
+    assert any("resampling procedure" in c for c in data["captions"])
+
+
+def test_pmc_oa_extraction_stats_count_exclusions(tmp_path):
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import PmcOaV1Adapter
+
+    asset = _write_pmc_oa_fixture(tmp_path)
+    adapter = PmcOaV1Adapter({asset.pmcid: asset})
+    gt = adapter.ingest_ground_truth(asset.pmcid)
+    assert gt is not None
+    stats = gt.provenance["extraction_stats"]
+
+    # Two <ref> entries in <ref-list>, two <xref> markers in body/abstract.
+    assert stats["excluded_ref_list_entries"] == 2
+    assert stats["excluded_xref_markers"] == 2
+
+    # Fixture has 2 <disp-formula>: one with alttext, one text-only.
+    assert stats["equations_with_alttext"] == 1
+    assert stats["equations_with_text_only"] == 1
+    assert stats["equations_unrepresented"] == 0
+
+    # Non-negative counters for the included buckets.
+    for k in (
+        "included_paragraphs",
+        "included_section_titles",
+        "included_table_cells",
+        "included_captions",
+        "included_footnotes",
+    ):
+        assert stats[k] >= 0
+
+
+def test_pmc_oa_word_overlap_self_roundtrip_is_one(tmp_path):
+    """Plumbing sanity check — self-overlap must be 1.0."""
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import PmcOaV1Adapter
+    from benchmarks.eval_v1.conventional_metrics import word_overlap
+
+    asset = _write_pmc_oa_fixture(tmp_path)
+    gt = PmcOaV1Adapter({asset.pmcid: asset}).ingest_ground_truth(asset.pmcid)
+    assert gt is not None
+    body_text = gt.data["body_text"]
+    r = word_overlap(body_text, body_text)
+    assert r.ratio == 1.0
+
+
+def test_pmc_oa_acquisition_manifest_schema_constant():
+    from benchmarks.eval_v1.acquisition.pmc_oa_aws import MANIFEST_SCHEMA_VERSION
+
+    # Schema v2 corresponds to the AWS Open Data distribution contract.
+    assert MANIFEST_SCHEMA_VERSION == "2"
+
+
+# ---- Regression: JATS traversal must not double-count semantic regions ----
+
+_MINIMAL_JATS_WITH_TABLE_AND_FIG = """<?xml version="1.0" encoding="UTF-8"?>
+<article>
+  <front><article-meta>
+    <article-id pub-id-type="pmcid">PMC0000002</article-id>
+    <title-group><article-title>Traversal Regression Fixture</article-title></title-group>
+    <abstract><p>Short abstract.</p></abstract>
+  </article-meta></front>
+  <body>
+    <sec>
+      <title>Introduction</title>
+      <p>Body paragraph one.</p>
+      <fig id="F1">
+        <label>Figure 1</label>
+        <caption><p>UNIQUE_FIGURE_CAPTION_TOKEN</p></caption>
+      </fig>
+      <p>Body paragraph two.</p>
+      <table-wrap id="T1">
+        <label>Table 1</label>
+        <caption><p>UNIQUE_TABLE_CAPTION_TOKEN</p></caption>
+        <table>
+          <tbody>
+            <tr><td>UNIQUE_TABLE_CELL_TOKEN</td><td>42</td></tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <fn-group>
+        <fn id="fn1"><p>UNIQUE_FOOTNOTE_TOKEN preserved.</p></fn>
+      </fn-group>
+    </sec>
+  </body>
+</article>
+""".strip().encode("utf-8")
+
+
+def test_pmc_oa_traversal_emits_each_semantic_region_once():
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import _transform_jats
+
+    core, stats, tables, captions = _transform_jats(_MINIMAL_JATS_WITH_TABLE_AND_FIG)
+    body_text = core["body_text"]
+
+    # Each semantic region appears in body_text exactly once.
+    assert body_text.count("UNIQUE_FIGURE_CAPTION_TOKEN") == 1
+    assert body_text.count("UNIQUE_TABLE_CAPTION_TOKEN") == 1
+    assert body_text.count("UNIQUE_TABLE_CELL_TOKEN") == 1
+    assert body_text.count("UNIQUE_FOOTNOTE_TOKEN") == 1
+
+    # Body paragraphs stay body paragraphs; captions/cells/footnotes are
+    # NOT counted as ordinary paragraphs.
+    assert stats.included_paragraphs == 2, (
+        "expected exactly 2 body <p> paragraphs; caption <p>, footnote <p>, "
+        "and table-cell content must not inflate this counter. "
+        f"got included_paragraphs={stats.included_paragraphs}"
+    )
+
+    # Section title counted separately.
+    assert stats.included_section_titles == 1
+
+    # Both figure caption and table caption were emitted; each was
+    # counted once.
+    assert stats.included_captions == 2
+
+    # Footnote counted separately.
+    assert stats.included_footnotes == 1
+
+    # Table cell counter is semantically distinct from paragraphs.
+    assert stats.included_table_cells == 2  # 1 row × 2 cells
+
+    # And the enumerated collections reflect the same counts.
+    assert len(captions) == 2
+    assert len(tables) == 1
+    assert len(tables[0]["rows"]) == 1
+    assert tables[0]["rows"][0] == ["UNIQUE_TABLE_CELL_TOKEN", "42"]
+
+
+def test_pmc_oa_traversal_paragraph_inside_fig_is_not_counted_as_body_paragraph():
+    """The <p> inside a <fig><caption> is caption content, not a body paragraph."""
+    from benchmarks.eval_v1.adapters.pmc_oa_v1 import _transform_jats
+
+    core, stats, _tables, _captions = _transform_jats(
+        _MINIMAL_JATS_WITH_TABLE_AND_FIG
+    )
+    body_text = core["body_text"]
+    # Sanity: caption text is present exactly once (from the fig handler,
+    # NOT again from a stray <p> visit).
+    assert body_text.count("UNIQUE_FIGURE_CAPTION_TOKEN") == 1
+    # Sanity: included_paragraphs excludes the caption's inner <p>.
+    assert stats.included_paragraphs == 2
+
+
+def test_pmc_oa_aws_apply_metadata_filters_locked_set():
+    from benchmarks.eval_v1.acquisition.pmc_oa_aws import (
+        PmcVersionMetadata,
+        apply_metadata_filters,
+    )
+
+    base = dict(
+        pmcid="PMC1",
+        version=1,
+        title="",
+        citation=None,
+        doi=None,
+        pmid=None,
+        license_code="CC BY",
+        is_pmc_openaccess=True,
+        is_retracted=False,
+        is_manuscript=False,
+        is_historical_ocr=False,
+        mid=None,
+        pdf_url="s3://p/pdf",
+        xml_url="s3://p/xml",
+        text_url=None,
+        media_urls=(),
+        raw={},
+    )
+
+    ok = apply_metadata_filters(PmcVersionMetadata(**base))
+    assert ok.ok and ok.reason is None
+
+    for override, expected_prefix in (
+        ({"license_code": "CC BY-NC"}, "license_not_CC_BY"),
+        ({"license_code": None}, "license_not_CC_BY"),
+        ({"is_pmc_openaccess": False}, "is_pmc_openaccess_false"),
+        ({"is_retracted": True}, "is_retracted_true"),
+        ({"is_manuscript": True}, "is_manuscript_true"),
+        ({"is_historical_ocr": True}, "is_historical_ocr_true"),
+        ({"pdf_url": ""}, "no_pdf_url"),
+        ({"xml_url": ""}, "no_xml_url"),
+    ):
+        d = apply_metadata_filters(PmcVersionMetadata(**{**base, **override}))
+        assert d.ok is False
+        assert d.reason is not None and d.reason.startswith(expected_prefix), (
+            override,
+            d.reason,
+        )

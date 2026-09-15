@@ -56,6 +56,11 @@ output/
 # Drive downloads). Multi-GB; must never be committed.
 .cache/
 
+# V1 evaluation corpora — raw payloads (PDFs, JATS XML, COCO annotations,
+# Federal Register HTML/PDFs). Never committed; see docs/evaluation/ for
+# manifests, hashes, and acquisition instructions.
+corpus/eval_v1/
+
 # Scratch files
 markitdown_*.md
 doc_*.md
