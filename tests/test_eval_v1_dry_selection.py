@@ -6,8 +6,10 @@ replay the selection deterministically from the checkpoints (no network)
 and require byte-for-byte agreement with what the pre-existing manifest
 records.
 
-If the frozen artifacts are absent (e.g. a fresh clone before B1a-5a
-lands), every test skips cleanly so the wider suite isn't blocked.
+The frozen artifacts are part of the repository (they are the study's
+selection inputs and outputs). A missing artifact is therefore a hard
+failure — the test suite refuses to run rather than quietly pass, so a
+frozen study input cannot accidentally be dropped without CI catching it.
 """
 from __future__ import annotations
 
@@ -80,9 +82,13 @@ def _sha256_file(path: Path) -> str:
 
 
 def _require_all_artifacts_present():
+    # The frozen B1a-5a artifacts are committed to the repository as
+    # study inputs/outputs. If one is missing at test time, that is a
+    # regression: the durable selection has been damaged. Fail loudly
+    # rather than skipping — a silent skip would let the study's
+    # permanence invariant erode without any CI signal.
     for path in [MANIFEST_PATH, SNAPSHOTS_PATH, UNION_PATH, *CHECKPOINT_FILES.values()]:
-        if not path.exists():
-            pytest.skip(f"missing B1a-5a artifact: {path}")
+        assert path.exists(), f"missing required B1a-5a frozen artifact: {path}"
 
 
 @pytest.fixture(scope="module")
