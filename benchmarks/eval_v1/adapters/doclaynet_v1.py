@@ -163,60 +163,106 @@ class DocLayNetV1Adapter(V1CorpusAdapter):
         )
 
     def acquire(self, doc_id: str) -> Path:
+        """Return the PDF path — that IS the parser input for B1a-3.
+
+        The DocLayNet v1.2 Parquet distribution ships a single-page PDF
+        per row. That PDF is the artifact each V1 parser must consume
+        so the comparison is "same page, same source bytes." The PNG
+        is the coordinate anchor for the structural oracle (see
+        ``ingest_ground_truth``), NOT the parser input — never silently
+        substitute it.
+
+        Fails closed if the expected PDF is absent. B1a-3 will not
+        silently fall back to PNG parsing.
+        """
         asset = self._require_asset(doc_id)
-        if not asset.png_path.exists():
+        if asset.pdf_path is None or not asset.pdf_path.exists():
             raise FileNotFoundError(
-                f"DocLayNet PNG missing for {doc_id}: {asset.png_path}"
+                f"DocLayNet PDF missing for {doc_id}: "
+                f"{asset.pdf_path}. B1a-3 pins to v1.2 which includes a "
+                f"single-page PDF per row; refuse to substitute the PNG."
             )
-        # For a page-level oracle, the "source" is the rendered PNG —
-        # that's the coordinate system the bboxes live in. The PDF is
-        # available for parsers to actually parse, but the oracle is
-        # anchored to the raster.
-        return asset.png_path
+        return asset.pdf_path
 
     def ingest_source(self, doc_id: str) -> SourceIngestion:
+        """Ingest the single-page PDF as the parser source.
+
+        The PNG hash + path are preserved in provenance as the oracle
+        coordinate anchor — parsers do not consume them, but downstream
+        adjudication needs them to map bbox_png back onto the raster.
+        """
         asset = self._require_asset(doc_id)
         manifest = self._read_manifest(asset)
+
+        pdf_meta = manifest.get("pdf") or {}
+        if not pdf_meta.get("present_in_distribution") or not pdf_meta.get("sha256"):
+            raise RuntimeError(
+                f"{doc_id}: manifest reports no PDF present in "
+                f"distribution. B1a-3 requires v1.2's single-page PDF as "
+                f"the parser source; refuse to substitute the PNG."
+            )
+        if asset.pdf_path is None or not asset.pdf_path.exists():
+            raise FileNotFoundError(
+                f"DocLayNet PDF missing on disk for {doc_id}: "
+                f"{asset.pdf_path}. Cache is inconsistent with manifest."
+            )
+        pdf_bytes = asset.pdf_path.read_bytes()
+        actual_pdf_sha = _sha256(pdf_bytes)
+        if actual_pdf_sha != pdf_meta["sha256"]:
+            raise RuntimeError(
+                f"{doc_id}: PDF on disk hashes {actual_pdf_sha} but "
+                f"manifest records {pdf_meta['sha256']}; refuse to ingest "
+                f"— the cache is inconsistent."
+            )
+
+        # Verify PNG integrity too — it's the oracle anchor. Do not
+        # silently proceed if the PNG (recorded in provenance) has drifted.
         png_meta = manifest["png"]
         png_bytes = asset.png_path.read_bytes()
-        actual_sha = _sha256(png_bytes)
-        if actual_sha != png_meta["sha256"]:
+        actual_png_sha = _sha256(png_bytes)
+        if actual_png_sha != png_meta["sha256"]:
             raise RuntimeError(
-                f"{doc_id}: PNG on disk hashes {actual_sha} but manifest "
-                f"records {png_meta['sha256']}; refuse to ingest — the "
-                f"cache is inconsistent."
+                f"{doc_id}: PNG on disk hashes {actual_png_sha} but "
+                f"manifest records {png_meta['sha256']}; refuse to ingest "
+                f"— the oracle coordinate anchor has drifted."
             )
+
         distribution = manifest.get("distribution", {})
         provenance = {
             "corpus": CORPUS_NAME,
             "source_kind": distribution.get("source", "doclaynet"),
+            "source_role": "parser_input_single_page_pdf",
             "page_hash": asset.page_hash,
             "dataset_id": distribution.get("dataset_id"),
             "dataset_commit_sha": distribution.get("dataset_commit_sha"),
             "split": distribution.get("split"),
             "shard_key": distribution.get("shard_key"),
             "shard_sha256": distribution.get("shard_sha256"),
-            "png_sha256": actual_sha,
-            "pdf_present_in_distribution": manifest["pdf"].get(
-                "present_in_distribution", False
-            ),
+            "pdf_sha256": actual_pdf_sha,
+            "pdf_path": str(asset.pdf_path),
+            # The PNG is the raster the layout oracle is expressed in;
+            # preserve its hash + path here so downstream adjudication
+            # can rebuild the coordinate anchor without re-reading the
+            # manifest.
+            "oracle_coordinate_anchor": {
+                "kind": "png_pixels",
+                "png_sha256": actual_png_sha,
+                "png_path": str(asset.png_path),
+                "coco_width": manifest["coordinate_space"]["coco_width"],
+                "coco_height": manifest["coordinate_space"]["coco_height"],
+                "original_width": manifest["coordinate_space"]["original_width"],
+                "original_height": manifest["coordinate_space"]["original_height"],
+            },
             "manifest_path": str(asset.manifest_path),
             "annotations_path": str(asset.annotations_path),
             "acquired_utc": manifest["acquired_utc"],
         }
-        # If a PDF was distributed with this page, expose its hash on
-        # provenance so parsers wanting the vector source can find it.
-        if manifest["pdf"].get("sha256"):
-            provenance["pdf_sha256"] = manifest["pdf"]["sha256"]
-            provenance["pdf_path"] = (
-                str(asset.pdf_path) if asset.pdf_path else None
-            )
         return SourceIngestion(
             doc_id=doc_id,
-            path=asset.png_path,
-            sha256=actual_sha,
-            size_bytes=png_meta["size_bytes"],
-            media_type="image/png",
+            path=asset.pdf_path,
+            sha256=actual_pdf_sha,
+            size_bytes=pdf_meta["size_bytes"],
+            media_type="application/pdf",
             provenance=provenance,
         )
 

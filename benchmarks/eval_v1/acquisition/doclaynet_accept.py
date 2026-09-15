@@ -156,24 +156,54 @@ def run(page_dir: Path, report_path: Path) -> bool:
             manifest["pdf"].get("present_in_distribution") is False,
         )
 
-    # 5. Adapter ingest_source
-    print("[accept] --- 5. Adapter ingest_source ---")
+    # 5. Adapter ingest_source — PDF is the parser input, PNG stays as anchor
+    print("[accept] --- 5. Adapter ingest_source (PDF is parser source) ---")
     adapter = DocLayNetV1Adapter({asset.page_hash: asset})
     si = adapter.ingest_source(asset.page_hash)
     _check(
         checks,
-        "adapter.ingest_source_sha256",
-        si.sha256 == manifest["png"]["sha256"],
+        "adapter.ingest_source_media_type_pdf",
+        si.media_type == "application/pdf",
+        f"got media_type={si.media_type}",
     )
     _check(
         checks,
-        "adapter.ingest_source_media_type_png",
-        si.media_type == "image/png",
+        "adapter.ingest_source_sha256_matches_pdf",
+        si.sha256 == manifest["pdf"]["sha256"],
+    )
+    _check(
+        checks,
+        "adapter.ingest_source_path_is_pdf",
+        si.path == asset.pdf_path,
     )
     _check(
         checks,
         "adapter.ingest_source_provenance_dataset_commit_sha",
         si.provenance.get("dataset_commit_sha") == ref.sha,
+    )
+    # PNG remains the oracle coordinate anchor — must be preserved in
+    # provenance, not silently dropped now that PDF is the source.
+    anchor = si.provenance.get("oracle_coordinate_anchor") or {}
+    _check(
+        checks,
+        "adapter.ingest_source_preserves_png_anchor",
+        anchor.get("kind") == "png_pixels"
+        and anchor.get("png_sha256") == manifest["png"]["sha256"]
+        and anchor.get("png_path") == str(asset.png_path),
+        f"png_sha256={anchor.get('png_sha256', 'MISSING')[:12] if anchor.get('png_sha256') else 'MISSING'}...",
+    )
+    _check(
+        checks,
+        "adapter.ingest_source_anchor_carries_coord_geometry",
+        anchor.get("coco_width") == manifest["coordinate_space"]["coco_width"]
+        and anchor.get("coco_height") == manifest["coordinate_space"]["coco_height"]
+        and anchor.get("original_width") == manifest["coordinate_space"]["original_width"]
+        and anchor.get("original_height") == manifest["coordinate_space"]["original_height"],
+    )
+    _check(
+        checks,
+        "adapter.acquire_returns_pdf_not_png",
+        adapter.acquire(asset.page_hash) == asset.pdf_path,
     )
 
     # 6. Adapter ingest_ground_truth

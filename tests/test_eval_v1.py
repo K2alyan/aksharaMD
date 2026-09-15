@@ -1075,7 +1075,10 @@ def test_doclaynet_capabilities_declare_layout_g1_only():
     assert "layout_gt" not in caps.not_applicable_reasons
 
 
-def test_doclaynet_ingest_source_uses_manifest_hashes(tmp_path):
+def test_doclaynet_ingest_source_uses_pdf_and_preserves_png_anchor(tmp_path):
+    """PDF is the parser source; PNG is the oracle coordinate anchor."""
+    import hashlib
+
     from benchmarks.eval_v1.adapters.doclaynet_v1 import (
         CORPUS_NAME,
         DocLayNetV1Adapter,
@@ -1084,26 +1087,117 @@ def test_doclaynet_ingest_source_uses_manifest_hashes(tmp_path):
     asset = _write_doclaynet_fixture(tmp_path)
     adapter = DocLayNetV1Adapter({asset.page_hash: asset})
     si = adapter.ingest_source(asset.page_hash)
+
     assert si.doc_id == asset.page_hash
-    assert si.media_type == "image/png"
-    assert si.path == asset.png_path
+    # Parser source is the PDF.
+    assert si.media_type == "application/pdf"
+    assert si.path == asset.pdf_path
+    pdf_bytes = asset.pdf_path.read_bytes()
+    assert si.sha256 == hashlib.sha256(pdf_bytes).hexdigest()
+
+    # Provenance carries corpus / dataset identifiers.
     assert si.provenance["corpus"] == CORPUS_NAME
     assert si.provenance["source_kind"] == "huggingface_datasets_parquet"
+    assert si.provenance["source_role"] == "parser_input_single_page_pdf"
     assert si.provenance["page_hash"] == asset.page_hash
     assert si.provenance["dataset_id"] == "docling-project/DocLayNet-v1.2"
     assert len(si.provenance["dataset_commit_sha"]) == 40
     assert si.provenance["split"] == "train"
-    assert si.provenance["pdf_present_in_distribution"] is True
+
+    # PNG is preserved as the oracle coordinate anchor (still available
+    # for downstream adjudication, just not the parser input).
+    anchor = si.provenance["oracle_coordinate_anchor"]
+    assert anchor["kind"] == "png_pixels"
+    png_bytes = asset.png_path.read_bytes()
+    assert anchor["png_sha256"] == hashlib.sha256(png_bytes).hexdigest()
+    assert anchor["png_path"] == str(asset.png_path)
+    assert anchor["coco_width"] == 1025
+    assert anchor["original_width"] == 612.0
 
 
-def test_doclaynet_ingest_source_rejects_hash_mismatch(tmp_path):
+def test_doclaynet_ingest_source_rejects_pdf_hash_mismatch(tmp_path):
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetV1Adapter
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    asset.pdf_path.write_bytes(b"%PDF-1.4\n%tampered_pdf_bytes\n")
+    adapter = DocLayNetV1Adapter({asset.page_hash: asset})
+    with pytest.raises(RuntimeError, match="cache is inconsistent"):
+        adapter.ingest_source(asset.page_hash)
+
+
+def test_doclaynet_ingest_source_rejects_png_anchor_mismatch(tmp_path):
+    """PNG drift is also a hard fail — it's the oracle anchor."""
     from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetV1Adapter
 
     asset = _write_doclaynet_fixture(tmp_path)
     asset.png_path.write_bytes(b"\x89PNG\r\n\x1a\n_tampered_")
     adapter = DocLayNetV1Adapter({asset.page_hash: asset})
-    with pytest.raises(RuntimeError, match="cache is inconsistent"):
+    with pytest.raises(RuntimeError, match="oracle coordinate anchor has drifted"):
         adapter.ingest_source(asset.page_hash)
+
+
+def test_doclaynet_ingest_source_fails_closed_when_pdf_absent(tmp_path):
+    """If PDF bytes are not in distribution, refuse — do NOT parse PNG."""
+    import json
+
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import (
+        DocLayNetAsset,
+        DocLayNetV1Adapter,
+    )
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    # Simulate an older or re-cut distribution where the PDF bytes are
+    # not present in the row: rewrite manifest to mark pdf absent and
+    # remove the local PDF file. Adapter must fail, not fall back.
+    manifest = json.loads(asset.manifest_path.read_text())
+    manifest["pdf"] = {
+        "path": None,
+        "sha256": None,
+        "size_bytes": None,
+        "present_in_distribution": False,
+    }
+    asset.manifest_path.write_text(json.dumps(manifest, sort_keys=True))
+    asset.pdf_path.unlink()
+
+    asset_pdf_absent = DocLayNetAsset(
+        page_hash=asset.page_hash,
+        manifest_path=asset.manifest_path,
+        annotations_path=asset.annotations_path,
+        png_path=asset.png_path,
+        pdf_path=None,
+    )
+    adapter = DocLayNetV1Adapter({asset_pdf_absent.page_hash: asset_pdf_absent})
+    with pytest.raises(RuntimeError, match="no PDF present in distribution"):
+        adapter.ingest_source(asset_pdf_absent.page_hash)
+
+
+def test_doclaynet_acquire_returns_pdf_not_png(tmp_path):
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import DocLayNetV1Adapter
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    adapter = DocLayNetV1Adapter({asset.page_hash: asset})
+    path = adapter.acquire(asset.page_hash)
+    assert path == asset.pdf_path
+    assert path != asset.png_path
+
+
+def test_doclaynet_acquire_fails_closed_when_pdf_absent(tmp_path):
+    from benchmarks.eval_v1.adapters.doclaynet_v1 import (
+        DocLayNetAsset,
+        DocLayNetV1Adapter,
+    )
+
+    asset = _write_doclaynet_fixture(tmp_path)
+    asset_no_pdf = DocLayNetAsset(
+        page_hash=asset.page_hash,
+        manifest_path=asset.manifest_path,
+        annotations_path=asset.annotations_path,
+        png_path=asset.png_path,
+        pdf_path=None,
+    )
+    adapter = DocLayNetV1Adapter({asset_no_pdf.page_hash: asset_no_pdf})
+    with pytest.raises(FileNotFoundError, match="refuse to substitute the PNG"):
+        adapter.acquire(asset_no_pdf.page_hash)
 
 
 def test_doclaynet_ground_truth_primitive_oracle_only(tmp_path):
