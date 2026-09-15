@@ -1,20 +1,25 @@
-"""Concrete V1CorpusAdapter subclasses shipped under Authorization A.1.
+"""Concrete V1CorpusAdapter subclasses.
 
-Only corpora the A.1 rerun actually exercises are implemented:
-
-- QASPER (D1) — full V1 adapter with QA-pair GT.
+- QASPER (D1) — A.1 adapter with QA-pair GT.
 - DocBench-non-V1 (D2) — explicit non-V1 handling; GT stage returns
   NOT_APPLICABLE with the reason "DocBench is not on the V1 corpus
   manifest (§2.2)".
-- TAT-DQA (D3) — full V1 adapter with QA-pair GT.
+- TAT-DQA (D3) — A.1 adapter with QA-pair GT.
+- PMC-OA (B1a) — textual G1 adapter; consumes acquisition-side manifests
+  and returns JATS full-text ground truth.
 
-PMC-OA, DocLayNet, Federal Register/SEC, and CUAD have no adapters
-under A.1 per the user's correction ("no speculative corpus stubs").
-An interface is enough; adapters ship when a subsequent authorization
-actually exercises those corpora.
+DocLayNet, Federal Register/SEC, and CUAD adapters ship when the
+corresponding authorization exercises them.
 """
 from .docbench_non_v1 import DocBenchNonV1Adapter
+from .pmc_oa_v1 import PmcOaAsset, PmcOaV1Adapter
 from .qasper_v1 import QasperV1Adapter
 from .tat_dqa_v1 import TatDqaV1Adapter
 
-__all__ = ["QasperV1Adapter", "DocBenchNonV1Adapter", "TatDqaV1Adapter"]
+__all__ = [
+    "DocBenchNonV1Adapter",
+    "PmcOaAsset",
+    "PmcOaV1Adapter",
+    "QasperV1Adapter",
+    "TatDqaV1Adapter",
+]

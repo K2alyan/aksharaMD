@@ -1,0 +1,137 @@
+{
+  "article_dir": "corpus\\eval_v1\\pmc_oa\\PMC10002944.1",
+  "checks_passed": 25,
+  "checks_total": 25,
+  "extraction_rules_version": "1",
+  "pmcid": "PMC10002944",
+  "results": [
+    {
+      "detail": "resolver_key=metadata/PMC10002944.1.json",
+      "name": "resolver.metadata_key_matches",
+      "ok": true
+    },
+    {
+      "detail": "resolver_pmcid=PMC10002944",
+      "name": "resolver.pmcid_matches_expected",
+      "ok": true
+    },
+    {
+      "detail": "resolver_version=1",
+      "name": "resolver.version_matches_expected",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "pdf.md5_matches_metadata_url",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "xml.md5_matches_metadata_url",
+      "ok": true
+    },
+    {
+      "detail": "jats_pmcid=PMC10002944",
+      "name": "jats.pmcid_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.pdf_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.xml_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "manifest.metadata_sha256_matches",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_sha256",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.ingest_source_provenance_carries_version",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.body_text_nonempty",
+      "ok": true
+    },
+    {
+      "detail": "n_tokens=4237",
+      "name": "adapter.tokens_is_ordered_list",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.tokens_lowercase_normalized",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.gt_provenance_extraction_rules_version",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "adapter.gt_provenance_license_code_from_metadata",
+      "ok": true
+    },
+    {
+      "detail": "title='Effects of solar tunnel drying zones and slice thickness on the drying character'",
+      "name": "oracle.title_nonempty",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "oracle.abstract_nonempty",
+      "ok": true
+    },
+    {
+      "detail": "hit='effects', candidates=['effects', 'solar', 'tunnel', 'drying', 'zones']",
+      "name": "oracle.title_word_found_in_prose",
+      "ok": true
+    },
+    {
+      "detail": "checked=73 substantive ref substrings across 27 refs, contamination_hits=0",
+      "name": "oracle.ref_entries_not_in_body_text",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.same_manifest_path",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.manifest_mtime_unchanged",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.pdf_sha256_unchanged",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "reacquire.xml_sha256_unchanged",
+      "ok": true
+    },
+    {
+      "detail": "ratio=1.0",
+      "name": "metric.self_overlap_equals_one",
+      "ok": true
+    }
+  ],
+  "verdict": "PASS",
+  "verified_utc": "2026-09-15T01:02:47+00:00",
+  "version": 1
+}

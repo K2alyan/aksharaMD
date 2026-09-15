@@ -1,0 +1,63 @@
+{
+  "authorization": "B1a-2",
+  "candidate_trail": [
+    {
+      "body_tokens": 0,
+      "metadata_key": "metadata/PMC10002115.1.json",
+      "pmcid": "PMC10002115",
+      "rank_key": "001093b3fa61de3d54fa9ebd66439c05d55245583e1c804ff4d5d1c5322c1c8b",
+      "reason": "no_table_wrap",
+      "stage": "structural",
+      "version": 1
+    }
+  ],
+  "corpus_dir": "corpus\\eval_v1\\pmc_oa",
+  "counts": {
+    "outcomes": 1,
+    "pmcids_excluded_post_fetch": 1,
+    "pmcids_excluded_pre_fetch": 0,
+    "selected": 1
+  },
+  "discovery": {
+    "finished_utc": "2026-09-15T00:58:25+00:00",
+    "max_metadata_keys_scanned": 5000,
+    "metadata_keys_scanned": 5000,
+    "method": "aws-metadata-mirror-walk",
+    "method_version": "1",
+    "ordering_rule": "SHA-256(pmcid.version) ascending",
+    "pmcids_considered": 4945,
+    "started_utc": "2026-09-15T00:58:19+00:00",
+    "walk_prefix": "metadata/"
+  },
+  "extraction_rules_version": "1",
+  "filters": {
+    "metadata": [
+      "license_code == 'CC BY' (exact)",
+      "is_pmc_openaccess == True",
+      "is_retracted == False",
+      "is_manuscript == False",
+      "is_historical_ocr == False  (ground-truth-integrity exclusion)",
+      "pdf_url and xml_url both present"
+    ],
+    "structural": [
+      "article-type == 'research-article'",
+      "not retraction / correction / erratum",
+      "<abstract> present",
+      "<sec> count >= 2 in <body>",
+      ">=1 <table-wrap>",
+      ">=1 <fig>",
+      "body_tokens in [2000, 15000]  (engineering bound, not a claimed population percentile)"
+    ]
+  },
+  "role": "corpus-adapter prove-one",
+  "selected": {
+    "body_tokens": 4237,
+    "metadata_key": "metadata/PMC10002944.1.json",
+    "pdf_sha256": "3c24002e26922241d593eb3abf5068882b6830120e0d3d67e49c4b15ea76ce26",
+    "pmcid": "PMC10002944",
+    "rank_key": "0014fa0e3158a0e36aff6d9b9b15b5dc1b6e77b8ab9d16e3473cf67b8d2aa97f",
+    "version": 1,
+    "xml_sha256": "e073c3b1a1124d2d1df642876634528b39ebea53e33014d1ac43b988983b5156"
+  },
+  "version_policy": "one PMCID -> latest eligible published version only; if the latest version is ineligible, the PMCID is excluded entirely (no fallback to older versions)."
+}
