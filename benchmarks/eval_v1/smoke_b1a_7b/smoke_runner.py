@@ -236,16 +236,22 @@ class SmokeRunner:
                             "defect_reason": outcome.defect_reason,
                         })
         finally:
-            # 4) Positive control AFTER smoke, then cleanup.
-            post = self._pc.run()
-            post_pass = _pc_pass(post)
-            pc_post_record = _pc_to_dict(post, post_pass)
-
+            # 4) Firewall cleanup FIRST, then post-positive-control.
+            # Ordering is critical: the harness process is the one the
+            # firewall rule blocks. Running post-control while the rule
+            # is still active would block the probe → INCONCLUSIVE.
+            # Cleanup is guarded against FirewallRuleError so the
+            # post-control line is always reached regardless.
             cleanup_error: str | None = None
             try:
                 self._fw.cleanup()
             except FirewallRuleError as exc:
                 cleanup_error = str(exc)
+
+            # 5) Post-smoke positive control (firewall already removed).
+            post = self._pc.run()
+            post_pass = _pc_pass(post)
+            pc_post_record = _pc_to_dict(post, post_pass)
 
         # 5) Decide outcome.
         finished = datetime.now(UTC).isoformat()
@@ -345,6 +351,10 @@ class SmokeRunner:
             timing = timer.finalize()
 
         # 3) Write raw output + normalized output.
+        # write_bytes is byte-exact (no CRLF translation on Windows).
+        # The sha256 and byte-length recorded in the execution record
+        # must match the on-disk bytes exactly; write_text in text mode
+        # on Windows would translate \n → \r\n, causing a mismatch.
         if outcome.status is ParseStatus.EXECUTED:
             raw_md = outcome.markdown or ""
             normalized_md = normalize(raw_md)
@@ -352,16 +362,16 @@ class SmokeRunner:
             raw_md = ""
             normalized_md = ""
         raw_path = pair_dir / "raw_output.md"
-        raw_path.write_text(raw_md, encoding="utf-8")
+        raw_bytes = raw_md.encode("utf-8")
+        raw_path.write_bytes(raw_bytes)
         normalized_path = pair_dir / "normalized_output.md"
-        normalized_path.write_text(normalized_md, encoding="utf-8")
+        normalized_path.write_bytes(normalized_md.encode("utf-8"))
 
         # 4) Write stdout + stderr.
         stdout_capture = write_stdout(pair_dir / "stdout.txt", outcome.stdout)
         stderr_capture = write_stderr(pair_dir / "stderr.txt", outcome.stderr)
 
-        # 5) Compute output hash/length.
-        raw_bytes = raw_md.encode("utf-8")
+        # 5) Compute output hash/length (from the same encoded bytes written above).
         output_bytes = len(raw_bytes)
         output_sha = hashlib.sha256(raw_bytes).hexdigest()
 
@@ -422,6 +432,25 @@ class SmokeRunner:
                  "parser_id": parser_id,
                  "detail": str(exc)}
             ) from exc
+
+        # 6a) Operational diagnostic for DEFECT pairs — operator use only.
+        # This file is intentionally separate from analysis_record.json and
+        # is never referenced from reviewer_artifact. It is not in the
+        # smoke-spec review allowlist. Its purpose is to give operators a
+        # structured pointer to the diagnostic content in stderr.txt, which
+        # the worker populated with AKSHARAMD_SMOKE_* prefixed lines
+        # (exception class, sanitized message, traceback).
+        if outcome.status is ParseStatus.DEFECT:
+            diag = {
+                "pair_id": record.pair_id,
+                "exit_status": "DEFECT",
+                "defect_reason": record.defect_reason,
+                "stderr_byte_length": record.stderr_bytes,
+                "stderr_path": "stderr.txt",
+            }
+            (pair_dir / "operational_diagnostic.json").write_bytes(
+                _json_dump(diag).encode("utf-8")
+            )
 
         # 7) Downstream: reviewer artifact for EXECUTED invocations.
         # Reviewer artifact paths are pair-id-scoped (blinded), NOT
