@@ -310,6 +310,25 @@ class RealFirewallBackend:
             )
         return state
 
+    def verify_rule_absent(self, *, display_name: str) -> bool:
+        """True iff the rule is not present.
+
+        Uses ``Get-NetFirewallRule ... -ErrorAction SilentlyContinue``
+        (via ``build_probe_existence_script``) so the "rule not found"
+        PowerShell case does NOT throw; it returns ``ABSENT``. Only
+        genuinely ambiguous PowerShell output raises."""
+        script = build_probe_existence_script(display_name=display_name)
+        result = self._invoker.invoke(script, self._timeout)
+        self._raise_on_privilege_failure(result, context="verify_rule_absent probe")
+        marker = result.stdout.strip().upper()
+        if marker == "ABSENT":
+            return True
+        if marker == "EXISTS":
+            return False
+        raise FirewallAmbiguousOutputError(
+            f"verify_rule_absent probe returned unexpected marker {marker!r}"
+        )
+
     def remove_rule(self, *, display_name: str) -> None:
         script = build_remove_rule_script(display_name=display_name)
         result = self._invoker.invoke(script, self._timeout)

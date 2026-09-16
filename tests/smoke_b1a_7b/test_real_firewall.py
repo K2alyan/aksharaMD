@@ -311,6 +311,44 @@ def test_remove_privilege_failure_raises_privilege_error() -> None:
         backend.remove_rule(display_name="X")
 
 
+def test_verify_rule_absent_true_on_absent_marker() -> None:
+    """The successful cleanup path from Attempt #3: after remove, the
+    EXISTS/ABSENT probe (using -ErrorAction SilentlyContinue) returns
+    ABSENT. verify_rule_absent must return True — cleanup succeeds."""
+    invoker = FakePowerShellInvoker(responses=[
+        ("if (Get-NetFirewallRule", _ok(stdout="ABSENT")),
+    ])
+    backend = rf.RealFirewallBackend(invoker=invoker)
+    assert backend.verify_rule_absent(display_name="X") is True
+
+
+def test_verify_rule_absent_false_on_exists_marker() -> None:
+    invoker = FakePowerShellInvoker(responses=[
+        ("if (Get-NetFirewallRule", _ok(stdout="EXISTS")),
+    ])
+    backend = rf.RealFirewallBackend(invoker=invoker)
+    assert backend.verify_rule_absent(display_name="X") is False
+
+
+def test_verify_rule_absent_raises_on_ambiguous_marker() -> None:
+    invoker = FakePowerShellInvoker(responses=[
+        ("if (Get-NetFirewallRule", _ok(stdout="WHO KNOWS")),
+    ])
+    backend = rf.RealFirewallBackend(invoker=invoker)
+    with pytest.raises(rf.FirewallAmbiguousOutputError, match="WHO KNOWS"):
+        backend.verify_rule_absent(display_name="X")
+
+
+def test_verify_rule_absent_raises_on_privilege_failure() -> None:
+    invoker = FakePowerShellInvoker(responses=[
+        ("if (Get-NetFirewallRule",
+         _err(stderr="Access is denied.", exit_code=1)),
+    ])
+    backend = rf.RealFirewallBackend(invoker=invoker)
+    with pytest.raises(rf.FirewallPrivilegeError, match="privilege"):
+        backend.verify_rule_absent(display_name="X")
+
+
 def test_remove_post_probe_ambiguous_raises() -> None:
     invoker = FakePowerShellInvoker(responses=[
         ("Remove-NetFirewallRule", _ok()),

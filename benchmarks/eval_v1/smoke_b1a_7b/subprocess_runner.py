@@ -12,6 +12,15 @@ whole group. Tree kill is performed via
 ``taskkill /T /F /PID <pid>`` on Windows; on POSIX we would use
 ``os.killpg`` with SIGKILL, but production is Windows-primary.
 
+Environment semantics (B1a-7b.2d correction): ``SubprocessInvocation.env``
+is an *overlay* — its keys override the parent's ``os.environ``, but
+all other parent environment variables are inherited. This is
+critical on Windows, where launching Python without ``SYSTEMROOT`` /
+``PATH`` / ``TEMP`` / ``USERPROFILE`` causes ``OSError`` before the
+child does any real work. The previous "env=None means inherit, env=X
+means replace entirely" behaviour caused Attempt #3 to emit 12
+uniform ``<parser>_exception:OSError`` DEFECTs in ~0.2s.
+
 The tests inject ``FakeSubprocessInvoker`` (in tests/smoke_b1a_7b/
 fakes.py) and never spawn a real child process.
 """
@@ -30,6 +39,15 @@ from typing import Any, Protocol
 
 @dataclass(frozen=True)
 class SubprocessInvocation:
+    """One subprocess invocation request.
+
+    ``env`` is an OVERLAY — the child receives ``os.environ`` merged
+    with these entries, with ``env`` taking precedence. On Windows,
+    replacing the environment entirely would strip ``SYSTEMROOT`` /
+    ``PATH`` / ``TEMP`` / ``USERPROFILE`` and cause the child to
+    ``OSError`` before it does any real work.
+    """
+
     argv: list[str]
     timeout_seconds: float
     env: Mapping[str, str] | None = None
@@ -37,6 +55,26 @@ class SubprocessInvocation:
     cwd: str | None = None
     # Fields carried through to the result but not used by the runner.
     context: dict[str, Any] = field(default_factory=dict)
+
+
+def compose_child_env(
+    parent_env: Mapping[str, str],
+    overlay: Mapping[str, str] | None,
+) -> dict[str, str]:
+    """Compose the child process's environment.
+
+    Returns a new dict = ``dict(parent_env)`` with ``overlay`` (if
+    any) applied on top. The parent mapping is never mutated. Overlay
+    keys override parent keys of the same name.
+
+    Extracted as a pure function so tests can drive every branch
+    without spawning a real subprocess (``RealSubprocessInvoker`` is
+    ``# pragma: no cover``).
+    """
+    child = dict(parent_env)
+    if overlay is not None:
+        child.update(overlay)
+    return child
 
 
 @dataclass(frozen=True)
@@ -65,7 +103,7 @@ class RealSubprocessInvoker:
     tree kill on expiry."""
 
     def invoke(self, invocation: SubprocessInvocation) -> SubprocessResult:  # pragma: no cover
-        env = dict(os.environ if invocation.env is None else invocation.env)
+        env = compose_child_env(os.environ, invocation.env)
         creationflags = 0
         if sys.platform == "win32":
             # Fresh process group so taskkill /T /F reaches every child.

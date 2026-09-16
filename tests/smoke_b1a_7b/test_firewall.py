@@ -261,5 +261,59 @@ def test_firewall_cleanup_linger_raises() -> None:
     backend.rule_present = True
     backend.linger_after_remove = True  # remove is called, but rule stays
     mgr = fw.FirewallRuleManager(backend)
-    with pytest.raises(fw.FirewallRuleError, match="still enabled"):
+    with pytest.raises(fw.FirewallRuleError, match="still present after cleanup"):
         mgr.cleanup()
+
+
+# ---------------------------------------------------------------------------
+# verify_rule_absent — explicit yes/no query replacing the previous
+# exception-based absence detection. Attempt #3 of the real smoke
+# crashed at cleanup because the previous exception-based approach
+# relied on FirewallRuleError being raised by RealFirewallBackend.
+# get_rule_state on rule-absent — but RealFirewallBackend actually
+# raised its own RealFirewallError, a different class.
+
+
+def test_verify_rule_absent_true_when_rule_not_present() -> None:
+    backend = FakeFirewallBackend()
+    backend.rule_present = False
+    assert backend.verify_rule_absent(display_name="X") is True
+
+
+def test_verify_rule_absent_false_when_rule_present() -> None:
+    backend = FakeFirewallBackend()
+    backend.rule_present = True
+    assert backend.verify_rule_absent(display_name="X") is False
+
+
+def test_cleanup_uses_verify_rule_absent_and_completes_cleanly() -> None:
+    """Regression for Attempt #3: after a successful Remove, cleanup
+    must complete cleanly. It queries verify_rule_absent explicitly
+    rather than catching FirewallRuleError from a get_rule_state
+    call whose exception class is not guaranteed by the Protocol."""
+    backend = FakeFirewallBackend()
+    backend.rule_present = True
+    mgr = fw.FirewallRuleManager(backend)
+    mgr.cleanup()  # no raise
+
+    call_names = [c[0] for c in backend.calls]
+    # remove_rule was called; verify_rule_absent was called; get_rule_state
+    # is NOT called on the cleanup path anymore.
+    assert "remove" in call_names
+    assert "verify_absent" in call_names
+    assert "get" not in call_names
+    # And the rule is verifiably gone.
+    assert backend.rule_present is False
+
+
+def test_cleanup_call_order_is_remove_then_verify() -> None:
+    """Sanity: the harness never verifies absence before actually
+    removing. That order is what makes the query meaningful."""
+    backend = FakeFirewallBackend()
+    backend.rule_present = True
+    mgr = fw.FirewallRuleManager(backend)
+    mgr.cleanup()
+    kinds_after_verify_start = [c[0] for c in backend.calls]
+    # First cleanup call is remove, then verify_absent.
+    assert kinds_after_verify_start[0] == "remove"
+    assert kinds_after_verify_start[1] == "verify_absent"
