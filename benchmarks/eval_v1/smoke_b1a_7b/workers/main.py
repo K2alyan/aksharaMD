@@ -17,6 +17,12 @@ Each real-parser branch below is exercised at real-smoke time only.
 The synthetic test suite uses ``sys.modules`` monkeypatching to
 inject fake adapter modules so the branches' *dispatch shape* is
 verified without ever importing the real parser packages.
+
+Operational diagnostics (§7 correction B1a-7b.2e): on DEFECT, the
+worker writes structured diagnostic lines to stderr prefixed with
+``AKSHARAMD_SMOKE_`` tokens. These are operator-facing only; the
+harness captures them in stderr.txt and writes operational_diagnostic.json
+per pair. They never appear in reviewer_artifact or analysis_record.json.
 """
 from __future__ import annotations
 
@@ -24,6 +30,7 @@ import argparse
 import hashlib
 import json
 import sys
+import traceback as _traceback
 from typing import Any
 
 _KNOWN_PARSER_IDS = {"aksharamd-reference", "marker", "docling", "markitdown"}
@@ -43,10 +50,16 @@ def _emit_success(markdown: str, meta: dict[str, Any] | None = None) -> int:
     return 0
 
 
-def _emit_defect(coded_reason: str) -> int:
+def _emit_defect(coded_reason: str, exc: BaseException | None = None) -> int:
     payload = {"status": "DEFECT", "defect_reason": coded_reason}
     sys.stdout.write(json.dumps(payload))
     sys.stderr.write(f"AKSHARAMD_SMOKE_DEFECT_REASON: {coded_reason}\n")
+    if exc is not None:
+        sys.stderr.write(f"AKSHARAMD_SMOKE_EXCEPTION_CLASS: {type(exc).__name__}\n")
+        sys.stderr.write(f"AKSHARAMD_SMOKE_EXCEPTION_MESSAGE: {str(exc)[:2000]!r}\n")
+        sys.stderr.write("AKSHARAMD_SMOKE_TRACEBACK_BEGIN\n")
+        sys.stderr.write(_traceback.format_exc())
+        sys.stderr.write("AKSHARAMD_SMOKE_TRACEBACK_END\n")
     return 3
 
 
@@ -120,7 +133,7 @@ def _run_aksharamd_reference(pdf_bytes: bytes, canonical_id: str) -> int:
     which is the same entry point used by
     ``benchmarks.eval_v1.smoke_run_v2``."""
     from benchmarks.parsed_vs_raw.arms.parser_arm import _compile_pdf_bytes
-    md = _compile_pdf_bytes(pdf_bytes)
+    md, _ctx = _compile_pdf_bytes(pdf_bytes)
     return _emit_success(md)
 
 
@@ -173,7 +186,7 @@ def _handle_call(parser_id: str, pdf_bytes: bytes, canonical_id: str) -> int:
         coded = _classify_cuda_error(parser_id, exc)
         if coded is None:
             coded = _coded_exception_reason(parser_id, type(exc).__name__)
-        return _emit_defect(coded)
+        return _emit_defect(coded, exc=exc)
 
 
 def main(argv: list[str] | None = None) -> int:

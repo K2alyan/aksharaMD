@@ -277,15 +277,15 @@ def test_markitdown_worker_generic_exception(monkeypatch) -> None:
 def test_reference_worker_dispatches_to_compile_pdf_bytes(monkeypatch) -> None:
     """The reference worker uses ``_compile_pdf_bytes`` (already
     imported by the smoke_run_v2 module) rather than an adapter. We
-    monkeypatch the function to record the call and return a fake
-    markdown string."""
+    monkeypatch the function to record the call and return a (markdown, ctx)
+    tuple — the real function's return shape."""
     import benchmarks.parsed_vs_raw.arms.parser_arm as smoke_v2
 
     recorded: dict = {}
 
-    def _fake(pdf_bytes: bytes) -> str:
+    def _fake(pdf_bytes: bytes) -> tuple[str, dict]:
         recorded["called_with"] = bytes(pdf_bytes)
-        return "# reference synthetic md\n"
+        return "# reference synthetic md\n", {"ctx": "fake"}
 
     monkeypatch.setattr(smoke_v2, "_compile_pdf_bytes", _fake)
     stdin_bytes, stdout, _ = _capture_stdio(monkeypatch)
@@ -304,7 +304,7 @@ def test_reference_worker_dispatches_to_compile_pdf_bytes(monkeypatch) -> None:
 def test_reference_worker_generic_exception_uses_reference_prefix(monkeypatch) -> None:
     import benchmarks.parsed_vs_raw.arms.parser_arm as smoke_v2
 
-    def _fake(pdf_bytes: bytes) -> str:
+    def _fake(pdf_bytes: bytes) -> tuple[str, dict]:
         raise KeyError("something in reference broke")
 
     monkeypatch.setattr(smoke_v2, "_compile_pdf_bytes", _fake)
