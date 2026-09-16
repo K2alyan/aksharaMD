@@ -1,0 +1,131 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+    "corpus": "doclaynet",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:34+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 417582,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.png",
+        "role": "png",
+        "sha256": "02a4bb3daeedc6912ba8ce91a914738cf3f4c9b4bd750f1edd4043618a40b123",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 145125,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.pdf",
+        "role": "pdf",
+        "sha256": "0bb113133e3b0054b41b45d90092d0c66d4b01f576f4efbc1f4ff6c691ccedf4",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 5604,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.annotations.json",
+        "role": "annotations",
+        "sha256": "fda17f1c1a044b8cc6019e7d2b38b6979eea6ef18d9be5146b47f8ad1d82c03d",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      }
+    ],
+    "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+    "corpus": "doclaynet",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+        "corpus": "doclaynet",
+        "metadata_at_selection": {
+          "doc_category": "manuals",
+          "image_id": 70840,
+          "n_annotations": 18,
+          "original_filename": "sg248464.pdf",
+          "page_hash": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+          "page_no": 931,
+          "shard_key": "data/train-00064-of-00072.parquet"
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "locked": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "split": "train"
+        },
+        "selected": {
+          "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+          "metadata_at_selection": {
+            "doc_category": "manuals",
+            "image_id": 70840,
+            "n_annotations": 18,
+            "original_filename": "sg248464.pdf",
+            "page_hash": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+            "page_no": 931,
+            "shard_key": "data/train-00064-of-00072.parquet"
+          },
+          "shard_key": "data/train-00064-of-00072.parquet"
+        },
+        "upstream_at_acquisition": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "last_modified_utc": "2025-02-10T16:33:40.000Z",
+          "n_annotations": 18,
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "shard_key": "data/train-00064-of-00072.parquet",
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": null,
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+      "source_v1_receipt_sha256": "f56f84df0f2be77a5dca4bb1320c91d943fe9a11eef0058998ef0a52bcf46f2f"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "ceb3d99f760ebe02f05b0cdc448c7488ddda11454adec31ac5cd5bf87259026d"
+}

@@ -1,0 +1,129 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "2025-11271",
+    "corpus": "federal_register",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:34+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 4362,
+        "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.api.json",
+        "role": "api_json",
+        "sha256": "80d5e5c03abe2fbef017e9c4ae348da29354c6443f0b63e6d7ebdc770cb1f344",
+        "source_key": null,
+        "source_revision": null,
+        "source_side_integrity": {
+          "api_response_sha256": "80d5e5c03abe2fbef017e9c4ae348da29354c6443f0b63e6d7ebdc770cb1f344"
+        },
+        "source_url": "https://www.federalregister.gov/api/v1/documents/2025-11271.json"
+      },
+      {
+        "byte_size": 207063,
+        "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.pdf",
+        "role": "pdf",
+        "sha256": "9ee9eb19bccf31d8f458a27749ffdada6fdf61168900b704eaf1cc599c4c2bad",
+        "source_key": "FR-2025-06-18/pdf/2025-11271.pdf",
+        "source_revision": "FR-2025-06-18",
+        "source_side_integrity": {},
+        "source_url": "https://www.govinfo.gov/content/pkg/FR-2025-06-18/pdf/2025-11271.pdf"
+      },
+      {
+        "byte_size": 5862,
+        "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.xml",
+        "role": "xml",
+        "sha256": "d658e1dc910ea4878f49f645ffd4a7991cd27ab92e4e58ce24883cdb6ad2a2a2",
+        "source_key": null,
+        "source_revision": "FR-2025-06-18",
+        "source_side_integrity": {},
+        "source_url": "https://www.federalregister.gov/documents/full_text/xml/2025/06/18/2025-11271.xml"
+      }
+    ],
+    "canonical_id": "2025-11271",
+    "corpus": "federal_register",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "2025-11271",
+        "corpus": "federal_register",
+        "metadata_at_selection": {
+          "citation": "90 FR 25918",
+          "document_number": "2025-11271",
+          "granule_id": "2025-11271",
+          "has_xml": true,
+          "package_id": "FR-2025-06-18",
+          "page_length": 1,
+          "publication_date": "2025-06-18",
+          "type": "Proposed Rule",
+          "volume": 90
+        },
+        "stratum": "Proposed Rule"
+      },
+      "v1_receipt_provenance": {
+        "selected": {
+          "canonical_id": "2025-11271",
+          "metadata_at_selection": {
+            "citation": "90 FR 25918",
+            "document_number": "2025-11271",
+            "granule_id": "2025-11271",
+            "has_xml": true,
+            "package_id": "FR-2025-06-18",
+            "page_length": 1,
+            "publication_date": "2025-06-18",
+            "type": "Proposed Rule",
+            "volume": 90
+          },
+          "stratum": "Proposed Rule"
+        },
+        "upstream_at_acquisition": {
+          "document_number": "2025-11271",
+          "granule_id": "2025-11271",
+          "package_id": "FR-2025-06-18",
+          "pdf_canonical_url": "https://www.govinfo.gov/content/pkg/FR-2025-06-18/pdf/2025-11271.pdf",
+          "publication_date": "2025-06-18",
+          "type": "Proposed Rule",
+          "volume": 90,
+          "xml_available": true,
+          "xml_canonical_url": "https://www.federalregister.gov/documents/full_text/xml/2025/06/18/2025-11271.xml"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": null,
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-11271.json",
+      "source_v1_receipt_sha256": "8adb7c2c1431eb40509642deb1560cac1d34a3ada1b8aa9a2ad8d2f12c7cc6cc"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "0c3482e9ee027c81a4e424345de836326ffa18358de16ca88511fe27700b6efa"
+}

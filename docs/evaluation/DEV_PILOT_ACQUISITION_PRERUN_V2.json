@@ -1,0 +1,43 @@
+{
+  "attestation": "PASS",
+  "authorization": "B1a-5b-V2",
+  "created_utc": "2026-09-16T04:30:30+00:00",
+  "existing_v2_receipts": 0,
+  "git_commit": "875bfd24f2671b0987218ee9dce4384e16acc8ee",
+  "manifest_v1_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+  "manifest_v2_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+  "phase": "B1a-5b-V2-prerun",
+  "selection": {
+    "per_corpus": {
+      "doclaynet": 6,
+      "federal_register": 6,
+      "pmc_oa": 8
+    },
+    "per_fr_stratum": {
+      "Notice": 2,
+      "Proposed Rule": 2,
+      "Rule": 2
+    },
+    "selected_total": 20
+  },
+  "v1_acquisition_receipts_valid": 20,
+  "v1_to_v2_delta": {
+    "new": [
+      "PMC3544647.1",
+      "PMC8381808.1"
+    ],
+    "removed": [
+      "PMC3569185.1",
+      "PMC6839998.1"
+    ],
+    "retained": [
+      "PMC10454006.1",
+      "PMC12303665.1",
+      "PMC4160324.1",
+      "PMC5773191.1",
+      "PMC6374309.1",
+      "PMC7773825.1"
+    ]
+  },
+  "v2_inspection_ledger_entries": 14
+}

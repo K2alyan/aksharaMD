@@ -1,0 +1,133 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "PMC3544647.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:34+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 696,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.json",
+        "role": "metadata",
+        "sha256": "4ccc9145227b4eb9504cbfcaf09c30a54076b0340968f86f8add31a781072ef2",
+        "source_key": "metadata/PMC3544647.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "4ccc9145227b4eb9504cbfcaf09c30a54076b0340968f86f8add31a781072ef2"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC3544647.1.json"
+      },
+      {
+        "byte_size": 312155,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.pdf",
+        "role": "pdf",
+        "sha256": "8249ad9f1e42c47cca6c101705eb3d53ca1fd6f5ebf1ec1a47632056f7e109b4",
+        "source_key": "PMC3544647.1/PMC3544647.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "1ce221c9f5d1e8563a2a564aa64513d2"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC3544647.1/PMC3544647.1.pdf?md5=1ce221c9f5d1e8563a2a564aa64513d2"
+      },
+      {
+        "byte_size": 182620,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.xml",
+        "role": "xml",
+        "sha256": "2894d729ae8e4e63936093b350d504ef0304d1a99c6d7353fa037d53e4af12fa",
+        "source_key": "PMC3544647.1/PMC3544647.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "c1968204828614db98c1c1da8638d5a3"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC3544647.1/PMC3544647.1.xml?md5=c1968204828614db98c1c1da8638d5a3"
+      }
+    ],
+    "canonical_id": "PMC3544647.1",
+    "corpus": "pmc_oa",
+    "execution_disposition": "fresh_acquisition",
+    "provenance": {
+      "fresh_acquisition_provenance": {
+        "selected": {
+          "canonical_id": "PMC3544647.1",
+          "metadata_at_selection": {
+            "citation": "J Foot Ankle Res. 2012 Nov 26;5:29. doi: 10.1186/1757-1146-5-29",
+            "license_code": "CC BY",
+            "pmcid": "PMC3544647",
+            "pmid": 23181771,
+            "title": "Importance and challenges of measuring intrinsic foot muscle strength",
+            "version": 1
+          },
+          "pmcid": "PMC3544647",
+          "version": 1
+        },
+        "upstream_at_acquisition": {
+          "is_historical_ocr": false,
+          "is_manuscript": false,
+          "is_retracted": false,
+          "license_code": "CC BY",
+          "metadata_key": "metadata/PMC3544647.1.json",
+          "pdf_canonical_url": "s3://pmc-oa-opendata/PMC3544647.1/PMC3544647.1.pdf?md5=1ce221c9f5d1e8563a2a564aa64513d2",
+          "pmcid": "PMC3544647",
+          "version": 1,
+          "xml_canonical_url": "s3://pmc-oa-opendata/PMC3544647.1/PMC3544647.1.xml?md5=c1968204828614db98c1c1da8638d5a3"
+        }
+      },
+      "selected_v2": {
+        "canonical_id": "PMC3544647.1",
+        "corpus": "pmc_oa",
+        "metadata_at_selection": {
+          "citation": "J Foot Ankle Res. 2012 Nov 26;5:29. doi: 10.1186/1757-1146-5-29",
+          "license_code": "CC BY",
+          "pmcid": "PMC3544647",
+          "pmid": 23181771,
+          "title": "Importance and challenges of measuring intrinsic foot muscle strength",
+          "version": 1
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": "2894d729ae8e4e63936093b350d504ef0304d1a99c6d7353fa037d53e4af12fa",
+    "v2_provenance_bridge": null,
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "fresh_acquisition_completed",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_fresh_jats_sha_matches_v2_inspection",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "c4d2d92eac2dcf41045831451f8cb325ab3d34a4b384072bf57ee070a38d4330"
+}

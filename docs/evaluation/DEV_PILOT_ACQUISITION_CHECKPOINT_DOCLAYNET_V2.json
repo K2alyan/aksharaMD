@@ -1,0 +1,29 @@
+{
+  "acquired_count": 6,
+  "asset_count": 18,
+  "completed_utc": "2026-09-16T04:30:34+00:00",
+  "corpus": "doclaynet",
+  "expected_count": 6,
+  "fresh_count": 0,
+  "receipt_paths": [
+    "docs/evaluation/acquisition_v2/doclaynet/3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.json",
+    "docs/evaluation/acquisition_v2/doclaynet/601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.json",
+    "docs/evaluation/acquisition_v2/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+    "docs/evaluation/acquisition_v2/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+    "docs/evaluation/acquisition_v2/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+    "docs/evaluation/acquisition_v2/doclaynet/7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.json"
+  ],
+  "receipt_sha256s": {
+    "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77": "45f93f82dda302030c695d5111afa1feecc61092df38940c6f2eba30fa25033f",
+    "601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8": "83954344910a4927a89be0f5e9f576d9a614a4b9911ce992987eed86be94a4b3",
+    "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab": "36cb4f4436c352f73c4ce3a88c5681ec12a8c86e24006a9f9ef791afaee8bcc1",
+    "7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed": "66fe12abd2fa76a43bc3200241302c63b63f127e775902cf5e6471c5f5b61a7e",
+    "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda": "c4fa506eaeaaab5e460600f15d4028a051fefd101b5c2ef04eef7de198d61865",
+    "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290": "3460b7f013097c9928027cd3591df1ccb861c8744562435b2104ca27a8750f58"
+  },
+  "reused_count": 6,
+  "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+  "selection_manifest_version": "2",
+  "status": "COMPLETE",
+  "total_payload_bytes": 2687876
+}

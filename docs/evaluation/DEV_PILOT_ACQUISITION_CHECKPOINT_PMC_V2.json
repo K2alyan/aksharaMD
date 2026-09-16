@@ -1,0 +1,33 @@
+{
+  "acquired_count": 8,
+  "asset_count": 24,
+  "completed_utc": "2026-09-16T04:30:34+00:00",
+  "corpus": "pmc_oa",
+  "expected_count": 8,
+  "fresh_count": 2,
+  "receipt_paths": [
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC4160324.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC12303665.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC10454006.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC7773825.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC5773191.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC6374309.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC8381808.1.json",
+    "docs/evaluation/acquisition_v2/pmc_oa/PMC3544647.1.json"
+  ],
+  "receipt_sha256s": {
+    "PMC10454006.1": "f55099834693dbb2aec5db5a5d01ff376a71853dfac10391302676d5cdbf4475",
+    "PMC12303665.1": "e5b381e710fa62a16a916c40bccfef54c530883e19504c5c877bec88c12f1b76",
+    "PMC3544647.1": "edc31febf6c29b69d9de7aa2d3383f2e950db4161e458455c65f340d16d2d464",
+    "PMC4160324.1": "4090a6a36791aadd3669c0ab469c234547fdbf383a1f8f70c67c9a27308548c4",
+    "PMC5773191.1": "1674c1a0e96d6fdddfab3350b0050ea4533ea8ef4d96e7e597b28712bbb2f695",
+    "PMC6374309.1": "795b89ae60aa7fd37c30e0e382dc836ea194285b230bbfa0eaa06c33efe1b2dc",
+    "PMC7773825.1": "2b36a3f7dba69442afaef49ad59557edf63447d3b38ed839c33b2b7a7c5f6e6b",
+    "PMC8381808.1": "685d5c91607848a5af1685aedde0736b7daeba5f3979a5a1823d454c15fa2c1e"
+  },
+  "reused_count": 6,
+  "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+  "selection_manifest_version": "2",
+  "status": "COMPLETE",
+  "total_payload_bytes": 16426709
+}
