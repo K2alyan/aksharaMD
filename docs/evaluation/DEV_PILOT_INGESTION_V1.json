@@ -1,0 +1,58 @@
+{
+  "counts": {
+    "fail": 1,
+    "pass": 5,
+    "per_corpus": {
+      "pmc_oa": 6
+    },
+    "total": 6
+  },
+  "created_utc": "2026-09-16T03:11:38+00:00",
+  "ingestion_schema_version": "1",
+  "records": [
+    {
+      "canonical_id": "PMC3569185.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC3569185.1.json",
+      "receipt_sha256": "6604092fb0640c089234519bcf6974ed1f29eb2fa869adf67bb9bb1e4628cb06",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC4160324.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC4160324.1.json",
+      "receipt_sha256": "05f66bbcd5c46414bb38c6631f8c061ce4f4a9874904103a9c6bdf46d5e4632a",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC12303665.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC12303665.1.json",
+      "receipt_sha256": "67709adca7d0801fd804e0478e5348e2ac6ab1818df92cea1bcd0c7af08edfb3",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC10454006.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC10454006.1.json",
+      "receipt_sha256": "6d591644a0ac1404546308ff3f16418afe943b16a7da7478d94a364151eb711c",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC7773825.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC7773825.1.json",
+      "receipt_sha256": "82c03f9f14c7cb5fd7093e1efcbdbec588e4ef23f4b75f44369372ade0a0b268",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC6839998.1",
+      "corpus": "pmc_oa",
+      "failure_reason": "gt.body_text_nonempty: None",
+      "receipt_path": "docs/evaluation/ingestion_v1/pmc_oa/PMC6839998.1.json",
+      "receipt_sha256": "3c1f082e12c11a144a73c0e911cebed893a7ab36dd0bf084943d507ddc105836",
+      "status": "INSTRUMENT_CHANGE_REQUIRED"
+    }
+  ],
+  "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+}
