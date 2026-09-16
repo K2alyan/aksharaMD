@@ -282,6 +282,82 @@ def build_page(row: dict[str, Any]) -> DocLayNetPage:
     )
 
 
+# ---- Shard-scoped page resolution --------------------------------
+
+
+def resolve_page_in_shard(
+    page_hash: str,
+    shard_key: str,
+    ref: HfDatasetRef,
+) -> tuple[DocLayNetPage, str]:
+    """Locate exactly one ``page_hash`` inside exactly one shard at ``ref.sha``.
+
+    Fail-closed contract for B1a-5b.1 acquisition:
+
+    - Opens ``shard_key`` at ``ref.sha`` only. Never falls back to
+      another revision, another shard, or a mirror.
+    - Streams SHA-256 over the raw shard bytes so acquisition receipts
+      can attest to which shard content was read.
+    - Requires exactly one row whose ``metadata.page_hash`` matches;
+      zero rows raises :class:`KeyError` (mapped by the adapter to
+      ``IDENTITY_MISMATCH``); more than one raises
+      :class:`AcquisitionError`.
+
+    Returns ``(page, shard_sha256)``. ``page`` is built by
+    :func:`build_page` from the matched row (image + PDF columns
+    loaded); ``shard_sha256`` is the SHA-256 of the full shard bytes
+    read from HF.
+    """
+    import hashlib as _hashlib
+    import io as _io
+
+    if not isinstance(ref.sha, str) or len(ref.sha) != 40:
+        raise AcquisitionError(
+            f"resolve_page_in_shard requires a 40-char revision SHA; got {ref.sha!r}"
+        )
+    fs = _hf_fs()
+    path = f"{HF_REPO_PATH}/{shard_key}"
+    with fs.open(path, mode="rb", revision=ref.sha) as fh:
+        shard_bytes = fh.read()
+    shard_sha256 = _hashlib.sha256(shard_bytes).hexdigest()
+
+    pq = _pyarrow()
+    pf = pq.ParquetFile(_io.BytesIO(shard_bytes))
+
+    # First pass: lightweight scan over metadata only so we do not
+    # materialize image / pdf bytes for every row in the shard.
+    hits: list[tuple[int, int]] = []
+    for rg in range(pf.num_row_groups):
+        tbl = pf.read_row_group(rg, columns=["metadata"])
+        md_col = tbl.column("metadata").to_pylist()
+        for i, md in enumerate(md_col):
+            if md and md.get("page_hash") == page_hash:
+                hits.append((rg, i))
+    if not hits:
+        raise KeyError(
+            f"page_hash={page_hash!r} not present in shard {shard_key!r} "
+            f"at revision {ref.sha}"
+        )
+    if len(hits) > 1:
+        raise AcquisitionError(
+            f"page_hash={page_hash!r} appears {len(hits)} times in shard "
+            f"{shard_key!r} at revision {ref.sha}; refuse to disambiguate"
+        )
+
+    rg, i = hits[0]
+    # Second pass: re-read only the target row group with heavy columns.
+    rows = list(iter_pages_in_row_group(pf, rg, include_image=True, include_pdf=True))
+    row = rows[i]
+    got_hash = (row["metadata"] or {}).get("page_hash")
+    if got_hash != page_hash:
+        raise AcquisitionError(
+            f"integrity check failed: row {i} of row group {rg} in "
+            f"{shard_key!r} at {ref.sha} reports page_hash={got_hash!r}, "
+            f"expected {page_hash!r}"
+        )
+    return build_page(row), shard_sha256
+
+
 # ---- Eligibility -------------------------------------------------
 
 
@@ -545,4 +621,5 @@ __all__ = [
     "iter_pages_in_row_group",
     "open_parquet_shard",
     "resolve_dataset_ref",
+    "resolve_page_in_shard",
 ]
