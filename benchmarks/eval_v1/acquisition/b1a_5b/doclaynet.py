@@ -63,7 +63,13 @@ class DoclaynetAcquirer:
     resolve_dataset_ref_fn: Callable[..., doclaynet_hf.HfDatasetRef] = (
         doclaynet_hf.resolve_dataset_ref
     )
-    fetch_page_fn: Callable[..., tuple[doclaynet_hf.DocLayNetPage, str]] | None = None
+    # Production default: revision-pinned shard walk that resolves one
+    # frozen page_hash inside one frozen shard and returns the page
+    # plus the shard's SHA-256. Tests inject a lighter fake so no HF
+    # fetch happens during CI.
+    fetch_page_fn: Callable[..., tuple[doclaynet_hf.DocLayNetPage, str]] = (
+        doclaynet_hf.resolve_page_in_shard
+    )
     acquire_page_fn: Callable[..., doclaynet_hf.AcquiredPage] = doclaynet_hf.acquire_page
     apply_page_filters_fn: Callable[..., doclaynet_hf.EligibilityDecision] = (
         doclaynet_hf.apply_page_filters
@@ -96,15 +102,6 @@ class DoclaynetAcquirer:
                 "split": self.locked_split,
             },
         }
-        if self.fetch_page_fn is None:
-            return self._fail(
-                canonical_id, selection_manifest_sha256,
-                AcquisitionStatus.SELECTED_ACQUISITION_FAILURE,
-                "fetch_page_fn was not provided; DoclaynetAcquirer requires "
-                "an injectable shard-walk function (production: read the "
-                "pinned shard; tests: a synthetic fixture callable)",
-                checks, provenance,
-            )
         if not selected_shard_key:
             return self._fail(
                 canonical_id, selection_manifest_sha256,
@@ -146,7 +143,7 @@ class DoclaynetAcquirer:
         # --- Step 2: resolve the page inside the pinned shard
         try:
             page, shard_sha = with_retry(
-                lambda: self.fetch_page_fn(  # type: ignore[misc]
+                lambda: self.fetch_page_fn(
                     canonical_id, selected_shard_key, ref,
                 ),
                 policy=self.retry_policy, sleep=self.sleep,
@@ -184,8 +181,7 @@ class DoclaynetAcquirer:
 
         # --- Step 3: current eligibility (structural filters)
         decision = self.apply_page_filters_fn({
-            "n_annotations": len(page.annotations),
-            "category_ids": [a.category_id for a in page.annotations],
+            "category_id": [a.category_id for a in page.annotations],
         })
         checks.append(
             ValidationCheck(

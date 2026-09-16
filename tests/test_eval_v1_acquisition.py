@@ -989,3 +989,274 @@ def test_doclaynet_locked_revision_matches_selection() -> None:
         "0daf93102e2efce76c3e11a274a5e0d0969391d3"
     )
     assert dl_adapter_mod.DOCLAYNET_LOCKED_SPLIT == "train"
+
+
+# ---------------------------------------------------------------------
+# DocLayNet production resolver + default wiring
+# ---------------------------------------------------------------------
+
+
+from benchmarks.eval_v1.acquisition import doclaynet_hf as _dl_primitives  # noqa: E402
+
+
+def test_doclaynet_default_wiring_is_production_ready() -> None:
+    """DoclaynetAcquirer() without kwargs must be usable in production.
+
+    Regression guard: fetch_page_fn used to default to None, which
+    turned the production path into an immediate
+    SELECTED_ACQUISITION_FAILURE. The production default must be the
+    revision-pinned shard resolver.
+    """
+    adapter = dl_adapter_mod.DoclaynetAcquirer()
+    assert adapter.fetch_page_fn is _dl_primitives.resolve_page_in_shard
+    assert adapter.resolve_dataset_ref_fn is _dl_primitives.resolve_dataset_ref
+    assert adapter.acquire_page_fn is _dl_primitives.acquire_page
+
+
+# --- Synthetic HF filesystem + pyarrow doubles ------------------------
+
+
+class _FakePqArray:
+    def __init__(self, values: list[Any]) -> None:
+        self._values = values
+
+    def to_pylist(self) -> list[Any]:
+        return list(self._values)
+
+
+class _FakePqTable:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self._rows = rows
+        self.num_rows = len(rows)
+
+    def column(self, name: str) -> _FakePqArray:
+        return _FakePqArray([r.get(name) for r in self._rows])
+
+
+class _FakePqParquetFile:
+    def __init__(self, row_groups: list[list[dict[str, Any]]]) -> None:
+        self._row_groups = row_groups
+        self.num_row_groups = len(row_groups)
+
+    def read_row_group(self, rg: int, columns: list[str]) -> _FakePqTable:
+        # Ignore ``columns`` — every row already carries every column
+        # in the fake, and lightweight vs heavy is only about whether
+        # the caller reads the "image"/"pdf" columns.
+        return _FakePqTable(self._row_groups[rg])
+
+
+class _FakePqModule:
+    def __init__(self, row_groups: list[list[dict[str, Any]]]) -> None:
+        self._row_groups = row_groups
+
+    def ParquetFile(self, fh: Any) -> _FakePqParquetFile:  # noqa: N802
+        # Drain the buffer so tests can verify the resolver consumed it.
+        if hasattr(fh, "read"):
+            fh.read()
+        return _FakePqParquetFile(self._row_groups)
+
+
+class _FakeFsFile:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self._consumed = False
+
+    def read(self) -> bytes:
+        self._consumed = True
+        return self._data
+
+    def __enter__(self) -> _FakeFsFile:
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        return None
+
+
+class _FakeHfFs:
+    def __init__(self, path_to_bytes: dict[str, bytes]) -> None:
+        self._data = path_to_bytes
+        self.opens: list[tuple[str, str]] = []
+
+    def open(self, path: str, *, mode: str, revision: str) -> _FakeFsFile:
+        assert mode == "rb"  # noqa: S101
+        self.opens.append((path, revision))
+        try:
+            return _FakeFsFile(self._data[path])
+        except KeyError as e:
+            raise FileNotFoundError(path) from e
+
+
+def _synthetic_row(
+    page_hash: str,
+    # Default satisfies apply_page_filters: 12 annotations, one Table
+    # (id 9), one Section-header (id 8), and 10 Text (id 10). Above
+    # MIN_ANNOTATIONS=10; below MAX_ANNOTATIONS=200; carries the
+    # required Table + additional non-Text non-Table structural region.
+    category_ids: tuple[int, ...] = (9, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10),
+) -> dict[str, Any]:
+    """One synthetic Parquet-row dict matching the DocLayNet v1.2 schema."""
+    return {
+        "metadata": {
+            "page_hash": page_hash,
+            "image_id": 1,
+            "original_filename": "fake.pdf",
+            "page_no": 1,
+            "coco_width": 1025,
+            "coco_height": 1025,
+            "original_width": 800.0,
+            "original_height": 1000.0,
+            "doc_category": "financial_reports",
+            "collection": "c",
+            "num_pages": 10,
+        },
+        "modalities": ("text",),
+        "bboxes": [[0.0, 0.0, 1.0, 1.0]] * len(category_ids),
+        "category_id": list(category_ids),
+        "area": [1.0] * len(category_ids),
+        "image": {"bytes": b"\x89PNG\r\n\x1a\n"},
+        "pdf": b"%PDF-1.5\n",
+    }
+
+
+def _patch_hf_primitives(
+    monkeypatch: pytest.MonkeyPatch,
+    row_groups: list[list[dict[str, Any]]],
+    shard_bytes: bytes = b"synthetic-parquet-bytes",
+    shard_key: str = "data/train-00000-of-00072.parquet",
+) -> _FakeHfFs:
+    fake_fs = _FakeHfFs({
+        f"{_dl_primitives.HF_REPO_PATH}/{shard_key}": shard_bytes,
+    })
+    fake_pq = _FakePqModule(row_groups)
+    monkeypatch.setattr(_dl_primitives, "_hf_fs", lambda: fake_fs)
+    monkeypatch.setattr(_dl_primitives, "_pyarrow", lambda: fake_pq)
+    return fake_fs
+
+
+def _hf_ref(revision: str = dl_adapter_mod.DOCLAYNET_LOCKED_REVISION) -> _dl_primitives.HfDatasetRef:
+    return _dl_primitives.HfDatasetRef(
+        dataset_id=_dl_primitives.DATASET_ID,
+        sha=revision,
+        last_modified="2026-01-01T00:00:00.000Z",
+        api_url=_dl_primitives.HF_API_ENDPOINT,
+    )
+
+
+def test_default_fetch_page_returns_page_and_shard_sha(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page_hash = "a" * 64
+    shard_bytes = b"synthetic-parquet-bytes-XYZ"
+    shard_key = "data/train-00000-of-00072.parquet"
+    fs = _patch_hf_primitives(
+        monkeypatch,
+        row_groups=[[_synthetic_row(page_hash)]],
+        shard_bytes=shard_bytes,
+        shard_key=shard_key,
+    )
+
+    page, shard_sha = _dl_primitives.resolve_page_in_shard(
+        page_hash, shard_key, _hf_ref(),
+    )
+
+    assert page.page_hash == page_hash
+    assert page.doc_category == "financial_reports"
+    assert shard_sha == hashlib.sha256(shard_bytes).hexdigest()
+    # Revision must be pinned, not left to HF's default branch.
+    assert fs.opens == [
+        (f"{_dl_primitives.HF_REPO_PATH}/{shard_key}", dl_adapter_mod.DOCLAYNET_LOCKED_REVISION),
+    ]
+
+
+def test_default_fetch_page_raises_key_error_when_page_hash_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shard_key = "data/train-00000-of-00072.parquet"
+    _patch_hf_primitives(
+        monkeypatch,
+        row_groups=[[_synthetic_row("b" * 64)]],
+        shard_key=shard_key,
+    )
+    with pytest.raises(KeyError):
+        _dl_primitives.resolve_page_in_shard("a" * 64, shard_key, _hf_ref())
+
+
+def test_default_fetch_page_raises_acquisition_error_on_duplicate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page_hash = "a" * 64
+    shard_key = "data/train-00000-of-00072.parquet"
+    _patch_hf_primitives(
+        monkeypatch,
+        row_groups=[
+            [_synthetic_row(page_hash), _synthetic_row(page_hash)],
+        ],
+        shard_key=shard_key,
+    )
+    with pytest.raises(_dl_primitives.AcquisitionError) as e:
+        _dl_primitives.resolve_page_in_shard(page_hash, shard_key, _hf_ref())
+    assert "appears 2 times" in str(e.value)
+
+
+def test_default_fetch_page_rejects_non_forty_char_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Even before touching HF, a short SHA must be refused.
+    fs = _FakeHfFs({})
+    monkeypatch.setattr(_dl_primitives, "_hf_fs", lambda: fs)
+    monkeypatch.setattr(_dl_primitives, "_pyarrow", lambda: _FakePqModule([]))
+    with pytest.raises(_dl_primitives.AcquisitionError):
+        _dl_primitives.resolve_page_in_shard(
+            "a" * 64,
+            "data/train-00000-of-00072.parquet",
+            _hf_ref(revision="deadbeef"),
+        )
+    assert fs.opens == []
+
+
+def test_default_wired_adapter_end_to_end_with_monkeypatched_primitives(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """DoclaynetAcquirer works end-to-end against monkeypatched HF
+    primitives WITHOUT injecting ``fetch_page_fn``. This proves the
+    production default is functional, not just an identity match on
+    the module attribute.
+
+    Dataclass defaults are captured at class body evaluation, so we
+    inject the two seams that are supposed to be injectable
+    (``resolve_dataset_ref_fn`` and ``acquire_page_fn``) instead of
+    monkeypatching them. The critical property under test is that
+    ``fetch_page_fn`` — which is NOT injected here — is the
+    production revision-pinned shard resolver.
+    """
+    page_hash = "a" * 64
+    shard_key = "data/train-00000-of-00072.parquet"
+    _patch_hf_primitives(
+        monkeypatch,
+        row_groups=[[_synthetic_row(page_hash)]],
+        shard_key=shard_key,
+    )
+
+    def _fake_resolve() -> _dl_primitives.HfDatasetRef:
+        return _hf_ref()
+
+    def _fake_acquire_page(
+        page: _dl_primitives.DocLayNetPage, *_a: Any, **_k: Any,
+    ) -> _dl_primitives.AcquiredPage:
+        return _dl_write_assets(tmp_path, page.page_hash, pdf=True)
+
+    adapter = dl_adapter_mod.DoclaynetAcquirer(
+        resolve_dataset_ref_fn=_fake_resolve,
+        acquire_page_fn=_fake_acquire_page,
+        retry_policy=FAST_POLICY, sleep=NO_SLEEP,
+    )
+    # Critical property under test — no dependency injection of the resolver.
+    assert adapter.fetch_page_fn is _dl_primitives.resolve_page_in_shard
+
+    r = adapter.acquire(
+        {"canonical_id": page_hash, "corpus": "doclaynet",
+         "metadata": {"shard_key": shard_key}},
+        tmp_path, "m" * 64,
+    )
+    assert r.status == AcquisitionStatus.ACQUIRED.value
+    assert {a.role for a in r.assets} == {"png", "pdf", "annotations"}
