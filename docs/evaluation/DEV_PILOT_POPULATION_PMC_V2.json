@@ -1,0 +1,262 @@
+{
+  "fingerprint": {
+    "checkpoint_schema_version": "1",
+    "corpus": "pmc_oa",
+    "eligibility_rule_version": "1+text_oracle_v2",
+    "exclusion_ledger_sha256": "345630bf8624f7c4a7616fa74def61a924e1d5954a51de389953c1a5018ed082",
+    "selection_algorithm_version": "2",
+    "source_snapshot_identity_sha256": "1b68b4df5c1e8ae9bfd06569f7ad39ad9d248856eb523022c9631b8f5201fafd"
+  },
+  "payload": {
+    "eligible_candidates": [
+      {
+        "canonical_id": "PMC4160324.1",
+        "metadata": {
+          "citation": "Nanoscale Res Lett. 2014 Sep 3;9(1):464. doi: 10.1186/1556-276X-9-464",
+          "jats_sha256": "29858cb8b4fd560c42633bcc042d711c2aae1d697071fb9de49f92f74bbd3a9a",
+          "license_code": "CC BY",
+          "pmcid": "PMC4160324",
+          "pmid": 25246869,
+          "title": "Improvement in the breakdown endurance of high-\u03ba dielectric by utilizing stacking technology and adding sufficient inter",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC12303665.1",
+        "metadata": {
+          "citation": "Surg Case Rep. 2025 Jul 15;11(1):25-0293. doi: 10.70352/scrj.cr.25-0293",
+          "jats_sha256": "949ff1ae776c3275269d6160f97e0247bc10afa16b6e3b82ead8cc93b4a13a01",
+          "license_code": "CC BY",
+          "pmcid": "PMC12303665",
+          "pmid": 40726830,
+          "title": "Transmesocolic Hernia of the Ascending Colon: A Rare Cause of Small Bowel Obstruction in an Older Patient",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC10454006.1",
+        "metadata": {
+          "citation": "Healthcare (Basel). 2023 Aug 18;11(16):2336. doi: 10.3390/healthcare11162336",
+          "jats_sha256": "6f6b660aa508b096e22a7df6a914b3d33555f27da05ef4cb081f0a57f807e6d3",
+          "license_code": "CC BY",
+          "pmcid": "PMC10454006",
+          "pmid": 37628533,
+          "title": "Drivers of Patients\u2019 Behavioral Intention toward Public and Private Clinics\u2019 Services",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC7773825.1",
+        "metadata": {
+          "citation": "Front Mol Biosci. 2020 Dec 17;7:605236. doi: 10.3389/fmolb.2020.605236",
+          "jats_sha256": "2a2f8ae5a42ca8fa374e8ca8f4523f74569e4fd61d1eb05bbb874ff1dc3eae81",
+          "license_code": "CC BY",
+          "pmcid": "PMC7773825",
+          "pmid": 33392262,
+          "title": "Structural Characterization of SARS-CoV-2: Where We Are, and Where We Need to Be",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC5773191.1",
+        "metadata": {
+          "citation": "PLoS One. 2018 Jan 18;13(1):e0190941. doi: 10.1371/journal.pone.0190941",
+          "jats_sha256": "0e59c8b42132c5ffdaa562cea8414d52aed442e8de7cbe5d6997627cb09535aa",
+          "license_code": "CC BY",
+          "pmcid": "PMC5773191",
+          "pmid": 29346444,
+          "title": "Social and structural barriers for adherence to methadone maintenance treatment among Vietnamese opioid dependence patie",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC6374309.1",
+        "metadata": {
+          "citation": "Front Psychol. 2019 Feb 7;10:193. doi: 10.3389/fpsyg.2019.00193",
+          "jats_sha256": "04d4d6f0f07a5863b4330fe843787c4176c5a54d6dbac0bad40512bd5a7f6690",
+          "license_code": "CC BY",
+          "pmcid": "PMC6374309",
+          "pmid": 30792679,
+          "title": "Training for Coherence Formation When Learning From Text and Picture and the Interplay With Learners\u2019 Prior Knowledge",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC8381808.1",
+        "metadata": {
+          "citation": "Beilstein J Org Chem. 2021 Aug 19;17:2095\u2013101. doi: 10.3762/bjoc.17.136",
+          "jats_sha256": "a0f42d6605423e035fe872e1ea6f7bebac23c22a622923decbda7b3b166fd1a7",
+          "license_code": "CC BY",
+          "pmcid": "PMC8381808",
+          "pmid": 34476016,
+          "title": "An initiator- and catalyst-free hydrogel coating process for 3D printed medical-grade poly(\u03b5-caprolactone)",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC3544647.1",
+        "metadata": {
+          "citation": "J Foot Ankle Res. 2012 Nov 26;5:29. doi: 10.1186/1757-1146-5-29",
+          "jats_sha256": "2894d729ae8e4e63936093b350d504ef0304d1a99c6d7353fa037d53e4af12fa",
+          "license_code": "CC BY",
+          "pmcid": "PMC3544647",
+          "pmid": 23181771,
+          "title": "Importance and challenges of measuring intrinsic foot muscle strength",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC3328247.1",
+        "metadata": {
+          "citation": "Diagn Pathol. 2012 Feb 2;7:14. doi: 10.1186/1746-1596-7-14",
+          "jats_sha256": "25b2689593840919304e8ef41843252d5695389540d452528e1f6bf2da4bc485",
+          "license_code": "CC BY",
+          "pmcid": "PMC3328247",
+          "pmid": 22300665,
+          "title": "EGFR, CD10 and proliferation marker Ki67 expression in ameloblastoma: possible role in local recurrence",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC7256328.1",
+        "metadata": {
+          "citation": "iScience. 2020 May 12;23(6):101151. doi: 10.1016/j.isci.2020.101151",
+          "jats_sha256": "f582b8b5be068573f36240cf3f0ff134402e51da4abafa37e709a3d86138e0c9",
+          "license_code": "CC BY",
+          "pmcid": "PMC7256328",
+          "pmid": 32450515,
+          "title": "BMAL1 Associates with NOP58 in the Nucleolus and Contributes to Pre-rRNA Processing",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC13377172.1",
+        "metadata": {
+          "citation": "Nat Commun. 2026 May 13;17:6367. doi: 10.1038/s41467-026-72376-x",
+          "jats_sha256": "f6af8a827d15dc2ef30571e1dcb0f1bfdb008d81f27dd9bf373939f8b13de817",
+          "license_code": "CC BY",
+          "pmcid": "PMC13377172",
+          "pmid": 42129169,
+          "title": "Soluble bacterial lipopeptides suppress gasdermin D-associated IL-33 release in keratinocytes and atopic dermatitis in m",
+          "version": 1
+        }
+      },
+      {
+        "canonical_id": "PMC12611114.1",
+        "metadata": {
+          "citation": "PLoS One. 2025 Nov 12;20(11):e0335858. doi: 10.1371/journal.pone.0335858",
+          "jats_sha256": "cf2bac54605cfbfcff04bddad65bc1c3261acf40351ff3d5079adbac44f3d926",
+          "license_code": "CC BY",
+          "pmcid": "PMC12611114",
+          "pmid": 41223193,
+          "title": "New nanofiber glaucoma drainage implant: Effectiveness, safety, first in vivo results, and optimization of surgical tech",
+          "version": 1
+        }
+      }
+    ],
+    "snapshot": {
+      "dev_assignment_count_before_metadata_eligibility": 911944,
+      "eligibility_evaluation": "lazy_deterministic_rank_walk_with_jats_oracle_eligibility_v2",
+      "eligible_records_found_before_stop": 12,
+      "excluded_before_rank_walk": 0,
+      "ineligible_head": [
+        {
+          "canonical_id": "PMC3569185.1",
+          "reason": "canonical_body_tokens_lt_500:265",
+          "stage": "v2_oracle"
+        },
+        {
+          "canonical_id": "PMC11441047.1",
+          "reason": "license_not_CC_BY:CC BY-NC",
+          "stage": "metadata"
+        },
+        {
+          "canonical_id": "PMC4231923.1",
+          "reason": "license_not_CC_BY:null",
+          "stage": "metadata"
+        },
+        {
+          "canonical_id": "PMC8885366.1",
+          "reason": "license_not_CC_BY:CC BY-NC-ND",
+          "stage": "metadata"
+        },
+        {
+          "canonical_id": "PMC11232747.1",
+          "reason": "license_not_CC_BY:CC BY-NC-SA",
+          "stage": "metadata"
+        },
+        {
+          "canonical_id": "PMC6839998.1",
+          "reason": "jats_body_absent",
+          "stage": "v2_oracle"
+        },
+        {
+          "canonical_id": "PMC13331649.1",
+          "reason": "license_not_CC_BY:CC BY-NC",
+          "stage": "metadata"
+        },
+        {
+          "canonical_id": "PMC2665039.1",
+          "reason": "license_not_CC_BY:TDM",
+          "stage": "metadata"
+        }
+      ],
+      "jats_candidates_fetched": 14,
+      "metadata_records_probed": 20,
+      "pmc_min_body_tokens": 500,
+      "pmc_text_oracle_eligibility_version": "2",
+      "population_distinct_pmcids_after_latest_version_resolution": null,
+      "population_snapshot_total_metadata_records": null,
+      "rank_walk_stopping_rule": "stop after 12 eligible V2 DEV candidates",
+      "rejection_counts_by_reason": {
+        "canonical_body_tokens_lt_500:265": 1,
+        "jats_body_absent": 1,
+        "license_not_CC_BY:CC BY-NC": 2,
+        "license_not_CC_BY:CC BY-NC-ND": 1,
+        "license_not_CC_BY:CC BY-NC-SA": 1,
+        "license_not_CC_BY:TDM": 1,
+        "license_not_CC_BY:null": 1
+      },
+      "snapshot_identity": {
+        "manifest_bytes_len": 1221,
+        "manifest_sha256": "d7bbf63494fddd134d72c2aa4d3c9ca370be6787f1bfe021a38f06b06e32cd67",
+        "manifest_url": "https://pmc-oa-opendata.s3.amazonaws.com/inventory-reports/pmc-oa-opendata/metadata/2026-09-01T01-00Z/manifest.json",
+        "shards": [
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/49c6aee8-c648-45be-b569-79df5878fc20.csv.gz",
+            "md5_from_manifest": "dff696f4b1567015afebb25e9f2cc7b7",
+            "sha256_computed": "77e4e2fb9613ab6d4de11fb161cd20783f811d743972f3ae13ffecbb42f9dd70",
+            "size": 54365551
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/8c0d9b16-1216-4159-8ef3-ce544d9337a3.csv.gz",
+            "md5_from_manifest": "ec16b131b270986064808ae528659acb",
+            "sha256_computed": "ac814f1bf9214a4eb6cb4497930596123c6a6f666ed1cff29d7bbf8785683e91",
+            "size": 80163926
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/57d6adc1-d0f6-4ad2-8cff-ff7202e1d449.csv.gz",
+            "md5_from_manifest": "1a2562efd73b697898593d3f221ee9b2",
+            "sha256_computed": "8c4c809bf627f44328ce1a700afbe14cbd5183af17a837fa2d5afaaac0484013",
+            "size": 6901466
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/4e322d64-efba-4b65-a9ad-1aca0ec0936b.csv.gz",
+            "md5_from_manifest": "36042713554d9a9e0f3fc68cff0e85c1",
+            "sha256_computed": "e5b43654ba3c37288bc76e5912870a81334ad717c001092e25fffd7a8f6d6734",
+            "size": 79273543
+          },
+          {
+            "key": "inventory-reports/pmc-oa-opendata/metadata/data/5825c0aa-1b74-4ad2-b8dd-5379514240ea.csv.gz",
+            "md5_from_manifest": "49e70201eb12ff9899cdf07f9f237b87",
+            "sha256_computed": "59e583c3a439651034e81e8eb5ab30b339512f6a6395269cac05358564ea252e",
+            "size": 26627627
+          }
+        ],
+        "snapshot_utc": "2026-09-01T01-00Z"
+      },
+      "source": "pmc-oa-opendata inventory"
+    }
+  },
+  "payload_sha256": "923be328538b283b704f00a42110b28ac392597087f87e53db9bb6c167c74bbc"
+}
