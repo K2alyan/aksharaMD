@@ -1,0 +1,427 @@
+# Study Freeze Manifest V1
+## AksharaMD Validation Study — B1a-7c
+
+**Status:** AUTHORIZED — Study Freeze V1 (2026-09-16)  
+**Prepared:** 2026-09-16  
+**Supersedes:** B1a-7c.2 specification draft (pre-correction)  
+**Prerequisite:** B1a-7b.2 apparatus COMPLETE (Attempt #5 PASS, 2026-09-16)
+
+---
+
+## 0. Purpose and scope
+
+This document is the proposed study freeze for AksharaMD validation. Once authorized, it becomes the binding preregistered design. Nothing in it may be changed after freeze except by explicit amendment with documented rationale.
+
+**Scope:** Validation of AksharaMD readiness scores and detectors against:
+1. Existing labeled corpora (Track A — objective fidelity)
+2. Human usability judgment (Track B — usability validity, adaptive design)
+3. Downstream QA task performance (Track C — consequential validity)
+
+**Not in scope:** New parser development, corpus annotation at scale, or any result that requires parser execution before this document is frozen.
+
+**Execution authorization:** Track A and Track C execution are authorized upon freeze. Track B execution is authorized only after the Track B Allocation Manifest is generated mechanically from Track A results per §5.
+
+---
+
+## 1. AksharaMD scoring architecture (reference snapshot)
+
+All claims below are claims about the production system at the time of execution. The scoring architecture is:
+
+- **Policy version:** `SCORING_POLICY_VERSION = "1.10"` (frozen; no scoring code changes permitted after freeze)
+- **Format baseline:** PDF = 87
+- **Score bands:** HIGH ≥ 85 | OK 70–84 | RISKY 50–69 | POOR < 50
+- **Scoring logic:** Additive penalties + sequential score caps; no weighted normalization
+
+**Candidate-tier detectors (cap at 69 — RISKY):**
+
+| Detector ID | Description |
+|---|---|
+| `W_MULTICOLUMN_ORDER` | Reading-order disruption from multi-column layout |
+| `W_TABLE_MISSING` | Table present in source but absent from parsed output |
+| `W_ENCODING_ARTIFACTS` | Encoding errors producing garbled or unreadable characters |
+| `W_IMAGE_ONLY_TEXT_BAR_FAIL` | Text rendered as image, inaccessible to text extraction |
+| `W_DROPPED_CONTENT` | Text blocks present in source not recovered in output |
+
+**Experimental-tier detectors (cap at 84 — top of OK):**
+
+| Detector ID | Description |
+|---|---|
+| `W_HEADER_FOOTER_TABLE_GARBLED` | Header/footer content misplaced into body text |
+| `W_TABLE_EXPECTED_NOT_EXTRACTED` | Table structure expected but not structurally recovered |
+| `W_PLACEHOLDER_STUB` | Figure or table replaced by stub text with no content |
+| `W_GIBBERISH` | Output contains high density of non-semantic character sequences |
+
+**Stable penalty detectors** (no cap, self-verifying or objectively measurable): `PARSE_ERRORS`, `MISSING_PAGE`, `NEAR_EMPTY_OUTPUT`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `TOKEN_BLOAT`, `NO_HEADINGS_MULTIPAGE`, `COL_GENERIC_TABLES`, `IMAGE_PLACEHOLDER_NO_FALLBACK`, `NO_TEXT_IN_IMAGE`.
+
+**Suppression:** `OCR_REQUIRED` and `OCR_ATTEMPTED_SPARSE` suppress `NEAR_EMPTY_OUTPUT` and `LOW_TEXT_DENSITY`.
+
+---
+
+## 2. Parser matrix
+
+All four parsers in the proven apparatus are used for all tracks:
+
+| Parser ID | Type | GPU required |
+|---|---|---|
+| `aksharamd-reference` | AksharaMD built-in (PDF text layer) | No |
+| `marker` | VLM-based | Yes (always) |
+| `docling` | VLM-based | Yes (always) |
+| `markitdown` | PDF text layer | No |
+
+GPU availability must be confirmed before execution of any run involving Marker or Docling. This applies regardless of which corpus the PDFs come from.
+
+---
+
+## 3. Corpus stack and licenses
+
+| Corpus | License | Track | Role |
+|---|---|---|---|
+| olmOCR-Bench | ODC-BY | A | Primary assertion-level GT for text/ordering/encoding/image-text failures |
+| DocLayNet | CDLA-Permissive | A | Table detection and structural-association GT |
+| PubTabNet or FinTabNet | CDLA-Permissive | A | Table cell fidelity GT (TEDS metric) |
+| OmniDocBench | Research-only | A (research deliverable only) | Multi-metric evaluation; CDM, Reading-Order Edit Distance, TED, TEDS |
+| DEV corpus (B1a-7b.2 frozen) | Internal | B | Human usability review surface |
+| QASPER | CC-BY | C | Scientific QA downstream consequence |
+| MMLongBench-Doc | Research-use | C | Long mixed-domain document QA |
+| TAT-DQA | CC-BY | C | Financial table QA |
+
+OmniDocBench results must not be included in any commercially redistributable artifact or shipping validation harness. They appear only in the research deliverable.
+
+---
+
+## 4. Preregistered claims
+
+Four claims are preregistered. Each claim has a **statistical evidence criterion** (objectively reported) and a separate **product acceptance criterion** (requires documented rationale for the minimum practically important effect, applied after execution).
+
+### Claim 1 — Detector agreement (Track A)
+
+**Question:** Does AksharaMD's detector agree with an independent benchmark evaluator's determination that a given parser output failed a fidelity assertion?
+
+**Unit of analysis:** Parser × document (not document alone). A "positive" is a (parser, document) pair for which the benchmark evaluator independently flags a fidelity failure in the relevant failure mode. A "negative" is a (parser, document) pair for which the benchmark evaluator finds no such failure.
+
+**Why this framing matters:** AksharaMD receives a parsed output and judges it. Whether the source document contains a table is a property of the source; whether that table was correctly recovered is a property of the (parser, document) pair. GT labels must therefore be assigned at the parser × document level. Using olmOCR-Bench assertion pass/fail as the GT label is valid because the assertion evaluates the parser's output against the source — it is not circular.
+
+**Statistical evidence criterion:** For each detector listed in §3.1, report:
+- Precision (PPV) and 95% Wilson CI
+- Recall (sensitivity) and 95% Wilson CI  
+- False-positive rate and 95% CI
+- Effect estimate is the observed precision and recall; CI width is the primary evidence of precision
+
+**Product acceptance criterion:** TBD after execution. The minimum practically important precision and recall will be documented with rationale before the acceptance decision is made. No threshold is preregistered because no threshold has been justified.
+
+**Framing note:** This is not a claim that AksharaMD replicates olmOCR-Bench's evaluator. It is a claim that AksharaMD's detector fires on (parser, document) pairs that an independent evaluator also flags, and does not fire on pairs the evaluator clears.
+
+### Claim 2 — Fidelity-score monotonicity (Track A)
+
+**Question:** When objective fidelity degrades (as measured by benchmark metric), does the AksharaMD readiness score move in the expected direction and by a meaningful magnitude?
+
+**Unit of analysis:** Parser × document (same as Claim 1; readiness score is per parse output).
+
+**Statistical evidence criterion:** Report Spearman ρ between AksharaMD readiness score and benchmark metric (e.g., TEDS, CDM, assertion pass-rate) with 95% bootstrap CI. Report separately for:
+- Detector validation sub-question (Claim 1): does the detector fire correctly?
+- Score validation sub-question (Claim 2): when it fires, does the aggregate score move appropriately?
+
+These two sub-questions must be analyzed and reported separately. A detector may have excellent precision/recall while the aggregate readiness score is miscalibrated — and vice versa.
+
+**Product acceptance criterion:** TBD after execution, with documented rationale.
+
+### Claim 3 — Usability validity (Track B)
+
+**Question:** When a human reviewer judges a parsed output as usable for knowledge-work tasks, does the AksharaMD readiness score agree (and vice versa)?
+
+**Operationalized:** P(reviewer judges "usable" | readiness in HIGH band) and P(reviewer judges "not usable" | readiness in POOR band). False-safe rate: P(reviewer judges "not usable" | readiness ≥ 70).
+
+**Statistical evidence criterion:** Proportion estimates with 95% Wilson CI per band. False-safe rate with 95% CI. Sample size derived per §5 (adaptive-design rule).
+
+**Product acceptance criterion:** TBD after execution, with documented rationale.
+
+### Claim 4 — Consequential validity (Track C)
+
+**Question:** Does a lower AksharaMD readiness score predict larger degradation in downstream LLM QA performance when parsed output is substituted for reference output?
+
+**Task degradation definition:** `degradation = EM(reference) − EM(parsed)` (positive = parser hurt performance, zero = parity, negative = parser improved performance). This sign convention is used throughout. Do not invert.
+
+**Statistical evidence criterion:** Spearman ρ(readiness score, task degradation) with 95% bootstrap CI, reported separately per corpus (QASPER, MMLongBench-Doc, TAT-DQA) and pooled. Expected direction: negative ρ (higher readiness → lower degradation). If ρ is positive, that constitutes evidence against the scoring system.
+
+**Existing evidence:** r = 0.64 on tables in the parsed-vs-raw Plan E pilot (QASPER, n=25, 4-arm). This is prior evidence only; Track C re-establishes it with preregistered endpoints and extends to MMLongBench-Doc and TAT-DQA.
+
+**Product acceptance criterion:** TBD after execution, with documented rationale.
+
+---
+
+## 5. Two-stage preregistration
+
+### Stage 1 (frozen now, before any execution)
+
+- Tracks A and C: fully specified in this document. All corpus choices, sample sizes, metrics, and analysis plans are frozen.
+- Track B adaptive-design rule: frozen as a mechanical formula in §5.1. The rule is applied after Track A; it does not require human judgment.
+
+### Stage 2 (generated mechanically after Track A)
+
+- Track B Allocation Manifest: generated by applying the §5.1 formula to the Track A score distribution. No human discretion is applied at Stage 2. The manifest is appended to this document as an exhibit before any human review work begins.
+
+### 5.1 Track B adaptive-design rule (frozen)
+
+The Track B statistical target per readiness band is:
+
+```
+n_target = ceil( (z_{α/2}² × p_b × (1 − p_b)) / h² )
+```
+
+Where:
+- `z_{α/2} = 1.96` (95% CI, two-sided)
+- `p_b = 0.5` (conservative, maximum-variance assumption)
+- `h` = target half-width of 95% CI = **0.08** (±8 percentage points)
+- Result: `n_target = ceil(1.96² × 0.25 / 0.08²) = ceil(150.1) = 151`
+
+**N semantics:** `n_target = 151` is the number of **non-abstained adjudicated labels** required per band, not the number of raw parser-document pairs recruited. A reviewer abstains when they cannot render a usable/not-usable judgment on a given artifact. Abstained artifacts do not count toward `n_target`. See §5.2 for the oversampling rule that translates `n_target` into a recruitment count.
+
+**Pair selection rule:** For each band, select pairs by ascending sort of `SHA256(canonical_pair_id || freeze_seed)`, where `freeze_seed` is recorded in §8. No human curation after the sort.
+
+**Review protocol:** Reviewer contract and review surface are as specified in `REVIEWER_CONTRACT_B1_V1.md`. The review surface presented to each reviewer is the blinded `reviewer_artifact` produced by the B1a-7b.2 apparatus. Parser identity is not revealed during review.
+
+### 5.2 Oversampling rule and sparse-band handling (frozen)
+
+**Frozen abstention rate assumption:** 15%. This is conservative for expert reviewers on the defined review surface. The recruitment count per band is derived from `n_target`:
+
+```
+n_recruit = ceil(n_target / (1 − 0.15)) = ceil(151 / 0.85) = ceil(177.6) = 178 parser-document pairs per band
+```
+
+**If actual abstention ≤ 15%:** The 151 non-abstained label target will be met or exceeded at the recruited n.
+
+**If actual abstention > 15%:** Report the achieved non-abstained n and the achievable CI half-width computed as `h_actual = sqrt(1.96² × 0.25 / n_actual)`. Do not back-fill with additional pairs drawn post-hoc. Back-filling introduces human discretion over which pairs enter the analysis after partial review is complete and is prohibited.
+
+**Sparse-band rule:** A band is sparse if it contains fewer than `n_recruit = 178` eligible parser-document pairs. For a sparse band:
+
+1. Recruit all eligible pairs in the band.
+2. Do not recruit from other bands to compensate; do not reallocate unused quota to any other band.
+3. Report the achievable CI half-width at the actual non-abstained n.
+4. Flag the band as "below recruitment target" in the Track B Allocation Manifest.
+
+**Underpowered band threshold:** A band with fewer than 20 eligible pairs is flagged as "underpowered." No Wilson CI is reported for it; data are reported descriptively only.
+
+---
+
+## 6. Track A — sample sizes and stratification
+
+### 6.1 olmOCR-Bench
+
+**Run in full.** 1,403 PDFs, 7,010 unit-test assertions. The assertion structure (per-PDF pass/fail per failure mode) is uniquely valuable and cannot be recovered from a sample. The corpus is small enough that full execution is feasible.
+
+Each assertion maps to exactly one failure mode. Mapping is preregistered in §7.
+
+### 6.2 DocLayNet
+
+**Stratified sample, not full corpus.** Rationale: the full val split is ~1,000 documents with ~5 pages per document on average. The full corpus exceeds what is needed.
+
+**Sampling math (corrected):**
+- ICC (intra-document correlation for table detection rate) = 0.30 (conservative)
+- Mean cluster size m̄ = 5 pages per document
+- Design effect: `DE = 1 + (m̄ − 1) × ICC = 1 + 4 × 0.30 = 2.2`
+- Target CI: ±4 percentage points at 95% confidence
+- Simple-random effective N: `n_eff = (1.96² × 0.5 × 0.5) / 0.04² ≈ 600 pages`
+- Raw pages required: `n_raw = n_eff × DE = 600 × 2.2 = 1,320 pages`
+- Documents required: `1,320 / 5 ≈ 264 documents`
+
+Clustering INCREASES the pages required (not decreases). The formula is `n_raw = n_eff × DE`, not `n_eff / DE`.
+
+The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw a deterministic stratified sample of **280 documents** (rounded up for headroom), stratified by document category (financial, scientific, etc.) proportional to category prevalence in the full split. Selection seed recorded in §8.
+
+### 6.3 PubTabNet or FinTabNet
+
+**Stratified sample.** Target: 500 tables with deterministic stratified selection by table complexity tier (simple / compound / multi-page spanning). TEDS computed per table. Selection seed recorded in §8.
+
+Decision between PubTabNet and FinTabNet: use whichever is confirmed available at execution time; document the choice in the execution record. If both are available, use both and report separately.
+
+### 6.4 OmniDocBench
+
+**Research deliverable only.** Full available set (up to 981 pages per published split). Metrics: TED, TEDS, CDM, Reading-Order Edit Distance. Results reported only in the research paper, not in any commercial artifact.
+
+---
+
+## 7. Detector-to-GT mapping
+
+The following table maps each AksharaMD detector ID to its ground truth source, the GT strength, and the unit of analysis. This mapping is preregistered and replaces any conceptual claim about failure-mode coverage.
+
+| AksharaMD Detector ID | Tier | Corpus | GT source | GT strength | Metric | Unit |
+|---|---|---|---|---|---|---|
+| `W_TABLE_MISSING` | Candidate (69) | DocLayNet | Table bounding-box annotations | Direct: table presence confirmed by human annotators independent of any parser | Table detection recall | Parser × document |
+| `W_MULTICOLUMN_ORDER` | Candidate (69) | olmOCR-Bench | Reading-order assertion pass/fail | Direct: assertion evaluates parser output ordering against source order | Agreement rate with assertion evaluator | Parser × document |
+| `W_ENCODING_ARTIFACTS` | Candidate (69) | olmOCR-Bench + OmniDocBench | Character/encoding assertions; CDM metric | Direct for olmOCR assertions; CDM is a standardized metric | Agreement rate; CDM Pearson r | Parser × document |
+| `W_IMAGE_ONLY_TEXT_BAR_FAIL` | Candidate (69) | olmOCR-Bench | Image-text detection assertions | Direct: assertion evaluates whether text-as-image content was recovered | Agreement rate with assertion evaluator | Parser × document |
+| `W_DROPPED_CONTENT` | Candidate (69) | olmOCR-Bench | Text omission/addition assertions | Direct: assertion evaluates completeness of recovered text | Agreement rate with assertion evaluator | Parser × document |
+| `W_HEADER_FOOTER_TABLE_GARBLED` | Experimental (84) | DocLayNet | Structural-region association annotations | Indirect: header/footer regions labeled; garbling inferred from content-to-region mismatch | Structural association accuracy | Parser × document |
+| `W_TABLE_EXPECTED_NOT_EXTRACTED` | Experimental (84) | PubTabNet / FinTabNet | Table cell content annotations (TEDS) | Direct: TEDS measures structural and content recovery against human-annotated GT | TEDS distribution by detector fire/no-fire | Parser × document |
+| `W_PLACEHOLDER_STUB` | Experimental (84) | OmniDocBench | Figure/table placeholder annotations | Direct: OmniDocBench marks stubs explicitly | Agreement rate | Parser × document |
+| `W_GIBBERISH` | Experimental (84) | olmOCR-Bench | Character quality assertions | Indirect: character-level quality assertions; gibberish detection is a related but not identical concept | Agreement rate with character-quality assertions | Parser × document |
+
+**Stable penalty detectors** (`PARSE_ERRORS`, `MISSING_PAGE`, `NEAR_EMPTY_OUTPUT`, `LOW_TEXT_DENSITY`, etc.) are not included in Track A detector validation. These are either self-verifying (page count comparison), objectively measurable (token density), or already calibrated. They are used as covariates in Track A score regression but not as primary detection targets.
+
+**GT strength definitions:**
+- **Direct:** The GT annotation measures exactly what the detector claims to detect.
+- **Indirect:** The GT annotation measures a neighboring concept from which the detector's target can be partially inferred; agreement rate is interpretable but with acknowledged gap.
+
+---
+
+## 8. Freeze parameters
+
+The following values are recorded at freeze time and must not change after freeze. They seed all deterministic sampling and selection operations.
+
+| Parameter | Value | When recorded |
+|---|---|---|
+| Freeze date | 2026-09-16 | At freeze |
+| Freeze seed (hex, 32 bytes) | `6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa` | At freeze |
+| SCORING_POLICY_VERSION | `"1.10"` | At freeze |
+| Track C LLM model ID | `claude-sonnet-4-6` | At freeze |
+| Track C competitor arm | `none` | At freeze |
+| Track C LLM prompt SHA256 | TO BE COMMITTED IN DEDICATED PROMPT FILE BEFORE STAGE 1 START | Stage 1 prerequisite — not a V1 amendment |
+| olmOCR-Bench commit/release | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| DocLayNet split + version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| PubTabNet / FinTabNet version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| OmniDocBench split + version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| Track A apparatus run directory | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| Track C execution manifest path | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+
+The freeze seed was generated at freeze authorization by `os.urandom(32).hex()`. The Track C prompt has not been drafted yet; it must be committed as a dedicated file (with its SHA-256 recorded here by amendment) before Stage 1 execution begins. That amendment does not constitute a methodological change to V1 — it fills a Stage 1 prerequisite that was explicitly left open in this document.
+
+---
+
+## 9. Track C specification
+
+### 9.1 Task and corpus
+
+| Corpus | Task type | Metric | N (documents) |
+|---|---|---|---|
+| QASPER | Scientific paper QA | EM and F1 | 25 documents (matching Plan E pilot sample) + 25 new for n=50 |
+| MMLongBench-Doc | Long mixed-domain QA | EM and F1 | 30 documents, stratified by domain |
+| TAT-DQA | Financial table QA | EM and F1 | 30 documents |
+
+### 9.2 LLM and prompt specification
+
+**Model:** Claude claude-sonnet-4-6 (or equivalent Sonnet-tier at execution time; model ID recorded in execution record)  
+**Prompt:** Identical across all arms (reference / parsed / competitor). Prompt frozen at freeze time; hash recorded in §8.  
+**Temperature:** 0.0  
+**Context window:** Full document text provided; no chunking unless document exceeds context limit (in which case: truncate at equal character count across all arms for that document).
+
+### 9.3 Arms
+
+- **Reference arm:** `aksharamd-reference` parser output (AksharaMD built-in PDF text layer)
+- **Parsed arms:** `marker`, `docling`, `markitdown`
+- **Competitor arm:** A competitor arm may be added only if declared at freeze time and recorded in §8 before Stage 1 execution begins. No competitor arm may be added after Stage 1 has produced any results. If no competitor arm is declared at freeze, the field in §8 is recorded as "none" and no competitor arm is added.
+
+### 9.4 Analysis
+
+For each (parser, document, corpus):
+```
+degradation = EM(reference arm) − EM(parsed arm)
+```
+
+Positive degradation = the parsed output hurt QA performance relative to reference.  
+Zero = parity with reference.  
+Negative = the parsed output improved on reference (record but do not discount).
+
+Primary analysis: Spearman ρ(AksharaMD readiness score, task degradation) with 95% bootstrap CI (10,000 resamples). Reported:
+- Per corpus
+- Pooled across corpora
+- Stratified by readiness band (HIGH / OK / RISKY / POOR)
+
+Expected direction: ρ < 0 (higher readiness → lower degradation). If ρ > 0, this is evidence of miscalibration and must be reported as such.
+
+Secondary analysis: ΔEM by readiness band (median degradation per band with 95% CI). A well-calibrated scoring system should show: median degradation(POOR) > median degradation(RISKY) > median degradation(OK) > median degradation(HIGH).
+
+---
+
+## 10. Statistical analysis plan
+
+### 10.1 Separation of detector validation and score validation
+
+These are different questions and must be reported separately in every analysis section.
+
+- **Detector validation (Claim 1):** Does the detector fire on the right (parser, document) pairs? Measured by precision, recall, FPR against GT labels.
+- **Score validation (Claim 2):** When objective fidelity degrades, does the readiness score move appropriately? Measured by Spearman ρ between readiness score and benchmark metric.
+
+A high-precision detector with a miscalibrated aggregate score, and a well-calibrated score with a noisy underlying detector, are both informative but distinct failure modes.
+
+### 10.2 CI method
+
+- Proportions (precision, recall, FPR): Wilson score interval
+- Spearman ρ: 95% bootstrap CI, 10,000 resamples
+- TEDS distributions: Mann-Whitney U with effect size (rank-biserial r)
+
+### 10.3 Multiple comparison policy
+
+No correction for multiple comparisons across detectors. Each detector is a separate preregistered claim with its own CI. Bonferroni correction is not applied; instead, the full CI for each detector is reported and interpreted independently. This is preregistered.
+
+### 10.4 Missing data
+
+If a (parser, document) pair produces a DEFECT exit status (per the B1a-7b.2 apparatus), it is excluded from analysis for that parser and noted in the execution record. If DEFECT rate exceeds 20% for any parser, that parser's Track C results are flagged as potentially unrepresentative.
+
+---
+
+## 11. What constitutes preregistered success / failure
+
+The following criteria are observable and do not require post-hoc judgment. They distinguish evidence from acceptance decisions.
+
+**Evidence criteria (preregistered — observable after execution):**
+
+| Criterion | Observable threshold |
+|---|---|
+| Track A detector validation: precision CI lower bound | Report for each detector; no threshold preregistered |
+| Track A score validation: Spearman ρ direction | ρ must be positive (higher readiness ↔ higher fidelity) for score validation to be coherent |
+| Track C degradation direction | ρ(readiness, degradation) must be negative; a positive ρ is falsifying |
+| Track C monotonicity by band | Median degradation(POOR) > median degradation(OK) is the minimal directional prediction |
+
+**Acceptance decision (post-execution — requires documented rationale):**
+
+After observing the evidence, the acceptance decision requires stating the minimum practically important effect with justification. The acceptance decision is not preregistered here because no threshold has been justified from first principles. Justification must be documented before the acceptance or rejection decision is recorded.
+
+**What the study cannot prove:** Absence of evidence is not evidence of absence. A wide CI on a detector's precision does not mean the detector is uncalibrated; it means the sample was insufficient to estimate precision tightly. Increase N in a follow-on study.
+
+---
+
+## 12. Execution sequence
+
+1. Generate freeze seed; record in §8
+2. Record SCORING_POLICY_VERSION; confirm no scoring code changes after this point
+3. **Track A execution:** run all four parsers on olmOCR-Bench (full), DocLayNet sample (n=280 documents), PubTabNet/FinTabNet sample (n=500 tables)
+4. **Track C execution:** run all four parsers on QASPER (n=50), MMLongBench-Doc (n=30), TAT-DQA (n=30) with frozen LLM and prompt
+5. **Generate Track B Allocation Manifest** mechanically from Track A score distribution: apply §5.1 formula for n_target, §5.2 formula for n_recruit and sparse-band handling; append as Exhibit B to this document before any review begins
+6. **Track B execution:** human review of blinded reviewer artifacts; n_recruit pairs per band per §5.2; abstained labels do not count toward n_target
+7. **Analysis:** report all four claims per §10
+8. **Acceptance decision:** document minimum practically important effect with rationale; apply to observed CIs
+
+Tracks A and C may run concurrently. Track B cannot begin until the Track B Allocation Manifest is generated from Track A results.
+
+---
+
+## 13. TBD audit — resolution path for every open parameter
+
+Every open parameter in this document is either (a) resolved before Stage 1 execution or (b) governed by a frozen mechanical Stage-2 rule. No TBD requires human judgment at execution time.
+
+| Open parameter | Location | Resolution class | Resolution rule |
+|---|---|---|---|
+| Freeze seed | §8 | (a) RECORDED | `6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa` |
+| SCORING_POLICY_VERSION | §8 | (a) RECORDED | `"1.10"` — no scoring changes permitted after freeze |
+| Track C LLM model ID | §8 | (a) RECORDED | `claude-sonnet-4-6` |
+| Track C competitor arm | §8 | (a) RECORDED | `none` |
+| Track C LLM prompt SHA256 | §8 | (a) Stage 1 prerequisite | Prompt file to be committed before Stage 1 start; SHA256 recorded by §8 amendment |
+| Corpus versions | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start, before any results are observed |
+| Track A apparatus run directory | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
+| Track C execution manifest | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
+| Track B allocation (which pairs) | §5.1–5.2 | (b) Mechanical Stage-2 rule | SHA256-sort on frozen seed; no discretion |
+| Track B n_recruit per band | §5.2 | (b) Mechanical Stage-2 rule | ceil(n_actual_pairs_in_band / 0.85), capped at 178 |
+| Track B achievable CI when sparse | §5.2 | (b) Mechanical Stage-2 rule | h_actual = sqrt(1.96² × 0.25 / n_actual_noabs) |
+| Product acceptance criteria (all four claims) | §4, §11 | Post-execution | Not a TBD that blocks execution; rationale documented before acceptance decision, per §11 |
+
+**No open parameter requires discretion during execution.** Parameters in class (a) are locked before Stage 1 begins. Parameters in class (b) are computed mechanically from Stage 1 outputs using formulas frozen in this document. Product acceptance criteria are post-execution decisions, not execution-time parameters.
+
+---
+
+## 14. What does not follow automatically from a freeze
+
+- "Study Freeze" does not authorize corpus downloads above the stated sample sizes.
+- "Study Freeze" does not authorize annotation or labeling work beyond what the apparatus produces.
+- OmniDocBench use is authorized for research deliverable only; it is not authorized for any commercial report or shipping artifact.
+- Track B acceptance does not follow from Track A results — it requires a separate acceptance decision per §11.
+- No result from this study is a product claim until the acceptance decision (§11) is documented.
