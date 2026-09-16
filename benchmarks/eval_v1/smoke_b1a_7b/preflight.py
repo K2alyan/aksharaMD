@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .contracts import ContractPair
+from .provenance import ProvenanceHashError, is_placeholder_sha, validate_sha_format
 
 EXPECTED_SMOKE_CANONICAL_IDS = frozenset({
     "PMC5773191.1",
@@ -76,6 +77,15 @@ class ProductionEnvironment:
     model_cache_paths: Mapping[str, Path]  # parser_id -> cache dir
     env_vars: Mapping[str, str]
     adapter_source_bytes: Mapping[str, bytes]  # adapter_key -> bytes
+    # Real provenance hashes recorded per invocation. Preflight refuses
+    # placeholders (any single-char repetition, empty, non-hex, wrong
+    # length) so a fabricated value never reaches an execution record.
+    package_source_shas: Mapping[str, str] = field(default_factory=dict)
+    model_artifact_shas: Mapping[str, str | None] = field(default_factory=dict)
+    # Firewall program binding: the exact executable the smoke's
+    # RealSubprocessInvoker will spawn. Blocking any other executable
+    # would let a parser subprocess escape the firewall.
+    firewall_program_path: str = ""
 
 
 # --------------------------------------------------------------------------
@@ -267,6 +277,102 @@ def _check_adapter_source_hashes(
     )
 
 
+CPU_ONLY_PARSER_IDS = frozenset({"aksharamd-reference", "markitdown"})
+VLM_PARSER_IDS = frozenset({"marker", "docling"})
+
+
+def _check_package_source_hashes(
+    env: ProductionEnvironment,
+) -> PreflightCheckResult:
+    """Every parser must have a real ``package_source_sha256`` — not
+    the well-known zero placeholder, not empty, not malformed."""
+    problems: list[str] = []
+    required_parsers = CPU_ONLY_PARSER_IDS | VLM_PARSER_IDS
+    for pid in sorted(required_parsers):
+        value = env.package_source_shas.get(pid)
+        try:
+            validate_sha_format(value, name=f"package_source_sha256[{pid}]")
+        except ProvenanceHashError as exc:
+            problems.append(str(exc))
+    if problems:
+        return PreflightCheckResult(
+            name="package_source_hashes", passed=False,
+            detail="; ".join(problems),
+        )
+    return PreflightCheckResult(
+        name="package_source_hashes", passed=True,
+        detail=f"{len(env.package_source_shas)} package hashes validated",
+    )
+
+
+def _check_model_artifact_hashes(
+    env: ProductionEnvironment,
+) -> PreflightCheckResult:
+    """VLM parsers (marker + docling) must have a real
+    ``parser_model_artifact_sha256``. CPU-only parsers may have
+    ``None`` (matches the execution-record contract nullability).
+    A placeholder for either surface is refused."""
+    problems: list[str] = []
+    for pid in sorted(VLM_PARSER_IDS):
+        value = env.model_artifact_shas.get(pid)
+        try:
+            validate_sha_format(value, name=f"model_artifact_sha256[{pid}]")
+        except ProvenanceHashError as exc:
+            problems.append(str(exc))
+    # For CPU-only parsers, if a value is supplied it must not be a
+    # placeholder; None is admissible.
+    for pid in sorted(CPU_ONLY_PARSER_IDS):
+        value = env.model_artifact_shas.get(pid)
+        if value is None:
+            continue
+        if is_placeholder_sha(value):
+            problems.append(
+                f"model_artifact_sha256[{pid}]: placeholder supplied "
+                f"for a CPU-only parser (either omit or supply a real hash)"
+            )
+    if problems:
+        return PreflightCheckResult(
+            name="model_artifact_hashes", passed=False,
+            detail="; ".join(problems),
+        )
+    return PreflightCheckResult(
+        name="model_artifact_hashes", passed=True,
+        detail="marker + docling model hashes validated",
+    )
+
+
+def _check_firewall_program_binding(
+    env: ProductionEnvironment,
+) -> PreflightCheckResult:
+    """The firewall must block the actual executable the subprocess
+    invoker spawns. If ``firewall_program_path`` is empty, missing on
+    disk, or does not match a real file, preflight fails so the
+    smoke does not proceed with a mis-bound rule.
+
+    The composition layer sets this to ``sys.executable`` by default;
+    tests may inject any real file path. Empty is refused."""
+    path_str = env.firewall_program_path
+    if not path_str:
+        return PreflightCheckResult(
+            name="firewall_program_binding", passed=False,
+            detail=(
+                "firewall_program_path is empty; production wiring must "
+                "bind the firewall to the exact executable the parser "
+                "subprocess uses (typically sys.executable)"
+            ),
+        )
+    p = Path(path_str)
+    if not p.exists() or not p.is_file():
+        return PreflightCheckResult(
+            name="firewall_program_binding", passed=False,
+            detail=f"firewall_program_path does not resolve to a file: {path_str}",
+        )
+    return PreflightCheckResult(
+        name="firewall_program_binding", passed=True,
+        detail=f"firewall bound to {path_str}",
+    )
+
+
 def _check_smoke_documents(contracts: ContractPair) -> PreflightCheckResult:
     docs = contracts.smoke_documents()
     ids_in_spec = {d["canonical_id"] for d in docs}
@@ -307,6 +413,9 @@ def run_preflight(
         _check_model_cache_paths(environment, contracts, fs_probe=fs_probe),
         _check_offline_env_vars(environment),
         _check_adapter_source_hashes(environment),
+        _check_package_source_hashes(environment),
+        _check_model_artifact_hashes(environment),
+        _check_firewall_program_binding(environment),
         _check_smoke_documents(contracts),
     ]
     return PreflightSummary(

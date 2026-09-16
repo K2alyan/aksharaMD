@@ -281,6 +281,10 @@ def _build_real_production_context(*, run_dir):  # pragma: no cover
     from pathlib import Path
 
     from .production_composition import build_production_context
+    from .provenance import (
+        compute_model_artifact_sha256,
+        compute_package_source_sha256,
+    )
 
     payload_root = Path(
         os.environ.get("AKSHARAMD_SMOKE_PAYLOAD_ROOT", "")
@@ -315,11 +319,26 @@ def _build_real_production_context(*, run_dir):  # pragma: no cover
         for pid, b in adapter_source_bytes.items()
     }
 
-    package_source_shas = {pid: "0" * 64 for pid in adapter_source_bytes}
+    # REAL provenance hashes. Preflight refuses placeholders, so a
+    # substitution here would halt the smoke before any parser runs.
+    _distribution_for_parser = {
+        "aksharamd-reference": "aksharamd",
+        "marker": "marker-pdf",
+        "docling": "docling",
+        "markitdown": "markitdown",
+    }
+    package_source_shas: dict[str, str] = {}
+    for pid, dist_name in _distribution_for_parser.items():
+        package_source_shas[pid] = compute_package_source_sha256(dist_name)
+
+    model_cache_paths: dict[str, Path] = {
+        "marker": Path(os.environ.get("MARKER_MODELS_CACHE", "")).resolve(),
+        "docling": Path(os.environ.get("DOCLING_ARTIFACTS_CACHE", "")).resolve(),
+    }
     model_artifact_shas: dict[str, str | None] = {
         "aksharamd-reference": None,
-        "marker": "0" * 64,
-        "docling": "0" * 64,
+        "marker": compute_model_artifact_sha256(model_cache_paths["marker"]),
+        "docling": compute_model_artifact_sha256(model_cache_paths["docling"]),
         "markitdown": None,
     }
 
@@ -331,17 +350,9 @@ def _build_real_production_context(*, run_dir):  # pragma: no cover
         except im.PackageNotFoundError:
             package_versions[pkg] = "missing"
 
-    model_cache_paths: dict[str, Path] = {
-        "marker": Path(os.environ.get("MARKER_MODELS_CACHE", "")).resolve(),
-        "docling": Path(os.environ.get("DOCLING_ARTIFACTS_CACHE", "")).resolve(),
-    }
-
     return build_production_context(
         run_dir=run_dir,
         payload_resolver=_DiskPayloadResolver(),
-        program_path_for_firewall=os.environ.get(
-            "AKSHARAMD_SMOKE_PARSER_WORKER_PROGRAM", ""
-        ),
         package_source_shas=package_source_shas,
         adapter_source_shas=adapter_source_shas,
         model_artifact_shas=model_artifact_shas,

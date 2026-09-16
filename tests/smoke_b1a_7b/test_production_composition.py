@@ -208,7 +208,15 @@ def test_preflight_env_from_snapshot_cuda_absent_when_cuda_version_is_none() -> 
 # run_preflight_or_raise — happy path + failure path.
 
 
+_REAL_A = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+_REAL_B = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+_REAL_C = "cafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00d"
+_REAL_D = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+
 def _green_prod_env() -> object:
+    import sys as _sys
+
     from benchmarks.eval_v1.smoke_b1a_7b.preflight import ProductionEnvironment
     contracts = load_contracts()
     return ProductionEnvironment(
@@ -221,6 +229,15 @@ def _green_prod_env() -> object:
                    "DOCLING_ARTIFACTS_OFFLINE": "1"},
         adapter_source_bytes={"aksharamd-reference": b"x", "marker": b"x",
                                 "docling": b"x", "markitdown": b"x"},
+        package_source_shas={
+            "aksharamd-reference": _REAL_A, "marker": _REAL_B,
+            "docling": _REAL_C, "markitdown": _REAL_D,
+        },
+        model_artifact_shas={
+            "aksharamd-reference": None, "marker": _REAL_A,
+            "docling": _REAL_B, "markitdown": None,
+        },
+        firewall_program_path=_sys.executable,
     )
 
 

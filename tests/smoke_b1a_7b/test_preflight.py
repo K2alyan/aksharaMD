@@ -21,8 +21,15 @@ from benchmarks.eval_v1.smoke_b1a_7b.preflight import (
 _HEX64 = "a" * 64
 
 
+_REAL_A = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+_REAL_B = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+_REAL_C = "cafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00dcafef00d"
+_REAL_D = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+
 def _green_env(overrides: dict | None = None) -> ProductionEnvironment:
     """A ProductionEnvironment where every preflight check passes."""
+    import sys as _sys
     contracts = load_contracts()
     base = {
         "python_version": contracts.pinned_python_version(),
@@ -45,6 +52,19 @@ def _green_env(overrides: dict | None = None) -> ProductionEnvironment:
             "docling": b"module bytes here",
             "markitdown": b"module bytes here",
         },
+        "package_source_shas": {
+            "aksharamd-reference": _REAL_A,
+            "marker": _REAL_B,
+            "docling": _REAL_C,
+            "markitdown": _REAL_D,
+        },
+        "model_artifact_shas": {
+            "aksharamd-reference": None,
+            "marker": _REAL_A,
+            "docling": _REAL_B,
+            "markitdown": None,
+        },
+        "firewall_program_path": _sys.executable,
     }
     if overrides:
         base.update(overrides)
@@ -74,7 +94,7 @@ def test_all_checks_pass_in_green_environment() -> None:
         fs_probe=_fake_fs_probe_all_present,
     )
     assert summary.all_passed, summary.failed_names()
-    assert len(summary.checks) == 9
+    assert len(summary.checks) == 12
 
 
 def test_require_preflight_pass_returns_none_on_green() -> None:

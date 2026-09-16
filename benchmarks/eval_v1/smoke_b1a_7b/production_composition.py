@@ -243,6 +243,9 @@ def preflight_environment_from_snapshot(
     model_cache_paths: Mapping[str, Path],
     env_vars: Mapping[str, str],
     adapter_source_bytes: Mapping[str, bytes],
+    package_source_shas: Mapping[str, str] | None = None,
+    model_artifact_shas: Mapping[str, str | None] | None = None,
+    firewall_program_path: str = "",
 ) -> ProductionEnvironment:
     """Build a ``ProductionEnvironment`` from a ``EnvironmentSnapshot``
     plus the additional preflight-only observations. Kept as a small
@@ -256,6 +259,9 @@ def preflight_environment_from_snapshot(
         model_cache_paths=model_cache_paths,
         env_vars=env_vars,
         adapter_source_bytes=adapter_source_bytes,
+        package_source_shas=dict(package_source_shas or {}),
+        model_artifact_shas=dict(model_artifact_shas or {}),
+        firewall_program_path=firewall_program_path,
     )
 
 
@@ -303,7 +309,6 @@ def build_production_context(  # pragma: no cover
     *,
     run_dir: Path,
     payload_resolver: SmokePayloadResolver,
-    program_path_for_firewall: str,
     powershell_invoker_factory: Callable[[], Any] | None = None,
     firewall_backend_factory: Callable[[Any], FirewallBackend] | None = None,
     probe_backend_factory: Callable[[], ProbeBackend] | None = None,
@@ -349,6 +354,13 @@ def build_production_context(  # pragma: no cover
         )
     )
 
+    # Firewall must block the exact executable RealSubprocessInvoker
+    # will spawn. Derived from sys.executable — the operator does not
+    # supply this; supplying a different path would risk successfully
+    # blocking one executable while the parser subprocess uses another.
+    import sys as _sys
+    program_path_for_firewall = _sys.executable
+
     contracts = load_contracts()
     snapshot = capture_environment()
     prod_env = preflight_environment_from_snapshot(
@@ -357,6 +369,9 @@ def build_production_context(  # pragma: no cover
         model_cache_paths=model_cache_paths,
         env_vars=env_vars,
         adapter_source_bytes=adapter_source_bytes,
+        package_source_shas=package_source_shas,
+        model_artifact_shas=model_artifact_shas,
+        firewall_program_path=program_path_for_firewall,
     )
     run_preflight_or_raise(
         contracts=contracts, environment=prod_env, fs_probe=fs_probe,
