@@ -103,7 +103,7 @@ Both probes use the IP address `1.1.1.1` (Cloudflare public DNS resolver, reacha
 - TCP-connect probe raised an exception whose class or `errno` is on the expected-failure list in §4.2.
 - HTTPS-GET probe raised an exception whose class or the lower-level `errno` is on the same list.
 
-Any other outcome — either probe succeeds, or either probe fails with an exception outside the expected list — sets `network_egress_blocked = false`, and the invocation is `DEFECT` with `reason = "network_egress_not_blocked"`. This intentionally covers the DNS-failure case: a `socket.gaierror` alone is not on the expected list, and would not be admissible as proof of egress block. (In practice the probe uses a bare IP so `gaierror` should not occur, but if it does we prefer to fail closed.)
+Any other outcome — either probe succeeds, or either probe fails with an exception outside the expected list — sets `network_egress_blocked = false`, and the invocation is recorded as `DEFECT` with `reason = "network_egress_not_blocked"` per `PARSER_EXECUTION_CONTRACT_B1_V1.md` §6. At the smoke level this is treated as a harness/environment-level failure and **halts the smoke** per §7.2 — a parser process successfully reaching the canary when the frozen network policy required blocked egress is a failure of the execution environment, not a parser outcome, and continuing would produce further records under an unenforced policy. This intentionally covers the DNS-failure case: a `socket.gaierror` alone is not on the expected list, and would not be admissible as proof of egress block. (In practice the probe uses a bare IP so `gaierror` should not occur, but if it does we prefer to fail closed.)
 
 ### 4.4 Positive control (before smoke)
 
@@ -161,7 +161,7 @@ For every execution record:
 
 - `positive_control_pass = true` (before) and `post_smoke_positive_control_pass = true` (after).
 - `firewall_rule_verified_at` populated, `firewall_rule_enabled = true` at smoke start.
-- For every execution record, `network_egress_blocked = true` OR the record is `DEFECT` with `reason = "network_egress_not_blocked"`. Silent `false` without `DEFECT` is a harness failure.
+- For every execution record produced during the smoke, `network_egress_blocked = true`. Any `false` — i.e., any invocation that observed a canary probe succeeding when the frozen network policy required blocked egress — is a **smoke FAIL** that halts the run (§7.2). Silent `false` without a coded record is also a harness failure.
 
 ### 5.4 Schema completeness criterion
 
@@ -260,30 +260,34 @@ Any check-list result is recorded in the smoke review log as a boolean per file 
 
 A parser-level `DEFECT` on any `(document, parser)` pair does NOT stop the smoke and does NOT trigger a retry or a document replacement. The defect is recorded as an observed infrastructure outcome and the remaining executions proceed.
 
-Parser-level defect reasons (from `PARSER_EXECUTION_CONTRACT_B1_V1.md` §6):
+Parser-level defect reasons (from `PARSER_EXECUTION_CONTRACT_B1_V1.md` §6). This list is deliberately narrow: it contains actual parser outcomes, not observations that the frozen execution environment failed to hold.
 
 - `<parser>_timeout_<n>s`
 - `<parser>_exception:<Class>`
 - `<parser>_cuda_oom`
 - `<parser>_cuda_unavailable`
 - `<parser>_native_crash`
-- `network_egress_not_blocked` — this is on the boundary; it is treated as a parser-level defect for the affected `(document, parser)` invocation, not a harness-level defect, because the firewall itself is verified per §4 and its verification is a harness-level check separate from the per-invocation observation. The remaining executions continue.
 
 Recording the defect requires the same schema completeness as an `EXECUTED` invocation (§5.4) — the smoke's PASS criterion depends on every attempt producing a valid execution record, regardless of parser outcome.
 
-### 7.2 Harness-level defects — stop
+`network_egress_not_blocked` is **not** on this list; see §7.2.
 
-A harness-level defect stops the smoke immediately, and the smoke is marked **FAIL**. Harness-level defects include but are not limited to:
+### 7.2 Harness / environment-level defects — stop
 
+A harness- or environment-level defect stops the smoke immediately, and the smoke is marked **FAIL**. These are conditions in which the frozen execution environment demonstrably failed to hold; continuing would produce further records under an environment that is not enforcing the pinned policy.
+
+- **Network policy not enforced at invocation.** `network_egress_blocked = false` on **any** parser invocation. This is a demonstration that a parser process successfully reached the canary at a moment when the frozen network policy required blocked egress. The affected invocation is recorded with `defect_reason = "network_egress_not_blocked"` per the parser-execution contract; the smoke then halts. This is classified as harness/environment-level rather than parser-level because the failure is of the execution environment (the firewall rule did not hold, or the parser-worker's network context escaped it), not of the parser's own behavior.
 - **Firewall verification broken.** `Get-NetFirewallRule` returns unexpected state, or the pre-smoke positive control finds probes succeeding *and* the interior parser-worker also finds them succeeding — the rule is not in force.
 - **Schema writer broken.** Any execution record is missing a required field, is invalid JSON, or fails to write to disk.
 - **Environment drift.** Any execution record's `python_version`, `platform_string`, `parser_package_version`, `parser_execution_contract_version`, `parser_execution_contract_config_sha256`, or `smoke_spec_config_sha256` differs from the pinned value at smoke start.
 - **Provenance mismatch.** Any `analysis_record.json` fails to link to its `execution_record.json` by `pair_id`, or points to a non-existent execution record.
 - **Blinding broken.** `blinded_parser_hash` in any reviewer artifact does not equal `sha256(parser_id)[:16]`, or the reviewer artifact's rendered surface contains a parser-identity string (`marker`, `docling`, `markitdown`, `aksharamd`, `pymupdf`, etc.).
 - **Firewall rule cleanup broken.** At smoke end the outbound-block rule cannot be removed or is left in a partially-configured state.
-- **Positive control drift.** `positive_control_pass = false` at smoke start (smoke does not proceed, per §4.4). `post_smoke_positive_control_pass = false` at smoke end (marks the smoke `INCONCLUSIVE` per §5.9).
+- **Positive control drift.** `positive_control_pass = false` at smoke start (smoke does not proceed, per §4.4). `post_smoke_positive_control_pass = false` at smoke end (marks the smoke `INCONCLUSIVE` per §5.9, distinct from FAIL).
 
-Every harness-level defect requires a coded reason to be recorded in the smoke run log before the smoke exits. Silent stop is itself a harness defect.
+Every harness/environment-level defect requires a coded reason to be recorded in the smoke run log before the smoke exits. Silent stop is itself a harness defect.
+
+`INCONCLUSIVE` is reserved for the positive-control cases in §4.4 and §4.6 where the canary itself cannot establish interpretability. It is not used for any other stop condition. All other stop conditions above are FAIL.
 
 ### 7.3 What the smoke does NOT do about defects
 

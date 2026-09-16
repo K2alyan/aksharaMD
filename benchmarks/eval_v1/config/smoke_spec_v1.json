@@ -149,8 +149,10 @@
         "post_smoke_positive_control_pass_true",
         "firewall_rule_verified_at_populated",
         "firewall_rule_enabled_true_at_start",
-        "every_record_network_egress_blocked_true_or_defect_with_coded_reason"
-      ]
+        "every_record_network_egress_blocked_true"
+      ],
+      "any_network_egress_blocked_false_is": "smoke_fail_and_halts_run",
+      "reason_this_is_not_a_parser_level_defect": "failure_of_execution_environment_not_parser_behavior"
     },
     "schema_completeness": {
       "required_fields_source": "benchmarks/eval_v1/config/parser_execution_contract_v1.json::execution_record_schema.required_fields",
@@ -278,10 +280,29 @@
   "defect_handling": {
     "parser_level_defects_continue": true,
     "parser_level_defect_reasons_reference": "docs/evaluation/PARSER_EXECUTION_CONTRACT_B1_V1.md#6",
+    "parser_level_defect_reason_allowlist": [
+      "reference_parser_timeout_120s",
+      "reference_parser_exception:<Class>",
+      "reference_parser_native_crash",
+      "marker_timeout_600s",
+      "marker_exception:<Class>",
+      "marker_cuda_oom",
+      "marker_cuda_unavailable",
+      "docling_timeout_600s",
+      "docling_exception:<Class>",
+      "docling_cuda_oom",
+      "docling_cuda_unavailable",
+      "markitdown_timeout_120s",
+      "markitdown_exception:<Class>"
+    ],
+    "explicitly_not_parser_level": [
+      "network_egress_not_blocked"
+    ],
     "no_retry": true,
     "no_document_replacement": true,
-    "harness_level_defects_stop": true,
-    "harness_level_defects": [
+    "harness_or_environment_level_defects_stop": true,
+    "harness_or_environment_level_defects": [
+      "network_egress_not_blocked_on_any_invocation",
       "firewall_verification_broken",
       "schema_writer_broken",
       "environment_drift",
@@ -291,6 +312,7 @@
       "positive_control_drift_pre_smoke",
       "positive_control_drift_post_smoke_marks_inconclusive"
     ],
+    "inconclusive_reserved_for_positive_control_failures_only": true,
     "silent_stop_is_itself_a_harness_defect": true
   }
 }
