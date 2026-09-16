@@ -1,0 +1,27 @@
+{
+  "acquired_count": 6,
+  "acquisition_schema_version": "1",
+  "asset_count": 18,
+  "completed_utc": "2026-09-16T02:44:47+00:00",
+  "corpus": "federal_register",
+  "expected_count": 6,
+  "receipt_paths": [
+    "docs/evaluation/acquisition_v1/federal_register/2025-07879.json",
+    "docs/evaluation/acquisition_v1/federal_register/2025-13505.json",
+    "docs/evaluation/acquisition_v1/federal_register/2025-11271.json",
+    "docs/evaluation/acquisition_v1/federal_register/2025-16333.json",
+    "docs/evaluation/acquisition_v1/federal_register/2025-19924.json",
+    "docs/evaluation/acquisition_v1/federal_register/2025-12869.json"
+  ],
+  "receipt_sha256s": {
+    "2025-07879": "b341329b517788b10115209164b0e6006d59f36bf582dd88e534668eae660ca4",
+    "2025-11271": "8adb7c2c1431eb40509642deb1560cac1d34a3ada1b8aa9a2ad8d2f12c7cc6cc",
+    "2025-12869": "5909d3f7faa020bca2bae680ade54b5d6b477a9410e7ac95104603bdc1330f01",
+    "2025-13505": "456d4f6c3191438882f3577abed3e4399557382cad5897968f5b3f1f13edc780",
+    "2025-16333": "8b97b651ab378d73d6e4c4db1508c6d586eda67fb68050989693835bcd457e5f",
+    "2025-19924": "c022c709fbe56b3b2141bf02af081dab4bc1c9da2bcf2368dc7f512833aa7c88"
+  },
+  "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+  "status": "COMPLETE",
+  "total_payload_bytes": 1620296
+}

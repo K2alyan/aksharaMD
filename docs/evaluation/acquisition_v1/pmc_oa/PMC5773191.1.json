@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC5773191.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:42:02+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 1356,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.json",
+        "role": "metadata",
+        "sha256": "51481ce53eede277006c9ed31a0b7587e1cb90db243761308fbb0c5625308a16",
+        "source_key": "metadata/PMC5773191.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "51481ce53eede277006c9ed31a0b7587e1cb90db243761308fbb0c5625308a16"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC5773191.1.json"
+      },
+      {
+        "byte_size": 1189402,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.pdf",
+        "role": "pdf",
+        "sha256": "9d5adcce1110c54f59cb4ec8188c59cfa0165d363ce3960be716935462fafe02",
+        "source_key": "PMC5773191.1/PMC5773191.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "62cb4ca0896fdffe445da9d81a381618"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC5773191.1/PMC5773191.1.pdf?md5=62cb4ca0896fdffe445da9d81a381618"
+      },
+      {
+        "byte_size": 162608,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.xml",
+        "role": "xml",
+        "sha256": "0e59c8b42132c5ffdaa562cea8414d52aed442e8de7cbe5d6997627cb09535aa",
+        "source_key": "PMC5773191.1/PMC5773191.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "4f5cba79f80ee8603b59e1d6e1b01244"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC5773191.1/PMC5773191.1.xml?md5=4f5cba79f80ee8603b59e1d6e1b01244"
+      }
+    ],
+    "canonical_id": "PMC5773191.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC5773191.1",
+        "metadata_at_selection": {
+          "citation": "PLoS One. 2018 Jan 18;13(1):e0190941. doi: 10.1371/journal.pone.0190941",
+          "license_code": "CC BY",
+          "pmcid": "PMC5773191",
+          "pmid": 29346444,
+          "title": "Social and structural barriers for adherence to methadone maintenance treatment among Vietnamese opioid dependence patie",
+          "version": 1
+        },
+        "pmcid": "PMC5773191",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC5773191.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC5773191.1/PMC5773191.1.pdf?md5=62cb4ca0896fdffe445da9d81a381618",
+        "pmcid": "PMC5773191",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC5773191.1/PMC5773191.1.xml?md5=4f5cba79f80ee8603b59e1d6e1b01244"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "f84d14892374986d92480c98cd41424d23d321ef48b9c382f81da2aff6289615"
+}

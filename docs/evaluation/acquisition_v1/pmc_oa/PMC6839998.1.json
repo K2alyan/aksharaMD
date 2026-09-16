@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC6839998.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:42:01+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 729,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6839998.1\\PMC6839998.1.json",
+        "role": "metadata",
+        "sha256": "236bca8d5e40f7f6b254110bcb36a20b94baaa55135e5d872f152b53adae0c98",
+        "source_key": "metadata/PMC6839998.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "236bca8d5e40f7f6b254110bcb36a20b94baaa55135e5d872f152b53adae0c98"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC6839998.1.json"
+      },
+      {
+        "byte_size": 47620,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6839998.1\\PMC6839998.1.pdf",
+        "role": "pdf",
+        "sha256": "507be6601b8fc0be121f1e35e7151f280bdcd4c0f1eecd32cd4d628c7501598d",
+        "source_key": "PMC6839998.1/PMC6839998.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "89bfc25c383018f3eb5d23b00bff5729"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC6839998.1/PMC6839998.1.pdf?md5=89bfc25c383018f3eb5d23b00bff5729"
+      },
+      {
+        "byte_size": 8247,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6839998.1\\PMC6839998.1.xml",
+        "role": "xml",
+        "sha256": "322dcdef2b1c0ad3e2c7e64b40560d103f8ef94e8d03f57a42a998b0de00f7f0",
+        "source_key": "PMC6839998.1/PMC6839998.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "be4eb2e5b70e3de08be7c422318ad719"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC6839998.1/PMC6839998.1.xml?md5=be4eb2e5b70e3de08be7c422318ad719"
+      }
+    ],
+    "canonical_id": "PMC6839998.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC6839998.1",
+        "metadata_at_selection": {
+          "citation": "Innov Aging. 2019 Nov 8;3(Suppl 1):S516. doi: 10.1093/geroni/igz038.1903",
+          "license_code": "CC BY",
+          "pmcid": "PMC6839998",
+          "pmid": null,
+          "title": "EXAMINATION OF TRUST IN THE HEALTH CARE SYSTEM AMONG OLDER IMMIGRANTS RESIDING IN THE MIDWEST",
+          "version": 1
+        },
+        "pmcid": "PMC6839998",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC6839998.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC6839998.1/PMC6839998.1.pdf?md5=89bfc25c383018f3eb5d23b00bff5729",
+        "pmcid": "PMC6839998",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC6839998.1/PMC6839998.1.xml?md5=be4eb2e5b70e3de08be7c422318ad719"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "ad96d62d4d422e93777d65cfe77a341b932e6ecd70c46cfdbdfda759889ecba1"
+}

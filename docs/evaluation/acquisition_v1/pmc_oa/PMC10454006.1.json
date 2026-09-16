@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC10454006.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:41:58+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 970,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.json",
+        "role": "metadata",
+        "sha256": "04c300bf7404e40caefe68347b477825902606ddaf0e8b3b4dd0a6c69b966268",
+        "source_key": "metadata/PMC10454006.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "04c300bf7404e40caefe68347b477825902606ddaf0e8b3b4dd0a6c69b966268"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC10454006.1.json"
+      },
+      {
+        "byte_size": 902515,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.pdf",
+        "role": "pdf",
+        "sha256": "99889043a60493fb6f11df9e187f0f0e0df369e1bf88d2566e185fbfd550934b",
+        "source_key": "PMC10454006.1/PMC10454006.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "c52ed2d7ee867188142ce3e17d42f986"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC10454006.1/PMC10454006.1.pdf?md5=c52ed2d7ee867188142ce3e17d42f986"
+      },
+      {
+        "byte_size": 188405,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.xml",
+        "role": "xml",
+        "sha256": "6f6b660aa508b096e22a7df6a914b3d33555f27da05ef4cb081f0a57f807e6d3",
+        "source_key": "PMC10454006.1/PMC10454006.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "f0912688a070ec3511dc12950012c61d"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC10454006.1/PMC10454006.1.xml?md5=f0912688a070ec3511dc12950012c61d"
+      }
+    ],
+    "canonical_id": "PMC10454006.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC10454006.1",
+        "metadata_at_selection": {
+          "citation": "Healthcare (Basel). 2023 Aug 18;11(16):2336. doi: 10.3390/healthcare11162336",
+          "license_code": "CC BY",
+          "pmcid": "PMC10454006",
+          "pmid": 37628533,
+          "title": "Drivers of Patients\u2019 Behavioral Intention toward Public and Private Clinics\u2019 Services",
+          "version": 1
+        },
+        "pmcid": "PMC10454006",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC10454006.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC10454006.1/PMC10454006.1.pdf?md5=c52ed2d7ee867188142ce3e17d42f986",
+        "pmcid": "PMC10454006",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC10454006.1/PMC10454006.1.xml?md5=f0912688a070ec3511dc12950012c61d"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "894b9cbdfb1de452a0e32a390e37101a700e9a45c5eebd9426877ff507f5e07a"
+}

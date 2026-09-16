@@ -1,0 +1,101 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+    "corpus": "doclaynet",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:43:32+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 417582,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.png",
+        "role": "png",
+        "sha256": "02a4bb3daeedc6912ba8ce91a914738cf3f4c9b4bd750f1edd4043618a40b123",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 145125,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.pdf",
+        "role": "pdf",
+        "sha256": "0bb113133e3b0054b41b45d90092d0c66d4b01f576f4efbc1f4ff6c691ccedf4",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 5604,
+        "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.annotations.json",
+        "role": "annotations",
+        "sha256": "fda17f1c1a044b8cc6019e7d2b38b6979eea6ef18d9be5146b47f8ad1d82c03d",
+        "source_key": "data/train-00064-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+        },
+        "source_url": null
+      }
+    ],
+    "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+    "corpus": "doclaynet",
+    "provenance": {
+      "locked": {
+        "dataset_id": "docling-project/DocLayNet-v1.2",
+        "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "split": "train"
+      },
+      "selected": {
+        "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+        "metadata_at_selection": {
+          "doc_category": "manuals",
+          "image_id": 70840,
+          "n_annotations": 18,
+          "original_filename": "sg248464.pdf",
+          "page_hash": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+          "page_no": 931,
+          "shard_key": "data/train-00064-of-00072.parquet"
+        },
+        "shard_key": "data/train-00064-of-00072.parquet"
+      },
+      "upstream_at_acquisition": {
+        "dataset_id": "docling-project/DocLayNet-v1.2",
+        "last_modified_utc": "2025-02-10T16:33:40.000Z",
+        "n_annotations": 18,
+        "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "shard_key": "data/train-00064-of-00072.parquet",
+        "shard_sha256": "bfb8c72e543cee7baf033d050b4c16c405f1076903d2d53fff99b2b84dca55b8"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "dataset.pinned_revision_resolves",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "shard.returned_page_hash_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.page_still_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "05263be0621e49e8b8f5889a9f81fe8e1962050b6cb9eb9068871dff7370d8be"
+}

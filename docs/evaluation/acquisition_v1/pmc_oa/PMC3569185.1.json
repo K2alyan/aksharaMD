@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC3569185.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:41:53+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 1298,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC3569185.1\\PMC3569185.1.json",
+        "role": "metadata",
+        "sha256": "92606b3250c41d79b6771a633b1f0d5e75b15125d0f37dea112293ac51597f93",
+        "source_key": "metadata/PMC3569185.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "92606b3250c41d79b6771a633b1f0d5e75b15125d0f37dea112293ac51597f93"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC3569185.1.json"
+      },
+      {
+        "byte_size": 273335,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC3569185.1\\PMC3569185.1.pdf",
+        "role": "pdf",
+        "sha256": "83942f33fed4d88d2f440e0575866dde71c559ba71f63186c58cfa59bef56df6",
+        "source_key": "PMC3569185.1/PMC3569185.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "ad82a63a3b9efd4d3c00ea74ce3d296e"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC3569185.1/PMC3569185.1.pdf?md5=ad82a63a3b9efd4d3c00ea74ce3d296e"
+      },
+      {
+        "byte_size": 77247,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC3569185.1\\PMC3569185.1.xml",
+        "role": "xml",
+        "sha256": "124d7c7aaf729ae0ab4c9bd8e5fc22c74c135247046b9693507466d10551ee98",
+        "source_key": "PMC3569185.1/PMC3569185.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "1ca4e2fe9b029c45ddabe9af65ab927d"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC3569185.1/PMC3569185.1.xml?md5=1ca4e2fe9b029c45ddabe9af65ab927d"
+      }
+    ],
+    "canonical_id": "PMC3569185.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC3569185.1",
+        "metadata_at_selection": {
+          "citation": "Acta Crystallogr Sect E Struct Rep Online. 2013 Jan 9;69(Pt 2):m86. doi: 10.1107/S1600536812051136",
+          "license_code": "CC BY",
+          "pmcid": "PMC3569185",
+          "pmid": 23424429,
+          "title": "Di-\u03bc-chlorido-bis\u00ad{[2-(di-tert-butyl\u00adphosphan\u00adyl)biphenyl-3-yl-\u03ba2 C 3,P]palladium(II)} dichloro\u00admethane disolvate",
+          "version": 1
+        },
+        "pmcid": "PMC3569185",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC3569185.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC3569185.1/PMC3569185.1.pdf?md5=ad82a63a3b9efd4d3c00ea74ce3d296e",
+        "pmcid": "PMC3569185",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC3569185.1/PMC3569185.1.xml?md5=1ca4e2fe9b029c45ddabe9af65ab927d"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "4a75e8fc4e2d333a2e59d287c619d64c21995db0ec157389b37e4ca24d45219d"
+}
