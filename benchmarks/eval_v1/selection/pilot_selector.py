@@ -56,7 +56,23 @@ from typing import Any
 
 from benchmarks.eval_v1.corpus_split import Partition, assign_partition
 
-SELECTION_ALGORITHM_VERSION = "1"
+# V1 admitted PMC6839998.1 (an abstract-only PMC record with no JATS
+# <body>) because its eligibility predicate only checked licensing/
+# distribution properties. B1a-6 V1 ingestion validation caught this
+# gap; see docs/evaluation/DEV_PILOT_INGESTION_COMPLETION_REPORT_V1.md.
+# V2 layers a PMC textual-oracle eligibility predicate on top of the
+# existing metadata filter — see
+# benchmarks.eval_v1.selection.pmc_oa_text_oracle_eligibility. Because
+# the eligibility predicate for a corpus changed, the whole selection
+# algorithm's version bumps: V1 selections and V2 selections are not
+# mutually consistent, and anyone consuming a manifest must know
+# which regime produced it.
+#
+# DocLayNet and Federal Register semantics are unchanged in V2. Their
+# per-corpus selection algorithms continue to work exactly as before;
+# a re-selection under V2 must preserve the frozen DocLayNet 6 and
+# Federal Register 6 IDs.
+SELECTION_ALGORITHM_VERSION = "2"
 
 # Locked target allocation for B1.
 PMC_OA_TARGET_N = 8
