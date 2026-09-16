@@ -128,31 +128,44 @@ class RealProbeBackend:
             )
 
     def https_get(self, url: str, timeout: float) -> ProbeResult:
-        import urllib.error
-        import urllib.request
+        # Deliberately uses ``http.client.HTTPSConnection`` (HTTPS-only
+        # by construction) rather than ``urllib.request.urlopen``. The
+        # latter accepts any registered URL scheme including ``file:``
+        # and custom schemes, which Bandit flags (B310) as an audit
+        # concern. Since the probe is meaningful only for HTTPS, we
+        # bypass URL-scheme dispatch entirely.
+        import http.client
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(url)
+        if parts.scheme != "https":
+            return ProbeResult(
+                name="https_get", connected=False,
+                exc_class_name="ValueError", errno_int=None,
+                detail=f"refused non-https url: {url!r}",
+            )
+        host = parts.hostname or ""
+        port = parts.port or 443
+        path = parts.path or "/"
 
         try:
-            resp = urllib.request.urlopen(url, timeout=timeout)
-            resp.close()
-            return ProbeResult(
-                name="https_get", connected=True,
-                exc_class_name=None, errno_int=None,
-                detail="http response received — egress NOT blocked",
-            )
+            conn = http.client.HTTPSConnection(host, port, timeout=timeout)
+            try:
+                conn.request("GET", path)
+                resp = conn.getresponse()
+                resp.read()  # drain
+                return ProbeResult(
+                    name="https_get", connected=True,
+                    exc_class_name=None, errno_int=None,
+                    detail=f"http {resp.status} — egress NOT blocked",
+                )
+            finally:
+                conn.close()
         except _DNS_FAILURE_EXCEPTIONS as exc:  # pragma: no cover
             return ProbeResult(
                 name="https_get", connected=False,
                 exc_class_name=type(exc).__name__, errno_int=None,
                 detail=f"dns failure (not admissible): {exc!r}",
-            )
-        except urllib.error.URLError as exc:
-            reason = getattr(exc, "reason", exc)
-            errno_int = getattr(reason, "errno", None) if isinstance(reason, OSError) else None
-            reason_class = type(reason).__name__ if isinstance(reason, Exception) else type(exc).__name__
-            return ProbeResult(
-                name="https_get", connected=False,
-                exc_class_name=reason_class, errno_int=errno_int,
-                detail=f"URLError: {exc!r}",
             )
         except _EXPECTED_EXCEPTIONS as exc:
             return ProbeResult(
