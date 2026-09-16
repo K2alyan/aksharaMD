@@ -311,6 +311,12 @@ class FirewallBackend(Protocol):
     Production backend calls PowerShell (New-NetFirewallRule /
     Get-NetFirewallRule / Remove-NetFirewallRule). Tests inject a
     fake that records call sequences.
+
+    ``verify_rule_absent`` is an explicit yes/no query: it returns
+    True iff the rule with the given display_name is not present.
+    Callers use it after ``remove_rule`` to confirm cleanup rather
+    than trying to detect absence by catching exceptions from
+    ``get_rule_state``.
     """
 
     def create_outbound_block_rule(
@@ -320,6 +326,8 @@ class FirewallBackend(Protocol):
     def get_rule_state(self, *, display_name: str) -> dict[str, Any]: ...
 
     def remove_rule(self, *, display_name: str) -> None: ...
+
+    def verify_rule_absent(self, *, display_name: str) -> bool: ...
 
 
 class FirewallRuleError(RuntimeError):
@@ -358,15 +366,23 @@ class FirewallRuleManager:
         )
 
     def cleanup(self) -> None:
-        """Remove the rule and verify it is gone. If removal or the
-        post-verify fails, raises FirewallRuleError — the smoke_runner
-        treats this as a harness-level defect."""
+        """Remove the rule and verify it is gone.
+
+        Uses ``verify_rule_absent`` for an explicit yes/no query
+        rather than trying to detect absence by catching exceptions
+        from ``get_rule_state``. Attempt #3 of the real smoke crashed
+        precisely because the previous exception-based approach
+        relied on ``FirewallRuleError`` (a class defined here) being
+        raised, while ``RealFirewallBackend`` raised its own
+        ``RealFirewallError`` on the "rule not found" PowerShell
+        response — a different, non-inheriting class. The explicit
+        query avoids the abstraction leak.
+        """
         self._backend.remove_rule(display_name=FIREWALL_RULE_DISPLAY_NAME)
-        try:
-            state = self._backend.get_rule_state(display_name=FIREWALL_RULE_DISPLAY_NAME)
-        except FirewallRuleError:
-            return  # backend signals rule absent
-        if state.get("enabled"):
+        absent = self._backend.verify_rule_absent(
+            display_name=FIREWALL_RULE_DISPLAY_NAME,
+        )
+        if not absent:
             raise FirewallRuleError(
-                f"rule '{FIREWALL_RULE_DISPLAY_NAME}' still enabled after cleanup"
+                f"rule '{FIREWALL_RULE_DISPLAY_NAME}' still present after cleanup"
             )

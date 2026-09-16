@@ -277,6 +277,10 @@ class FakeFirewallBackend:
         if not self.linger_after_remove:
             self.rule_present = False
 
+    def verify_rule_absent(self, *, display_name: str) -> bool:
+        self.calls.append(("verify_absent", {"display_name": display_name}))
+        return not self.rule_present
+
 
 # ---------------------------------------------------------------------------
 # Resource sampler fake.
