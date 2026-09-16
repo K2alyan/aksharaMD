@@ -25,7 +25,7 @@
     "selection_manifest_version": "2",
     "source_sha256": "010adf85ae58af4fa75eae5023185c8d252a120a28ef3d9df1fee762ceec06f5",
     "status": "PASS",
-    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validated_utc": "2026-09-16T05:08:18+00:00",
     "validation_checks": [
       {
         "name": "v2_acq.api_json_asset_present",
@@ -83,39 +83,39 @@
         "reason": null
       },
       {
-        "name": "gt.no_expected_prose_field",
+        "name": "gt.no_tokens_field",
         "ok": true,
-        "reason": "unexpected G1 key 'expected_prose' present"
+        "reason": null
       },
       {
         "name": "gt.no_word_set_field",
         "ok": true,
-        "reason": "unexpected G1 key 'word_set' present"
-      },
-      {
-        "name": "gt.no_tokens_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'tokens' present"
+        "reason": null
       },
       {
         "name": "gt.no_body_text_field",
         "ok": true,
-        "reason": "unexpected G1 key 'body_text' present"
-      },
-      {
-        "name": "gt.no_text_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'text' present"
-      },
-      {
-        "name": "gt.no_oracle_text_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'oracle_text' present"
+        "reason": null
       },
       {
         "name": "gt.no_expected_text_field",
         "ok": true,
-        "reason": "unexpected G1 key 'expected_text' present"
+        "reason": null
+      },
+      {
+        "name": "gt.no_expected_prose_field",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_text_field",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_oracle_text_field",
+        "ok": true,
+        "reason": null
       },
       {
         "name": "gt.contract_kind_is_fpr_baseline",
@@ -139,5 +139,5 @@
       }
     ]
   },
-  "payload_sha256": "5a89b3b3f1c8ccc43c64dfcae4dd3cf4033613a04bfcffa53b973387156af7df"
+  "payload_sha256": "c4ff5bf43a6669fe3abd30a054e1e669e896bfa82459ec64cecaa87e7972e401"
 }

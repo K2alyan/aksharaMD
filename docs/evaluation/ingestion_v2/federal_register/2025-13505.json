@@ -25,7 +25,7 @@
     "selection_manifest_version": "2",
     "source_sha256": "16d0953befb9ebc8669692073d3c72d19c118dc73a47949d2fb7337f8e0b17d4",
     "status": "PASS",
-    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validated_utc": "2026-09-16T05:08:18+00:00",
     "validation_checks": [
       {
         "name": "v2_acq.api_json_asset_present",
@@ -83,39 +83,39 @@
         "reason": null
       },
       {
-        "name": "gt.no_expected_prose_field",
+        "name": "gt.no_tokens_field",
         "ok": true,
-        "reason": "unexpected G1 key 'expected_prose' present"
+        "reason": null
       },
       {
         "name": "gt.no_word_set_field",
         "ok": true,
-        "reason": "unexpected G1 key 'word_set' present"
-      },
-      {
-        "name": "gt.no_tokens_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'tokens' present"
+        "reason": null
       },
       {
         "name": "gt.no_body_text_field",
         "ok": true,
-        "reason": "unexpected G1 key 'body_text' present"
-      },
-      {
-        "name": "gt.no_text_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'text' present"
-      },
-      {
-        "name": "gt.no_oracle_text_field",
-        "ok": true,
-        "reason": "unexpected G1 key 'oracle_text' present"
+        "reason": null
       },
       {
         "name": "gt.no_expected_text_field",
         "ok": true,
-        "reason": "unexpected G1 key 'expected_text' present"
+        "reason": null
+      },
+      {
+        "name": "gt.no_expected_prose_field",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_text_field",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_oracle_text_field",
+        "ok": true,
+        "reason": null
       },
       {
         "name": "gt.contract_kind_is_fpr_baseline",
@@ -139,5 +139,5 @@
       }
     ]
   },
-  "payload_sha256": "51bcf3879d548fad458a8ef4266c33f48d0d04828ee789baec590a96fcbddd34"
+  "payload_sha256": "9f4c351e908f27fb63071ff6978270867aacfb3fa4381a90d388e4496c2c32ed"
 }

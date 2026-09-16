@@ -1,7 +1,7 @@
 # B1a-6-V2 Ingestion Validation Completion Report
 
-- **Emitted:** `2026-09-16T04:59:01+00:00`
-- **Instrument commit:** `fe7dc383034ce66887b9eb7c34a848ded4ce8e58`
+- **Emitted:** `2026-09-16T05:08:20+00:00`
+- **Instrument commit:** `0d627a9bf1f97380580da129cafbfda73843fc5e`
 - **MANIFEST_V2 SHA-256:** `739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127`
 - **Ingestion schema version:** `2`
 
@@ -31,12 +31,12 @@
 | 12 | doclaynet | `8731e4b062bc18699744...` | DocLayNetV1Adapter | `bbox_layout` | `11d2812a7b9b8b11...` | PASS |
 | 13 | doclaynet | `a1652ae40baffccaf9a5...` | DocLayNetV1Adapter | `bbox_layout` | `6982f5e167688117...` | PASS |
 | 14 | doclaynet | `7d2023bb74ead6e1e506...` | DocLayNetV1Adapter | `bbox_layout` | `13100c754ee90cfb...` | PASS |
-| 15 | federal_register | `2025-07879` | FederalRegisterV1Adapter | `fpr_baseline` | `2af5d64b3c04829d...` | PASS |
-| 16 | federal_register | `2025-13505` | FederalRegisterV1Adapter | `fpr_baseline` | `8c847a0eba7d9b9a...` | PASS |
-| 17 | federal_register | `2025-11271` | FederalRegisterV1Adapter | `fpr_baseline` | `bdb7fdf6860acb36...` | PASS |
-| 18 | federal_register | `2025-16333` | FederalRegisterV1Adapter | `fpr_baseline` | `3b2d5716f0845c51...` | PASS |
-| 19 | federal_register | `2025-19924` | FederalRegisterV1Adapter | `fpr_baseline` | `e10320740da943b9...` | PASS |
-| 20 | federal_register | `2025-12869` | FederalRegisterV1Adapter | `fpr_baseline` | `191d2513765e8e01...` | PASS |
+| 15 | federal_register | `2025-07879` | FederalRegisterV1Adapter | `fpr_baseline` | `27724cd2ad7147a8...` | PASS |
+| 16 | federal_register | `2025-13505` | FederalRegisterV1Adapter | `fpr_baseline` | `e5078672e0c8ed41...` | PASS |
+| 17 | federal_register | `2025-11271` | FederalRegisterV1Adapter | `fpr_baseline` | `fb54aedcd1fcc26f...` | PASS |
+| 18 | federal_register | `2025-16333` | FederalRegisterV1Adapter | `fpr_baseline` | `2c0ebeda67199221...` | PASS |
+| 19 | federal_register | `2025-19924` | FederalRegisterV1Adapter | `fpr_baseline` | `5b3974546b7c834d...` | PASS |
+| 20 | federal_register | `2025-12869` | FederalRegisterV1Adapter | `fpr_baseline` | `9ad80deec618a772...` | PASS |
 
 ## Final result
 
@@ -50,4 +50,4 @@ All 20 acquired V2 documents ingest cleanly through their V1 corpus adapters and
 
 This report claims the repair holds **for this pilot's re-selected 20**. It does not claim the V2 predicate is generally validated beyond this pilot.
 
-- Post-run tests: 95 passed (12 V2 eligibility + 9 V2 walker + 10 V2 reuse + 42 acquisition + 22 dry-selection)
+- Post-run tests: 95 passed in 0.87s
