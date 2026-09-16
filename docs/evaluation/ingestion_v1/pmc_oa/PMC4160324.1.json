@@ -1,0 +1,154 @@
+{
+  "fingerprint": {
+    "acquisition_receipt_sha256": "6c358da5ed57f9ee4e3ea1ced219ddbd73fc80400b589c690f2860ec8f686569",
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "ingestion_schema_version": "1",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquisition_receipt_sha256": "6c358da5ed57f9ee4e3ea1ced219ddbd73fc80400b589c690f2860ec8f686569",
+    "adapter_class": "PmcOaV1Adapter",
+    "adapter_contract_version": "1",
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "derived_summary": {
+      "extraction_stats": {
+        "equations_unrepresented": 0,
+        "equations_with_alttext": 0,
+        "equations_with_tex_math": 0,
+        "equations_with_text_only": 3,
+        "excluded_ref_list_entries": 36,
+        "excluded_xref_markers": 52,
+        "included_captions": 10,
+        "included_footnotes": 0,
+        "included_paragraphs": 22,
+        "included_section_titles": 10,
+        "included_table_cells": 0
+      },
+      "n_body_chars": 15856,
+      "n_captions": 10,
+      "n_tables": 0,
+      "n_tokens": 2773
+    },
+    "ground_truth_kind": "xml_full_text",
+    "ingestion_schema_version": "1",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "source_sha256": "8ac923dc1c42dcbd4c1998b4e5cccebeba6292bd7ed177f0846697955df1db52",
+    "status": "PASS",
+    "validated_utc": "2026-09-16T03:11:38+00:00",
+    "validation_checks": [
+      {
+        "name": "acq.pdf_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "acq.xml_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "acq.metadata_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "adapter.instantiated",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.doc_id_matches",
+        "ok": true,
+        "reason": "got='PMC4160324.1'"
+      },
+      {
+        "name": "source.is_pdf",
+        "ok": true,
+        "reason": "got='application/pdf'"
+      },
+      {
+        "name": "source.is_the_acquired_pdf",
+        "ok": true,
+        "reason": "got=WindowsPath('corpus/eval_v1/pmc_oa/PMC4160324.1/PMC4160324.1.pdf')"
+      },
+      {
+        "name": "source.sha256_matches_acquisition_receipt",
+        "ok": true,
+        "reason": "adapter=8ac923dc1c42... acquisition=8ac923dc1c42..."
+      },
+      {
+        "name": "source.provenance_carries_pmcid_version",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.returned",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.doc_id_matches",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.kind_is_xml_full_text",
+        "ok": true,
+        "reason": "expected 'xml_full_text' got 'xml_full_text'"
+      },
+      {
+        "name": "gt.body_text_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.tokens_nonempty_and_list",
+        "ok": true,
+        "reason": "n_tokens=2773"
+      },
+      {
+        "name": "gt.title_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.abstract_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.tables_is_list",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.captions_is_list",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.extraction_rules_version_recorded",
+        "ok": true,
+        "reason": "got='1'"
+      },
+      {
+        "name": "gt.extraction_stats_has_excluded_ref_list_counter",
+        "ok": true,
+        "reason": "keys=['equations_unrepresented', 'equations_with_alttext', 'equations_with_tex_math', 'equations_with_text_only', 'excluded_ref_list_entries', 'excluded_xref_markers', 'included_captions', 'included_footnotes', 'included_paragraphs', 'included_section_titles', 'included_table_cells']"
+      },
+      {
+        "name": "acq.jats_pmcid_check_present_and_ok",
+        "ok": true,
+        "reason": "acq_jats_check={'name': 'jats.internal_pmcid_matches_selected', 'ok': True, 'reason': None}"
+      },
+      {
+        "name": "gt.license_code_from_metadata_is_CC_BY",
+        "ok": true,
+        "reason": "got='CC BY'"
+      }
+    ]
+  },
+  "payload_sha256": "845702a15c62e9bc5542025f30d455111bb3f05e4fc7e3e0f8bd0ec14f510379"
+}
