@@ -65,19 +65,26 @@ class PmcOaAcquirer:
     defaults; tests can substitute fakes that raise controlled errors.
     """
 
+    # Callable defaults are wrapped in ``default_factory`` so the
+    # class body assigns a ``field()`` object (not a bare function)
+    # to the attribute — otherwise CodeQL's static analysis interprets
+    # ``self.X_fn(args)`` as an unbound-method call and mis-counts the
+    # arity of the underlying primitive. Runtime behavior is unchanged.
     corpus: str = "pmc_oa"
-    fetch_metadata_fn: Callable[..., tuple[PmcVersionMetadata, bytes, str]] = (
-        pmc_oa_aws.fetch_metadata
+    fetch_metadata_fn: Callable[..., tuple[PmcVersionMetadata, bytes, str]] = field(
+        default_factory=lambda: pmc_oa_aws.fetch_metadata,
     )
-    apply_filters_fn: Callable[[PmcVersionMetadata], EligibilityDecision] = (
-        pmc_oa_aws.apply_metadata_filters
+    apply_filters_fn: Callable[[PmcVersionMetadata], EligibilityDecision] = field(
+        default_factory=lambda: pmc_oa_aws.apply_metadata_filters,
     )
-    acquire_article_fn: Callable[..., AcquiredArticle] = pmc_oa_aws.acquire_article
-    jats_pmcid_matches_fn: Callable[..., tuple[bool, str | None]] = (
-        pmc_oa_aws.jats_pmcid_matches
+    acquire_article_fn: Callable[..., AcquiredArticle] = field(
+        default_factory=lambda: pmc_oa_aws.acquire_article,
+    )
+    jats_pmcid_matches_fn: Callable[..., tuple[bool, str | None]] = field(
+        default_factory=lambda: pmc_oa_aws.jats_pmcid_matches,
     )
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
-    sleep: Callable[[float], None] = time.sleep
+    sleep: Callable[[float], None] = field(default_factory=lambda: time.sleep)
 
     def acquire(
         self,

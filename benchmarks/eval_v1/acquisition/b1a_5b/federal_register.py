@@ -54,20 +54,22 @@ def _now_utc() -> str:
 class FederalRegisterAcquirer:
     """Per-document Federal Register acquisition."""
 
+    # Callable defaults use ``default_factory`` — see PmcOaAcquirer for
+    # why. Runtime behavior unchanged.
     corpus: str = "federal_register"
-    fetch_detail_fn: Callable[..., tuple[FrDocumentDetail, bytes, str]] = (
-        federal_register_api.fetch_document_detail
+    fetch_detail_fn: Callable[..., tuple[FrDocumentDetail, bytes, str]] = field(
+        default_factory=lambda: federal_register_api.fetch_document_detail,
     )
-    acquire_document_fn: Callable[..., AcquiredDocument] = (
-        federal_register_api.acquire_document
+    acquire_document_fn: Callable[..., AcquiredDocument] = field(
+        default_factory=lambda: federal_register_api.acquire_document,
     )
-    govinfo_ids_fn: Callable[[str], tuple[str, str]] = (
-        federal_register_api.govinfo_ids_from_pdf_url
+    govinfo_ids_fn: Callable[[str], tuple[str, str]] = field(
+        default_factory=lambda: federal_register_api.govinfo_ids_from_pdf_url,
     )
     locked_pub_date_gte: date = FR_LOCKED_PUB_DATE_GTE
     locked_pub_date_lte: date = FR_LOCKED_PUB_DATE_LTE
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
-    sleep: Callable[[float], None] = time.sleep
+    sleep: Callable[[float], None] = field(default_factory=lambda: time.sleep)
 
     def acquire(
         self,

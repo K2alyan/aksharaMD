@@ -60,9 +60,15 @@ DEFAULT_PAYLOADS_ROOT = Path("corpus/eval_v1")
 
 
 class AcquisitionAdapter(Protocol):
-    """Structural protocol for a corpus-specific acquisition adapter."""
+    """Structural protocol for a corpus-specific acquisition adapter.
 
-    corpus: str
+    Concrete implementers set ``corpus`` to one of ``"pmc_oa"``,
+    ``"doclaynet"``, or ``"federal_register"``. The default value on
+    the Protocol itself is unused — it exists only so CodeQL does not
+    treat the bare annotation as a statement-without-effect.
+    """
+
+    corpus: str = ""
 
     def acquire(
         self,

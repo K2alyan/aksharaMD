@@ -59,26 +59,30 @@ class DoclaynetAcquirer:
     that returns a synthetic page pointing at temp files.
     """
 
+    # Callable defaults use ``default_factory`` — see PmcOaAcquirer for
+    # why. Runtime behavior unchanged.
     corpus: str = "doclaynet"
-    resolve_dataset_ref_fn: Callable[..., doclaynet_hf.HfDatasetRef] = (
-        doclaynet_hf.resolve_dataset_ref
+    resolve_dataset_ref_fn: Callable[..., doclaynet_hf.HfDatasetRef] = field(
+        default_factory=lambda: doclaynet_hf.resolve_dataset_ref,
     )
     # Production default: revision-pinned shard walk that resolves one
     # frozen page_hash inside one frozen shard and returns the page
     # plus the shard's SHA-256. Tests inject a lighter fake so no HF
     # fetch happens during CI.
-    fetch_page_fn: Callable[..., tuple[doclaynet_hf.DocLayNetPage, str]] = (
-        doclaynet_hf.resolve_page_in_shard
+    fetch_page_fn: Callable[..., tuple[doclaynet_hf.DocLayNetPage, str]] = field(
+        default_factory=lambda: doclaynet_hf.resolve_page_in_shard,
     )
-    acquire_page_fn: Callable[..., doclaynet_hf.AcquiredPage] = doclaynet_hf.acquire_page
-    apply_page_filters_fn: Callable[..., doclaynet_hf.EligibilityDecision] = (
-        doclaynet_hf.apply_page_filters
+    acquire_page_fn: Callable[..., doclaynet_hf.AcquiredPage] = field(
+        default_factory=lambda: doclaynet_hf.acquire_page,
+    )
+    apply_page_filters_fn: Callable[..., doclaynet_hf.EligibilityDecision] = field(
+        default_factory=lambda: doclaynet_hf.apply_page_filters,
     )
     locked_dataset_id: str = DOCLAYNET_LOCKED_DATASET_ID
     locked_revision: str = DOCLAYNET_LOCKED_REVISION
     locked_split: str = DOCLAYNET_LOCKED_SPLIT
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
-    sleep: Callable[[float], None] = time.sleep
+    sleep: Callable[[float], None] = field(default_factory=lambda: time.sleep)
 
     def acquire(
         self,
