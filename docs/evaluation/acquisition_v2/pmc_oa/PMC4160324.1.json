@@ -1,0 +1,138 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:30+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 1748,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.json",
+        "role": "metadata",
+        "sha256": "6cf547c6a95e44d1a9a5cfc84f0b2a525b2ed7f4660beea5d5c443e26db3cc1a",
+        "source_key": "metadata/PMC4160324.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "6cf547c6a95e44d1a9a5cfc84f0b2a525b2ed7f4660beea5d5c443e26db3cc1a"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC4160324.1.json"
+      },
+      {
+        "byte_size": 2022822,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.pdf",
+        "role": "pdf",
+        "sha256": "8ac923dc1c42dcbd4c1998b4e5cccebeba6292bd7ed177f0846697955df1db52",
+        "source_key": "PMC4160324.1/PMC4160324.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "b297bbd28abd6e7f863b5ed6aa5eeecc"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.pdf?md5=b297bbd28abd6e7f863b5ed6aa5eeecc"
+      },
+      {
+        "byte_size": 67889,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.xml",
+        "role": "xml",
+        "sha256": "29858cb8b4fd560c42633bcc042d711c2aae1d697071fb9de49f92f74bbd3a9a",
+        "source_key": "PMC4160324.1/PMC4160324.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "308fd13a94ee194ce2bc2b2f8c99b397"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.xml?md5=308fd13a94ee194ce2bc2b2f8c99b397"
+      }
+    ],
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "PMC4160324.1",
+        "corpus": "pmc_oa",
+        "metadata_at_selection": {
+          "citation": "Nanoscale Res Lett. 2014 Sep 3;9(1):464. doi: 10.1186/1556-276X-9-464",
+          "license_code": "CC BY",
+          "pmcid": "PMC4160324",
+          "pmid": 25246869,
+          "title": "Improvement in the breakdown endurance of high-\u03ba dielectric by utilizing stacking technology and adding sufficient inter",
+          "version": 1
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "selected": {
+          "canonical_id": "PMC4160324.1",
+          "metadata_at_selection": {
+            "citation": "Nanoscale Res Lett. 2014 Sep 3;9(1):464. doi: 10.1186/1556-276X-9-464",
+            "license_code": "CC BY",
+            "pmcid": "PMC4160324",
+            "pmid": 25246869,
+            "title": "Improvement in the breakdown endurance of high-\u03ba dielectric by utilizing stacking technology and adding sufficient inter",
+            "version": 1
+          },
+          "pmcid": "PMC4160324",
+          "version": 1
+        },
+        "upstream_at_acquisition": {
+          "is_historical_ocr": false,
+          "is_manuscript": false,
+          "is_retracted": false,
+          "license_code": "CC BY",
+          "metadata_key": "metadata/PMC4160324.1.json",
+          "pdf_canonical_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.pdf?md5=b297bbd28abd6e7f863b5ed6aa5eeecc",
+          "pmcid": "PMC4160324",
+          "version": 1,
+          "xml_canonical_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.xml?md5=308fd13a94ee194ce2bc2b2f8c99b397"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": "29858cb8b4fd560c42633bcc042d711c2aae1d697071fb9de49f92f74bbd3a9a",
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC4160324.1.json",
+      "source_v1_receipt_sha256": "6c358da5ed57f9ee4e3ea1ced219ddbd73fc80400b589c690f2860ec8f686569"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_acquired_jats_sha_matches_v2_inspection",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_v2_oracle_reverify_passed",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "0c26f4655028390f42e62a81380e4d8762844e8db1a1a779e9caff9828213e04"
+}

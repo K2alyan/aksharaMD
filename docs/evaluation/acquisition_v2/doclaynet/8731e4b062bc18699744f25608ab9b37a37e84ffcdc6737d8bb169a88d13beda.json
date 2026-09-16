@@ -1,0 +1,131 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+    "corpus": "doclaynet",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:34+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 437871,
+        "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.png",
+        "role": "png",
+        "sha256": "c81ea844d6b211588bbe50f62adef8bb81689638ea0e867b0621699afb6bf18a",
+        "source_key": "data/train-00059-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "61655496dc74846fd38a3e1a40219556b2ad40bf5e8ddbc286d1cd867348f1c0"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 71500,
+        "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.pdf",
+        "role": "pdf",
+        "sha256": "3ffc045d578f3efab7f01e60ae11cc54a56a96e371f7fdac76272c7a05e7af7a",
+        "source_key": "data/train-00059-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "61655496dc74846fd38a3e1a40219556b2ad40bf5e8ddbc286d1cd867348f1c0"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 6559,
+        "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.annotations.json",
+        "role": "annotations",
+        "sha256": "b3f4ad67325e6010cedf4777f0e6abb183213ed71da2672d1f18efeec0abb96e",
+        "source_key": "data/train-00059-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "61655496dc74846fd38a3e1a40219556b2ad40bf5e8ddbc286d1cd867348f1c0"
+        },
+        "source_url": null
+      }
+    ],
+    "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+    "corpus": "doclaynet",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+        "corpus": "doclaynet",
+        "metadata_at_selection": {
+          "doc_category": "patents",
+          "image_id": 65507,
+          "n_annotations": 22,
+          "original_filename": "10101653_AdobeOCR.pdf",
+          "page_hash": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+          "page_no": 64,
+          "shard_key": "data/train-00059-of-00072.parquet"
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "locked": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "split": "train"
+        },
+        "selected": {
+          "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+          "metadata_at_selection": {
+            "doc_category": "patents",
+            "image_id": 65507,
+            "n_annotations": 22,
+            "original_filename": "10101653_AdobeOCR.pdf",
+            "page_hash": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+            "page_no": 64,
+            "shard_key": "data/train-00059-of-00072.parquet"
+          },
+          "shard_key": "data/train-00059-of-00072.parquet"
+        },
+        "upstream_at_acquisition": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "last_modified_utc": "2025-02-10T16:33:40.000Z",
+          "n_annotations": 22,
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "shard_key": "data/train-00059-of-00072.parquet",
+          "shard_sha256": "61655496dc74846fd38a3e1a40219556b2ad40bf5e8ddbc286d1cd867348f1c0"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": null,
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+      "source_v1_receipt_sha256": "ae048e02cf99051d7d73faa270d7d3d440b97d5a7ce6a4195e4952893c1cf70a"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "cd542a2aecfe7100d8e0cab53fe3470dee7a82728b1c61c30428042edb047419"
+}

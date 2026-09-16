@@ -1,0 +1,133 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "PMC8381808.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:32+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 1436,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.json",
+        "role": "metadata",
+        "sha256": "8ac169a6d9150e66fe0c42140053ffd37f44c084794b2605796745581773f620",
+        "source_key": "metadata/PMC8381808.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "8ac169a6d9150e66fe0c42140053ffd37f44c084794b2605796745581773f620"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC8381808.1.json"
+      },
+      {
+        "byte_size": 4326064,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.pdf",
+        "role": "pdf",
+        "sha256": "fc63f89a8b6d4ca3fe75a022160c5ffd61ed36024a7224cee52a3e33399ad855",
+        "source_key": "PMC8381808.1/PMC8381808.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "90f72cfdbc051eb070187e6af928820e"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC8381808.1/PMC8381808.1.pdf?md5=90f72cfdbc051eb070187e6af928820e"
+      },
+      {
+        "byte_size": 65520,
+        "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.xml",
+        "role": "xml",
+        "sha256": "a0f42d6605423e035fe872e1ea6f7bebac23c22a622923decbda7b3b166fd1a7",
+        "source_key": "PMC8381808.1/PMC8381808.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "760614b61aa8c5d86d9668dce3d3dd41"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC8381808.1/PMC8381808.1.xml?md5=760614b61aa8c5d86d9668dce3d3dd41"
+      }
+    ],
+    "canonical_id": "PMC8381808.1",
+    "corpus": "pmc_oa",
+    "execution_disposition": "fresh_acquisition",
+    "provenance": {
+      "fresh_acquisition_provenance": {
+        "selected": {
+          "canonical_id": "PMC8381808.1",
+          "metadata_at_selection": {
+            "citation": "Beilstein J Org Chem. 2021 Aug 19;17:2095\u2013101. doi: 10.3762/bjoc.17.136",
+            "license_code": "CC BY",
+            "pmcid": "PMC8381808",
+            "pmid": 34476016,
+            "title": "An initiator- and catalyst-free hydrogel coating process for 3D printed medical-grade poly(\u03b5-caprolactone)",
+            "version": 1
+          },
+          "pmcid": "PMC8381808",
+          "version": 1
+        },
+        "upstream_at_acquisition": {
+          "is_historical_ocr": false,
+          "is_manuscript": false,
+          "is_retracted": false,
+          "license_code": "CC BY",
+          "metadata_key": "metadata/PMC8381808.1.json",
+          "pdf_canonical_url": "s3://pmc-oa-opendata/PMC8381808.1/PMC8381808.1.pdf?md5=90f72cfdbc051eb070187e6af928820e",
+          "pmcid": "PMC8381808",
+          "version": 1,
+          "xml_canonical_url": "s3://pmc-oa-opendata/PMC8381808.1/PMC8381808.1.xml?md5=760614b61aa8c5d86d9668dce3d3dd41"
+        }
+      },
+      "selected_v2": {
+        "canonical_id": "PMC8381808.1",
+        "corpus": "pmc_oa",
+        "metadata_at_selection": {
+          "citation": "Beilstein J Org Chem. 2021 Aug 19;17:2095\u2013101. doi: 10.3762/bjoc.17.136",
+          "license_code": "CC BY",
+          "pmcid": "PMC8381808",
+          "pmid": 34476016,
+          "title": "An initiator- and catalyst-free hydrogel coating process for 3D printed medical-grade poly(\u03b5-caprolactone)",
+          "version": 1
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": "a0f42d6605423e035fe872e1ea6f7bebac23c22a622923decbda7b3b166fd1a7",
+    "v2_provenance_bridge": null,
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "fresh_acquisition_completed",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_fresh_jats_sha_matches_v2_inspection",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "5495a8561ee6fb642f8d3eef88ca6f4e7e8a6aef28ac3eebbc01707da4788ffe"
+}

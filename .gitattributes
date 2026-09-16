@@ -21,3 +21,4 @@ docs/evaluation/DEV_PILOT_*.json  text eol=crlf
 docs/evaluation/DEV_PILOT_*.md    text eol=crlf
 docs/evaluation/ingestion_v1/**/*.json text eol=crlf
 docs/evaluation/PMC_OA_V2_INSPECTION_LEDGER.jsonl text eol=crlf
+docs/evaluation/acquisition_v2/**/*.json text eol=crlf

@@ -1,0 +1,138 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "PMC7773825.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:30+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 1228,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.json",
+        "role": "metadata",
+        "sha256": "bb1ad03f6d3688736d1918dd40b94bd850aaee96424f9df609d23c2c7e49fd75",
+        "source_key": "metadata/PMC7773825.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "bb1ad03f6d3688736d1918dd40b94bd850aaee96424f9df609d23c2c7e49fd75"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC7773825.1.json"
+      },
+      {
+        "byte_size": 4641721,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.pdf",
+        "role": "pdf",
+        "sha256": "ef160f0f45db2317be34320dfe58f14a5930347d0ae7d9f40ab5f20e542ace27",
+        "source_key": "PMC7773825.1/PMC7773825.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "417bc6b0f2a3b13dc71c9fb976d76d62"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC7773825.1/PMC7773825.1.pdf?md5=417bc6b0f2a3b13dc71c9fb976d76d62"
+      },
+      {
+        "byte_size": 414153,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.xml",
+        "role": "xml",
+        "sha256": "2a2f8ae5a42ca8fa374e8ca8f4523f74569e4fd61d1eb05bbb874ff1dc3eae81",
+        "source_key": "PMC7773825.1/PMC7773825.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "9b0bf9d4dbc362046477bb3a495085db"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC7773825.1/PMC7773825.1.xml?md5=9b0bf9d4dbc362046477bb3a495085db"
+      }
+    ],
+    "canonical_id": "PMC7773825.1",
+    "corpus": "pmc_oa",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "PMC7773825.1",
+        "corpus": "pmc_oa",
+        "metadata_at_selection": {
+          "citation": "Front Mol Biosci. 2020 Dec 17;7:605236. doi: 10.3389/fmolb.2020.605236",
+          "license_code": "CC BY",
+          "pmcid": "PMC7773825",
+          "pmid": 33392262,
+          "title": "Structural Characterization of SARS-CoV-2: Where We Are, and Where We Need to Be",
+          "version": 1
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "selected": {
+          "canonical_id": "PMC7773825.1",
+          "metadata_at_selection": {
+            "citation": "Front Mol Biosci. 2020 Dec 17;7:605236. doi: 10.3389/fmolb.2020.605236",
+            "license_code": "CC BY",
+            "pmcid": "PMC7773825",
+            "pmid": 33392262,
+            "title": "Structural Characterization of SARS-CoV-2: Where We Are, and Where We Need to Be",
+            "version": 1
+          },
+          "pmcid": "PMC7773825",
+          "version": 1
+        },
+        "upstream_at_acquisition": {
+          "is_historical_ocr": false,
+          "is_manuscript": false,
+          "is_retracted": false,
+          "license_code": "CC BY",
+          "metadata_key": "metadata/PMC7773825.1.json",
+          "pdf_canonical_url": "s3://pmc-oa-opendata/PMC7773825.1/PMC7773825.1.pdf?md5=417bc6b0f2a3b13dc71c9fb976d76d62",
+          "pmcid": "PMC7773825",
+          "version": 1,
+          "xml_canonical_url": "s3://pmc-oa-opendata/PMC7773825.1/PMC7773825.1.xml?md5=9b0bf9d4dbc362046477bb3a495085db"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": "2a2f8ae5a42ca8fa374e8ca8f4523f74569e4fd61d1eb05bbb874ff1dc3eae81",
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC7773825.1.json",
+      "source_v1_receipt_sha256": "12901018162b9957c6ad2cbd019b4fe10b26a51fa891a0184676e40e3d29736a"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_acquired_jats_sha_matches_v2_inspection",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_v2_oracle_reverify_passed",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "3642fe71454779b0bcc8e48a8325fc511d9d5127f6e6da5f1cdfcfc1f2e1c632"
+}

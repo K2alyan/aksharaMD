@@ -1,0 +1,710 @@
+{
+  "acquisition_schema_version": "2",
+  "counts": {
+    "fresh_acquisition": 2,
+    "per_corpus": {
+      "doclaynet": 6,
+      "federal_register": 6,
+      "pmc_oa": 8
+    },
+    "total": 20,
+    "verified_payload_reuse": 18
+  },
+  "created_utc": "2026-09-16T04:30:34+00:00",
+  "records": [
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 1748,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.json",
+          "role": "metadata",
+          "sha256": "6cf547c6a95e44d1a9a5cfc84f0b2a525b2ed7f4660beea5d5c443e26db3cc1a"
+        },
+        {
+          "byte_size": 2022822,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.pdf",
+          "role": "pdf",
+          "sha256": "8ac923dc1c42dcbd4c1998b4e5cccebeba6292bd7ed177f0846697955df1db52"
+        },
+        {
+          "byte_size": 67889,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.xml",
+          "role": "xml",
+          "sha256": "29858cb8b4fd560c42633bcc042d711c2aae1d697071fb9de49f92f74bbd3a9a"
+        }
+      ],
+      "canonical_id": "PMC4160324.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC4160324.1.json",
+      "receipt_sha256": "4090a6a36791aadd3669c0ab469c234547fdbf383a1f8f70c67c9a27308548c4",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC4160324.1.json",
+        "source_v1_receipt_sha256": "6c358da5ed57f9ee4e3ea1ced219ddbd73fc80400b589c690f2860ec8f686569"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 969,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.json",
+          "role": "metadata",
+          "sha256": "aead0acd8cafe235594964a0d642e40fe014162d8f12721a39482d3a625f8f73"
+        },
+        {
+          "byte_size": 709969,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.pdf",
+          "role": "pdf",
+          "sha256": "f5783e87e78bb9fe31c1ddf54eb50ef7e6ac0e733b8c42ecff0cacde05f63744"
+        },
+        {
+          "byte_size": 32679,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.xml",
+          "role": "xml",
+          "sha256": "949ff1ae776c3275269d6160f97e0247bc10afa16b6e3b82ead8cc93b4a13a01"
+        }
+      ],
+      "canonical_id": "PMC12303665.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC12303665.1.json",
+      "receipt_sha256": "e5b381e710fa62a16a916c40bccfef54c530883e19504c5c877bec88c12f1b76",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC12303665.1.json",
+        "source_v1_receipt_sha256": "c4bb836e39569eebcd02446e22ae7bdc2a0e8c20adf8961eb4649b92f1193902"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 970,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.json",
+          "role": "metadata",
+          "sha256": "04c300bf7404e40caefe68347b477825902606ddaf0e8b3b4dd0a6c69b966268"
+        },
+        {
+          "byte_size": 902515,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.pdf",
+          "role": "pdf",
+          "sha256": "99889043a60493fb6f11df9e187f0f0e0df369e1bf88d2566e185fbfd550934b"
+        },
+        {
+          "byte_size": 188405,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC10454006.1\\PMC10454006.1.xml",
+          "role": "xml",
+          "sha256": "6f6b660aa508b096e22a7df6a914b3d33555f27da05ef4cb081f0a57f807e6d3"
+        }
+      ],
+      "canonical_id": "PMC10454006.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC10454006.1.json",
+      "receipt_sha256": "f55099834693dbb2aec5db5a5d01ff376a71853dfac10391302676d5cdbf4475",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC10454006.1.json",
+        "source_v1_receipt_sha256": "9aba8c0a0ed05f7b85888abe3cc2ab4ed9231fda37078bf6c982be4ad7ae7677"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 1228,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.json",
+          "role": "metadata",
+          "sha256": "bb1ad03f6d3688736d1918dd40b94bd850aaee96424f9df609d23c2c7e49fd75"
+        },
+        {
+          "byte_size": 4641721,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.pdf",
+          "role": "pdf",
+          "sha256": "ef160f0f45db2317be34320dfe58f14a5930347d0ae7d9f40ab5f20e542ace27"
+        },
+        {
+          "byte_size": 414153,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC7773825.1\\PMC7773825.1.xml",
+          "role": "xml",
+          "sha256": "2a2f8ae5a42ca8fa374e8ca8f4523f74569e4fd61d1eb05bbb874ff1dc3eae81"
+        }
+      ],
+      "canonical_id": "PMC7773825.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC7773825.1.json",
+      "receipt_sha256": "2b36a3f7dba69442afaef49ad59557edf63447d3b38ed839c33b2b7a7c5f6e6b",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC7773825.1.json",
+        "source_v1_receipt_sha256": "12901018162b9957c6ad2cbd019b4fe10b26a51fa891a0184676e40e3d29736a"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 1356,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.json",
+          "role": "metadata",
+          "sha256": "51481ce53eede277006c9ed31a0b7587e1cb90db243761308fbb0c5625308a16"
+        },
+        {
+          "byte_size": 1189402,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.pdf",
+          "role": "pdf",
+          "sha256": "9d5adcce1110c54f59cb4ec8188c59cfa0165d363ce3960be716935462fafe02"
+        },
+        {
+          "byte_size": 162608,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC5773191.1\\PMC5773191.1.xml",
+          "role": "xml",
+          "sha256": "0e59c8b42132c5ffdaa562cea8414d52aed442e8de7cbe5d6997627cb09535aa"
+        }
+      ],
+      "canonical_id": "PMC5773191.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC5773191.1.json",
+      "receipt_sha256": "1674c1a0e96d6fdddfab3350b0050ea4533ea8ef4d96e7e597b28712bbb2f695",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC5773191.1.json",
+        "source_v1_receipt_sha256": "54cc94090132ee7185d244a48cf3617d23e533a2d63d06b66212e71c9c6877cf"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:30+00:00",
+      "assets": [
+        {
+          "byte_size": 1145,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.json",
+          "role": "metadata",
+          "sha256": "268b15a0c99a7a3573cef0666b9bd38f42700d90a28a04e25aa185e9f0804967"
+        },
+        {
+          "byte_size": 1095192,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.pdf",
+          "role": "pdf",
+          "sha256": "aaebc3cd235693ff31b11b9d18cd477e85d48a5e7f8173d6f2e182a51d2426cc"
+        },
+        {
+          "byte_size": 103447,
+          "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.xml",
+          "role": "xml",
+          "sha256": "04d4d6f0f07a5863b4330fe843787c4176c5a54d6dbac0bad40512bd5a7f6690"
+        }
+      ],
+      "canonical_id": "PMC6374309.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC6374309.1.json",
+      "receipt_sha256": "795b89ae60aa7fd37c30e0e382dc836ea194285b230bbfa0eaa06c33efe1b2dc",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC6374309.1.json",
+        "source_v1_receipt_sha256": "659faf68be6a4bb74dc60f76a447a0264990a18cab070e635336738ff69be2d7"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:32+00:00",
+      "assets": [
+        {
+          "byte_size": 1436,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.json",
+          "role": "metadata",
+          "sha256": "8ac169a6d9150e66fe0c42140053ffd37f44c084794b2605796745581773f620"
+        },
+        {
+          "byte_size": 4326064,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.pdf",
+          "role": "pdf",
+          "sha256": "fc63f89a8b6d4ca3fe75a022160c5ffd61ed36024a7224cee52a3e33399ad855"
+        },
+        {
+          "byte_size": 65520,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC8381808.1\\PMC8381808.1.xml",
+          "role": "xml",
+          "sha256": "a0f42d6605423e035fe872e1ea6f7bebac23c22a622923decbda7b3b166fd1a7"
+        }
+      ],
+      "canonical_id": "PMC8381808.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "fresh_acquisition",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC8381808.1.json",
+      "receipt_sha256": "685d5c91607848a5af1685aedde0736b7daeba5f3979a5a1823d454c15fa2c1e",
+      "stratum": null,
+      "v1_bridge": null
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 696,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.json",
+          "role": "metadata",
+          "sha256": "4ccc9145227b4eb9504cbfcaf09c30a54076b0340968f86f8add31a781072ef2"
+        },
+        {
+          "byte_size": 312155,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.pdf",
+          "role": "pdf",
+          "sha256": "8249ad9f1e42c47cca6c101705eb3d53ca1fd6f5ebf1ec1a47632056f7e109b4"
+        },
+        {
+          "byte_size": 182620,
+          "local_path": "corpus\\eval_v1_v2\\pmc_oa\\PMC3544647.1\\PMC3544647.1.xml",
+          "role": "xml",
+          "sha256": "2894d729ae8e4e63936093b350d504ef0304d1a99c6d7353fa037d53e4af12fa"
+        }
+      ],
+      "canonical_id": "PMC3544647.1",
+      "corpus": "pmc_oa",
+      "durable_status": "acquired",
+      "execution_disposition": "fresh_acquisition",
+      "receipt_path": "docs/evaluation/acquisition_v2/pmc_oa/PMC3544647.1.json",
+      "receipt_sha256": "edc31febf6c29b69d9de7aa2d3383f2e950db4161e458455c65f340d16d2d464",
+      "stratum": null,
+      "v1_bridge": null
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 530337,
+          "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.png",
+          "role": "png",
+          "sha256": "db641239edbec1af4693a6fb830f3d05e77d7cabf2311a6d234b5db971898832"
+        },
+        {
+          "byte_size": 38639,
+          "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.pdf",
+          "role": "pdf",
+          "sha256": "23b79f34fdbe2e7a5b769fc2abad81057edb16756c4d7cdb5376c48ce401aa31"
+        },
+        {
+          "byte_size": 5352,
+          "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.annotations.json",
+          "role": "annotations",
+          "sha256": "836c34872a9472721b9dce72fce82003df343b9049b99ddfa1ea511a505af082"
+        }
+      ],
+      "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.json",
+      "receipt_sha256": "45f93f82dda302030c695d5111afa1feecc61092df38940c6f2eba30fa25033f",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.json",
+        "source_v1_receipt_sha256": "139d348d20e4ed7e9e227221c81ef6566581bdc770a32351db67f10056aa46de"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 160337,
+          "local_path": "corpus\\eval_v1\\doclaynet\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.png",
+          "role": "png",
+          "sha256": "2035c5ba27fe903198c8c28499961f82e1337f056f7b0b2fcf7f2d47d893076e"
+        },
+        {
+          "byte_size": 65943,
+          "local_path": "corpus\\eval_v1\\doclaynet\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.pdf",
+          "role": "pdf",
+          "sha256": "72d740ab8cebd02b13fff69cb14d885c223343c621959cd36855f598ad32f46c"
+        },
+        {
+          "byte_size": 6312,
+          "local_path": "corpus\\eval_v1\\doclaynet\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8\\601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.annotations.json",
+          "role": "annotations",
+          "sha256": "4a49cbdfb5f557407e08e7642c86c723bff6d5f8183f31e96bbba4b4b7c20b6e"
+        }
+      ],
+      "canonical_id": "601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.json",
+      "receipt_sha256": "83954344910a4927a89be0f5e9f576d9a614a4b9911ce992987eed86be94a4b3",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.json",
+        "source_v1_receipt_sha256": "8ecdb6611fc0804bc70c506fe3f5123a1a2c339c8bd5526877393c0705389ada"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 417582,
+          "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.png",
+          "role": "png",
+          "sha256": "02a4bb3daeedc6912ba8ce91a914738cf3f4c9b4bd750f1edd4043618a40b123"
+        },
+        {
+          "byte_size": 145125,
+          "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.pdf",
+          "role": "pdf",
+          "sha256": "0bb113133e3b0054b41b45d90092d0c66d4b01f576f4efbc1f4ff6c691ccedf4"
+        },
+        {
+          "byte_size": 5604,
+          "local_path": "corpus\\eval_v1\\doclaynet\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab\\664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.annotations.json",
+          "role": "annotations",
+          "sha256": "fda17f1c1a044b8cc6019e7d2b38b6979eea6ef18d9be5146b47f8ad1d82c03d"
+        }
+      ],
+      "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+      "receipt_sha256": "36cb4f4436c352f73c4ce3a88c5681ec12a8c86e24006a9f9ef791afaee8bcc1",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+        "source_v1_receipt_sha256": "f56f84df0f2be77a5dca4bb1320c91d943fe9a11eef0058998ef0a52bcf46f2f"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 437871,
+          "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.png",
+          "role": "png",
+          "sha256": "c81ea844d6b211588bbe50f62adef8bb81689638ea0e867b0621699afb6bf18a"
+        },
+        {
+          "byte_size": 71500,
+          "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.pdf",
+          "role": "pdf",
+          "sha256": "3ffc045d578f3efab7f01e60ae11cc54a56a96e371f7fdac76272c7a05e7af7a"
+        },
+        {
+          "byte_size": 6559,
+          "local_path": "corpus\\eval_v1\\doclaynet\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda\\8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.annotations.json",
+          "role": "annotations",
+          "sha256": "b3f4ad67325e6010cedf4777f0e6abb183213ed71da2672d1f18efeec0abb96e"
+        }
+      ],
+      "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+      "receipt_sha256": "c4fa506eaeaaab5e460600f15d4028a051fefd101b5c2ef04eef7de198d61865",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+        "source_v1_receipt_sha256": "ae048e02cf99051d7d73faa270d7d3d440b97d5a7ce6a4195e4952893c1cf70a"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 333383,
+          "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.png",
+          "role": "png",
+          "sha256": "0062502c4c9be73e5e34c45aecb30772fe56d704bcd0ab73c6f9a1872d87e214"
+        },
+        {
+          "byte_size": 64713,
+          "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.pdf",
+          "role": "pdf",
+          "sha256": "1c1b247483cc480c555e6e40538337635710215161316fee3427da3321c2ee24"
+        },
+        {
+          "byte_size": 4068,
+          "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.annotations.json",
+          "role": "annotations",
+          "sha256": "2fc8fd0294fc25d0da404e47a367c60b8a183bd0e2990ed0cbf942797973aa48"
+        }
+      ],
+      "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+      "receipt_sha256": "3460b7f013097c9928027cd3591df1ccb861c8744562435b2104ca27a8750f58",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+        "source_v1_receipt_sha256": "3afbf7f1762249ad413a42f86c17bcefbc8878d53c3c3d8c12cc0ef198ae1bcb"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 342310,
+          "local_path": "corpus\\eval_v1\\doclaynet\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.png",
+          "role": "png",
+          "sha256": "6561a318948e874604b6f4aebb479c525cec935edd62b47697b0d26669e71027"
+        },
+        {
+          "byte_size": 47408,
+          "local_path": "corpus\\eval_v1\\doclaynet\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.pdf",
+          "role": "pdf",
+          "sha256": "07db27057561b0f2541faf56e1e2e920714202cab25694ede2f6c9fc7f8474d9"
+        },
+        {
+          "byte_size": 4833,
+          "local_path": "corpus\\eval_v1\\doclaynet\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed\\7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.annotations.json",
+          "role": "annotations",
+          "sha256": "a9182c084a3c5c80b0e3f3d3d1569b58c98274ecaf59554f7a7bdf56f5c2316a"
+        }
+      ],
+      "canonical_id": "7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed",
+      "corpus": "doclaynet",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/doclaynet/7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.json",
+      "receipt_sha256": "66fe12abd2fa76a43bc3200241302c63b63f127e775902cf5e6471c5f5b61a7e",
+      "stratum": null,
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.json",
+        "source_v1_receipt_sha256": "0caf99e65d8c2e90ef3a21aab3604f2f11bfea107d69ac1ac7a71841004fcbb8"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 4015,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-07879\\2025-07879.api.json",
+          "role": "api_json",
+          "sha256": "fac575b65e883502d794ed33db14402fc28396b749e09a7c229b983365d5e369"
+        },
+        {
+          "byte_size": 242967,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-07879\\2025-07879.pdf",
+          "role": "pdf",
+          "sha256": "6af370e1eef0b0058bc234755750a7bfed04a1bb6fed802aabd799cd61910bbf"
+        },
+        {
+          "byte_size": 4586,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-07879\\2025-07879.xml",
+          "role": "xml",
+          "sha256": "8aec77a7a2c138acad56bbc7571d82ba54fed91c5abf66eb4a57d51f739806b4"
+        }
+      ],
+      "canonical_id": "2025-07879",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-07879.json",
+      "receipt_sha256": "bcb41a9b3f530691e997cb4e986b1f66712bfe151d7c16d4dea0764ac991bbbd",
+      "stratum": "Rule",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-07879.json",
+        "source_v1_receipt_sha256": "b341329b517788b10115209164b0e6006d59f36bf582dd88e534668eae660ca4"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 3633,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-13505\\2025-13505.api.json",
+          "role": "api_json",
+          "sha256": "7292d17e900b7f619ca0a4a6f3ccccd8cc2d5a7a6ce2536462c403061b298b56"
+        },
+        {
+          "byte_size": 212293,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-13505\\2025-13505.pdf",
+          "role": "pdf",
+          "sha256": "16d0953befb9ebc8669692073d3c72d19c118dc73a47949d2fb7337f8e0b17d4"
+        },
+        {
+          "byte_size": 3259,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-13505\\2025-13505.xml",
+          "role": "xml",
+          "sha256": "ba39a9adec0048c161bcac0cff2ee09d9bfb898b52da10257921c163eeacabee"
+        }
+      ],
+      "canonical_id": "2025-13505",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-13505.json",
+      "receipt_sha256": "5cf13cdc70415a1bae0d57419099c4579a49af9c35fb3c85c57234806b99bc75",
+      "stratum": "Rule",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-13505.json",
+        "source_v1_receipt_sha256": "456d4f6c3191438882f3577abed3e4399557382cad5897968f5b3f1f13edc780"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 4362,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.api.json",
+          "role": "api_json",
+          "sha256": "80d5e5c03abe2fbef017e9c4ae348da29354c6443f0b63e6d7ebdc770cb1f344"
+        },
+        {
+          "byte_size": 207063,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.pdf",
+          "role": "pdf",
+          "sha256": "9ee9eb19bccf31d8f458a27749ffdada6fdf61168900b704eaf1cc599c4c2bad"
+        },
+        {
+          "byte_size": 5862,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-11271\\2025-11271.xml",
+          "role": "xml",
+          "sha256": "d658e1dc910ea4878f49f645ffd4a7991cd27ab92e4e58ce24883cdb6ad2a2a2"
+        }
+      ],
+      "canonical_id": "2025-11271",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-11271.json",
+      "receipt_sha256": "bcf63faf37f461ccf43e967368604c0b1ee80f86bd651a1a20b301462f0a9d6d",
+      "stratum": "Proposed Rule",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-11271.json",
+        "source_v1_receipt_sha256": "8adb7c2c1431eb40509642deb1560cac1d34a3ada1b8aa9a2ad8d2f12c7cc6cc"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 3318,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-16333\\2025-16333.api.json",
+          "role": "api_json",
+          "sha256": "34f23abf84ba19676754c172bb2174f782a71104c45b27ac68c272a56f13b876"
+        },
+        {
+          "byte_size": 315885,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-16333\\2025-16333.pdf",
+          "role": "pdf",
+          "sha256": "010adf85ae58af4fa75eae5023185c8d252a120a28ef3d9df1fee762ceec06f5"
+        },
+        {
+          "byte_size": 102170,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-16333\\2025-16333.xml",
+          "role": "xml",
+          "sha256": "aec457fe446117312ea3aae563383f03445ae593a20512475c27eb98a40b5e9e"
+        }
+      ],
+      "canonical_id": "2025-16333",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-16333.json",
+      "receipt_sha256": "e233fd10cfecacede101f1218b4a015346f9ec00ce0a548f09033f00d0de5741",
+      "stratum": "Proposed Rule",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-16333.json",
+        "source_v1_receipt_sha256": "8b97b651ab378d73d6e4c4db1508c6d586eda67fb68050989693835bcd457e5f"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 5791,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-19924\\2025-19924.api.json",
+          "role": "api_json",
+          "sha256": "98ae7ac342739553d13d7b69531ae3568605e6cbb9195599b7f1ceb17c1fb4bf"
+        },
+        {
+          "byte_size": 255230,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-19924\\2025-19924.pdf",
+          "role": "pdf",
+          "sha256": "a2835b9d14b276947926b6ac28cd2554a2d2cb2789e06baa228554a709b3de70"
+        },
+        {
+          "byte_size": 17249,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-19924\\2025-19924.xml",
+          "role": "xml",
+          "sha256": "d255a1bc1d417a0b086a84cea5120e88e0ab3b77521732fc08b2d26ae8860d65"
+        }
+      ],
+      "canonical_id": "2025-19924",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-19924.json",
+      "receipt_sha256": "bc039362035c0f030769416b46d82aa75c2229048f3c0c72a3d2efb4de93418c",
+      "stratum": "Notice",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-19924.json",
+        "source_v1_receipt_sha256": "c022c709fbe56b3b2141bf02af081dab4bc1c9da2bcf2368dc7f512833aa7c88"
+      }
+    },
+    {
+      "acquired_utc": "2026-09-16T04:30:34+00:00",
+      "assets": [
+        {
+          "byte_size": 3709,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-12869\\2025-12869.api.json",
+          "role": "api_json",
+          "sha256": "a455336d66ea087be9a9109dc6c2b68dc129abe2176b6b7e5ad1c287d35d439a"
+        },
+        {
+          "byte_size": 222529,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-12869\\2025-12869.pdf",
+          "role": "pdf",
+          "sha256": "bf69ab88624c30e192a68e70fedefd77456a74cec0ea495c27c26281633a8f6d"
+        },
+        {
+          "byte_size": 6375,
+          "local_path": "corpus\\eval_v1\\federal_register\\2025-12869\\2025-12869.xml",
+          "role": "xml",
+          "sha256": "51e875db6c55edfaa5de3dc7819249c602a842bfb9c6cefb38352daf12ccd830"
+        }
+      ],
+      "canonical_id": "2025-12869",
+      "corpus": "federal_register",
+      "durable_status": "acquired",
+      "execution_disposition": "verified_payload_reuse",
+      "receipt_path": "docs/evaluation/acquisition_v2/federal_register/2025-12869.json",
+      "receipt_sha256": "6f8cb6b44f883f3240f8c6dc1fee5167cd1aca0e59b11b697c23e51d8cde3e34",
+      "stratum": "Notice",
+      "v1_bridge": {
+        "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+        "source_v1_receipt_path": "docs/evaluation/acquisition_v1/federal_register/2025-12869.json",
+        "source_v1_receipt_sha256": "5909d3f7faa020bca2bae680ade54b5d6b477a9410e7ac95104603bdc1330f01"
+      }
+    }
+  ],
+  "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+  "selection_manifest_version": "2"
+}

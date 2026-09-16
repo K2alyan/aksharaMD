@@ -1,0 +1,138 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "PMC12303665.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:30+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 969,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.json",
+        "role": "metadata",
+        "sha256": "aead0acd8cafe235594964a0d642e40fe014162d8f12721a39482d3a625f8f73",
+        "source_key": "metadata/PMC12303665.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "aead0acd8cafe235594964a0d642e40fe014162d8f12721a39482d3a625f8f73"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC12303665.1.json"
+      },
+      {
+        "byte_size": 709969,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.pdf",
+        "role": "pdf",
+        "sha256": "f5783e87e78bb9fe31c1ddf54eb50ef7e6ac0e733b8c42ecff0cacde05f63744",
+        "source_key": "PMC12303665.1/PMC12303665.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "4b8cc6b90060d3bfbe7648b25478b8e0"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC12303665.1/PMC12303665.1.pdf?md5=4b8cc6b90060d3bfbe7648b25478b8e0"
+      },
+      {
+        "byte_size": 32679,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC12303665.1\\PMC12303665.1.xml",
+        "role": "xml",
+        "sha256": "949ff1ae776c3275269d6160f97e0247bc10afa16b6e3b82ead8cc93b4a13a01",
+        "source_key": "PMC12303665.1/PMC12303665.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "96900685bd9f04b1fe410ba3fc22ec7c"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC12303665.1/PMC12303665.1.xml?md5=96900685bd9f04b1fe410ba3fc22ec7c"
+      }
+    ],
+    "canonical_id": "PMC12303665.1",
+    "corpus": "pmc_oa",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "PMC12303665.1",
+        "corpus": "pmc_oa",
+        "metadata_at_selection": {
+          "citation": "Surg Case Rep. 2025 Jul 15;11(1):25-0293. doi: 10.70352/scrj.cr.25-0293",
+          "license_code": "CC BY",
+          "pmcid": "PMC12303665",
+          "pmid": 40726830,
+          "title": "Transmesocolic Hernia of the Ascending Colon: A Rare Cause of Small Bowel Obstruction in an Older Patient",
+          "version": 1
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "selected": {
+          "canonical_id": "PMC12303665.1",
+          "metadata_at_selection": {
+            "citation": "Surg Case Rep. 2025 Jul 15;11(1):25-0293. doi: 10.70352/scrj.cr.25-0293",
+            "license_code": "CC BY",
+            "pmcid": "PMC12303665",
+            "pmid": 40726830,
+            "title": "Transmesocolic Hernia of the Ascending Colon: A Rare Cause of Small Bowel Obstruction in an Older Patient",
+            "version": 1
+          },
+          "pmcid": "PMC12303665",
+          "version": 1
+        },
+        "upstream_at_acquisition": {
+          "is_historical_ocr": false,
+          "is_manuscript": false,
+          "is_retracted": false,
+          "license_code": "CC BY",
+          "metadata_key": "metadata/PMC12303665.1.json",
+          "pdf_canonical_url": "s3://pmc-oa-opendata/PMC12303665.1/PMC12303665.1.pdf?md5=4b8cc6b90060d3bfbe7648b25478b8e0",
+          "pmcid": "PMC12303665",
+          "version": 1,
+          "xml_canonical_url": "s3://pmc-oa-opendata/PMC12303665.1/PMC12303665.1.xml?md5=96900685bd9f04b1fe410ba3fc22ec7c"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": "949ff1ae776c3275269d6160f97e0247bc10afa16b6e3b82ead8cc93b4a13a01",
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/pmc_oa/PMC12303665.1.json",
+      "source_v1_receipt_sha256": "c4bb836e39569eebcd02446e22ae7bdc2a0e8c20adf8961eb4649b92f1193902"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_acquired_jats_sha_matches_v2_inspection",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "pmc_v2_oracle_reverify_passed",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "e8e2a1721a75ed4a0b84304f1d1051c976f12ec60f39134db804e2ea922a7b2c"
+}

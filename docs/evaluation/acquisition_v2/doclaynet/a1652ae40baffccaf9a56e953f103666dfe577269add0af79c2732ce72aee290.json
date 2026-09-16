@@ -1,0 +1,131 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "2",
+    "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+    "corpus": "doclaynet",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T04:30:34+00:00",
+    "acquisition_schema_version": "2",
+    "assets": [
+      {
+        "byte_size": 333383,
+        "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.png",
+        "role": "png",
+        "sha256": "0062502c4c9be73e5e34c45aecb30772fe56d704bcd0ab73c6f9a1872d87e214",
+        "source_key": "data/train-00000-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "5aa0eb1e70b586e70c47cc9116c9c6a233a51bac142b47d738a92b507b83a675"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 64713,
+        "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.pdf",
+        "role": "pdf",
+        "sha256": "1c1b247483cc480c555e6e40538337635710215161316fee3427da3321c2ee24",
+        "source_key": "data/train-00000-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "5aa0eb1e70b586e70c47cc9116c9c6a233a51bac142b47d738a92b507b83a675"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 4068,
+        "local_path": "corpus\\eval_v1\\doclaynet\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290\\a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.annotations.json",
+        "role": "annotations",
+        "sha256": "2fc8fd0294fc25d0da404e47a367c60b8a183bd0e2990ed0cbf942797973aa48",
+        "source_key": "data/train-00000-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "5aa0eb1e70b586e70c47cc9116c9c6a233a51bac142b47d738a92b507b83a675"
+        },
+        "source_url": null
+      }
+    ],
+    "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+    "corpus": "doclaynet",
+    "execution_disposition": "verified_payload_reuse",
+    "provenance": {
+      "selected_v2": {
+        "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+        "corpus": "doclaynet",
+        "metadata_at_selection": {
+          "doc_category": "financial_reports",
+          "image_id": 67,
+          "n_annotations": 12,
+          "original_filename": "NYSE_TCB_2002.pdf",
+          "page_hash": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+          "page_no": 68,
+          "shard_key": "data/train-00000-of-00072.parquet"
+        },
+        "stratum": null
+      },
+      "v1_receipt_provenance": {
+        "locked": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "split": "train"
+        },
+        "selected": {
+          "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+          "metadata_at_selection": {
+            "doc_category": "financial_reports",
+            "image_id": 67,
+            "n_annotations": 12,
+            "original_filename": "NYSE_TCB_2002.pdf",
+            "page_hash": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+            "page_no": 68,
+            "shard_key": "data/train-00000-of-00072.parquet"
+          },
+          "shard_key": "data/train-00000-of-00072.parquet"
+        },
+        "upstream_at_acquisition": {
+          "dataset_id": "docling-project/DocLayNet-v1.2",
+          "last_modified_utc": "2025-02-10T16:33:40.000Z",
+          "n_annotations": 12,
+          "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+          "shard_key": "data/train-00000-of-00072.parquet",
+          "shard_sha256": "5aa0eb1e70b586e70c47cc9116c9c6a233a51bac142b47d738a92b507b83a675"
+        }
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "status": "acquired",
+    "v2_inspection_jats_sha256": null,
+    "v2_provenance_bridge": {
+      "source_v1_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+      "source_v1_receipt_path": "docs/evaluation/acquisition_v1/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+      "source_v1_receipt_sha256": "3afbf7f1762249ad413a42f86c17bcefbc8878d53c3c3d8c12cc0ef198ae1bcb"
+    },
+    "validation_checks": [
+      {
+        "name": "v1_receipt_envelope_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_receipt_binds_to_v1_manifest",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v1_canonical_id_and_corpus_match",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "local_assets_rehash_matches_v1_receipt",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "68114de8395b67659fe268233b02e460994ded3263863e953bdcf9c6725bcf36"
+}
