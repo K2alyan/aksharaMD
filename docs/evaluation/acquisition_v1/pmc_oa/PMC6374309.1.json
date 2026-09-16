@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC6374309.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:42:04+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 1145,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.json",
+        "role": "metadata",
+        "sha256": "268b15a0c99a7a3573cef0666b9bd38f42700d90a28a04e25aa185e9f0804967",
+        "source_key": "metadata/PMC6374309.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "268b15a0c99a7a3573cef0666b9bd38f42700d90a28a04e25aa185e9f0804967"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC6374309.1.json"
+      },
+      {
+        "byte_size": 1095192,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.pdf",
+        "role": "pdf",
+        "sha256": "aaebc3cd235693ff31b11b9d18cd477e85d48a5e7f8173d6f2e182a51d2426cc",
+        "source_key": "PMC6374309.1/PMC6374309.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "d3de856e561c564a22bec55a1c75b246"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC6374309.1/PMC6374309.1.pdf?md5=d3de856e561c564a22bec55a1c75b246"
+      },
+      {
+        "byte_size": 103447,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC6374309.1\\PMC6374309.1.xml",
+        "role": "xml",
+        "sha256": "04d4d6f0f07a5863b4330fe843787c4176c5a54d6dbac0bad40512bd5a7f6690",
+        "source_key": "PMC6374309.1/PMC6374309.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "bf1d53321e61f33d7cda7804c9848788"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC6374309.1/PMC6374309.1.xml?md5=bf1d53321e61f33d7cda7804c9848788"
+      }
+    ],
+    "canonical_id": "PMC6374309.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC6374309.1",
+        "metadata_at_selection": {
+          "citation": "Front Psychol. 2019 Feb 7;10:193. doi: 10.3389/fpsyg.2019.00193",
+          "license_code": "CC BY",
+          "pmcid": "PMC6374309",
+          "pmid": 30792679,
+          "title": "Training for Coherence Formation When Learning From Text and Picture and the Interplay With Learners\u2019 Prior Knowledge",
+          "version": 1
+        },
+        "pmcid": "PMC6374309",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC6374309.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC6374309.1/PMC6374309.1.pdf?md5=d3de856e561c564a22bec55a1c75b246",
+        "pmcid": "PMC6374309",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC6374309.1/PMC6374309.1.xml?md5=bf1d53321e61f33d7cda7804c9848788"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "7e4b9f0d417bc39626f45acbc1ddc3dc271f381f7e5014430336d0bd362935ab"
+}

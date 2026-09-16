@@ -1,0 +1,104 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:41:55+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 1748,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.json",
+        "role": "metadata",
+        "sha256": "6cf547c6a95e44d1a9a5cfc84f0b2a525b2ed7f4660beea5d5c443e26db3cc1a",
+        "source_key": "metadata/PMC4160324.1.json",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "pmc_metadata_sha256": "6cf547c6a95e44d1a9a5cfc84f0b2a525b2ed7f4660beea5d5c443e26db3cc1a"
+        },
+        "source_url": "https://pmc-oa-opendata.s3.amazonaws.com/metadata/PMC4160324.1.json"
+      },
+      {
+        "byte_size": 2022822,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.pdf",
+        "role": "pdf",
+        "sha256": "8ac923dc1c42dcbd4c1998b4e5cccebeba6292bd7ed177f0846697955df1db52",
+        "source_key": "PMC4160324.1/PMC4160324.1.pdf",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "b297bbd28abd6e7f863b5ed6aa5eeecc"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.pdf?md5=b297bbd28abd6e7f863b5ed6aa5eeecc"
+      },
+      {
+        "byte_size": 67889,
+        "local_path": "corpus\\eval_v1\\pmc_oa\\PMC4160324.1\\PMC4160324.1.xml",
+        "role": "xml",
+        "sha256": "29858cb8b4fd560c42633bcc042d711c2aae1d697071fb9de49f92f74bbd3a9a",
+        "source_key": "PMC4160324.1/PMC4160324.1.xml",
+        "source_revision": "v1",
+        "source_side_integrity": {
+          "md5_from_metadata": "308fd13a94ee194ce2bc2b2f8c99b397"
+        },
+        "source_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.xml?md5=308fd13a94ee194ce2bc2b2f8c99b397"
+      }
+    ],
+    "canonical_id": "PMC4160324.1",
+    "corpus": "pmc_oa",
+    "provenance": {
+      "selected": {
+        "canonical_id": "PMC4160324.1",
+        "metadata_at_selection": {
+          "citation": "Nanoscale Res Lett. 2014 Sep 3;9(1):464. doi: 10.1186/1556-276X-9-464",
+          "license_code": "CC BY",
+          "pmcid": "PMC4160324",
+          "pmid": 25246869,
+          "title": "Improvement in the breakdown endurance of high-\u03ba dielectric by utilizing stacking technology and adding sufficient inter",
+          "version": 1
+        },
+        "pmcid": "PMC4160324",
+        "version": 1
+      },
+      "upstream_at_acquisition": {
+        "is_historical_ocr": false,
+        "is_manuscript": false,
+        "is_retracted": false,
+        "license_code": "CC BY",
+        "metadata_key": "metadata/PMC4160324.1.json",
+        "pdf_canonical_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.pdf?md5=b297bbd28abd6e7f863b5ed6aa5eeecc",
+        "pmcid": "PMC4160324",
+        "version": 1,
+        "xml_canonical_url": "s3://pmc-oa-opendata/PMC4160324.1/PMC4160324.1.xml?md5=308fd13a94ee194ce2bc2b2f8c99b397"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "metadata.pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "metadata.version_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.current_upstream_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "jats.internal_pmcid_matches_selected",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "7988c632c2b5bd8d1d5b758d04af02ccda0d742dcf6dcf65e8e44a3862ab1468"
+}

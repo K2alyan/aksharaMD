@@ -1,0 +1,27 @@
+{
+  "acquired_count": 6,
+  "acquisition_schema_version": "1",
+  "asset_count": 18,
+  "completed_utc": "2026-09-16T02:44:41+00:00",
+  "corpus": "doclaynet",
+  "expected_count": 6,
+  "receipt_paths": [
+    "docs/evaluation/acquisition_v1/doclaynet/3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.json",
+    "docs/evaluation/acquisition_v1/doclaynet/601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.json",
+    "docs/evaluation/acquisition_v1/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+    "docs/evaluation/acquisition_v1/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+    "docs/evaluation/acquisition_v1/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+    "docs/evaluation/acquisition_v1/doclaynet/7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.json"
+  ],
+  "receipt_sha256s": {
+    "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77": "139d348d20e4ed7e9e227221c81ef6566581bdc770a32351db67f10056aa46de",
+    "601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8": "8ecdb6611fc0804bc70c506fe3f5123a1a2c339c8bd5526877393c0705389ada",
+    "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab": "f56f84df0f2be77a5dca4bb1320c91d943fe9a11eef0058998ef0a52bcf46f2f",
+    "7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed": "0caf99e65d8c2e90ef3a21aab3604f2f11bfea107d69ac1ac7a71841004fcbb8",
+    "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda": "ae048e02cf99051d7d73faa270d7d3d440b97d5a7ce6a4195e4952893c1cf70a",
+    "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290": "3afbf7f1762249ad413a42f86c17bcefbc8878d53c3c3d8c12cc0ef198ae1bcb"
+  },
+  "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+  "status": "COMPLETE",
+  "total_payload_bytes": 2687876
+}

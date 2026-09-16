@@ -1,0 +1,80 @@
+{
+  "attestation": "PASS",
+  "authorization": "B1a-5b.2",
+  "created_utc": "2026-09-16T02:37:48+00:00",
+  "git_commit": "37c35d4d9bf1523b048dd3372c017d14b91eb12e",
+  "locked_rules": [
+    "no_substitution: cutoff neighbors from B1a-5a MUST NOT be used",
+    "no_download_before_prerun_persisted",
+    "any_terminal_failure_stops_the_run",
+    "raw_payloads_stay_under_corpus/eval_v1_and_are_git_ignored",
+    "no_parsers_no_scoring_no_review_in_b1a-5b.2"
+  ],
+  "phase": "B1a-5b.2-prerun",
+  "preexisting_state": {
+    "existing_acquisition_receipts": 0,
+    "existing_aggregate_index": false
+  },
+  "preflight_deps": {
+    "huggingface_hub": "0.36.2",
+    "pyarrow": "24.0.0"
+  },
+  "preflight_hosts": {
+    "https://huggingface.co/": 200,
+    "https://pmc-oa-opendata.s3.amazonaws.com/": 200,
+    "https://www.federalregister.gov/": 200,
+    "https://www.govinfo.gov/": 200
+  },
+  "preflight_tests": {
+    "test_eval_v1_acquisition": {
+      "expected": 42,
+      "observed": 42,
+      "status": "PASS"
+    },
+    "test_eval_v1_dry_selection": {
+      "expected": 22,
+      "observed": 22,
+      "status": "PASS"
+    }
+  },
+  "provenance_check": {
+    "expected_manifest_sha256_from_provenance": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "matches": true
+  },
+  "relevant_path_status_raw": "",
+  "relevant_paths": [
+    "docs/evaluation/DEV_PILOT_MANIFEST_V1.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_SNAPSHOTS.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_PMC_V1.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_DOCLAYNET_V1.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_FR_RULE_V1.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_FR_PRORULE_V1.json",
+    "docs/evaluation/DEV_PILOT_POPULATION_FR_NOTICE_V1.json",
+    "docs/evaluation/DEV_PILOT_EXCLUSION_UNION.jsonl",
+    "docs/evaluation/DEV_PILOT_DRY_REPORT.md",
+    "docs/evaluation/DEV_PILOT_FINALIZATION_PROVENANCE.md",
+    "docs/evaluation/acquisition_v1/",
+    "benchmarks/eval_v1/selection/",
+    "benchmarks/eval_v1/acquisition/b1a_5b/",
+    "corpus/eval_v1/"
+  ],
+  "relevant_paths_clean": true,
+  "selection": {
+    "acquisition_schema_version": "1",
+    "exclusion_union_sha256": "345630bf8624f7c4a7616fa74def61a924e1d5954a51de389953c1a5018ed082",
+    "per_corpus": {
+      "doclaynet": 6,
+      "federal_register": 6,
+      "pmc_oa": 8
+    },
+    "per_fr_stratum": {
+      "Notice": 2,
+      "Proposed Rule": 2,
+      "Rule": 2
+    },
+    "selected_total": 20,
+    "selection_algorithm_version": "1",
+    "selection_manifest_path": "docs/evaluation/DEV_PILOT_MANIFEST_V1.json",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  }
+}

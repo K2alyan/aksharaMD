@@ -1,0 +1,101 @@
+{
+  "fingerprint": {
+    "acquisition_schema_version": "1",
+    "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+    "corpus": "doclaynet",
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4"
+  },
+  "payload": {
+    "acquired_utc": "2026-09-16T02:42:31+00:00",
+    "acquisition_schema_version": "1",
+    "assets": [
+      {
+        "byte_size": 530337,
+        "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.png",
+        "role": "png",
+        "sha256": "db641239edbec1af4693a6fb830f3d05e77d7cabf2311a6d234b5db971898832",
+        "source_key": "data/train-00005-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "6510a04ea5f693aa6f35e8d9429e948de2e2e4ac1fe9db41377ef4f12f494dac"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 38639,
+        "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.pdf",
+        "role": "pdf",
+        "sha256": "23b79f34fdbe2e7a5b769fc2abad81057edb16756c4d7cdb5376c48ce401aa31",
+        "source_key": "data/train-00005-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "6510a04ea5f693aa6f35e8d9429e948de2e2e4ac1fe9db41377ef4f12f494dac"
+        },
+        "source_url": null
+      },
+      {
+        "byte_size": 5352,
+        "local_path": "corpus\\eval_v1\\doclaynet\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77\\3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.annotations.json",
+        "role": "annotations",
+        "sha256": "836c34872a9472721b9dce72fce82003df343b9049b99ddfa1ea511a505af082",
+        "source_key": "data/train-00005-of-00072.parquet",
+        "source_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "source_side_integrity": {
+          "shard_sha256": "6510a04ea5f693aa6f35e8d9429e948de2e2e4ac1fe9db41377ef4f12f494dac"
+        },
+        "source_url": null
+      }
+    ],
+    "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+    "corpus": "doclaynet",
+    "provenance": {
+      "locked": {
+        "dataset_id": "docling-project/DocLayNet-v1.2",
+        "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "split": "train"
+      },
+      "selected": {
+        "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+        "metadata_at_selection": {
+          "doc_category": "financial_reports",
+          "image_id": 5968,
+          "n_annotations": 17,
+          "original_filename": "AMEX_TTNP_2001.pdf",
+          "page_hash": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+          "page_no": 26,
+          "shard_key": "data/train-00005-of-00072.parquet"
+        },
+        "shard_key": "data/train-00005-of-00072.parquet"
+      },
+      "upstream_at_acquisition": {
+        "dataset_id": "docling-project/DocLayNet-v1.2",
+        "last_modified_utc": "2025-02-10T16:33:40.000Z",
+        "n_annotations": 17,
+        "revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+        "shard_key": "data/train-00005-of-00072.parquet",
+        "shard_sha256": "6510a04ea5f693aa6f35e8d9429e948de2e2e4ac1fe9db41377ef4f12f494dac"
+      }
+    },
+    "reason": null,
+    "selection_manifest_sha256": "6fc5d91da9cb896a49e396ea952b8b1aa417db422826bcd1512e9e58c69370b4",
+    "status": "acquired",
+    "validation_checks": [
+      {
+        "name": "dataset.pinned_revision_resolves",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "shard.returned_page_hash_matches_selected",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "eligibility.page_still_matches_selection_contract",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "6c3e24cfc90928bb9da03209aad8bde337b9ddf4018e9308067bbacae2996d3a"
+}
