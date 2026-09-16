@@ -218,16 +218,19 @@ Distribution across the 64 rows: 1 GOOD, 7 MINOR, 19 MAJOR, 37 CATASTROPHIC.
 For each pair, compute the two reviewer labels independently via §9.1.
 
 - If the two labels are identical → that label is the pair label.
-- If the two labels differ by **≤ 1 severity level** (e.g., MINOR vs. MAJOR) → the **lower-quality** (more severe) label is taken conservatively as the pair label.
-- If the two labels differ by **≥ 2 severity levels** (e.g., GOOD vs. MAJOR) → the pair is escalated to a third adjudicator (§9.3).
+- If the two labels differ **at all** (≥ 1 severity level, in either direction) → the pair is escalated to a blinded third adjudicator (§9.3).
 
-The conservative-on-adjacent-disagreement rule is a deliberate one-way bias: the study should over-report failures rather than under-report them.
+The reconciliation rule does **not** mechanically select the worse (or better) of two disagreeing primary labels. Selecting the more severe label on adjacent disagreement would introduce a systematic one-way bias into the human criterion layer that is not established in PROTOCOL_V1 or Appendix B. Instead, every disagreement — including one-level disagreements — is resolved by an independent third reviewer under the same blinding.
+
+Primary labels are always retained independently in the label record. They are the input to IAA (§9.4) and to any sensitivity analysis; they are never overwritten or discarded when a pair goes to adjudication.
 
 ### 9.3 Third-adjudicator procedure
 
 Escalated pairs are sent to a single trained adjudicator (not one of the two primary reviewers) under the same blinding as §4. The adjudicator answers the same three questions from §5 independently. The adjudicator's derived label is the pair label. The two primary labels are retained in the label record but are not used to compute the pair label.
 
 The adjudicator does not see either primary reviewer's answers before submitting their own.
+
+Because §9.2 escalates every non-identical disagreement, the adjudication caseload is a study-cost parameter, not a rare edge case. B1a-7c must budget for it explicitly.
 
 ### 9.4 Inter-annotator agreement (IAA)
 
@@ -290,23 +293,41 @@ The report writeup **must** describe Federal Register labels as G2 adjudicated a
 
 ## 11. Post-hoc rubric-change prohibition
 
-The following are prohibited **after** any B1 label is emitted under this contract:
+Changes made **after** any B1 label is emitted under this contract fall into two disjoint version domains. `mapping_id` identifies the Q1/Q2/Q3 → severity mapping; it is not a proxy for reviewer operations. Confusing the two would either force a mapping bump for every operational tweak (weakening the mapping identity as an integrity anchor) or allow operational drift to happen silently under the same `mapping_id` (weakening the reviewer-operations record). Both are prohibited.
+
+### 11.1 Changes that require a new `mapping_id`
+
+The following change the mapping itself and require a new `mapping_id` (not a `version` bump under `appendix_b_v1`):
 
 - Changing the wording of Q1, Q2, or Q3.
-- Changing the answer values or their ordering.
-- Changing the derivation formula in §9.1.
+- Changing the answer values or their ordering (per question).
+- Changing the derivation formula in §9.1 (`label = severity_labels[max(q1_rank, q2_rank, q3_rank)]`).
 - Changing any cell of the 64-row mapping table.
-- Changing the reconciliation rule in §9.2 or the escalation threshold in §9.3.
-- Changing the blinding surface in §4 to reveal previously-hidden signals.
+
+A change of this kind invalidates every previously emitted label mechanically: the (Q1, Q2, Q3) → label function is not the same function anymore.
+
+### 11.2 Changes that require a new reviewer-contract version
+
+The following change reviewer operations while leaving the (Q1, Q2, Q3) → label mapping identical. They require a new **reviewer-contract version** (this document, bumped) and **not** a new `mapping_id`:
+
+- Changing the reconciliation rule in §9.2 or the adjudication procedure in §9.3.
+- Changing the blinding surface in §4 (either to reveal previously-hidden signals or to hide previously-visible ones).
+- Changing the population, affiliation, or independence rules in §3.
+- Changing the source/extraction surface in §6.
+- Changing abstention semantics (§7.1) or ambiguity-flag semantics (§7.2).
+- Changing timing collection or the fields recorded per label in §12.
+- Changing corpus-specific ground-truth presentation in §10 (e.g., turning the PMC JATS pane from on-demand to always-shown after labels have been emitted under the earlier policy).
 - Retroactively re-partitioning labels by affiliation, corpus, or time such that some labels are silently dropped.
 
-Any change to the above requires:
+### 11.3 Consequences shared by both change classes
 
-1. A new `mapping_id` (not a bump of `version` under the same `mapping_id`) or a new question set.
+Any change under §11.1 or §11.2 requires all of:
+
+1. A new artifact identifier: a new `mapping_id` for §11.1 changes, or a new reviewer-contract version for §11.2 changes.
 2. Re-labeling of the affected pairs under the new artifact.
-3. An explicit note in the report distinguishing V1-under-old-contract labels from V1-under-new-contract labels. The two sets are **not** merged.
+3. An explicit note in the report distinguishing labels emitted under the old artifact from labels emitted under the new artifact. The two sets are **not** merged.
 
-The contract's cryptographic anchors (mapping raw SHA `f4c634455c422d95083a2e3599c2eddb48a0cee09beaf041532be878eeece4cb`, canonical SHA `99248be55e23f3a8da914cda07f465c2ff529ab451c47e4f9db7232338cf08a9`) are recorded in each label record. A drift in either SHA at label time is a fail-closed condition; no label may be emitted against a mismatched mapping.
+The mapping's cryptographic anchors — raw-bytes SHA `f4c634455c422d95083a2e3599c2eddb48a0cee09beaf041532be878eeece4cb` and canonical-JSON SHA `99248be55e23f3a8da914cda07f465c2ff529ab451c47e4f9db7232338cf08a9` — are recorded in every label record. A drift in either SHA at label time is a fail-closed condition; no label may be emitted against a mismatched mapping. This anchor secures §11.1 changes. §11.2 changes are secured by the `reviewer_contract_version` field recorded on each label (see §12), which is the reviewer-contract counterpart to the mapping SHAs.
 
 ---
 
@@ -331,6 +352,7 @@ Each emitted label carries at least:
 - `mapping_canonical_sha256` — `99248be55e23f3a8da914cda07f465c2ff529ab451c47e4f9db7232338cf08a9`.
 - `mapping_raw_sha256` — `f4c634455c422d95083a2e3599c2eddb48a0cee09beaf041532be878eeece4cb`.
 - `question_set_source_sha256` — SHA-256 of the `adjudication.py` bytes at label time.
+- `reviewer_contract_version` — semantic version of this document under which the label was emitted (initial value: `v1`). Bumped for §11.2 changes; not bumped for §11.1 changes (those bump `mapping_id` instead).
 
 The exact record schema is specified by B1a-7b (labeling-execution contract); this section fixes the minimum fields required for any label produced under this contract to be admissible.
 
