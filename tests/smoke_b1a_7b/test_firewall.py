@@ -61,6 +61,146 @@ def test_classification_unknown_exception_is_not_blocked() -> None:
 
 
 # ---------------------------------------------------------------------------
+# HTTPS probe exception classification.
+#
+# B1a-7b.2c real-smoke observation: on Attempt #1, the HTTPS probe against
+# ``https://1.1.1.1/`` failed with ``ssl.SSLCertVerificationError``
+# because Python's default CA bundle on this host does not trust the
+# certificate chain presented by that endpoint. The TCP+TLS handshake
+# reached cert-verification — evidence that egress works. The previous
+# classifier incorrectly reported ``connected=False`` (via the OSError
+# catch-all, since SSLError inherits from OSError), causing the
+# pre-smoke positive control to fail and the smoke to return
+# INCONCLUSIVE without executing any parser.
+#
+# These tests pin the corrected behavior. They do NOT weaken the
+# blocked-egress invariant: firewall-blocked cases fail at the TCP
+# layer before TLS starts, so no ``ssl.SSLError`` can arise from a
+# genuine block.
+
+
+def test_ssl_cert_verification_error_maps_to_connected_true() -> None:
+    """The exact exception observed in Attempt #1: cert-verify error
+    means the TLS handshake reached the remote endpoint. Egress works."""
+    import ssl
+    exc = ssl.SSLCertVerificationError(
+        "certificate verify failed: unable to get local issuer certificate",
+    )
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is True
+    assert result.exc_class_name == "SSLCertVerificationError"
+    assert "tls handshake reached endpoint" in result.detail.lower()
+
+
+def test_ssl_error_generic_maps_to_connected_true() -> None:
+    """Any TLS-layer error — bad protocol version, cipher mismatch,
+    truncated record — indicates the TLS handshake started, which in
+    turn indicates the TCP connection succeeded. Egress reachable."""
+    import ssl
+    exc = ssl.SSLError("[SSL: WRONG_VERSION_NUMBER] wrong version number")
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is True
+    assert result.exc_class_name == "SSLError"
+
+
+def test_https_probe_connection_refused_still_classified_as_block() -> None:
+    """The invariant: under a real firewall block, TCP fails BEFORE
+    TLS starts. This test proves that ConnectionRefusedError (typical
+    blocked-egress outcome) is still classified correctly."""
+    import errno as _errno
+    exc = ConnectionRefusedError(_errno.ECONNREFUSED, "refused")
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is False
+    assert result.exc_class_name == "ConnectionRefusedError"
+    assert fw.probe_is_admissible_block(result) is True
+
+
+def test_https_probe_timeout_still_classified_as_block() -> None:
+    """Under a DROP-style firewall, the connect attempt times out.
+    That case must still be classified as a block."""
+    exc = TimeoutError("timed out")
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is False
+    assert result.exc_class_name == "TimeoutError"
+    assert fw.probe_is_admissible_block(result) is True
+
+
+def test_https_probe_oserror_with_net_unreach_still_classified_as_block() -> None:
+    import errno as _errno
+    exc = OSError(_errno.ENETUNREACH, "network unreachable")
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is False
+    assert result.exc_class_name == "OSError"
+    assert result.errno_int == _errno.ENETUNREACH
+    assert fw.probe_is_admissible_block(result) is True
+
+
+def test_https_probe_dns_failure_still_not_admissible_and_not_reachable() -> None:
+    """DNS failure alone is neither admissible-block nor evidence of
+    reachability. It's just unusable evidence (bare-IP probe should
+    not gaierror; if it does, refuse to certify anything)."""
+    import socket as _socket
+    exc = _socket.gaierror("host lookup failed")
+    result = fw._https_result_from_exception(exc)
+    assert result.connected is False
+    assert result.exc_class_name == "gaierror"
+    assert fw.probe_is_admissible_block(result) is False
+
+
+def test_admissible_block_classification_treats_ssl_cert_result_as_not_blocked() -> None:
+    """Sanity: after the classifier change, feeding an SSL-cert
+    ProbeResult through probe_is_admissible_block returns False —
+    meaning 'not admissible as evidence of block' — because
+    connected=True (egress reachable)."""
+    import ssl
+    exc = ssl.SSLCertVerificationError("unable to get local issuer certificate")
+    result = fw._https_result_from_exception(exc)
+    assert fw.probe_is_admissible_block(result) is False
+
+
+def test_positive_control_passes_when_https_hits_ssl_cert_error() -> None:
+    """End-to-end regression against the exact Attempt #1 failure.
+    A probe backend where TCP connects and HTTPS raises
+    SSLCertVerificationError should be treated by ``run_probes`` as
+    both probes reachable — i.e., the pre-smoke positive control
+    would pass and the smoke proceeds to firewall setup."""
+    import ssl
+
+    class _AttemptOneReplayBackend:
+        """Reproduces the exact classifier inputs from the observed
+        Attempt #1 failure: TCP connect succeeds, HTTPS raises
+        SSLCertVerificationError."""
+
+        def tcp_connect(self, host, port, timeout):
+            return fw.ProbeResult(
+                name="tcp_connect", connected=True,
+                exc_class_name=None, errno_int=None,
+                detail="tcp connected (attempt-1 replay)",
+            )
+
+        def https_get(self, url, timeout):
+            exc = ssl.SSLCertVerificationError(
+                "certificate verify failed: unable to get local issuer certificate",
+            )
+            return fw._https_result_from_exception(exc)
+
+    obs = fw.run_probes(_AttemptOneReplayBackend())
+    # Both probes reached the endpoint → both connected=True.
+    assert obs.probe_tcp_connect.connected is True
+    assert obs.probe_https_get.connected is True
+    # blocked = admissible_block on BOTH; TCP is connected → False,
+    # HTTPS is connected → False → blocked overall = False.
+    assert obs.blocked is False
+
+    # And critically: the positive-control classifier (used by
+    # smoke_runner._pc_pass) requires both connected to be True.
+    # That's how we verify the fix repairs the Attempt #1 failure.
+    both_reached = (obs.probe_tcp_connect.connected
+                    and obs.probe_https_get.connected)
+    assert both_reached is True
+
+
+# ---------------------------------------------------------------------------
 # run_probes composition.
 
 

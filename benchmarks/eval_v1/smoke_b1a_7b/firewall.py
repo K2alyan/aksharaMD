@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import errno
 import socket
+import ssl
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -56,6 +57,78 @@ _EXPECTED_ERRNOS = {
 # The probe uses a bare IP so gaierror should not occur; if it does, we
 # refuse to certify egress-blocked, per §4.3 of the smoke spec.
 _DNS_FAILURE_EXCEPTIONS = (socket.gaierror,)
+
+
+def _https_result_from_exception(exc: BaseException) -> ProbeResult:
+    """Map an exception raised during the HTTPS probe to a ProbeResult.
+
+    Rationale (B1a-7b.2c real-smoke observation):
+
+    ``https://1.1.1.1/`` presents a TLS certificate whose chain is not
+    trusted by every Python installation's default CA bundle. When
+    Python raises ``ssl.SSLCertVerificationError`` (or any
+    ``ssl.SSLError``), the TCP connection has already succeeded AND
+    the TLS handshake has reached the point of certificate
+    verification. That is evidence that the process CAN reach the
+    remote endpoint — egress works. The cert-verify error is a local
+    PKI-trust issue, not a connectivity issue.
+
+    Classifying ``ssl.SSLError`` as ``connected=False`` (the previous
+    behavior, via the OSError catch-all) caused the pre-smoke positive
+    control to fail on Attempt #1 of the real smoke, marking it
+    ``INCONCLUSIVE`` even though egress was demonstrably reachable
+    (the TCP probe on the same host succeeded).
+
+    The corrected classification:
+
+    1. ``ssl.SSLError`` (including ``SSLCertVerificationError``) →
+       ``connected=True``. TLS handshake progressed = endpoint reached.
+    2. DNS failures → ``connected=False``, not admissible as block
+       (bare IP should never gaierror).
+    3. Expected block-like exceptions
+       (``ConnectionRefusedError`` / ``TimeoutError`` / ``OSError``
+       with block-like errno) → ``connected=False``, admissible.
+    4. Anything else → ``connected=False``, not admissible.
+
+    Invariant preserved: under a real Windows Defender Firewall
+    outbound-block rule, the TCP layer fails BEFORE TLS starts. No
+    ``ssl.SSLError`` can be raised; the failure path is
+    ``ConnectionRefusedError`` / ``TimeoutError`` /
+    ``OSError(ENETUNREACH)``. So the fix cannot make a blocked-egress
+    scenario look reachable.
+    """
+    # Order matters. ssl.SSLError is a subclass of OSError; catching
+    # it first prevents the OSError branch from swallowing it.
+    if isinstance(exc, ssl.SSLError):
+        return ProbeResult(
+            name="https_get", connected=True,
+            exc_class_name=type(exc).__name__, errno_int=None,
+            detail=(
+                "tls handshake reached endpoint (cert-verify or other "
+                f"tls-layer error): {exc!r} — egress REACHABLE; the "
+                "local PKI-trust outcome is irrelevant for a connectivity "
+                "probe."
+            ),
+        )
+    if isinstance(exc, _DNS_FAILURE_EXCEPTIONS):
+        return ProbeResult(
+            name="https_get", connected=False,
+            exc_class_name=type(exc).__name__, errno_int=None,
+            detail=f"dns failure (not admissible): {exc!r}",
+        )
+    if isinstance(exc, _EXPECTED_EXCEPTIONS):
+        return ProbeResult(
+            name="https_get", connected=False,
+            exc_class_name=type(exc).__name__,
+            errno_int=getattr(exc, "errno", None),
+            detail=f"expected block-like exception: {exc!r}",
+        )
+    return ProbeResult(
+        name="https_get", connected=False,
+        exc_class_name=type(exc).__name__,
+        errno_int=getattr(exc, "errno", None),
+        detail=f"unexpected exception (not admissible): {exc!r}",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -161,26 +234,8 @@ class RealProbeBackend:
                 )
             finally:
                 conn.close()
-        except _DNS_FAILURE_EXCEPTIONS as exc:  # pragma: no cover
-            return ProbeResult(
-                name="https_get", connected=False,
-                exc_class_name=type(exc).__name__, errno_int=None,
-                detail=f"dns failure (not admissible): {exc!r}",
-            )
-        except _EXPECTED_EXCEPTIONS as exc:
-            return ProbeResult(
-                name="https_get", connected=False,
-                exc_class_name=type(exc).__name__,
-                errno_int=getattr(exc, "errno", None),
-                detail=f"expected block-like exception: {exc!r}",
-            )
-        except Exception as exc:  # pragma: no cover
-            return ProbeResult(
-                name="https_get", connected=False,
-                exc_class_name=type(exc).__name__,
-                errno_int=getattr(exc, "errno", None),
-                detail=f"unexpected exception (not admissible): {exc!r}",
-            )
+        except BaseException as exc:  # noqa: BLE001 - classified by helper
+            return _https_result_from_exception(exc)
 
 
 # ---------------------------------------------------------------------------
