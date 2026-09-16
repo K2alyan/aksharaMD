@@ -8,27 +8,31 @@ Contract:
     {"status": "EXECUTED", "markdown": "...", "meta": {...}}
     or
     {"status": "DEFECT", "defect_reason": "<coded>"}
-- On a Python exception, emits the exception class name to stderr on
-  a line prefixed ``AKSHARAMD_SMOKE_DEFECT_REASON: <parser>_exception:<Class>``
-  and exits with a non-zero status so the parent adapter records DEFECT.
-- Never imports another parser than the one requested (lazy import),
-  so instantiating one worker does not incur the other three parsers'
-  dependencies.
+- Coded reasons come from the parser-execution contract §6 vocabulary.
+- Never imports another parser than the one requested (lazy import
+  inside the per-parser branch), so instantiating one worker does not
+  incur the other three parsers' dependencies.
 
-This file is NOT exercised by the synthetic test suite; imports of
-``marker`` / ``docling`` / ``markitdown`` are blocked by the smoke
-test conftest, and this worker is designed to be invoked as a
-subprocess. Coverage happens at real-smoke authorization
-(B1a-7b.2b real-execution, not this PR).
+Each real-parser branch below is exercised at real-smoke time only.
+The synthetic test suite uses ``sys.modules`` monkeypatching to
+inject fake adapter modules so the branches' *dispatch shape* is
+verified without ever importing the real parser packages.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from typing import Any
 
 _KNOWN_PARSER_IDS = {"aksharamd-reference", "marker", "docling", "markitdown"}
+
+_MEDIA_TYPE = "application/pdf"
+
+
+# --------------------------------------------------------------------------
+# JSON output helpers.
 
 
 def _emit_success(markdown: str, meta: dict[str, Any] | None = None) -> int:
@@ -52,34 +56,99 @@ def _coded_exception_reason(parser_id: str, class_name: str) -> str:
     return f"{parser_id}_exception:{class_name}"
 
 
-def _run_aksharamd_reference(pdf_bytes: bytes) -> int:  # pragma: no cover
-    # Real coverage happens at B1a-7b.2b real-smoke time. Kept as an
-    # explicit branch so the CLI dispatch shape is fixed.
-    from benchmarks.eval_v1.smoke_run_v2 import _compile_pdf_bytes  # type: ignore
+# --------------------------------------------------------------------------
+# CUDA-error classification.
+#
+# torch may raise ``torch.cuda.OutOfMemoryError`` (newer versions) or a
+# ``RuntimeError`` whose message contains "CUDA out of memory". Similarly
+# for "no CUDA-capable device is detected" / "CUDA driver initialization
+# failed". We classify by class-name + message substring so the worker
+# does not depend on ``torch`` at import time.
+
+
+_CUDA_OOM_SUBSTRINGS = ("cuda out of memory", "cudnn_status_alloc_failed")
+_CUDA_UNAVAILABLE_SUBSTRINGS = (
+    "no cuda-capable device",
+    "cuda driver initialization failed",
+    "cuda unavailable",
+    "torch not compiled with cuda enabled",
+    "no cuda gpus are available",
+)
+
+
+def _classify_cuda_error(parser_id: str, exc: BaseException) -> str | None:
+    """Return a coded CUDA-specific defect_reason if the exception is
+    a recognizable CUDA problem, otherwise None.
+
+    Only applies to VLM parsers (marker, docling)."""
+    if parser_id not in ("marker", "docling"):
+        return None
+    class_name = type(exc).__name__
+    message = str(exc).lower()
+    if class_name == "OutOfMemoryError" or any(s in message for s in _CUDA_OOM_SUBSTRINGS):
+        return f"{parser_id}_cuda_oom"
+    if any(s in message for s in _CUDA_UNAVAILABLE_SUBSTRINGS):
+        return f"{parser_id}_cuda_unavailable"
+    return None
+
+
+# --------------------------------------------------------------------------
+# ParserInput construction (used by three of the four workers).
+
+
+def _build_parser_input(pdf_bytes: bytes, canonical_id: str):
+    """Build a ``ParserInput`` for the adapter. Imported lazily so a
+    worker for a parser that does not use ParserInput (aksharamd-
+    reference calls ``_compile_pdf_bytes`` directly) does not import
+    this module."""
+    from aksharamd.parser_contract import ParserInput
+    return ParserInput(
+        source_id=canonical_id,
+        source_hash=hashlib.sha256(pdf_bytes).hexdigest(),
+        media_type=_MEDIA_TYPE,
+        data=pdf_bytes,
+    )
+
+
+# --------------------------------------------------------------------------
+# Per-parser dispatch.
+
+
+def _run_aksharamd_reference(pdf_bytes: bytes, canonical_id: str) -> int:
+    """Reference parser goes through the AksharaMD compilation path
+    ``benchmarks.parsed_vs_raw.arms.parser_arm._compile_pdf_bytes``,
+    which is the same entry point used by
+    ``benchmarks.eval_v1.smoke_run_v2``."""
+    from benchmarks.parsed_vs_raw.arms.parser_arm import _compile_pdf_bytes
     md = _compile_pdf_bytes(pdf_bytes)
     return _emit_success(md)
 
 
-def _run_marker(pdf_bytes: bytes) -> int:  # pragma: no cover
-    from benchmarks.eval_v1.adjudication import ReviewerArtifact  # noqa: F401
-    # The specific call shape depends on MarkerAdapter's public API,
-    # which is not exercised in synthetic tests. B1a-7b.2b real-smoke
-    # authorization is when this branch first runs.
-    raise NotImplementedError(
-        "marker worker body pending real-smoke authorization (B1a-7b.2b real)"
-    )
+def _run_marker(pdf_bytes: bytes, canonical_id: str) -> int:
+    from benchmarks.parsed_vs_raw.adapters.marker_adapter import MarkerAdapter
+    adapter = MarkerAdapter()
+    src = _build_parser_input(pdf_bytes, canonical_id)
+    artifact = adapter.parse(src)
+    markdown = artifact.content.decode("utf-8")
+    return _emit_success(markdown)
 
 
-def _run_docling(pdf_bytes: bytes) -> int:  # pragma: no cover
-    raise NotImplementedError(
-        "docling worker body pending real-smoke authorization (B1a-7b.2b real)"
-    )
+def _run_docling(pdf_bytes: bytes, canonical_id: str) -> int:
+    from benchmarks.parsed_vs_raw.adapters.docling_adapter import DoclingAdapter
+    adapter = DoclingAdapter()
+    src = _build_parser_input(pdf_bytes, canonical_id)
+    artifact = adapter.parse(src)
+    markdown = artifact.content.decode("utf-8")
+    return _emit_success(markdown)
 
 
-def _run_markitdown(pdf_bytes: bytes) -> int:  # pragma: no cover
-    raise NotImplementedError(
-        "markitdown worker body pending real-smoke authorization (B1a-7b.2b real)"
-    )
+def _run_markitdown(pdf_bytes: bytes, canonical_id: str) -> int:
+    from benchmarks.parsed_vs_raw.adapters.markitdown_adapter import MarkItDownAdapter
+    adapter = MarkItDownAdapter()
+    src = _build_parser_input(pdf_bytes, canonical_id)
+    artifact = adapter.parse(src)
+    markdown = artifact.content.decode("utf-8")
+    return _emit_success(markdown)
 
 
 _DISPATCH = {
@@ -90,7 +159,24 @@ _DISPATCH = {
 }
 
 
-def main(argv: list[str] | None = None) -> int:  # pragma: no cover
+# --------------------------------------------------------------------------
+# CLI + top-level exception handling.
+
+
+def _handle_call(parser_id: str, pdf_bytes: bytes, canonical_id: str) -> int:
+    """Run the requested parser with uniform exception handling."""
+    fn = _DISPATCH[parser_id]
+    try:
+        return fn(pdf_bytes, canonical_id)
+    except BaseException as exc:  # noqa: BLE001 — deliberate broad catch at the boundary
+        # CUDA-specific classification takes precedence for VLM parsers.
+        coded = _classify_cuda_error(parser_id, exc)
+        if coded is None:
+            coded = _coded_exception_reason(parser_id, type(exc).__name__)
+        return _emit_defect(coded)
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="smoke-parser-worker")
     parser.add_argument("--parser-id", required=True, choices=sorted(_KNOWN_PARSER_IDS))
     parser.add_argument("--canonical-id", required=True)
@@ -98,12 +184,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover
 
     pdf_bytes = sys.stdin.buffer.read()
 
-    fn = _DISPATCH[args.parser_id]
-    try:
-        return fn(pdf_bytes)
-    except Exception as exc:  # noqa: BLE001 - deliberate broad catch at the boundary
-        coded = _coded_exception_reason(args.parser_id, type(exc).__name__)
-        return _emit_defect(coded)
+    return _handle_call(args.parser_id, pdf_bytes, args.canonical_id)
 
 
 if __name__ == "__main__":  # pragma: no cover

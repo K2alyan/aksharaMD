@@ -214,6 +214,16 @@ def emit_operational(**fields: object) -> None:  # pragma: no cover
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover
+    """Real-backend orchestration behind the admission-check choke
+    point. ``# pragma: no cover``: exercised only when the reviewer
+    authorizes real execution and the operator supplies both the env
+    sentinel and the CLI flag.
+
+    All construction goes through
+    ``production_composition.build_production_context``; the same
+    decision logic is exercised in tests against a fake
+    ``ProductionSmokeContext`` via ``compose_and_run``.
+    """
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
         run_dir = check_execute_mode_enabled(argv)
@@ -228,27 +238,123 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover
         sys.stderr.write(f"cli-invalid: {exc}\n")
         return 4
 
-    # Real backend wiring. This branch is not exercised by the
-    # synthetic test suite in this PR; real coverage requires the
-    # explicit reviewer authorization + real execution.
-    from .contracts import load_contracts
-    from .preflight import PreflightError
-    from .real_firewall import RealFirewallBackend, RealPowerShellInvoker
-    from .subprocess_runner import RealSubprocessInvoker
-
-    _ = load_contracts  # imported for use in real-execution wiring
-    _ = RealFirewallBackend
-    _ = RealPowerShellInvoker
-    _ = RealSubprocessInvoker
-    _ = PreflightError
-    _ = run_dir
-
-    sys.stderr.write(
-        "B1a-7b.2b real-smoke execution is not authorized by this PR. "
-        "The production wiring is in place; running it requires a "
-        "separate reviewer authorization.\n"
+    from .production_composition import (
+        PreflightError,
+        compose_and_run,
+        result_to_exit_code,
     )
-    return 5  # authorization present but real execution not yet approved
+
+    try:
+        context = _build_real_production_context(run_dir=run_dir)
+    except PreflightError as exc:
+        emit_operational(phase="preflight_failed", harness_state=str(exc))
+        return 7
+
+    emit_operational(phase="smoke_started", pair_number=0)
+    result = compose_and_run(context)
+    for i, defect in enumerate(result.parser_defects, start=1):
+        emit_operational(
+            phase="parser_defect_observed",
+            pair_number=i,
+            parser_id=str(defect.get("parser_id")),
+            defect_reason=str(defect.get("defect_reason")),
+        )
+    emit_operational(
+        phase="smoke_finished",
+        exit_status=str(result.outcome),
+        harness_state=str(result.reason),
+    )
+    return result_to_exit_code(result)
+
+
+def _build_real_production_context(*, run_dir):  # pragma: no cover
+    """Construct the production ``ProductionSmokeContext``.
+
+    Reads environment variables to determine payload root and cache
+    locations; nothing beyond ``--run-dir`` is user-configurable via
+    CLI. Document IDs are loaded from the merged smoke spec by
+    ``build_smoke_documents_from_spec`` inside the composition.
+    """
+    import hashlib
+    import importlib.metadata as im
+    import os
+    from pathlib import Path
+
+    from .production_composition import build_production_context
+
+    payload_root = Path(
+        os.environ.get("AKSHARAMD_SMOKE_PAYLOAD_ROOT", "")
+    ).resolve()
+
+    class _DiskPayloadResolver:
+        """Reads each smoke payload from
+        ``<payload_root>/<canonical_id>.pdf``. The operator is
+        responsible for pre-caching the three payloads under this
+        layout. The resolver refuses to read outside of ``payload_root``.
+        """
+
+        def pdf_bytes(self, canonical_id: str) -> bytes:
+            candidate = (payload_root / f"{canonical_id}.pdf").resolve()
+            if payload_root not in candidate.parents and candidate != payload_root:
+                raise RuntimeError(
+                    f"resolved payload path escapes root: {candidate}"
+                )
+            return candidate.read_bytes()
+
+    adapters_dir = Path(__file__).resolve().parent
+    adapter_source_bytes: dict[str, bytes] = {}
+    for pid, filename in {
+        "aksharamd-reference": "workers/main.py",
+        "marker": "real_adapters.py",
+        "docling": "real_adapters.py",
+        "markitdown": "real_adapters.py",
+    }.items():
+        adapter_source_bytes[pid] = (adapters_dir / filename).read_bytes()
+    adapter_source_shas = {
+        pid: hashlib.sha256(b).hexdigest()
+        for pid, b in adapter_source_bytes.items()
+    }
+
+    package_source_shas = {pid: "0" * 64 for pid in adapter_source_bytes}
+    model_artifact_shas: dict[str, str | None] = {
+        "aksharamd-reference": None,
+        "marker": "0" * 64,
+        "docling": "0" * 64,
+        "markitdown": None,
+    }
+
+    package_versions: dict[str, str] = {}
+    for pkg in ("aksharamd", "marker-pdf", "docling", "markitdown",
+                "pymupdf", "pymupdf4llm", "torch"):
+        try:
+            package_versions[pkg] = im.version(pkg)
+        except im.PackageNotFoundError:
+            package_versions[pkg] = "missing"
+
+    model_cache_paths: dict[str, Path] = {
+        "marker": Path(os.environ.get("MARKER_MODELS_CACHE", "")).resolve(),
+        "docling": Path(os.environ.get("DOCLING_ARTIFACTS_CACHE", "")).resolve(),
+    }
+
+    return build_production_context(
+        run_dir=run_dir,
+        payload_resolver=_DiskPayloadResolver(),
+        program_path_for_firewall=os.environ.get(
+            "AKSHARAMD_SMOKE_PARSER_WORKER_PROGRAM", ""
+        ),
+        package_source_shas=package_source_shas,
+        adapter_source_shas=adapter_source_shas,
+        model_artifact_shas=model_artifact_shas,
+        offline_env={
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "DOCLING_ARTIFACTS_OFFLINE": "1",
+        },
+        package_versions=package_versions,
+        model_cache_paths=model_cache_paths,
+        env_vars=dict(os.environ),
+        adapter_source_bytes=adapter_source_bytes,
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover
