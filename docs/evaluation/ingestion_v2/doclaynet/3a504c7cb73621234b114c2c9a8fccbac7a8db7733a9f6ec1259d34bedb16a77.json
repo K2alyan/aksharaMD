@@ -1,0 +1,391 @@
+{
+  "fingerprint": {
+    "acquisition_receipt_v2_sha256": "45f93f82dda302030c695d5111afa1feecc61092df38940c6f2eba30fa25033f",
+    "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+    "corpus": "doclaynet",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquisition_receipt_v2_sha256": "45f93f82dda302030c695d5111afa1feecc61092df38940c6f2eba30fa25033f",
+    "adapter_class": "DocLayNetV1Adapter",
+    "adapter_contract_version": "1",
+    "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+    "corpus": "doclaynet",
+    "derived_summary": {
+      "categories_represented": [
+        5,
+        8,
+        9,
+        10
+      ],
+      "coco_wh": [
+        1025,
+        1025
+      ],
+      "n_annotations": 17,
+      "original_wh": [
+        612.0,
+        792.0
+      ],
+      "roundtrip_max_error_png_px": 1.1368683772161603e-13,
+      "roundtrip_tolerance_png_px": 0.5
+    },
+    "ground_truth_kind": "bbox_layout",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "source_sha256": "23b79f34fdbe2e7a5b769fc2abad81057edb16756c4d7cdb5376c48ce401aa31",
+    "status": "PASS",
+    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validation_checks": [
+      {
+        "name": "v2_acq.png_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.pdf_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.annotations_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.is_pdf_not_png",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.pdf_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.png_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.native_pdf_geometry_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.kind_is_bbox_layout",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.page_hash_matches_canonical_id",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_expected_reading_order_oracle",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_reading_order_oracle",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_table_cell_structure_oracle",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_table_cells_oracle",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_teds_oracle",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotations_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_id_valid",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.category_name_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.annotation.bbox_shape",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.all_pdf_bboxes_in_page_bounds",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.png_pdf_png_roundtrip_within_tolerance",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.extraction_rules_version_recorded",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "8f7974c87535ba38860d5d0edbbb70f0987cbb958833aae598c166bd2cefaf29"
+}
