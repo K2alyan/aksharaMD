@@ -173,7 +173,25 @@ def _hard_block_frozen_smoke_payload_reads(monkeypatch, request):
         _check_path(self)
         return original_open(self, *args, **kwargs)
 
+    _PAYLOAD_SUFFIXES = {".pdf", ".xml", ".jats", ".jats.xml"}
+
+    def _looks_like_payload_path(path: Path) -> bool:
+        """Payload-shaped paths are refused; harness output shapes
+        (execution_record.json, raw_output.md, stdout.txt, etc.) are
+        allowed even when the path contains a frozen canonical_id as
+        a subdirectory component. This lets composition tests exercise
+        the runner's on-disk layout <run-dir>/<parser>/<canonical_id>/
+        without tripping the guard, while still refusing any attempt
+        to read/stage a real payload."""
+        name_lower = path.name.lower()
+        for suffix in _PAYLOAD_SUFFIXES:
+            if name_lower.endswith(suffix):
+                return True
+        return False
+
     def _check_path(path):
+        if not _looks_like_payload_path(path):
+            return
         s = str(path)
         for fid in FROZEN_SMOKE_PAYLOAD_IDS:
             if fid in s:
