@@ -1,0 +1,143 @@
+{
+  "fingerprint": {
+    "acquisition_receipt_v2_sha256": "bcf63faf37f461ccf43e967368604c0b1ee80f86bd651a1a20b301462f0a9d6d",
+    "canonical_id": "2025-11271",
+    "corpus": "federal_register",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquisition_receipt_v2_sha256": "bcf63faf37f461ccf43e967368604c0b1ee80f86bd651a1a20b301462f0a9d6d",
+    "adapter_class": "FederalRegisterV1Adapter",
+    "adapter_contract_version": "1",
+    "canonical_id": "2025-11271",
+    "corpus": "federal_register",
+    "derived_summary": {
+      "granule_id": "2025-11271",
+      "package_id": "FR-2025-06-18",
+      "stratum": "Proposed Rule",
+      "xml_available": true
+    },
+    "ground_truth_kind": "fpr_baseline",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "source_sha256": "9ee9eb19bccf31d8f458a27749ffdada6fdf61168900b704eaf1cc599c4c2bad",
+    "status": "PASS",
+    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validation_checks": [
+      {
+        "name": "v2_acq.api_json_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.pdf_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_clean_native_fpr",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_textual_gt_false",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_layout_gt_false",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.is_pdf",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.pdf_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.govinfo_identity_traceable",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.xml_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.xml_role_is_g2_adjudication_support_only",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.kind_is_fpr_baseline",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_expected_prose_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'expected_prose' present"
+      },
+      {
+        "name": "gt.no_word_set_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'word_set' present"
+      },
+      {
+        "name": "gt.no_tokens_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'tokens' present"
+      },
+      {
+        "name": "gt.no_body_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'body_text' present"
+      },
+      {
+        "name": "gt.no_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'text' present"
+      },
+      {
+        "name": "gt.no_oracle_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'oracle_text' present"
+      },
+      {
+        "name": "gt.no_expected_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'expected_text' present"
+      },
+      {
+        "name": "gt.contract_kind_is_fpr_baseline",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.adjudication_support_role_correct",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.extraction_rules_version_recorded",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.provenance_document_number_matches",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "abd297e7b1a175ae41487bc158a9595d493762a9a96466ec48e9c8f3d447ee27"
+}

@@ -1,0 +1,143 @@
+{
+  "fingerprint": {
+    "acquisition_receipt_v2_sha256": "bcb41a9b3f530691e997cb4e986b1f66712bfe151d7c16d4dea0764ac991bbbd",
+    "canonical_id": "2025-07879",
+    "corpus": "federal_register",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquisition_receipt_v2_sha256": "bcb41a9b3f530691e997cb4e986b1f66712bfe151d7c16d4dea0764ac991bbbd",
+    "adapter_class": "FederalRegisterV1Adapter",
+    "adapter_contract_version": "1",
+    "canonical_id": "2025-07879",
+    "corpus": "federal_register",
+    "derived_summary": {
+      "granule_id": "2025-07879",
+      "package_id": "FR-2025-05-06",
+      "stratum": "Rule",
+      "xml_available": true
+    },
+    "ground_truth_kind": "fpr_baseline",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "source_sha256": "6af370e1eef0b0058bc234755750a7bfed04a1bb6fed802aabd799cd61910bbf",
+    "status": "PASS",
+    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validation_checks": [
+      {
+        "name": "v2_acq.api_json_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.pdf_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_clean_native_fpr",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_textual_gt_false",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "caps.supports_layout_gt_false",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.is_pdf",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.pdf_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.govinfo_identity_traceable",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.xml_sha_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.xml_role_is_g2_adjudication_support_only",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.kind_is_fpr_baseline",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.no_expected_prose_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'expected_prose' present"
+      },
+      {
+        "name": "gt.no_word_set_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'word_set' present"
+      },
+      {
+        "name": "gt.no_tokens_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'tokens' present"
+      },
+      {
+        "name": "gt.no_body_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'body_text' present"
+      },
+      {
+        "name": "gt.no_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'text' present"
+      },
+      {
+        "name": "gt.no_oracle_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'oracle_text' present"
+      },
+      {
+        "name": "gt.no_expected_text_field",
+        "ok": true,
+        "reason": "unexpected G1 key 'expected_text' present"
+      },
+      {
+        "name": "gt.contract_kind_is_fpr_baseline",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.adjudication_support_role_correct",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.extraction_rules_version_recorded",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.provenance_document_number_matches",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "12e525d17a23bce43c2ce516d0c4a84e0b97a335ed075ed5be37171896152dc0"
+}

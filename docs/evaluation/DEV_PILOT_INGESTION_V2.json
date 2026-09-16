@@ -1,0 +1,158 @@
+{
+  "counts": {
+    "fail": 0,
+    "pass": 20,
+    "per_corpus": {
+      "doclaynet": 6,
+      "federal_register": 6,
+      "pmc_oa": 8
+    },
+    "total": 20
+  },
+  "created_utc": "2026-09-16T04:58:59+00:00",
+  "ingestion_schema_version": "2",
+  "records": [
+    {
+      "canonical_id": "PMC4160324.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC4160324.1.json",
+      "receipt_sha256": "8b20e9f444b75932d87185215aa2389c38b342b5c0f96da0281b6fd86affa2ea",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC12303665.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC12303665.1.json",
+      "receipt_sha256": "b6ec87a3451dfa5514047fb43da7702352e66085bed8b63af56466924f1c87e8",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC10454006.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC10454006.1.json",
+      "receipt_sha256": "e669a066047d68d30729b84073adb3d5d1c24567e97442631e1f608f17e57dfb",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC7773825.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC7773825.1.json",
+      "receipt_sha256": "5ebef8a745ff73f39fe94afbd7e22e45e4e2712652c0c3a280d0aee673d21950",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC5773191.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC5773191.1.json",
+      "receipt_sha256": "9dc4a76525d23a59f279e4e7ef4b7ba72f47cc745f206b0f0359a4beed92b752",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC6374309.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC6374309.1.json",
+      "receipt_sha256": "f6815f1cf62aadcb03528e85ceeb6ac1d0a4c996f6fa6030fca70fcfea5f150a",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC8381808.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC8381808.1.json",
+      "receipt_sha256": "95e4cde361aa0f6039a4825d872476e37d508ed88af6ea7d60d7bdcf2df5b76a",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "PMC3544647.1",
+      "corpus": "pmc_oa",
+      "receipt_path": "docs/evaluation/ingestion_v2/pmc_oa/PMC3544647.1.json",
+      "receipt_sha256": "32755f00e7ec300e0f5ad4fa662cf78b116f7987bd07dd11f54e69c38181c1c8",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77.json",
+      "receipt_sha256": "a0363460cbd8ff100d44658bcc6847698b4410c4ed41037ebdc60d5cfd7455bc",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/601febfd3972ff8015d3f121d6716a9b915533f309883a8591d8c2ced0e2c5b8.json",
+      "receipt_sha256": "949fbbdef3b1329aa73111077458c730af179d57fcc7460c93be9dda4acb33eb",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/664f52bb603e7d3d399c1d87a5b7cae0579387ebf1e18d675e741560ddff26ab.json",
+      "receipt_sha256": "4ca96520967d130457f4520e567736884eaa2d7eb4f0c1be9834f85c4f0d602c",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/8731e4b062bc18699744f25608ab9b37a37e84ffcdc6737d8bb169a88d13beda.json",
+      "receipt_sha256": "11d2812a7b9b8b11b9009375485de7c71d348edf56bb2efcc0022d1e69f8852c",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/a1652ae40baffccaf9a56e953f103666dfe577269add0af79c2732ce72aee290.json",
+      "receipt_sha256": "6982f5e167688117e595a2085f21a3546d3c0d82c51aaf2d63df2d7ddc57570c",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed",
+      "corpus": "doclaynet",
+      "receipt_path": "docs/evaluation/ingestion_v2/doclaynet/7d2023bb74ead6e1e50639a63255ba4729f73248ee1e4254f7c227e486db88ed.json",
+      "receipt_sha256": "13100c754ee90cfba43e7cb535d1db8c0a5a628d1d32fb8397808265a439bf5c",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-07879",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-07879.json",
+      "receipt_sha256": "2af5d64b3c04829d77d66614d3d0140e2785ff29c9ddf98ec5ed187cfcf46c68",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-13505",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-13505.json",
+      "receipt_sha256": "8c847a0eba7d9b9a6295b29f3f201a83fccdfaf15609b9b699ae40ea4c423a4d",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-11271",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-11271.json",
+      "receipt_sha256": "bdb7fdf6860acb36cbbd91ae68acef3cdd44352dcc638fa1249ebc8f164fec2e",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-16333",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-16333.json",
+      "receipt_sha256": "3b2d5716f0845c5159a1a7e7c5167033c891c5dfee5ea2cbc80a6f912556aef5",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-19924",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-19924.json",
+      "receipt_sha256": "e10320740da943b9b857575468680415eebb997de85efb7bdfe39005c2a5f731",
+      "status": "PASS"
+    },
+    {
+      "canonical_id": "2025-12869",
+      "corpus": "federal_register",
+      "receipt_path": "docs/evaluation/ingestion_v2/federal_register/2025-12869.json",
+      "receipt_sha256": "191d2513765e8e0180f9719b634875a9b5bb327943e2d08e051a9bb1860ef6cc",
+      "status": "PASS"
+    }
+  ],
+  "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+  "selection_manifest_version": "2"
+}

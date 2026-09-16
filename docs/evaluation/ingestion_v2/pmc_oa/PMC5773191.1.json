@@ -1,0 +1,135 @@
+{
+  "fingerprint": {
+    "acquisition_receipt_v2_sha256": "1674c1a0e96d6fdddfab3350b0050ea4533ea8ef4d96e7e597b28712bbb2f695",
+    "canonical_id": "PMC5773191.1",
+    "corpus": "pmc_oa",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2"
+  },
+  "payload": {
+    "acquisition_receipt_v2_sha256": "1674c1a0e96d6fdddfab3350b0050ea4533ea8ef4d96e7e597b28712bbb2f695",
+    "adapter_class": "PmcOaV1Adapter",
+    "adapter_contract_version": "1",
+    "canonical_id": "PMC5773191.1",
+    "corpus": "pmc_oa",
+    "derived_summary": {
+      "body_token_count_body_scoped": 3769,
+      "n_captions": 6,
+      "n_tables": 6,
+      "n_tokens_title_abstract_body": 4070,
+      "v2_oracle_predicate_pass": true,
+      "v2_oracle_predicate_version": "2"
+    },
+    "ground_truth_kind": "xml_full_text",
+    "ingestion_schema_version": "2",
+    "selection_manifest_sha256": "739fdbdbf68675a3a5fa1224e58c3c954d3e292837f81a358ecba6eeab43e127",
+    "selection_manifest_version": "2",
+    "source_sha256": "9d5adcce1110c54f59cb4ec8188c59cfa0165d363ce3960be716935462fafe02",
+    "status": "PASS",
+    "validated_utc": "2026-09-16T04:58:59+00:00",
+    "validation_checks": [
+      {
+        "name": "v2_acq.metadata_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.pdf_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_acq.xml_asset_present",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "adapter.instantiated",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.is_pdf",
+        "ok": true,
+        "reason": "got='application/pdf'"
+      },
+      {
+        "name": "source.is_the_acquired_pdf",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "source.sha256_matches_v2_acquisition_receipt",
+        "ok": true,
+        "reason": "adapter=9d5adcce1110... v2_acq=9d5adcce1110..."
+      },
+      {
+        "name": "gt.returned",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.kind_is_xml_full_text",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.body_text_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.tokens_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.title_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.abstract_nonempty",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.extraction_rules_version_recorded",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "gt.license_code_is_CC_BY",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_invariant.canonical_body_tokens_ge_min",
+        "ok": true,
+        "reason": "body_token_count=3769 min=500"
+      },
+      {
+        "name": "v2_invariant.jats_sha_matches_v2_acquisition",
+        "ok": true,
+        "reason": "receipt=0e59c8b42132... local=0e59c8b42132..."
+      },
+      {
+        "name": "v2_invariant.jats_sha_matches_v2_inspection_ledger",
+        "ok": true,
+        "reason": "acq=0e59c8b42132... inspection=0e59c8b42132..."
+      },
+      {
+        "name": "v2_invariant.apply_text_oracle_filters_pass",
+        "ok": true,
+        "reason": null
+      },
+      {
+        "name": "v2_invariant.adapter_body_text_matches_predicate_body",
+        "ok": true,
+        "reason": null
+      }
+    ]
+  },
+  "payload_sha256": "0f3232ced607ebb9ff4ec806f68d4fd65c93d5628cff2a0fa879f5690a18a0ad"
+}
