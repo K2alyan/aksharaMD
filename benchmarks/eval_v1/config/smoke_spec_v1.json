@@ -1,0 +1,296 @@
+{
+  "smoke_spec_version": "v1",
+  "spec_document": "docs/evaluation/B1A_7B2_SMOKE_SPEC_V1.md",
+  "phase": "B1a-7b.2_pre_execution_spec",
+  "authorization_scope": {
+    "authorized_by_this_pr": [
+      "B1a-7b.2_pre_execution_spec_docs_and_config"
+    ],
+    "not_authorized_by_this_pr": [
+      "B1a-7b.2_12_smoke_executions",
+      "B1a-7c_study_freeze_readiness",
+      "B1b_fresh_acquisition",
+      "B1c_held_out_labeling"
+    ]
+  },
+  "smoke_documents": {
+    "selection_criterion": "infrastructure_coverage_only",
+    "explicitly_not_considered": [
+      "parser_slate_performance",
+      "prior_aksharamd_readiness_score",
+      "prior_warning_or_detector_output",
+      "prior_parsed_vs_raw_benchmark_result",
+      "prior_reviewer_labels_or_feedback"
+    ],
+    "recorded_before_any_smoke_output_exists": true,
+    "documents": [
+      {
+        "canonical_id": "PMC5773191.1",
+        "corpus": "pmc_oa",
+        "selection_rank_in_v2": 4,
+        "purpose": "exercise_textual_g1_jats_handoff",
+        "manifest_evidence": {
+          "prose_heavy_no_special_media_payload": true,
+          "body_admitted_by_v2_body_tokens_predicate": true,
+          "pmc_min_body_tokens_predicate": 500
+        }
+      },
+      {
+        "canonical_id": "3a504c7cb73621234b114c2c9a8fccbac7a8db7733a9f6ec1259d34bedb16a77",
+        "corpus": "doclaynet",
+        "selection_rank_in_v2": 0,
+        "purpose": "exercise_structural_g1_annotations_and_coordinate_handling",
+        "manifest_evidence": {
+          "doc_category": "financial_reports",
+          "n_annotations": 17,
+          "page_no": 26,
+          "original_filename": "AMEX_TTNP_2001.pdf",
+          "not_ocr_derived_page": true
+        }
+      },
+      {
+        "canonical_id": "2025-19924",
+        "corpus": "federal_register",
+        "selection_rank_in_stratum": 0,
+        "purpose": "exercise_g2_native_authored_pdf_path",
+        "manifest_evidence": {
+          "stratum": "Notice",
+          "type": "Notice",
+          "page_length": 3,
+          "has_xml": true,
+          "citation": "90 FR 51441"
+        }
+      }
+    ]
+  },
+  "firewall_probe": {
+    "threat_model": "silent_parser_network_dependency",
+    "canary": {
+      "host": "1.1.1.1",
+      "reason_bare_ip_not_dns_name": "dns_failure_alone_cannot_masquerade_as_egress_block"
+    },
+    "probes": [
+      {
+        "name": "tcp_connect",
+        "call": "socket.create_connection((\"1.1.1.1\", 443), timeout=5.0)",
+        "timeout_seconds": 5.0,
+        "expected_failure_exception_classes": ["ConnectionRefusedError", "TimeoutError", "OSError"],
+        "expected_failure_errno_values": ["ECONNREFUSED", "ETIMEDOUT", "ENETUNREACH", "EHOSTUNREACH", "EACCES"],
+        "any_successful_connect_means": "probe_fail_network_not_blocked"
+      },
+      {
+        "name": "https_get",
+        "call": "urllib.request.urlopen(\"https://1.1.1.1/\", timeout=5.0)",
+        "timeout_seconds": 5.0,
+        "expected_failure_exception_classes": ["URLError", "TimeoutError", "OSError"],
+        "any_http_response_means": "probe_fail_network_not_blocked"
+      }
+    ],
+    "total_probe_wall_clock_budget_seconds": 15,
+    "network_egress_blocked_true_iff": "both_probes_raise_from_expected_failure_list",
+    "otherwise": "network_egress_blocked_false_and_defect",
+    "defect_reason_when_false": "network_egress_not_blocked",
+    "dns_only_failure_admissible": false,
+    "positive_control_before_smoke": {
+      "process_context": "separate_process_not_under_firewall_rule",
+      "expected_both_probes_succeed": true,
+      "if_fail_smoke_does_not_proceed": true,
+      "recorded_fields": [
+        "positive_control_started_at",
+        "positive_control_finished_at",
+        "positive_control_pass"
+      ]
+    },
+    "positive_control_after_smoke": {
+      "process_context": "separate_process_not_under_firewall_rule",
+      "expected_both_probes_succeed": true,
+      "if_fail_smoke_is_inconclusive": true,
+      "recorded_fields": [
+        "post_smoke_positive_control_pass"
+      ]
+    },
+    "windows_firewall_rule": {
+      "display_name": "AksharaMD-Smoke-Egress-Block",
+      "direction": "Outbound",
+      "action": "Block",
+      "profile": "Any",
+      "enabled": true,
+      "match_by": "parser_worker_executable_path",
+      "created_via": "New-NetFirewallRule PowerShell cmdlet",
+      "verified_via": "Get-NetFirewallRule",
+      "cleaned_up_at_smoke_end": true,
+      "cleanup_failure_is_harness_defect": true,
+      "recorded_fields": [
+        "firewall_rule_verified_at",
+        "firewall_rule_enabled"
+      ]
+    }
+  },
+  "pass_fail_criteria": {
+    "execution_count": {
+      "required_attempts": 12,
+      "required_valid_execution_records": 12,
+      "missing_or_unparseable_record_is": "harness_fail"
+    },
+    "environment_and_contract_hash": {
+      "required_matches": [
+        "python_version_matches_pinned",
+        "platform_string_matches_pinned_prefix",
+        "parser_package_version_matches_pinned",
+        "parser_execution_contract_version_equals_v1",
+        "parser_execution_contract_config_sha256_matches",
+        "smoke_spec_config_sha256_matches",
+        "normalization_version_equals_2"
+      ]
+    },
+    "network_enforcement": {
+      "required": [
+        "positive_control_pass_true_pre_smoke",
+        "post_smoke_positive_control_pass_true",
+        "firewall_rule_verified_at_populated",
+        "firewall_rule_enabled_true_at_start",
+        "every_record_network_egress_blocked_true_or_defect_with_coded_reason"
+      ]
+    },
+    "schema_completeness": {
+      "required_fields_source": "benchmarks/eval_v1/config/parser_execution_contract_v1.json::execution_record_schema.required_fields",
+      "nullability_source": "benchmarks/eval_v1/config/parser_execution_contract_v1.json::execution_record_schema.nullable_fields",
+      "missing_required_or_unexpectedly_null_is": "harness_fail"
+    },
+    "downstream_flow_for_executed_invocations": {
+      "required": [
+        "normalized_output_md_exists",
+        "analysis_record_json_exists",
+        "analysis_record_links_to_execution_record_by_pair_id",
+        "reviewer_artifact_constructed_with_all_fields_populated",
+        "blinded_parser_hash_equals_sha256_parser_id_first_16_hex",
+        "no_parser_identity_leakage_in_reviewer_surface",
+        "no_labels_emitted_q1_q2_q3_remain_unanswered"
+      ]
+    },
+    "parser_defect_criterion": {
+      "parser_level_defect_compatible_with_pass": true,
+      "defect_record_must_still_satisfy": [
+        "execution_count",
+        "environment_and_contract_hash",
+        "network_enforcement",
+        "schema_completeness"
+      ]
+    },
+    "outcomes": {
+      "pass": "all_of_5_1_through_5_5_satisfied",
+      "fail": "any_criterion_violated_or_any_harness_level_defect_from_section_7_2",
+      "inconclusive": "positive_control_pass_false_or_post_smoke_positive_control_pass_false"
+    }
+  },
+  "review_allowlist": {
+    "inspectable_execution_record_fields": [
+      "pair_id",
+      "canonical_id",
+      "corpus",
+      "parser_id",
+      "python_version",
+      "platform_string",
+      "git_commit",
+      "cpu_physical_cores",
+      "cuda_version",
+      "cuda_driver_version",
+      "cuda_device_name",
+      "parser_package_version",
+      "parser_package_source_sha256",
+      "parser_model_version",
+      "parser_model_artifact_sha256",
+      "adapter_source_sha256",
+      "model_cache_path",
+      "normalization_version",
+      "parser_execution_contract_version",
+      "parser_execution_contract_config_sha256",
+      "smoke_spec_config_sha256",
+      "network_egress_blocked",
+      "pair_started_at",
+      "pair_finished_at",
+      "wall_clock_seconds",
+      "cpu_seconds_user",
+      "cpu_seconds_system",
+      "peak_rss_bytes",
+      "peak_vram_bytes",
+      "cuda_events",
+      "output_bytes",
+      "output_sha256",
+      "stdout_bytes",
+      "stdout_sha256",
+      "stderr_bytes",
+      "stderr_sha256",
+      "exit_status",
+      "defect_reason"
+    ],
+    "inspectable_filesystem_checks": [
+      "file_exists",
+      "utf8_decode_succeeds",
+      "commonmark_parse_succeeds_for_md_files",
+      "recorded_output_sha256_matches_on_disk_bytes",
+      "recorded_output_bytes_matches_file_size"
+    ],
+    "inspectable_reviewer_artifact_fields": [
+      "pair_id",
+      "blinded_parser_hash",
+      "source_pdf_path_present",
+      "extraction_markdown_path_present",
+      "normalized_markdown_path_present",
+      "questions_populated_with_frozen_q1_q2_q3",
+      "mapping_reference_equals_appendix_b_v1_v1"
+    ],
+    "inspectable_smoke_run_log_fields": [
+      "positive_control_started_at",
+      "positive_control_finished_at",
+      "positive_control_pass",
+      "post_smoke_positive_control_pass",
+      "firewall_rule_verified_at",
+      "firewall_rule_enabled",
+      "smoke_started_at",
+      "smoke_finished_at",
+      "per_invocation_timing_summary"
+    ],
+    "prohibited_fields": [
+      "semantic_content_of_raw_output_md",
+      "semantic_content_of_normalized_output_md",
+      "semantic_content_of_reviewer_artifact_rendered_surface",
+      "aksharamd_readiness_score",
+      "aksharamd_severity_band",
+      "aksharamd_warning_list",
+      "detector_output_W_DROPPED_CONTENT",
+      "detector_output_W_GIBBERISH",
+      "detector_output_W_PLACEHOLDER_STUB",
+      "detector_output_W_ENCODING_ARTIFACTS",
+      "detector_output_W_TABLE_MISSING",
+      "detector_output_W_MULTICOLUMN_ORDER",
+      "detector_output_W_HEADER_FOOTER_TABLE_GARBLED",
+      "ground_truth_overlap_pmc_word_set",
+      "ground_truth_overlap_doclaynet_region_agreement",
+      "ground_truth_overlap_cuad_span_presence",
+      "q1_answer",
+      "q2_answer",
+      "q3_answer",
+      "cross_parser_quality_comparison"
+    ],
+    "inadvertent_prohibited_field_exposure_action": "discard_review_and_reconduct_with_fresh_reviewer"
+  },
+  "defect_handling": {
+    "parser_level_defects_continue": true,
+    "parser_level_defect_reasons_reference": "docs/evaluation/PARSER_EXECUTION_CONTRACT_B1_V1.md#6",
+    "no_retry": true,
+    "no_document_replacement": true,
+    "harness_level_defects_stop": true,
+    "harness_level_defects": [
+      "firewall_verification_broken",
+      "schema_writer_broken",
+      "environment_drift",
+      "provenance_mismatch",
+      "blinding_broken",
+      "firewall_rule_cleanup_broken",
+      "positive_control_drift_pre_smoke",
+      "positive_control_drift_post_smoke_marks_inconclusive"
+    ],
+    "silent_stop_is_itself_a_harness_defect": true
+  }
+}
