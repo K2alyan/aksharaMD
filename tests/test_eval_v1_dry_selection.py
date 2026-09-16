@@ -29,7 +29,6 @@ from benchmarks.eval_v1.selection.pilot_selector import (
     FEDERAL_REGISTER_TARGET_N,
     FR_STRATA,
     PMC_OA_TARGET_N,
-    SELECTION_ALGORITHM_VERSION,
     make_candidate,
     select_from_dev,
     select_stratified,
@@ -136,7 +135,11 @@ def test_checkpoint_envelope_shape_and_payload_sha(envelopes, key):
     missing = REQUIRED_FP_KEYS - set(fp)
     assert not missing, f"{key}: fingerprint missing keys {sorted(missing)}"
     assert fp["checkpoint_schema_version"] == CHECKPOINT_SCHEMA_VERSION
-    assert fp["selection_algorithm_version"] == SELECTION_ALGORITHM_VERSION
+    # This test pins the FROZEN V1 checkpoints, which by construction
+    # record selection_algorithm_version="1". The current code constant
+    # (SELECTION_ALGORITHM_VERSION) has moved to "2" for the V2
+    # instrument; the frozen bytes on disk have not.
+    assert fp["selection_algorithm_version"] == "1"
     assert sha256_json(body["payload"]) == body["payload_sha256"]
 
 
