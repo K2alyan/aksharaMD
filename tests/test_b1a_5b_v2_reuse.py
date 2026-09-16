@@ -18,7 +18,6 @@ from benchmarks.eval_v1.acquisition.b1a_5b.receipt import (
     AcquisitionReceipt,
     AcquisitionStatus,
     ValidationCheck,
-    sha256_file,
     write_receipt,
 )
 from benchmarks.eval_v1.acquisition.b1a_5b.v2_reuse import (
