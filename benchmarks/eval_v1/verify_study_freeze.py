@@ -51,7 +51,7 @@ FROZEN_SPV = "1.10"
 
 models_py = ROOT / "aksharamd" / "scoring" / "models.py"
 if not models_py.exists():
-    _fail(f"aksharamd/scoring/models.py not found")
+    _fail("aksharamd/scoring/models.py not found")
 else:
     m = re.search(r'^SCORING_POLICY_VERSION\s*=\s*"([^"]+)"', models_py.read_text(), re.MULTILINE)
     if not m:
