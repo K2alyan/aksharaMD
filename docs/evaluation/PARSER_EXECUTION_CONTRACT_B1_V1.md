@@ -78,9 +78,15 @@ The B1a-7c freeze will additionally record, for every package above, the source-
 
 ### 3.4 Network policy
 
-- **Offline required at parser execution.** All model weights and support files must be pre-downloaded before the study run and referenced from local paths. The runtime must set `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, and `DOCLING_ARTIFACTS_OFFLINE=1` (where the adapter honors it) before invoking any parser.
-- **Reason.** A held-out run over ~200 documents must not be at the mercy of a remote CDN, an upstream model repo removal, or a transient DNS failure. Any network-dependency at execution time is an unrecorded degree of freedom.
-- **Enforcement.** The B1a-7b.2 smoke will explicitly execute with the network firewall configured to block egress from the parser process. If any parser silently reaches out to the network, this surfaces at smoke time, not at held-out time.
+Network isolation at parser execution has two layers, and the contract keeps them distinct rather than conflating a hint with a guarantee.
+
+**Layer 1 — offline environment hints.** All model weights and support files must be pre-downloaded before the study run and referenced from local paths. The runtime sets `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, and `DOCLING_ARTIFACTS_OFFLINE=1` (where the adapter honors it) before invoking any parser. These are *hints*: they ask the parser to behave offline, and a well-behaved parser will refuse network calls. They are not, on their own, a guarantee that no bytes cross the wire.
+
+**Layer 2 — firewall-based egress block.** The actual guarantee comes from an OS-level firewall rule that blocks egress from the parser process's network namespace / user-context. Every parser invocation runs under this enforcement. The B1a-7b.2 smoke is the first execution to exercise this layer; any parser that silently reaches out to the network surfaces at smoke time, not at held-out time.
+
+**Observability.** The per-invocation `execution_record.json` records `network_egress_blocked: bool` — a runtime observation of whether the firewall rule was verified active at parser entry, not a declaration. B1a-7b.2 must define the verification mechanism (e.g., a probe request to a canary address that must fail) and record its outcome. If `network_egress_blocked == false` for any held-out invocation, that invocation is `DEFECT` (`reason = "network_egress_not_blocked"`).
+
+**Reason for the two-layer split.** A held-out run over ~200 documents must not be at the mercy of a remote CDN, an upstream model repo removal, or a transient DNS failure. Environment hints alone can be bypassed silently by any code path that opens a raw socket. Firewall egress block cannot. The declarative field in the config file `network_enforcement = firewall_egress_block` records the intended policy; the per-invocation observable `network_egress_blocked` records whether that policy actually held at execution time.
 
 ---
 
@@ -216,22 +222,29 @@ Each `(document, parser)` invocation produces exactly the following files under 
 - `execution_record.json` — the canonical execution record for this invocation. Fields listed below.
 - `analysis_record.json` — the `AnalysisRecord` composed from `execution_record.json` + downstream stages (normalization + reviewer-artifact preparation). See §10.
 
-`execution_record.json` fields (minimum):
+`execution_record.json` fields (minimum). Every field is required. Fields explicitly annotated `nullable` may be `null` under the stated conditions; every other field must be non-`null`.
 
 - `pair_id` — opaque per-invocation identifier: `sha256(canonical_id || parser_id || run_id)[:16]`.
 - `canonical_id`, `corpus`, `parser_id` — from the selection manifest and this contract.
 - `parser_package_version`, `parser_package_source_sha256` — pinned per §3.2.
-- `parser_model_version`, `parser_model_artifact_sha256` — for `marker` and `docling`; `null` for `aksharamd-reference` and `markitdown`.
-- `python_version`, `platform_string`, `git_commit`, `cuda_version`, `cuda_device_name` — environment record.
-- `pair_started_at`, `pair_finished_at`, `wall_clock_seconds`, `cpu_seconds_user`, `cpu_seconds_system`, `peak_rss_bytes`, `peak_vram_bytes`, `cuda_events` — timing/resource (§7).
+- `parser_model_version` (**nullable** for CPU-only parsers with no model — `aksharamd-reference`, `markitdown`), `parser_model_artifact_sha256` (**nullable** under the same condition).
+- `adapter_source_sha256` — SHA-256 of the adapter module's on-disk bytes at invocation time (i.e., the `benchmarks/parsed_vs_raw/adapters/<parser>_adapter.py` file for external parsers, or the aksharamd `_compile_pdf_bytes` invocation-path module for the reference parser). Anchors the harness code that wraps the parser call, independently of the parser package version.
+- `python_version`, `platform_string`, `git_commit` — environment record for the interpreter and the repository state.
+- `cpu_physical_cores` — `psutil.cpu_count(logical=False)` at invocation entry.
+- `cuda_version` (**nullable** for CPU-only parsers) — CUDA runtime version reported by `torch.version.cuda`.
+- `cuda_driver_version` (**nullable** for CPU-only parsers) — CUDA driver version reported by `torch.cuda.get_device_properties(0)` or `nvidia-smi`.
+- `cuda_device_name` (**nullable** for CPU-only parsers) — GPU model name reported by `torch.cuda.get_device_name(0)`.
+- `model_cache_path` (**nullable** for parsers with no model — `aksharamd-reference`, `markitdown`) — absolute filesystem path used as the parser's model artifact cache at invocation time. Locked at B1a-7c freeze; recorded verbatim per run.
+- `network_egress_blocked` — runtime observation (§3.4): the firewall-verification probe returned "blocked" at invocation entry. `true` for every admissible held-out invocation; `false` is `DEFECT`.
+- `pair_started_at`, `pair_finished_at`, `wall_clock_seconds`, `cpu_seconds_user`, `cpu_seconds_system`, `peak_rss_bytes` — timing/resource (§7).
+- `peak_vram_bytes` (**nullable** for CPU-only parsers), `cuda_events` (**nullable** for CPU-only parsers) — GPU timing/resource (§7).
 - `output_bytes`, `output_sha256` — content-hash of `raw_output.md`.
 - `stdout_bytes`, `stdout_sha256`, `stderr_bytes`, `stderr_sha256` — content-hashes of captured streams.
 - `exit_status` — `EXECUTED` or `DEFECT`.
-- `defect_reason` — coded string from §6, or `null`.
+- `defect_reason` (**nullable** for `EXECUTED` invocations) — coded string from §6.
 - `normalization_version` — `"2"`.
 - `parser_execution_contract_version` — `"v1"` (this document).
-
-Every field is required; `null` is only permitted where explicitly noted above.
+- `parser_execution_contract_config_sha256` — canonical-JSON SHA of `benchmarks/eval_v1/config/parser_execution_contract_v1.json` as loaded at invocation entry. Drift is fail-closed (§13).
 
 ---
 
@@ -283,14 +296,23 @@ The `REVIEWER_CONTRACT_B1_V1.md` §13 leaves seven decisions explicitly unresolv
 - **Enforcement.** The `analysis_record.json` for each pair records `document_identity_potentially_visible = true` for every pair (there is no attempt to redact and no way to reliably certify non-visibility). Downstream analysis can control for this if a specific study question requires it.
 - **What this does NOT change.** Parser identity remains fully blinded via the `sha256(parser_id)[:16]` scheme. The study's primary blinding target — that the reviewer cannot tell which parser produced the markdown — is intact.
 
-### 11.2 Reviewer independence enforcement (§13 item 2)
+### 11.2 Reviewer independence enforcement — capture only (§13 item 2, partial)
 
-**Resolution:** **Attested with sampled spot-check.** Reviewer independence is self-attested at onboarding and re-attested per session; the labeling infrastructure additionally captures a light per-session forensic record and executes a stratified spot-check on ~10% of sessions.
+**Resolution:** **B1a-7b.1 locks the capture mechanism only.** The *consequence* of a positive spot-check — whether labels are invalidated, whether the reviewer's remaining labels are re-labeled by a replacement reviewer, and how any of that flows through the study population — is a study-analysis decision that removes data after labels exist, and therefore belongs in B1a-7c alongside the other data-inclusion rules (both-abstained pairs, time-on-pair outliers, FR healthy-baseline sampling). It is listed in §12 as unresolved.
+
+What B1a-7b.1 locks:
 
 - **Attestation.** At onboarding the reviewer signs a written attestation that they (a) have not seen AksharaMD source code beyond public README-level information, (b) will not discuss any pair with any other reviewer before submission, (c) will label from a single machine per session.
 - **Forensic record per session.** `session_id`, salted-hashed IP address (not the raw IP), session start-time, session end-time, per-pair `time_on_pair_seconds`. IP hash is retained only to detect coincident sessions, never to identify individuals.
-- **Spot-check.** A stratified 10% sample of sessions receives a post-session questionnaire probing (a) whether the reviewer noticed a repeated hash pattern that could correspond to a specific parser, (b) whether they know what AksharaMD is, (c) whether they discussed any pair with anyone. Any positive spot-check invalidates every label from that reviewer for the affected corpus and requires a full re-label by an independent reviewer.
-- **Reason for not going stricter.** Full network-origin verification, hardware attestation, or supervised sessions are out of scope for a ~200-document pilot. Full trust-me is too weak. The attested-plus-spot-check middle path is auditable, cheap, and preserves the reviewer's confidentiality.
+- **Spot-check collection.** A stratified 10% sample of sessions receives a post-session questionnaire probing (a) whether the reviewer noticed a repeated hash pattern that could correspond to a specific parser, (b) whether they know what AksharaMD is, (c) whether they discussed any pair with anyone. The questionnaire responses are captured verbatim in the reviewer session record.
+
+What B1a-7b.1 deliberately does NOT lock:
+
+- The consequence of a positive spot-check. Whether the affected labels are excluded, re-labeled, retained-with-annotation, or partitioned separately in the analysis is a data-inclusion rule that belongs alongside the other reviewer-side inclusion rules under B1a-7c.
+- Whether a positive spot-check propagates only to the affected session, only to the affected corpus, or to all labels from that reviewer.
+- Whether replacement re-labeling is required, and under what constraints (same reviewer pool, external-only, adjudicator-only).
+
+**Reason for the split.** A "positive spot-check invalidates every label from that reviewer for the affected corpus" rule can remove substantial data after labels exist. That is a major analysis-scope decision, not an infrastructure decision. Deciding it here would smuggle a data-inclusion policy into B1a-7b.1 under the label of "infrastructure." Deferring it to B1a-7c keeps the two version domains (parser-execution vs. study-analysis) clean.
 
 ### 11.3 PMC JATS pane visibility (§13 item 6)
 
@@ -310,9 +332,11 @@ The following remain deliberately unresolved and are not decided by this contrac
 2. **Reviewer-contract §13 item 4** — Whether pairs where both reviewers abstain are excluded from the study population or replaced.
 3. **Reviewer-contract §13 item 5** — Floor and ceiling for acceptable `time_on_pair_seconds`, to be set from DEV-set observed distributions in B1a-7c.
 4. **Reviewer-contract §13 item 7** — Whether Federal Register pairs with no detector firings are reviewed as healthy-baseline calibration pairs or only detector-firing pairs are adjudicated.
-5. **Parser wheel and model artifact SHAs.** The concrete SHA-256 for every pinned wheel and every model artifact in §3.2 and §4 is captured only at B1a-7c freeze time; this document commits to *recording* them, not to enumerating them.
-6. **Study-controlled model cache directory location.** The literal filesystem path for `HF_HOME`, `TORCH_HOME`, and any parser-specific artifact cache is decided at B1a-7c so it can be locked alongside the frozen environment record.
-7. **B1a-7b.2 smoke document selection.** Which one PMC-OA, one DocLayNet, and one Federal Register document from the V2 selected pool are used for the 12-run infrastructure smoke. This is deferred so the smoke selection can be justified per corpus (e.g., a well-textured PMC article, a table-rich DocLayNet page, a multi-column Federal Register rule) rather than picked arbitrarily.
+5. **Consequence of a positive independence spot-check.** B1a-7b.1 locks the capture mechanism (§11.2). The consequence — whether affected labels are excluded, re-labeled, retained-with-annotation, or partitioned separately — is a data-inclusion decision that belongs alongside items 2, 3, and 4 above under B1a-7c.
+6. **Parser wheel and model artifact SHAs.** The concrete SHA-256 for every pinned wheel and every model artifact in §3.2 and §4 is captured only at B1a-7c freeze time; this document commits to *recording* them per invocation (in `parser_package_source_sha256`, `parser_model_artifact_sha256`, `adapter_source_sha256`), not to enumerating the frozen values here.
+7. **Study-controlled model cache directory location.** The literal filesystem path for `HF_HOME`, `TORCH_HOME`, and any parser-specific artifact cache is decided at B1a-7c so it can be locked alongside the frozen environment record. Per-run capture happens in `execution_record.json :: model_cache_path`.
+8. **B1a-7b.2 smoke document selection.** Which one PMC-OA, one DocLayNet, and one Federal Register document from the V2 selected pool are used for the 12-run infrastructure smoke. This is deferred so the smoke selection can be justified per corpus (e.g., a well-textured PMC article, a table-rich DocLayNet page, a multi-column Federal Register rule) rather than picked arbitrarily.
+9. **Firewall-verification probe.** The specific network probe used by `network_egress_blocked` (§3.4) — canary address, request type, timeout, exception mapping — is a B1a-7b.2 infrastructure-smoke concern. B1a-7b.1 locks the observable field; the probe implementation is verified by the smoke.
 
 ---
 

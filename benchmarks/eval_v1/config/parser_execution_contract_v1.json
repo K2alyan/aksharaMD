@@ -26,13 +26,16 @@
       "required_for": ["marker", "docling"]
     },
     "network_policy": {
-      "offline_required_at_execution": true,
-      "env_vars_set": {
+      "offline_env_hints": {
         "HF_HUB_OFFLINE": "1",
         "TRANSFORMERS_OFFLINE": "1",
         "DOCLING_ARTIFACTS_OFFLINE": "1"
       },
-      "egress_blocked_at_smoke": true
+      "network_enforcement": "firewall_egress_block",
+      "network_enforcement_verification": "per_invocation_probe",
+      "per_invocation_observable_field": "network_egress_blocked",
+      "held_out_admission_rule": "network_egress_blocked_must_be_true_or_defect",
+      "firewall_verification_probe_pending": true
     },
     "study_controlled_model_cache_paths_pending": true
   },
@@ -160,11 +163,16 @@
       "parser_package_source_sha256",
       "parser_model_version",
       "parser_model_artifact_sha256",
+      "adapter_source_sha256",
       "python_version",
       "platform_string",
       "git_commit",
+      "cpu_physical_cores",
       "cuda_version",
+      "cuda_driver_version",
       "cuda_device_name",
+      "model_cache_path",
+      "network_egress_blocked",
       "pair_started_at",
       "pair_finished_at",
       "wall_clock_seconds",
@@ -185,23 +193,56 @@
       "parser_execution_contract_version",
       "parser_execution_contract_config_sha256"
     ],
-    "nullable_fields": [
-      "parser_model_version",
-      "parser_model_artifact_sha256",
-      "peak_vram_bytes",
-      "cuda_events",
-      "defect_reason"
-    ]
+    "nullable_fields": {
+      "parser_model_version": "null for CPU-only parsers with no model (aksharamd-reference, markitdown)",
+      "parser_model_artifact_sha256": "null under the same condition as parser_model_version",
+      "cuda_version": "null for CPU-only parsers (aksharamd-reference, markitdown)",
+      "cuda_driver_version": "null for CPU-only parsers",
+      "cuda_device_name": "null for CPU-only parsers",
+      "model_cache_path": "null for parsers with no model (aksharamd-reference, markitdown)",
+      "peak_vram_bytes": "null for CPU-only parsers",
+      "cuda_events": "null for CPU-only parsers",
+      "defect_reason": "null for EXECUTED invocations; non-null for DEFECT"
+    },
+    "held_out_admission_rules": {
+      "network_egress_blocked_true_required": true,
+      "defect_reason_when_egress_not_blocked": "network_egress_not_blocked"
+    }
   },
   "reviewer_contract_bindings": {
     "reviewer_contract_version": "v1",
     "resolved_section_13_items": {
-      "item_2_independence_enforcement": "attested_with_sampled_spot_check",
-      "item_3_document_identity_rendering": "permitted_with_per_pair_marker",
-      "item_6_pmc_jats_pane_visibility": "on_demand_recorded_per_pair"
+      "item_2_independence_enforcement_capture_only": {
+        "resolution": "attested_with_sampled_spot_check_capture",
+        "scope": "capture_mechanism_only",
+        "captured_fields": [
+          "onboarding_attestation_signed",
+          "session_id",
+          "session_ip_salted_sha256",
+          "session_started_at",
+          "session_ended_at",
+          "spot_check_selected",
+          "spot_check_questionnaire_responses"
+        ],
+        "spot_check_sampling_rate": 0.1,
+        "spot_check_sampling_stratification": "session",
+        "consequence_of_positive_spot_check": "deferred_to_B1a_7c",
+        "reason_for_deferral": "positive spot-check consequence removes labels after emission; that is a data-inclusion analysis rule and belongs with items 4/5/7 under B1a-7c"
+      },
+      "item_3_document_identity_rendering": {
+        "resolution": "permitted_with_per_pair_marker",
+        "recorded_field": "document_identity_potentially_visible",
+        "recorded_value": true
+      },
+      "item_6_pmc_jats_pane_visibility": {
+        "resolution": "on_demand",
+        "recorded_fields": ["jats_pane_opened", "jats_pane_open_seconds"],
+        "scope": "pmc_oa_only"
+      }
     },
     "still_unresolved_section_13_items": [
       "item_1_b1_pilot_reviewer_sourcing",
+      "item_2_independence_spot_check_consequence",
       "item_4_both_abstained_pair_handling",
       "item_5_time_on_pair_floor_and_ceiling",
       "item_7_fr_no_firing_pair_review"
