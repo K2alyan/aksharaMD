@@ -1,0 +1,221 @@
+{
+  "parser_execution_contract_version": "v1",
+  "spec_document": "docs/evaluation/PARSER_EXECUTION_CONTRACT_B1_V1.md",
+  "normalization_version": "2",
+  "environment": {
+    "os_pinned": {
+      "primary_study_host_platform_prefix": "Windows-11-10.0.26200"
+    },
+    "python_pinned": {
+      "implementation": "cpython",
+      "version": "3.12.2",
+      "architecture": "x86_64"
+    },
+    "packages_pinned": {
+      "aksharamd": "0.3.6",
+      "marker-pdf": "1.10.2",
+      "docling": "2.107.0",
+      "markitdown": "0.1.6",
+      "pymupdf": "1.28.2",
+      "pymupdf4llm": "1.27.2.3",
+      "torch": "2.12.1+cu126"
+    },
+    "package_source_sha256_pending": true,
+    "cuda_pinned": {
+      "cuda_version": "12.6",
+      "required_for": ["marker", "docling"]
+    },
+    "network_policy": {
+      "offline_required_at_execution": true,
+      "env_vars_set": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "DOCLING_ARTIFACTS_OFFLINE": "1"
+      },
+      "egress_blocked_at_smoke": true
+    },
+    "study_controlled_model_cache_paths_pending": true
+  },
+  "parsers": [
+    {
+      "parser_id": "aksharamd-reference",
+      "family": "direct_pdf_text_layer",
+      "package": "aksharamd",
+      "package_version": "0.3.6",
+      "invocation_entry_point": "benchmarks/eval_v1/smoke_run_v2.py::_compile_pdf_bytes",
+      "hardware": "cpu_only",
+      "gpu_required": false,
+      "batch_size": null,
+      "model_version": null,
+      "config": {
+        "deterministic_mode": true,
+        "cli_overrides": null
+      },
+      "timeout_seconds": 120,
+      "retry": "none",
+      "isolation": "in_process_batched_ok",
+      "defect_reasons": [
+        "reference_parser_timeout_120s",
+        "reference_parser_exception:<Class>",
+        "reference_parser_native_crash",
+        "parser_binary_hash_mismatch:aksharamd-reference",
+        "environment_drift:<field>"
+      ]
+    },
+    {
+      "parser_id": "marker",
+      "family": "vlm_plus_layout",
+      "package": "marker-pdf",
+      "package_version": "1.10.2",
+      "invocation_entry_point": "benchmarks/parsed_vs_raw/adapters/marker_adapter.py::MarkerAdapter.compile",
+      "hardware": "cuda_required",
+      "gpu_required": true,
+      "batch_size": 1,
+      "model_version_recorded_at_runtime": true,
+      "config": {
+        "deterministic_mode": true,
+        "torch_manual_seed": 0,
+        "torch_cuda_manual_seed_all": 0,
+        "torch_use_deterministic_algorithms": true,
+        "env_vars": {
+          "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+        }
+      },
+      "timeout_seconds": 600,
+      "retry": "none",
+      "isolation": "one_invocation_per_process",
+      "defect_reasons": [
+        "marker_timeout_600s",
+        "marker_exception:<Class>",
+        "marker_cuda_oom",
+        "marker_cuda_unavailable",
+        "parser_binary_hash_mismatch:marker",
+        "environment_drift:<field>"
+      ]
+    },
+    {
+      "parser_id": "docling",
+      "family": "vlm_plus_layout",
+      "package": "docling",
+      "package_version": "2.107.0",
+      "invocation_entry_point": "benchmarks/parsed_vs_raw/adapters/docling_adapter.py::DoclingAdapter.compile",
+      "hardware": "cuda_required",
+      "gpu_required": true,
+      "batch_size": 1,
+      "model_version_recorded_at_runtime": true,
+      "config": {
+        "deterministic_mode": true,
+        "torch_manual_seed": 0,
+        "torch_cuda_manual_seed_all": 0,
+        "torch_use_deterministic_algorithms": true,
+        "env_vars": {
+          "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+        }
+      },
+      "timeout_seconds": 600,
+      "retry": "none",
+      "isolation": "one_invocation_per_process",
+      "empty_output_is_executed": true,
+      "defect_reasons": [
+        "docling_timeout_600s",
+        "docling_exception:<Class>",
+        "docling_cuda_oom",
+        "docling_cuda_unavailable",
+        "parser_binary_hash_mismatch:docling",
+        "environment_drift:<field>"
+      ]
+    },
+    {
+      "parser_id": "markitdown",
+      "family": "broad_format_converter",
+      "package": "markitdown",
+      "package_version": "0.1.6",
+      "invocation_entry_point": "benchmarks/parsed_vs_raw/adapters/markitdown_adapter.py::MarkItDownAdapter.compile",
+      "hardware": "cpu_only",
+      "gpu_required": false,
+      "batch_size": null,
+      "model_version": null,
+      "config": {
+        "llm_client": null,
+        "deterministic_mode": true
+      },
+      "timeout_seconds": 120,
+      "retry": "none",
+      "isolation": "in_process_batched_ok",
+      "defect_reasons": [
+        "markitdown_timeout_120s",
+        "markitdown_exception:<Class>",
+        "parser_binary_hash_mismatch:markitdown",
+        "environment_drift:<field>"
+      ]
+    }
+  ],
+  "execution_record_schema": {
+    "required_fields": [
+      "pair_id",
+      "canonical_id",
+      "corpus",
+      "parser_id",
+      "parser_package_version",
+      "parser_package_source_sha256",
+      "parser_model_version",
+      "parser_model_artifact_sha256",
+      "python_version",
+      "platform_string",
+      "git_commit",
+      "cuda_version",
+      "cuda_device_name",
+      "pair_started_at",
+      "pair_finished_at",
+      "wall_clock_seconds",
+      "cpu_seconds_user",
+      "cpu_seconds_system",
+      "peak_rss_bytes",
+      "peak_vram_bytes",
+      "cuda_events",
+      "output_bytes",
+      "output_sha256",
+      "stdout_bytes",
+      "stdout_sha256",
+      "stderr_bytes",
+      "stderr_sha256",
+      "exit_status",
+      "defect_reason",
+      "normalization_version",
+      "parser_execution_contract_version",
+      "parser_execution_contract_config_sha256"
+    ],
+    "nullable_fields": [
+      "parser_model_version",
+      "parser_model_artifact_sha256",
+      "peak_vram_bytes",
+      "cuda_events",
+      "defect_reason"
+    ]
+  },
+  "reviewer_contract_bindings": {
+    "reviewer_contract_version": "v1",
+    "resolved_section_13_items": {
+      "item_2_independence_enforcement": "attested_with_sampled_spot_check",
+      "item_3_document_identity_rendering": "permitted_with_per_pair_marker",
+      "item_6_pmc_jats_pane_visibility": "on_demand_recorded_per_pair"
+    },
+    "still_unresolved_section_13_items": [
+      "item_1_b1_pilot_reviewer_sourcing",
+      "item_4_both_abstained_pair_handling",
+      "item_5_time_on_pair_floor_and_ceiling",
+      "item_7_fr_no_firing_pair_review"
+    ]
+  },
+  "authorization_scope": {
+    "authorized_by_this_pr": [
+      "B1a-7b.1_parser_execution_contract_docs_and_config"
+    ],
+    "not_authorized_by_this_pr": [
+      "B1a-7b.2_infrastructure_smoke_12_runs",
+      "B1a-7c_study_freeze_readiness",
+      "B1b_fresh_acquisition",
+      "B1c_held_out_labeling"
+    ]
+  }
+}
