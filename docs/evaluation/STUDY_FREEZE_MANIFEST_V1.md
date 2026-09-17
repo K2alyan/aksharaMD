@@ -232,7 +232,21 @@ The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw 
 
 ### 6.3 FinTabNet.c
 
-**Stratified sample.** Target: 500 tables with deterministic stratified selection by table complexity tier (simple / compound / multi-page spanning). TEDS computed per table. Selection seed recorded in §8.
+**Stratified sample.** Target: 500 tables with deterministic stratified selection by table complexity tier. TEDS computed per table. Selection seed recorded in §8.
+
+**Pre-execution corpus-capability correction (B1a-8b, 2026-09-16):** The original three-tier design (simple / compound / multi-page spanning) was reduced to two tiers. Inspection of the FinTabNet.c V1 ground truth (PDF_Annotations JSON and Structure XML) confirmed that neither file format contains any field identifying cells that span across page boundaries. Multi-page spanning cannot be determined mechanically from the V1 annotations; inventing a heuristic proxy would introduce an unmeasurable classification error. The tier is therefore removed from the stratification design as a pre-execution corpus-capability correction. This is not a methodological redesign: the study freezes 500 tables with deterministic stratified selection; only the number of strata changes from three to two.
+
+**Frozen tier definitions (locked B1a-8b):**
+
+| Tier | Definition |
+|---|---|
+| SIMPLE | Every cell has `len(row_nums) == 1` and `len(column_nums) == 1`. No cell spans multiple rows or columns. |
+| COMPOUND | At least one cell has `len(row_nums) > 1` or `len(column_nums) > 1`. |
+| ~~MULTI-PAGE SPANNING~~ | ~~Removed: not measurable from FinTabNet.c V1 ground truth.~~ |
+
+Classification is fail-closed: missing or non-list `row_nums`/`column_nums` on any cell raises a `ValueError`; the classifier never silently defaults a malformed annotation to SIMPLE.
+
+**Proportional allocation (frozen):** Val-split eligible pool (post-exclusion): 3,714 SIMPLE, 5,936 COMPOUND (9,650 total). Largest-remainder allocation to 500 slots: **SIMPLE = 192, COMPOUND = 308**. Expected: SIMPLE 3714/9650 × 500 ≈ 192.44 → floor 192; COMPOUND 5936/9650 × 500 ≈ 307.56 → floor 307; remainder 1 → COMPOUND (larger fractional part). Sum = 500. Within each tier: rank by `SHA-256(structure_id || freeze_seed)` ascending; take the first N.
 
 **Corpus confirmed pre-execution:** FinTabNet.c (`bsmock/FinTabNet.c`, HF revision `e5673a90b98d02c4832f9e836d72762f0e8933a0`, license: CDLA-Permissive-2.0). PDFs are included in the distribution. PubTabNet is excluded: the dataset consists of table images, not source PDFs, and parsers require PDF input. Version pinned in §8.
 
