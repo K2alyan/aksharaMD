@@ -211,8 +211,9 @@ FinTabNet.c parser execution is NOT_EXECUTABLE_V1; see §3 and STUDY_FREEZE_MANI
 
 ## 7. Amendment record
 
-This document records two pre-execution corpus decisions that refine the Study Freeze
-Manifest V1 without altering the methodological design:
+This document records four pre-execution corpus decisions. Amendments 1–3 refine the
+Study Freeze Manifest V1 without altering the methodological design. Amendment 4
+narrows the evidentiary scope of V1 (see §6.3 of STUDY_FREEZE_MANIFEST_V1.md):
 
 1. **OmniDocBench excluded from Track A** (incompatibility discovered pre-execution):
    The v1.5 corpus is image-only; parsers require PDF input.  Documented in §6.4 of
@@ -225,6 +226,15 @@ Manifest V1 without altering the methodological design:
    PubTabNet excluded (image-only; no PDFs).  Version pinned in §8 of
    STUDY_FREEZE_MANIFEST_V1.md.
 
+3. **FinTabNet.c two-tier stratification** (B1a-8b, pre-execution corpus-capability correction):
+   The original three-tier design (simple / compound / multi-page spanning) was reduced to
+   two tiers.  Inspection of the FinTabNet.c V1 ground truth confirmed that cross-page
+   spanning cannot be determined mechanically from the annotations.  Frozen definitions:
+   SIMPLE = every cell `len(row_nums)==1` and `len(column_nums)==1`; COMPOUND = any cell
+   `len(row_nums)>1` or `len(column_nums)>1`.  Allocation: SIMPLE=192, COMPOUND=308 (of 500
+   total), deterministic largest-remainder.  Full correction record in §6.3 of
+   STUDY_FREEZE_MANIFEST_V1.md.  Selection complete; 500 tables frozen.
+
 4. **FinTabNet.c NOT_EXECUTABLE_V1** (B1a-8c, pre-execution source-PDF provenance investigation):
    The FinTabNet.c HF distribution contains corrected annotations but not the source page
    PDFs required by the four frozen parsers.  The original IBM DAX distribution is
@@ -235,15 +245,4 @@ Manifest V1 without altering the methodological design:
    This affects the evidentiary scope of V1: the table-cell-fidelity/TEDS component of
    Claim 2 is not evaluated.  See §3 above and STUDY_FREEZE_MANIFEST_V1.md §6.3.
 
-3. **FinTabNet.c two-tier stratification** (B1a-8b, pre-execution corpus-capability correction):
-   The original three-tier design (simple / compound / multi-page spanning) was reduced to
-   two tiers.  Inspection of the FinTabNet.c V1 ground truth confirmed that cross-page
-   spanning cannot be determined mechanically from the annotations.  Frozen definitions:
-   SIMPLE = every cell `len(row_nums)==1` and `len(column_nums)==1`; COMPOUND = any cell
-   `len(row_nums)>1` or `len(column_nums)>1`.  Allocation: SIMPLE=192, COMPOUND=308 (of 500
-   total), deterministic largest-remainder.  Full correction record in §6.3 of
-   STUDY_FREEZE_MANIFEST_V1.md.  Selection complete; 500 tables frozen.
-
-Amendments 1–3 were made and recorded before any parser execution began.
-Amendment 4 (FinTabNet.c NOT_EXECUTABLE_V1) was determined and recorded by pre-execution
-provenance investigation before any parser execution began.
+All four amendments were made and recorded before any parser execution began.
