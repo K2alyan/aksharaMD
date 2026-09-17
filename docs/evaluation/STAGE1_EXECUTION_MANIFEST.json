@@ -1,0 +1,134 @@
+{
+  "admission_batch_status": "PASSED",
+  "corpora": {
+    "doclaynet_val": {
+      "execution_status": "EXECUTABLE",
+      "hf_dataset_id": "docling-project/DocLayNet-v1.2",
+      "hf_revision": "0daf93102e2efce76c3e11a274a5e0d0969391d3",
+      "license": "CDLA-Permissive",
+      "n_selected": 280,
+      "selection_manifest": {
+        "path": "docs\\evaluation\\STAGE1_DOCLAYNET_VAL_SELECTION.json",
+        "raw_byte_sha256": "efbe3729121117ad5d03e715605bc84eef295ca701d5ff238b33a175981b2df2"
+      },
+      "split": "validation"
+    },
+    "fintabnet_c": {
+      "execution_status": "NOT_EXECUTABLE_V1",
+      "hf_dataset_id": "bsmock/FinTabNet.c",
+      "hf_revision": "e5673a90b98d02c4832f9e836d72762f0e8933a0",
+      "license": "CDLA-Permissive-2.0",
+      "n_selected": 500,
+      "not_executable_reason": "Source PDFs unavailable from authoritative distribution; TEDS endpoint = NOT_MEASURED_V1. See STAGE1_CORPUS_SNAPSHOT_MANIFEST_V1.md \u00a73 and STUDY_FREEZE_MANIFEST_V1.md \u00a76.3.",
+      "selection_manifest": {
+        "path": "docs\\evaluation\\STAGE1_FINTABNET_C_SELECTION.json",
+        "raw_byte_sha256": "f8ec903aecdae4a0c49484d42539b220d941d19ce79e5489f62796c02062427e"
+      }
+    },
+    "olmocr_bench": {
+      "acquisition_receipt": {
+        "path": "tmp\\olmocr-full-data\\acquisition.json",
+        "raw_byte_sha256": "ca9aa04e6b91ad00a2cf9c0e49e0512de7adb5e2c3b45a0bbd1adf2d629cfe58"
+      },
+      "execution_status": "EXECUTABLE",
+      "hf_dataset_id": "allenai/olmOCR-bench",
+      "hf_revision": "54a96a6fb6a2bd3b297e59869491db4d3625b711",
+      "license": "ODC-BY",
+      "local_path": "tmp/olmocr-full-data",
+      "n_assertions": 7010,
+      "n_pdfs": 1403
+    },
+    "omni_doc_bench": {
+      "excluded_reason": "Image-only corpus (JPEGs + PNGs); no PDFs; all four frozen parsers require PDF input. See STUDY_FREEZE_MANIFEST_V1.md \u00a76.4.",
+      "execution_status": "EXCLUDED",
+      "hf_dataset_id": "lllcho/OmniDocBench",
+      "hf_revision": "91fe284bbfacfa687959ae3eb00846ca852aa907"
+    }
+  },
+  "corpus_snapshot_manifest": {
+    "canonical_lf_sha256": "0b026cbd52e45dde2e956e390458f3246452d943090154c5089fc37237bfe7de",
+    "path": "docs\\evaluation\\STAGE1_CORPUS_SNAPSHOT_MANIFEST_V1.md"
+  },
+  "environment": {
+    "cpu_physical_cores": 12,
+    "cuda_device_name": "NVIDIA GeForce RTX 3060",
+    "cuda_version": "12.6",
+    "git_commit": "3a4331303d45b940f1706b0861806f3c414160ac",
+    "platform_string": "Windows-11-10.0.26200-SP0",
+    "python_version": "3.12.2"
+  },
+  "executable_track_a": [
+    "olmocr_bench",
+    "doclaynet_val"
+  ],
+  "freeze_seed": "6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa",
+  "parser_execution_contract": {
+    "canonical_lf_sha256": "a0ca496e562cee200c393c146c7ed16efee9b01ee2f94ebdd4e623c936f9baa4",
+    "path": "benchmarks\\eval_v1\\config\\parser_execution_contract_v1.json",
+    "version": "v1"
+  },
+  "parsers": [
+    {
+      "hardware": "cpu_only",
+      "package": "aksharamd",
+      "package_version": "0.3.6",
+      "parser_id": "aksharamd-reference",
+      "timeout_seconds": 120
+    },
+    {
+      "hardware": "gpu",
+      "package": "marker-pdf",
+      "package_version": "1.10.2",
+      "parser_id": "marker",
+      "timeout_seconds": 600
+    },
+    {
+      "hardware": "gpu",
+      "package": "docling",
+      "package_version": "2.107.0",
+      "parser_id": "docling",
+      "timeout_seconds": 600
+    },
+    {
+      "hardware": "cpu_only",
+      "package": "markitdown",
+      "package_version": "0.1.6",
+      "parser_id": "markitdown",
+      "timeout_seconds": 120
+    }
+  ],
+  "phase": "stage1",
+  "run_roots": {
+    "track_a_doclaynet": "benchmarks/results/stage1-track-a-doclaynet-2026-09-16",
+    "track_a_olmocr": "benchmarks/results/stage1-track-a-olmocr-2026-09-16",
+    "track_c": "benchmarks/results/stage1-track-c-2026-09-16"
+  },
+  "schema_version": "1",
+  "scoring_policy_version": "1.10",
+  "study_freeze_manifest": {
+    "authorized_develop_commit": "3a4331303d45b940f1706b0861806f3c414160ac",
+    "canonical_lf_sha256": "8858b8e9fa5d4397e688a2253d60217d38b20b34e84bce02e8493bbbc60ad02a",
+    "path": "docs\\evaluation\\STUDY_FREEZE_MANIFEST_V1.md"
+  },
+  "track_c": {
+    "competitor_arm": "none",
+    "corpora": {
+      "mmlong_bench_doc": {
+        "n_target": 30
+      },
+      "qasper": {
+        "n_target": 50
+      },
+      "tat_dqa": {
+        "n_target": 30
+      }
+    },
+    "model_id": "claude-sonnet-4-6",
+    "prompt": {
+      "canonical_lf_sha256": "2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601",
+      "path": "docs\\evaluation\\TRACK_C_PROMPT_V1.txt"
+    },
+    "temperature": 0.0
+  },
+  "written_utc": "2026-09-17T15:14:15+00:00"
+}
