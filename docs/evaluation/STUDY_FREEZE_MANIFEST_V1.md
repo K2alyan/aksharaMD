@@ -78,14 +78,14 @@ GPU availability must be confirmed before execution of any run involving Marker 
 |---|---|---|---|
 | olmOCR-Bench | ODC-BY | A | Primary assertion-level GT for text/ordering/encoding/image-text failures |
 | DocLayNet | CDLA-Permissive | A | Table detection and structural-association GT |
-| PubTabNet or FinTabNet | CDLA-Permissive | A | Table cell fidelity GT (TEDS metric) |
-| OmniDocBench | Research-only | A (research deliverable only) | Multi-metric evaluation; CDM, Reading-Order Edit Distance, TED, TEDS |
+| FinTabNet.c | CDLA-Permissive-2.0 | A | Table cell fidelity GT (TEDS metric) |
+| OmniDocBench | Research-only | — | Excluded from Track A (pre-execution corpus-format incompatibility; see §6.4); evaluator code retained as historical reference |
 | DEV corpus (B1a-7b.2 frozen) | Internal | B | Human usability review surface |
 | QASPER | CC-BY | C | Scientific QA downstream consequence |
 | MMLongBench-Doc | Research-use | C | Long mixed-domain document QA |
 | TAT-DQA | CC-BY | C | Financial table QA |
 
-OmniDocBench results must not be included in any commercially redistributable artifact or shipping validation harness. They appear only in the research deliverable.
+OmniDocBench is excluded from Track A execution: the v1.5 corpus consists of JPEG and PNG images only; no PDFs are present, and all four frozen parsers require PDF input. This was discovered pre-execution (see §6.4). The evaluator code commit is retained as a historical reference in §8. No OmniDocBench results will be produced in V1.
 
 ---
 
@@ -226,17 +226,23 @@ Each assertion maps to exactly one failure mode. Mapping is preregistered in §7
 
 Clustering INCREASES the pages required (not decreases). The formula is `n_raw = n_eff × DE`, not `n_eff / DE`.
 
-The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw a deterministic stratified sample of **280 documents** (rounded up for headroom), stratified by document category (financial, scientific, etc.) proportional to category prevalence in the full split. Selection seed recorded in §8.
+The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw a deterministic stratified sample of **280 pages** (rounded up from 264 for headroom), stratified by document category (financial, scientific, etc.) proportional to category prevalence in the eligible pool. Selection seed recorded in §8.
 
-### 6.3 PubTabNet or FinTabNet
+**Implementation note (B1a-8):** The selection operates at the page_hash level (the canonical DocLayNet unit). The 280 selected pages come from 53 unique source documents; multiple pages from the same document may be selected. The cluster-correction reasoning above motivates the sample-size floor; it is not a guarantee that the implementation achieves document-level cluster sampling. See STAGE1_CORPUS_SNAPSHOT_MANIFEST_V1.md §2 for the full selection record.
+
+### 6.3 FinTabNet.c
 
 **Stratified sample.** Target: 500 tables with deterministic stratified selection by table complexity tier (simple / compound / multi-page spanning). TEDS computed per table. Selection seed recorded in §8.
 
-Decision between PubTabNet and FinTabNet: use whichever is confirmed available at execution time; document the choice in the execution record. If both are available, use both and report separately.
+**Corpus confirmed pre-execution:** FinTabNet.c (`bsmock/FinTabNet.c`, HF revision `e5673a90b98d02c4832f9e836d72762f0e8933a0`, license: CDLA-Permissive-2.0). PDFs are included in the distribution. PubTabNet is excluded: the dataset consists of table images, not source PDFs, and parsers require PDF input. Version pinned in §8.
 
-### 6.4 OmniDocBench
+### 6.4 OmniDocBench — excluded from Track A (pre-execution incompatibility)
 
-**Research deliverable only.** Full available set (up to 981 pages per published split). Metrics: TED, TEDS, CDM, Reading-Order Edit Distance. Results reported only in the research paper, not in any commercial artifact.
+**Excluded from Track A.** OmniDocBench v1.5 (`lllcho/OmniDocBench`, HF revision `91fe284bbfacfa687959ae3eb00846ca852aa907`) was inspected pre-execution and found to consist entirely of rasterized images: 981 JPEGs and 377 PNGs. No PDFs are present in the distribution. The four parsers in the frozen apparatus (`aksharamd-reference`, `marker`, `docling`, `markitdown`) all require PDF input; they cannot operate on rasterized images.
+
+This is a corpus-format incompatibility, not a quality judgment about OmniDocBench. The incompatibility was discovered before any parser execution, so it does not affect the preregistered analysis plan for Tracks A and C. The OmniDocBench evaluation code (evaluator commit `193627ae`) is retained as a historical reference in §8.
+
+**Consequences for V1:** The CDM metric and the multi-metric research-deliverable evaluation originally scoped to OmniDocBench are not available in V1. See §7 for the revised detector-to-GT mapping that removes OmniDocBench as a GT source.
 
 ---
 
@@ -248,12 +254,12 @@ The following table maps each AksharaMD detector ID to its ground truth source, 
 |---|---|---|---|---|---|---|
 | `W_TABLE_MISSING` | Candidate (69) | DocLayNet | Table bounding-box annotations | Direct: table presence confirmed by human annotators independent of any parser | Table detection recall | Parser × document |
 | `W_MULTICOLUMN_ORDER` | Candidate (69) | olmOCR-Bench | Reading-order assertion pass/fail | Direct: assertion evaluates parser output ordering against source order | Agreement rate with assertion evaluator | Parser × document |
-| `W_ENCODING_ARTIFACTS` | Candidate (69) | olmOCR-Bench + OmniDocBench | Character/encoding assertions; CDM metric | Direct for olmOCR assertions; CDM is a standardized metric | Agreement rate; CDM Pearson r | Parser × document |
+| `W_ENCODING_ARTIFACTS` | Candidate (69) | olmOCR-Bench | Character/encoding assertions | Direct: assertions evaluate character-level encoding correctness against source content | Agreement rate with assertion evaluator | Parser × document |
 | `W_IMAGE_ONLY_TEXT_BAR_FAIL` | Candidate (69) | olmOCR-Bench | Image-text detection assertions | Direct: assertion evaluates whether text-as-image content was recovered | Agreement rate with assertion evaluator | Parser × document |
 | `W_DROPPED_CONTENT` | Candidate (69) | olmOCR-Bench | Text omission/addition assertions | Direct: assertion evaluates completeness of recovered text | Agreement rate with assertion evaluator | Parser × document |
 | `W_HEADER_FOOTER_TABLE_GARBLED` | Experimental (84) | DocLayNet | Structural-region association annotations | Indirect: header/footer regions labeled; garbling inferred from content-to-region mismatch | Structural association accuracy | Parser × document |
-| `W_TABLE_EXPECTED_NOT_EXTRACTED` | Experimental (84) | PubTabNet / FinTabNet | Table cell content annotations (TEDS) | Direct: TEDS measures structural and content recovery against human-annotated GT | TEDS distribution by detector fire/no-fire | Parser × document |
-| `W_PLACEHOLDER_STUB` | Experimental (84) | OmniDocBench | Figure/table placeholder annotations | Direct: OmniDocBench marks stubs explicitly | Agreement rate | Parser × document |
+| `W_TABLE_EXPECTED_NOT_EXTRACTED` | Experimental (84) | FinTabNet.c | Table cell content annotations (TEDS) | Direct: TEDS measures structural and content recovery against human-annotated GT | TEDS distribution by detector fire/no-fire | Parser × document |
+| `W_PLACEHOLDER_STUB` | Experimental (84) | — | No defensible external GT in V1 (OmniDocBench excluded — see §6.4) | — | Experimental-tier detector; calibrated internally; no external GT validation available in V1 | Parser × document |
 | `W_GIBBERISH` | Experimental (84) | olmOCR-Bench | Character quality assertions | Indirect: character-level quality assertions; gibberish detection is a related but not identical concept | Agreement rate with character-quality assertions | Parser × document |
 
 **Stable penalty detectors** (`PARSE_ERRORS`, `MISSING_PAGE`, `NEAR_EMPTY_OUTPUT`, `LOW_TEXT_DENSITY`, etc.) are not included in Track A detector validation. These are either self-verifying (page count comparison), objectively measurable (token density), or already calibrated. They are used as covariates in Track A score regression but not as primary detection targets.
@@ -276,10 +282,10 @@ The following values are recorded at freeze time and must not change after freez
 | Track C LLM model ID | `claude-sonnet-4-6` | At freeze |
 | Track C competitor arm | `none` | At freeze |
 | Track C LLM prompt SHA256 (canonical LF) | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` | Stage 1 prerequisite filled — `docs/evaluation/TRACK_C_PROMPT_V1.txt` |
-| olmOCR-Bench commit/release | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
-| DocLayNet split + version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
-| PubTabNet / FinTabNet version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
-| OmniDocBench split + version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
+| olmOCR-Bench dataset revision | HF `allenai/olmOCR-bench` rev `54a96a6fb6a2bd3b297e59869491db4d3625b711`; 1,412 files verified | Pre-execution (corpus confirmed) |
+| DocLayNet split + version | `docling-project/DocLayNet-v1.2` HF rev `0daf93102e2efce76c3e11a274a5e0d0969391d3`, split=validation, 7 shards | Pre-execution (corpus confirmed) |
+| FinTabNet.c version | `bsmock/FinTabNet.c` HF rev `e5673a90b98d02c4832f9e836d72762f0e8933a0`, CDLA-Permissive-2.0 | Pre-execution (corpus confirmed) |
+| OmniDocBench | EXCLUDED from Track A. Dataset: `lllcho/OmniDocBench` v1.5 HF rev `91fe284bbfacfa687959ae3eb00846ca852aa907` (image-only; no PDFs). Evaluator code: commit `193627ae` (historical ref only). See §6.4. | Pre-execution (incompatibility discovered) |
 | Track A apparatus run directory | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 | Track C execution manifest path | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 
@@ -384,7 +390,7 @@ After observing the evidence, the acceptance decision requires stating the minim
 
 1. Generate freeze seed; record in §8
 2. Record SCORING_POLICY_VERSION; confirm no scoring code changes after this point
-3. **Track A execution:** run all four parsers on olmOCR-Bench (full), DocLayNet sample (n=280 documents), PubTabNet/FinTabNet sample (n=500 tables)
+3. **Track A execution:** run all four parsers on olmOCR-Bench (full), DocLayNet val sample (n=280 documents), FinTabNet.c sample (n=500 tables). OmniDocBench excluded (see §6.4).
 4. **Track C execution:** run all four parsers on QASPER (n=50), MMLongBench-Doc (n=30), TAT-DQA (n=30) with frozen LLM and prompt
 5. **Generate Track B Allocation Manifest** mechanically from Track A score distribution: apply §5.1 formula for n_target, §5.2 formula for n_recruit and sparse-band handling; append as Exhibit B to this document before any review begins
 6. **Track B execution:** human review of blinded reviewer artifacts; n_recruit pairs per band per §5.2; abstained labels do not count toward n_target
@@ -406,7 +412,7 @@ Every open parameter in this document is either (a) resolved before Stage 1 exec
 | Track C LLM model ID | §8 | (a) RECORDED | `claude-sonnet-4-6` |
 | Track C competitor arm | §8 | (a) RECORDED | `none` |
 | Track C LLM prompt SHA256 | §8 | (a) RECORDED | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` — `TRACK_C_PROMPT_V1.txt` |
-| Corpus versions | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start, before any results are observed |
+| Corpus versions | §8 | (a) RECORDED | All four corpora pinned pre-execution: olmOCR-Bench (HF rev `54a96a6`), DocLayNet val (HF rev `0daf931`), FinTabNet.c (HF rev `e5673a9`), OmniDocBench (excluded; see §6.4) |
 | Track A apparatus run directory | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
 | Track C execution manifest | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
 | Track B allocation (which pairs) | §5.1–5.2 | (b) Mechanical Stage-2 rule | SHA256-sort on frozen seed; no discretion |
@@ -422,6 +428,6 @@ Every open parameter in this document is either (a) resolved before Stage 1 exec
 
 - "Study Freeze" does not authorize corpus downloads above the stated sample sizes.
 - "Study Freeze" does not authorize annotation or labeling work beyond what the apparatus produces.
-- OmniDocBench use is authorized for research deliverable only; it is not authorized for any commercial report or shipping artifact.
+- OmniDocBench is excluded from Track A execution entirely (pre-execution corpus-format incompatibility; see §6.4). No OmniDocBench results will be produced in V1. The evaluator code commit is retained as a historical reference in §8.
 - Track B acceptance does not follow from Track A results — it requires a separate acceptance decision per §11.
 - No result from this study is a product claim until the acceptance decision (§11) is documented.

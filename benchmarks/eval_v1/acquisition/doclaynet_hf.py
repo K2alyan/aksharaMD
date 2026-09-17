@@ -430,6 +430,7 @@ def acquire_page(
     shard_sha256: str | None,
     root: Path,
     *,
+    split: str = "train",
     discovery_provenance: dict[str, Any] | None = None,
     selection_role: str = "corpus-adapter prove-one",
 ) -> AcquiredPage:
@@ -499,7 +500,7 @@ def acquire_page(
             "hf_api_url": ref.api_url,
             "shard_key": shard_key,
             "shard_sha256": shard_sha256,
-            "split": "train",
+            "split": split,
         },
         "image_id": page.image_id,
         "original_filename": page.original_filename,
