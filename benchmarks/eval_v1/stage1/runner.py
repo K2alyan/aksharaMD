@@ -28,10 +28,11 @@ import platform
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from benchmarks.eval_v1.smoke_b1a_7b.adapter_protocol import ParseStatus
 from benchmarks.eval_v1.smoke_b1a_7b.real_adapters import (
@@ -47,7 +48,6 @@ from .record import (
     Stage1ExecutionRecord,
     Stage1RecordSchemaError,
     compute_pair_id,
-    validate_schema,
     write_execution_record,
 )
 
@@ -138,20 +138,6 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _model_cache_path() -> str:
-    """Return the HuggingFace hub cache directory as a string.
-
-    Used as model_cache_path for VLM parsers when preflight has not been
-    run (Stage 1 runner uses a pending sentinel for artifact SHAs; the
-    cache path is the best available provenance anchor without a full
-    preflight scan).
-    """
-    hf_home = os.environ.get("HF_HOME") or os.environ.get("HUGGINGFACE_HUB_CACHE")
-    if hf_home:
-        return str(Path(hf_home))
-    return str(Path.home() / ".cache" / "huggingface" / "hub")
-
-
 def _cuda_state() -> tuple[str | None, str | None, str | None]:
     try:
         import torch
@@ -181,7 +167,14 @@ def _now_utc() -> str:
 def build_adapters(
     *,
     subprocess_invoker: SubprocessInvoker,
+    model_artifact_shas: dict[str, str | None],
 ) -> dict[str, SubprocessParserAdapter]:
+    """Construct one adapter per parser.
+
+    ``model_artifact_shas`` must supply real (non-placeholder) SHA-256
+    strings for VLM parsers (marker, docling); None is accepted for
+    CPU-only parsers.  The values come from the frozen execution manifest.
+    """
     configs = [
         RealAdapterConfig(
             parser_id="aksharamd-reference",
@@ -199,7 +192,7 @@ def build_adapters(
             package_source_sha256=_PENDING_SHA,
             adapter_source_sha256=_PENDING_SHA,
             parser_model_version="runtime",
-            parser_model_artifact_sha256=None,
+            parser_model_artifact_sha256=model_artifact_shas["marker"],
             timeout_seconds=600.0,
             is_vlm=True,
         ),
@@ -209,7 +202,7 @@ def build_adapters(
             package_source_sha256=_PENDING_SHA,
             adapter_source_sha256=_PENDING_SHA,
             parser_model_version="runtime",
-            parser_model_artifact_sha256=None,
+            parser_model_artifact_sha256=model_artifact_shas["docling"],
             timeout_seconds=600.0,
             is_vlm=True,
         ),
@@ -265,9 +258,9 @@ def _build_record(
     cpu_cores: int,
     cuda_version: str | None,
     cuda_device: str | None,
+    model_cache_path: str | None,
     stage1_manifest_sha256: str,
 ) -> Stage1ExecutionRecord:
-    from benchmarks.eval_v1.smoke_b1a_7b.adapter_protocol import ParseStatus
 
     is_executed = outcome.status is ParseStatus.EXECUTED
     output_bytes = outcome.markdown.encode("utf-8") if (
@@ -278,17 +271,6 @@ def _build_record(
 
     is_cpu_only = parser_id in {"aksharamd-reference", "markitdown"}
 
-    # VLM parsers require non-null model provenance fields.  Preflight
-    # populates real values; Stage 1 runner uses the pending sentinel for
-    # the artifact SHA and the HF hub cache dir for the cache path.
-    artifact_sha = adapter.parser_model_artifact_sha256()
-    if not is_cpu_only and artifact_sha is None:
-        artifact_sha = _PENDING_SHA
-
-    cache_path: str | None = None
-    if not is_cpu_only:
-        cache_path = _model_cache_path()
-
     return Stage1ExecutionRecord(
         pair_id=compute_pair_id(canonical_id=canonical_id, parser_id=parser_id),
         canonical_id=canonical_id,
@@ -297,7 +279,7 @@ def _build_record(
         parser_package_version=adapter.package_version(),
         parser_package_source_sha256=adapter.package_source_sha256(),
         parser_model_version=adapter.parser_model_version(),
-        parser_model_artifact_sha256=artifact_sha,
+        parser_model_artifact_sha256=adapter.parser_model_artifact_sha256(),
         adapter_source_sha256=adapter.adapter_source_sha256(),
         python_version=python_version,
         platform_string=platform_string,
@@ -306,7 +288,7 @@ def _build_record(
         cuda_version=None if is_cpu_only else cuda_version,
         cuda_driver_version=None if is_cpu_only else cuda_version,
         cuda_device_name=None if is_cpu_only else cuda_device,
-        model_cache_path=cache_path,
+        model_cache_path=None if is_cpu_only else model_cache_path,
         network_egress_blocked=network_egress_blocked,
         pair_started_at=started_at,
         pair_finished_at=finished_at,
@@ -348,6 +330,8 @@ class Stage1Runner:
         items: list[CorpusItem],
         run_dir: Path,
         stage1_manifest_sha256: str,
+        model_artifact_shas: dict[str, str | None],
+        model_cache_paths: dict[str, str],
         network_egress_blocked: bool = False,
         subprocess_invoker: SubprocessInvoker | None = None,
         verbose: bool = True,
@@ -356,11 +340,16 @@ class Stage1Runner:
         self._items = items
         self._run_dir = run_dir
         self._manifest_sha = stage1_manifest_sha256
+        self._model_artifact_shas = model_artifact_shas
+        self._model_cache_paths = model_cache_paths
         self._blocked = network_egress_blocked
         self._invoker = subprocess_invoker or RealSubprocessInvoker()
         self._verbose = verbose
         self._resume = resume
-        self._adapters = build_adapters(subprocess_invoker=self._invoker)
+        self._adapters = build_adapters(
+            subprocess_invoker=self._invoker,
+            model_artifact_shas=model_artifact_shas,
+        )
 
         # Environment snapshot (captured once at construction).
         self._git_commit = _git_commit()
@@ -372,6 +361,48 @@ class Stage1Runner:
     def _log(self, msg: str) -> None:
         if self._verbose:
             print(msg, flush=True)
+
+    def _validate_resume_record(
+        self,
+        path: Path,
+        *,
+        canonical_id: str,
+        parser_id: str,
+    ) -> tuple[bool, str]:
+        """Return (skip, reason).  skip=True means the record is valid to reuse.
+
+        Validates:
+          1. File is parseable JSON
+          2. canonical_id and parser_id match this invocation
+          3. stage1_execution_manifest_sha256 matches the pinned manifest SHA
+          4. exit_status is a terminal study state (EXECUTED or DEFECT)
+        """
+        try:
+            d = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            return False, f"parse error: {exc}"
+
+        if d.get("canonical_id") != canonical_id:
+            return False, (
+                f"canonical_id mismatch: "
+                f"record={d.get('canonical_id')!r} != expected={canonical_id!r}"
+            )
+        if d.get("parser_id") != parser_id:
+            return False, (
+                f"parser_id mismatch: "
+                f"record={d.get('parser_id')!r} != expected={parser_id!r}"
+            )
+        if d.get("stage1_execution_manifest_sha256") != self._manifest_sha:
+            return False, (
+                f"manifest SHA mismatch: "
+                f"record={str(d.get('stage1_execution_manifest_sha256'))[:16]}… "
+                f"!= pinned={self._manifest_sha[:16]}…"
+            )
+        status = d.get("exit_status", "")
+        if status not in {"EXECUTED", "DEFECT"}:
+            return False, f"non-terminal exit_status={status!r}"
+
+        return True, ""
 
     def run(self) -> Stage1RunSummary:
         started_at = _now_utc()
@@ -413,7 +444,12 @@ class Stage1Runner:
                     canonical_id=item.canonical_id, parser_id=parser_id
                 )
 
-                # Resume: skip this invocation if a valid record already exists.
+                # Resume: skip only if the existing record passes full
+                # frozen-identity validation.  Checks:
+                #   1. canonical_id and parser_id match this invocation
+                #   2. stage1_execution_manifest_sha256 matches pinned SHA
+                #   3. exit_status is a terminal study state (not HARNESS_DEFECT)
+                # Any mismatch or parse error causes re-execution.
                 record_path_candidate = (
                     self._run_dir
                     / item.corpus
@@ -422,7 +458,12 @@ class Stage1Runner:
                     / "execution_record.json"
                 )
                 if self._resume and record_path_candidate.exists():
-                    try:
+                    skip, skip_reason = self._validate_resume_record(
+                        record_path_candidate,
+                        canonical_id=item.canonical_id,
+                        parser_id=parser_id,
+                    )
+                    if skip:
                         existing = json.loads(
                             record_path_candidate.read_text(encoding="utf-8")
                         )
@@ -435,14 +476,17 @@ class Stage1Runner:
                             canonical_id=item.canonical_id,
                             parser_id=parser_id,
                             pair_id=pair_id,
-                            exit_status=existing.get("exit_status", "EXECUTED"),
+                            exit_status=existing["exit_status"],
                             wall_clock_seconds=existing.get("wall_clock_seconds", 0.0),
                             record_path=record_path_candidate,
                             defect_reason=existing.get("defect_reason"),
                         ))
                         continue
-                    except Exception:  # noqa: BLE001
-                        pass  # corrupt record — re-run this invocation
+                    else:
+                        self._log(
+                            f"  [{done}/{total}] RE-RUN (resume invalid: {skip_reason}) "
+                            f"{item.canonical_id[:24]}… × {parser_id}"
+                        )
 
                 self._log(
                     f"  [{done}/{total}] {item.canonical_id[:24]}…"
@@ -519,6 +563,7 @@ class Stage1Runner:
                         cpu_cores=self._cpu_cores,
                         cuda_version=self._cuda_version,
                         cuda_device=self._cuda_device,
+                        model_cache_path=self._model_cache_paths.get(parser_id),
                         stage1_manifest_sha256=self._manifest_sha,
                     )
                     record_path = (

@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata as im
 import json
+import os
 import platform
 import re
 import subprocess
@@ -42,6 +43,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from benchmarks.eval_v1.smoke_b1a_7b.provenance import compute_model_artifact_sha256
 
 ROOT = Path(__file__).parent.parent.parent.parent
 
@@ -83,6 +86,16 @@ FREEZE_SEED = (
     "6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa"
 )
 
+# VLM model artifact SHA-256 (computed by compute_model_artifact_sha256).
+# marker uses the Surya model cache; docling SHA is the combined hash of
+# docling-models and docling-layout-heron (sha256(sha_models + ":" + sha_heron)).
+FROZEN_MARKER_MODEL_SHA = (
+    "176167fd0f8b2b224a5d7766668d705e788f855469056270bb8009c7499c87b8"
+)
+FROZEN_DOCLING_MODEL_SHA = (
+    "cb8a5fc6b19866420fb8839efddda07bf61dd21713135c1f480bbde056592fc4"
+)
+
 FROZEN_PACKAGES: dict[str, str] = {
     "aksharamd": "0.3.6",
     "marker-pdf": "1.10.2",
@@ -116,6 +129,21 @@ CONTRACT_PATH = (
 MODELS_PY_PATH = ROOT / "aksharamd" / "scoring" / "models.py"
 
 OUTPUT_PATH = ROOT / "docs" / "evaluation" / "STAGE1_EXECUTION_MANIFEST.json"
+
+# VLM model cache directories (override via env vars if needed).
+# marker uses the Surya datalab cache; docling uses two HF hub subdirs.
+MARKER_MODEL_CACHE_PATH: Path = Path(
+    re.sub(r"^$", "", os.environ.get("MARKER_ARTIFACTS_CACHE", ""))
+    or str(Path.home() / "AppData" / "Local" / "datalab" / "datalab" / "Cache" / "models")
+)
+DOCLING_MODELS_PATH: Path = Path(
+    re.sub(r"^$", "", os.environ.get("DOCLING_MODELS_PATH", ""))
+    or str(Path.home() / ".cache" / "huggingface" / "hub" / "models--docling-project--docling-models")
+)
+DOCLING_HERON_PATH: Path = Path(
+    re.sub(r"^$", "", os.environ.get("DOCLING_HERON_PATH", ""))
+    or str(Path.home() / ".cache" / "huggingface" / "hub" / "models--docling-project--docling-layout-heron")
+)
 
 # Run-root definitions (pre-declared before any execution)
 RUN_ROOTS: dict[str, str] = {
@@ -281,6 +309,56 @@ def _verify_all() -> tuple[dict[str, str], list[str]]:
                 f"    expected : {pinned}\n"
                 f"    actual   : {actual_ver}"
             )
+
+    # 10. Marker (Surya) model artifact SHA-256
+    if not MARKER_MODEL_CACHE_PATH.exists():
+        failures.append(
+            f"marker model cache not found: {MARKER_MODEL_CACHE_PATH}\n"
+            f"    Set MARKER_ARTIFACTS_CACHE env var to the Surya cache dir."
+        )
+    else:
+        try:
+            actual_marker_sha = compute_model_artifact_sha256(MARKER_MODEL_CACHE_PATH)
+            observed["marker_model_artifact_sha256"] = actual_marker_sha
+            if actual_marker_sha != FROZEN_MARKER_MODEL_SHA:
+                failures.append(
+                    f"marker model artifact SHA-256\n"
+                    f"    expected : {FROZEN_MARKER_MODEL_SHA}\n"
+                    f"    actual   : {actual_marker_sha}\n"
+                    f"    cache    : {MARKER_MODEL_CACHE_PATH}"
+                )
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"marker model artifact hash error: {exc}")
+
+    # 11. Docling model artifact SHA-256 (combined: docling-models + docling-heron)
+    docling_missing = [
+        p for p in (DOCLING_MODELS_PATH, DOCLING_HERON_PATH) if not p.exists()
+    ]
+    if docling_missing:
+        failures.append(
+            "docling model cache dir(s) not found: "
+            + ", ".join(str(p) for p in docling_missing)
+        )
+    else:
+        try:
+            sha_dm = compute_model_artifact_sha256(DOCLING_MODELS_PATH)
+            sha_dh = compute_model_artifact_sha256(DOCLING_HERON_PATH)
+            actual_docling_sha = hashlib.sha256(
+                f"{sha_dm}:{sha_dh}".encode()
+            ).hexdigest()
+            observed["docling_model_artifact_sha256"] = actual_docling_sha
+            observed["docling_models_sha256"] = sha_dm
+            observed["docling_heron_sha256"] = sha_dh
+            if actual_docling_sha != FROZEN_DOCLING_MODEL_SHA:
+                failures.append(
+                    f"docling model artifact SHA-256\n"
+                    f"    expected : {FROZEN_DOCLING_MODEL_SHA}\n"
+                    f"    actual   : {actual_docling_sha}\n"
+                    f"    models   : {sha_dm}\n"
+                    f"    heron    : {sha_dh}"
+                )
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"docling model artifact hash error: {exc}")
 
     return observed, failures
 
@@ -479,6 +557,17 @@ def run(*, output_path: Path = OUTPUT_PATH, verbose: bool = True) -> dict[str, A
             },
         },
         "run_roots": RUN_ROOTS,
+        "model_cache_paths": {
+            "marker": str(MARKER_MODEL_CACHE_PATH),
+            "docling_models": str(DOCLING_MODELS_PATH),
+            "docling_heron": str(DOCLING_HERON_PATH),
+        },
+        "model_artifact_shas": {
+            "marker": observed.get("marker_model_artifact_sha256", ""),
+            "docling": observed.get("docling_model_artifact_sha256", ""),
+            "docling_models_component": observed.get("docling_models_sha256", ""),
+            "docling_heron_component": observed.get("docling_heron_sha256", ""),
+        },
         "environment": env,
         "admission_batch_status": "PENDING",
     }
@@ -496,6 +585,10 @@ def run(*, output_path: Path = OUTPUT_PATH, verbose: bool = True) -> dict[str, A
         print(f"  written_utc   : {manifest['written_utc']}")
         print(f"  git_commit    : {env['git_commit']}")
         print(f"  manifest SHA  : {manifest_sha}")
+        print()
+        print("  VLM model artifact SHAs:")
+        print(f"    marker  : {manifest['model_artifact_shas']['marker'][:24]}…")
+        print(f"    docling : {manifest['model_artifact_shas']['docling'][:24]}…")
         print()
         print("  Corpus summary:")
         print("    olmOCR-Bench  : EXECUTABLE (1,403 PDFs)")

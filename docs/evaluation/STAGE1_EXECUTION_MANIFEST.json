@@ -53,7 +53,7 @@
     "cpu_physical_cores": 12,
     "cuda_device_name": "NVIDIA GeForce RTX 3060",
     "cuda_version": "12.6",
-    "git_commit": "3a4331303d45b940f1706b0861806f3c414160ac",
+    "git_commit": "934c15f3f8d75c910366de5422f7f4e78e8f4321",
     "platform_string": "Windows-11-10.0.26200-SP0",
     "python_version": "3.12.2"
   },
@@ -62,6 +62,17 @@
     "doclaynet_val"
   ],
   "freeze_seed": "6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa",
+  "model_artifact_shas": {
+    "docling": "cb8a5fc6b19866420fb8839efddda07bf61dd21713135c1f480bbde056592fc4",
+    "docling_heron_component": "d3e77017292f41821749f10bfd75abb372f32706f4141b7ac3260ec7f4d2df7d",
+    "docling_models_component": "9205446170f2954bd88b89f86b6b16cc1b631755b45156e7b66ba8d4e87b1ddb",
+    "marker": "176167fd0f8b2b224a5d7766668d705e788f855469056270bb8009c7499c87b8"
+  },
+  "model_cache_paths": {
+    "docling_heron": "C:\\Users\\kalya\\.cache\\huggingface\\hub\\models--docling-project--docling-layout-heron",
+    "docling_models": "C:\\Users\\kalya\\.cache\\huggingface\\hub\\models--docling-project--docling-models",
+    "marker": "C:\\Users\\kalya\\AppData\\Local\\datalab\\datalab\\Cache\\models"
+  },
   "parser_execution_contract": {
     "canonical_lf_sha256": "a0ca496e562cee200c393c146c7ed16efee9b01ee2f94ebdd4e623c936f9baa4",
     "path": "benchmarks\\eval_v1\\config\\parser_execution_contract_v1.json",
@@ -130,5 +141,5 @@
     },
     "temperature": 0.0
   },
-  "written_utc": "2026-09-17T15:14:15+00:00"
+  "written_utc": "2026-09-17T16:40:08+00:00"
 }

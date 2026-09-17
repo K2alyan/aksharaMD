@@ -23,6 +23,7 @@ import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).parent.parent.parent.parent
 
@@ -35,7 +36,7 @@ MANIFEST_PATH = ROOT / "docs" / "evaluation" / "STAGE1_EXECUTION_MANIFEST.json"
 # Raw-byte SHA-256 of STAGE1_EXECUTION_MANIFEST.json as written by
 # execution_manifest.run().  Admission refuses to proceed if this drifts.
 EXPECTED_MANIFEST_SHA = (
-    "607b5aaf5c21a919b75d4805dde0d55ecd69572d17a4fe7c0b0aca64866d9481"
+    "b0b844bd629ecf112a94e6ecdf019a4943057f6f2d21cfecf5a481674f8aff86"
 )
 
 # ---------------------------------------------------------------------------
@@ -48,7 +49,7 @@ _DOCLAYNET_BASE = ROOT / "corpus" / "eval_v1" / "doclaynet"
 # Two olmOCR PDFs from distinct categories, one DocLayNet prove-one page.
 # The DocLayNet page is NOT in the 280-page frozen selection; it is used
 # solely to exercise the doclaynet_val corpus code path in the runner.
-_ADMISSION_SPECS = [
+_ADMISSION_SPECS: list[dict[str, Any]] = [
     {
         "canonical_id": "arxiv_math/2502.15977_pg21",
         "corpus": "olmocr_bench",
@@ -109,7 +110,7 @@ def _check_pdf_paths() -> None:
         raise SystemExit(f"ABORT: admission PDFs not on disk:\n{lines}")
 
 
-def _try_firewall() -> tuple[bool, object | None]:
+def _try_firewall() -> tuple[bool, tuple[Any, str] | None]:
     """Attempt to create the Windows egress-block firewall rule.
 
     Returns (blocked, backend_or_None).  Admission continues even if
@@ -121,7 +122,6 @@ def _try_firewall() -> tuple[bool, object | None]:
         from benchmarks.eval_v1.smoke_b1a_7b.real_firewall import (
             RealFirewallBackend,
             RealPowerShellInvoker,
-            RealFirewallError,
         )
     except ImportError:
         print("  [firewall] real_firewall import failed; skipping.")
@@ -147,7 +147,7 @@ def _try_firewall() -> tuple[bool, object | None]:
         return False, None
 
 
-def _teardown_firewall(state: object) -> None:
+def _teardown_firewall(state: tuple[Any, str] | None) -> None:
     if state is None:
         return
     backend, display_name = state
@@ -226,11 +226,22 @@ def run(*, skip_firewall: bool = False) -> bool:
     run_date = datetime.now(UTC).strftime("%Y-%m-%d")
     run_dir = ROOT / "benchmarks" / "results" / f"stage1-admission-{run_date}"
 
+    model_artifact_shas: dict[str, str | None] = {
+        "marker": manifest.get("model_artifact_shas", {}).get("marker"),
+        "docling": manifest.get("model_artifact_shas", {}).get("docling"),
+    }
+    model_cache_paths: dict[str, str] = {
+        "marker": manifest.get("model_cache_paths", {}).get("marker", ""),
+        "docling": manifest.get("model_cache_paths", {}).get("docling_models", ""),
+    }
+
     try:
         runner = Stage1Runner(
             items=items,
             run_dir=run_dir,
             stage1_manifest_sha256=manifest_sha,
+            model_artifact_shas=model_artifact_shas,
+            model_cache_paths=model_cache_paths,
             network_egress_blocked=egress_blocked,
             verbose=True,
         )
