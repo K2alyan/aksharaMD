@@ -136,6 +136,43 @@ print(f"  canonical (LF) SHA-256 : {canonical_sha256}")
 print(f"  size (bytes)           : {len(raw_bytes)}")
 
 # ---------------------------------------------------------------------------
+# 7. Track C prompt file SHA-256 matches the §8 pin.
+#
+# Convention (frozen by B1a-8d amendment, §15):
+#   SHA-256 of LF-normalized content (all \r\n and lone \r → \n).
+#   This equals the git blob SHA (pure LF) and is stable across platforms:
+#   on Windows with core.autocrlf=true the file is checked out as CRLF but
+#   normalization restores the canonical LF bytes before hashing.
+print()
+print("=== 7) Track C prompt file SHA-256 ===")
+FROZEN_PROMPT_SHA256 = (
+    "2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601"
+)
+PROMPT_PATH = ROOT / "docs" / "evaluation" / "TRACK_C_PROMPT_V1.txt"
+if not PROMPT_PATH.exists():
+    _fail(f"Track C prompt file not found: {PROMPT_PATH}")
+else:
+    raw = PROMPT_PATH.read_bytes()
+    lf_normalized = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    actual_sha = hashlib.sha256(lf_normalized).hexdigest()
+    if actual_sha != FROZEN_PROMPT_SHA256:
+        _fail(
+            f"Track C prompt canonical-LF SHA-256 mismatch — "
+            f"frozen={FROZEN_PROMPT_SHA256[:16]}… "
+            f"actual={actual_sha[:16]}… "
+            f"({PROMPT_PATH})"
+        )
+    else:
+        _ok(f"Track C prompt canonical-LF SHA-256 = {FROZEN_PROMPT_SHA256[:16]}… matches pin")
+    if FROZEN_PROMPT_SHA256 not in text:
+        _fail(
+            "Track C prompt SHA-256 pin not found in manifest — "
+            "§8 and §13 may not have been updated"
+        )
+    else:
+        _ok("Track C prompt SHA-256 pin present in manifest")
+
+# ---------------------------------------------------------------------------
 # Summary.
 print()
 print("=" * 60)
