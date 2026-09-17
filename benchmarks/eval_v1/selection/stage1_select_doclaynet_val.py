@@ -1,7 +1,14 @@
 """Stage 1 — DocLayNet validation-split selection (B1a-8).
 
-Produces a deterministic stratified sample of 280 documents from the
+Produces a deterministic stratified sample of 280 pages from the
 DocLayNet val split, per §6.2 of STUDY_FREEZE_MANIFEST_V1.
+
+Unit of selection: individual pages (page_hash), not source documents.
+The 280 selected pages may include multiple pages from the same source
+document (original_filename).  The §6.2 cluster-correction reasoning
+motivates the sample-size floor; the implementation selects at the page
+level because DocLayNet's eligibility filter is page-level and each
+page_hash is the canonical unit of analysis for the adapter.
 
 Selection algorithm:
 1. Enumerate all eligible pages from the 7 val shards (metadata only).
@@ -27,7 +34,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import sys
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -52,6 +58,7 @@ from benchmarks.eval_v1.selection.doclaynet_val_population import (
     enumerate_eligible_val_population,
 )
 from benchmarks.eval_v1.selection.pilot_selector import (
+    Candidate,
     load_exclusion_ledger,
     make_candidate,
 )
@@ -252,7 +259,7 @@ def run(output_dir: Path) -> None:
     sel_path = output_dir / "STAGE1_DOCLAYNET_VAL_SELECTION.json"
     sel_path.write_text(json.dumps(selection_manifest, indent=2, sort_keys=True))
     print(f"[stage1-dl-val] selection manifest -> {sel_path}", flush=True)
-    print(f"\n=== STAGE 1 DOCLAYNET VAL SELECTION COMPLETE ===", flush=True)
+    print("\n=== STAGE 1 DOCLAYNET VAL SELECTION COMPLETE ===", flush=True)
     print(f"  Selected: {len(selected)}/{STAGE1_TARGET_N_DOCUMENTS}", flush=True)
     print(f"  Manifest: {sel_path}", flush=True)
 

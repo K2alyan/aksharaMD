@@ -45,6 +45,7 @@ inventory extracted from the HF dataset at revision `54a96a6`.  All 1,412 files 
 | Eligible pages (post-filter) | 821 |
 | Exclusion ledger entries removed | 0 (222 ledger entries; all are train-split IDs) |
 | Selected pages | 280 |
+| Unique source documents in selection | 53 (of 280 selected pages; multiple pages per document are included) |
 | Selection algorithm | `stratified_by_doc_category_sha256_rank` |
 | Freeze seed used | `6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa` |
 | License | CDLA-Permissive |
@@ -71,12 +72,20 @@ inventory extracted from the HF dataset at revision `54a96a6`.  All 1,412 files 
 | Population checkpoint | `docs/evaluation/STAGE1_DOCLAYNET_VAL_POPULATION.json` | `66abd1655f3e2585cdeb38e2fb78c971fad4721e90a563c65af1d2ac551f19ae` |
 | Selection manifest | `docs/evaluation/STAGE1_DOCLAYNET_VAL_SELECTION.json` | `efbe3729121117ad5d03e715605bc84eef295ca701d5ff238b33a175981b2df2` |
 
-**Coverage per manifest §6.2:** Stratified sample of 280 documents from the val split.
-Note: the eligible pool (821 pages) is below the theoretical n_raw = 1,320 from the
-sampling-math section.  This is expected: the eligibility filter (must have ≥1 Table region
-plus additional structural regions) selects a restricted subpopulation of pages.  All 821
-eligible pages are drawn from a pool that uniformly satisfies the filter; the 280 selected
-are the top-ranked per category under the freeze-seed sort.
+**Unit of selection: pages, not source documents.** The selection operates at the
+page_hash level — the canonical DocLayNet unit.  The 280 selected pages come from
+53 unique source documents (original_filename); multiple pages from the same document
+are included (e.g., 41 pages from `perl-all-en-5.8.5.pdf`).  The §6.2 cluster-correction
+reasoning (DE = 2.2, n_raw = 1,320 pages from 264 documents) was the original design
+intent for document-level cluster sampling.  The implementation selects at the page level
+because the eligibility filter and adapter are page-level.  The eligible pool of 821 pages
+from 53 source documents is the effective universe; 280 pages were selected from it.
+
+**Relationship to §6.2 clustering analysis:** The freeze manifest reasoned about
+"280 documents" with mean cluster size m̄ = 5.  The page-level implementation
+is a simplification: it selects 280 pages (not 280 documents × their full page sets).
+This is recorded here as the pre-execution scope decision; any follow-on study that
+requires document-level cluster sampling should re-implement accordingly.
 
 ---
 

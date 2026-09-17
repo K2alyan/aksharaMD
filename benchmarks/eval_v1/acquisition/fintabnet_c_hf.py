@@ -145,7 +145,6 @@ def _download(url: str, dest: Path, expected_sha256: str, *, verbose: bool = Tru
                 n_bytes += len(block)
                 if verbose and n_bytes % (50 * chunk) == 0:
                     mb = n_bytes // (1 << 20)
-                    exp_mb = dest.stat().st_size // (1 << 20) if dest.exists() else 0
                     print(f"    {mb} MiB...", flush=True)
     tmp.rename(dest)
     actual = h.hexdigest()

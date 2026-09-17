@@ -226,7 +226,9 @@ Each assertion maps to exactly one failure mode. Mapping is preregistered in §7
 
 Clustering INCREASES the pages required (not decreases). The formula is `n_raw = n_eff × DE`, not `n_eff / DE`.
 
-The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw a deterministic stratified sample of **280 documents** (rounded up for headroom), stratified by document category (financial, scientific, etc.) proportional to category prevalence in the full split. Selection seed recorded in §8.
+The full val split (~1,000 documents, ~5,000 pages) is more than adequate. Draw a deterministic stratified sample of **280 pages** (rounded up from 264 for headroom), stratified by document category (financial, scientific, etc.) proportional to category prevalence in the eligible pool. Selection seed recorded in §8.
+
+**Implementation note (B1a-8):** The selection operates at the page_hash level (the canonical DocLayNet unit). The 280 selected pages come from 53 unique source documents; multiple pages from the same document may be selected. The cluster-correction reasoning above motivates the sample-size floor; it is not a guarantee that the implementation achieves document-level cluster sampling. See STAGE1_CORPUS_SNAPSHOT_MANIFEST_V1.md §2 for the full selection record.
 
 ### 6.3 FinTabNet.c
 
