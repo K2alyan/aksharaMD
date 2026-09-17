@@ -105,21 +105,28 @@ requires document-level cluster sampling should re-implement accordingly.
 
 | Archive | Size | LFS SHA-256 (= content SHA-256) | Download status |
 |---|---|---|---|
-| `FinTabNet.c-PDF_Annotations.tar.gz` | 255,009,483 bytes (243 MiB) | `bc32348eb1e73a6a8207f41267eb1b5a81e6ef5b0ff79d656f53d5f2e36ce60f` | OID resolved; not yet downloaded |
-| `FinTabNet.c-Structure.tar.gz` | 3,173,052,423 bytes (3,026 MiB) | `bde6a9443e08f6c94f8cf65fcd439d516131ede49c59ed2279959a8be3d0fbf6` | OID resolved; not yet downloaded |
+| `FinTabNet.c-PDF_Annotations.tar.gz` | 255,009,483 bytes (243 MiB) | `bc32348eb1e73a6a8207f41267eb1b5a81e6ef5b0ff79d656f53d5f2e36ce60f` | Downloaded and byte-verified (2026-09-16) |
+| `FinTabNet.c-Structure.tar.gz` | 3,173,052,423 bytes (3,026 MiB) | `bde6a9443e08f6c94f8cf65fcd439d516131ede49c59ed2279959a8be3d0fbf6` | Downloaded and byte-verified (2026-09-16) |
 
 **LFS OID provenance note:** Git LFS stores each file's SHA-256 as the `lfs.oid` in the
 repository tree.  This OID is identical to the output of `sha256sum` on the downloaded
-archive and is resolved from the pinned revision `e5673a90` without downloading the
-archives.  Download and byte-level verification must occur before any parser execution;
-run `python -m benchmarks.eval_v1.acquisition.fintabnet_c_hf --download` to fetch and
-verify both archives.
+archive and is resolved from the pinned revision `e5673a90`.  Both archives were
+downloaded and byte-verified against the LFS OIDs on 2026-09-16 before selection was run.
 
-**Coverage per manifest §6.3:** 500 tables, stratified sample by table complexity tier
-(simple / compound / multi-page spanning).  Table selection is the next acquisition step
-after archive download; selection script:
-`benchmarks/eval_v1/selection/stage1_select_fintabnet_c.py` (to be written at execution
-start).
+**Coverage per manifest §6.3:** 500 tables, two-tier stratified sample (SIMPLE / COMPOUND).
+Multi-page spanning removed as a pre-execution corpus-capability correction (B1a-8b): the
+FinTabNet.c V1 ground truth contains no field identifying cross-page cell continuations;
+the tier cannot be determined mechanically.  See §6.3 of STUDY_FREEZE_MANIFEST_V1.md for
+full correction record and frozen tier definitions.
+
+**Eligible pool (val split, post-exclusion):** 3,714 SIMPLE + 5,936 COMPOUND = 9,650 tables
+(0 excluded by `exclude_for_structure`).  Largest-remainder allocation: SIMPLE=192, COMPOUND=308.
+
+**Selection provenance:**
+
+| File | Path | SHA-256 |
+|---|---|---|
+| Selection manifest | `docs/evaluation/STAGE1_FINTABNET_C_SELECTION.json` | `f8ec903aecdae4a0c49484d42539b220d941d19ce79e5489f62796c02062427e` |
 
 ---
 
@@ -157,11 +164,12 @@ Track C corpus provenance is recorded in the Track C execution manifest at execu
 |---|---|---|---|
 | olmOCR-Bench | `54a96a6` | File-level SHA-256 (1,412 verified) | COMPLETE |
 | DocLayNet val | `0daf931` | Selection manifest SHA-256 | COMPLETE |
-| FinTabNet.c | `e5673a9` | LFS OID (= archive SHA-256) | OID RESOLVED; download pending |
+| FinTabNet.c | `e5673a9` | LFS OID (= archive SHA-256) + selection manifest SHA-256 | COMPLETE |
 | OmniDocBench | `91fe284` | N/A | EXCLUDED |
 
-**All corpus pins were resolved before any parser execution.** The FinTabNet.c archive
-download must be verified before any FinTabNet.c parser run begins.
+**All corpus pins were resolved and verified before any parser execution.** Both FinTabNet.c
+archives were downloaded and byte-verified against their LFS OIDs on 2026-09-16.
+500-table selection is complete; selection manifest SHA-256 recorded in §3 above.
 
 ---
 
@@ -181,4 +189,13 @@ Manifest V1 without altering the methodological design:
    PubTabNet excluded (image-only; no PDFs).  Version pinned in §8 of
    STUDY_FREEZE_MANIFEST_V1.md.
 
-Both decisions were made and recorded before any parser execution began.
+3. **FinTabNet.c two-tier stratification** (B1a-8b, pre-execution corpus-capability correction):
+   The original three-tier design (simple / compound / multi-page spanning) was reduced to
+   two tiers.  Inspection of the FinTabNet.c V1 ground truth confirmed that cross-page
+   spanning cannot be determined mechanically from the annotations.  Frozen definitions:
+   SIMPLE = every cell `len(row_nums)==1` and `len(column_nums)==1`; COMPOUND = any cell
+   `len(row_nums)>1` or `len(column_nums)>1`.  Allocation: SIMPLE=192, COMPOUND=308 (of 500
+   total), deterministic largest-remainder.  Full correction record in §6.3 of
+   STUDY_FREEZE_MANIFEST_V1.md.  Selection complete; 500 tables frozen.
+
+All decisions were made and recorded before any parser execution began.
