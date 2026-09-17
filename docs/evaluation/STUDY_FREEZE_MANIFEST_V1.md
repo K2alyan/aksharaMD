@@ -309,7 +309,7 @@ The following values are recorded at freeze time and must not change after freez
 | SCORING_POLICY_VERSION | `"1.10"` | At freeze |
 | Track C LLM model ID | `claude-sonnet-4-6` | At freeze |
 | Track C competitor arm | `none` | At freeze |
-| Track C LLM prompt SHA256 (canonical LF) | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` | Stage 1 prerequisite filled — `docs/evaluation/TRACK_C_PROMPT_V1.txt` |
+| Track C LLM prompt SHA256 (canonical LF) | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` | Stage 1 prerequisite filled — `docs/evaluation/TRACK_C_PROMPT_V1.txt` |
 | olmOCR-Bench dataset revision | HF `allenai/olmOCR-bench` rev `54a96a6fb6a2bd3b297e59869491db4d3625b711`; 1,412 files verified | Pre-execution (corpus confirmed) |
 | DocLayNet split + version | `docling-project/DocLayNet-v1.2` HF rev `0daf93102e2efce76c3e11a274a5e0d0969391d3`, split=validation, 7 shards | Pre-execution (corpus confirmed) |
 | FinTabNet.c version | `bsmock/FinTabNet.c` HF rev `e5673a90b98d02c4832f9e836d72762f0e8933a0`, CDLA-Permissive-2.0. **NOT_EXECUTABLE_V1**: annotation archives downloaded and byte-verified; source PDFs not available from a verifiable authoritative distribution; TEDS endpoint NOT_MEASURED_V1. Frozen 500-table selection retained as provenance evidence. See §6.3. | Pre-execution (corpus confirmed; execution status: NOT_EXECUTABLE_V1) |
@@ -317,7 +317,7 @@ The following values are recorded at freeze time and must not change after freez
 | Track A apparatus run directory | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 | Track C execution manifest path | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 
-The freeze seed was generated at freeze authorization by `os.urandom(32).hex()`. The Track C prompt is committed at `docs/evaluation/TRACK_C_PROMPT_V1.txt`; its canonical LF SHA-256 is recorded above. This fills the Stage 1 prerequisite that was explicitly left open in the original freeze commit. It does not constitute a methodological change to V1.
+The freeze seed was generated at freeze authorization by `os.urandom(32).hex()`. The Track C prompt is committed at `docs/evaluation/TRACK_C_PROMPT_V1.txt`; its canonical LF SHA-256 is recorded above (content normalized to LF line endings before hashing; equals the git blob SHA regardless of host `core.autocrlf` setting). This fills the Stage 1 prerequisite that was explicitly left open in the original freeze commit. It does not constitute a methodological change to V1.
 
 ---
 
@@ -439,7 +439,7 @@ Every open parameter in this document is either (a) resolved before Stage 1 exec
 | SCORING_POLICY_VERSION | §8 | (a) RECORDED | `"1.10"` — no scoring changes permitted after freeze |
 | Track C LLM model ID | §8 | (a) RECORDED | `claude-sonnet-4-6` |
 | Track C competitor arm | §8 | (a) RECORDED | `none` |
-| Track C LLM prompt SHA256 | §8 | (a) RECORDED | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` — `TRACK_C_PROMPT_V1.txt` |
+| Track C LLM prompt SHA256 | §8 | (a) RECORDED | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` — `TRACK_C_PROMPT_V1.txt` |
 | Corpus versions | §8 | (a) RECORDED | All corpora pinned pre-execution: olmOCR-Bench (HF rev `54a96a6`; executable), DocLayNet val (HF rev `0daf931`; executable), FinTabNet.c (HF rev `e5673a9`; NOT_EXECUTABLE_V1 — see §6.3), OmniDocBench (excluded; see §6.4) |
 | Track A apparatus run directory | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
 | Track C execution manifest | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
@@ -460,3 +460,42 @@ Every open parameter in this document is either (a) resolved before Stage 1 exec
 - FinTabNet.c is NOT_EXECUTABLE_V1 (pre-execution source-PDF provenance limitation; see §6.3). The TEDS endpoint is NOT_MEASURED_V1. No replacement corpus or metric is authorized. The frozen 500-table selection is retained as provenance evidence. The table-cell-fidelity/TEDS-specific validation component of Claim 2 is not evaluated in V1; the final report must identify it explicitly as not measured, not as zero or missing-at-random.
 - Track B acceptance does not follow from Track A results — it requires a separate acceptance decision per §11.
 - No result from this study is a product claim until the acceptance decision (§11) is documented.
+
+---
+
+## 15. Amendment record
+
+### B1a-8d — Track C prompt SHA provenance correction (2026-09-16, pre-execution)
+
+**Nature:** Provenance-recording correction.  The prompt content is unchanged.
+
+**Discovery:** During Stage 1 execution-manifest construction, `verify_study_freeze.py` was extended to compute the SHA-256 of `docs/evaluation/TRACK_C_PROMPT_V1.txt` and compare it against the §8 pin.  The computed SHA did not match the value recorded in §8 and §13.
+
+**Investigation:** Three byte-level variants were checked against the pin `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24`:
+
+| Variant | SHA-256 | Matches pin? |
+|---|---|---|
+| Git blob (pure LF, 301 bytes — what git stores regardless of host checkout settings) | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` | No |
+| LF-normalized (= git blob on this repo) | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` | No |
+| Raw on-disk bytes on Windows with `core.autocrlf=true` (CRLF, 309 bytes) | `beea2600374ed1cda3dde4b1375e64e04315acb98893ef65066c96ec667cb203` | No |
+
+No byte-level representation of the committed file produces the originally recorded SHA.  The SHA `af772e60...` does not correspond to any derivable encoding of `TRACK_C_PROMPT_V1.txt` as stored in git at commit `67f54c4` or at any subsequent commit.  The file has been byte-identical since its introduction.
+
+**Root cause:** The SHA was computed or transcribed incorrectly when both the prompt file and the freeze manifest were updated together in commit `67f54c4`.  No evidence exists that `af772e60...` corresponds to an intentionally frozen alternative prompt.
+
+**Decision:** Correct the recorded SHA to match the actual committed artifact.  This is a provenance-recording correction, not a methodological change.  The prompt content — the artifact that governs all Track C evaluations — is unchanged.
+
+**Hashing convention (frozen by this amendment):** The pin is the SHA-256 of the LF-normalized content of `TRACK_C_PROMPT_V1.txt` (all `\r\n` and lone `\r` replaced with `\n` before hashing).  This equals the git blob SHA (301 bytes, pure LF) and is stable across host platforms regardless of `core.autocrlf` setting.  On Windows with `core.autocrlf=true`, the on-disk file is checked out with CRLF (309 bytes, SHA `beea2600...`); the verifier normalizes to LF before computing the hash, so it passes on both Windows and Linux CI.
+
+**Pre-execution status:** No Stage 1 parser or Track C LLM execution had occurred before this correction.  No results were observed before the discrepancy was detected and resolved.  The correction was made at the execution-manifest construction gate, which is the intended pre-execution integrity checkpoint.
+
+**Fields corrected:**
+
+| Location | Old value | New value |
+|---|---|---|
+| §8 parameter table — "Track C LLM prompt SHA256" value | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` |
+| §8 parameter table — "Track C LLM prompt SHA256" field label | unchanged | `(canonical LF)` retained — this is accurate: the pin equals the git blob SHA (LF-normalized content) |
+| §8 narrative | `its canonical LF SHA-256 is recorded above` | updated to clarify that normalization equals the git blob SHA and is platform-stable |
+| §13 TBD audit table — "Track C LLM prompt SHA256" value | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` | `2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601` |
+
+**Verifier hardening:** `benchmarks/eval_v1/verify_study_freeze.py` §7 (added in this correction) now computes the SHA-256 of `TRACK_C_PROMPT_V1.txt` raw bytes and compares it against the pinned value.  A mismatch fails the freeze verifier with a non-zero exit code.  An automated regression test (`tests/test_verify_study_freeze.py`) was added to prevent silent drift.
