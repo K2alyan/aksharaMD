@@ -1,0 +1,21 @@
+PRE-PRODUCTION / INVALIDATED FOR STUDY V1
+
+Reason: execution launched before Stage 1 runner infrastructure was
+reviewed and merged.  Three provenance/integrity deficiencies:
+
+  1. VLM parser_model_artifact_sha256 = "000...0" (pending sentinel,
+     not real frozen model hash).
+
+  2. network_egress_blocked = false (--no-firewall flag; violates the
+     frozen parser-execution contract network isolation requirement).
+
+  3. resume logic validates only that execution_record.json is parseable
+     JSON, not that it belongs to the current frozen manifest/identity.
+
+Records produced: 54 of 5612 invocations (13 PDFs × 4 parsers + partial).
+Process killed at invocation [55/5612] (arxiv_math/2503.03879_pg × docling).
+
+Do not use these records for any Stage 1 study analysis.
+
+Preserved for: failure-mode archaeology / B1d instrumentation audit.
+Invalidated: 2026-09-17
