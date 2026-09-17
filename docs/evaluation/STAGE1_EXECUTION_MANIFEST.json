@@ -53,7 +53,7 @@
     "cpu_physical_cores": 12,
     "cuda_device_name": "NVIDIA GeForce RTX 3060",
     "cuda_version": "12.6",
-    "git_commit": "bfaec76bc00b8590116ce0e97f253001e0e72eec",
+    "git_commit": "3b9eb2350453154841d5b5a48a53326980c06641",
     "platform_string": "Windows-11-10.0.26200-SP0",
     "python_version": "3.12.2"
   },
@@ -110,9 +110,9 @@
   ],
   "phase": "stage1",
   "run_roots": {
-    "track_a_doclaynet": "benchmarks/results/stage1-track-a-doclaynet-2026-09-16",
-    "track_a_olmocr": "benchmarks/results/stage1-track-a-olmocr-2026-09-16",
-    "track_c": "benchmarks/results/stage1-track-c-2026-09-16"
+    "track_a_doclaynet": "benchmarks/results/stage1-track-a-doclaynet-2026-09-17",
+    "track_a_olmocr": "benchmarks/results/stage1-track-a-olmocr-2026-09-17",
+    "track_c": "benchmarks/results/stage1-track-c-2026-09-17"
   },
   "schema_version": "1",
   "scoring_policy_version": "1.10",
@@ -141,5 +141,5 @@
     },
     "temperature": 0.0
   },
-  "written_utc": "2026-09-17T17:13:59+00:00"
+  "written_utc": "2026-09-17T19:32:10+00:00"
 }
