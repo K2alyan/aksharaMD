@@ -351,6 +351,7 @@ class Stage1Runner:
         network_egress_blocked: bool = False,
         subprocess_invoker: SubprocessInvoker | None = None,
         verbose: bool = True,
+        resume: bool = False,
     ) -> None:
         self._items = items
         self._run_dir = run_dir
@@ -358,6 +359,7 @@ class Stage1Runner:
         self._blocked = network_egress_blocked
         self._invoker = subprocess_invoker or RealSubprocessInvoker()
         self._verbose = verbose
+        self._resume = resume
         self._adapters = build_adapters(subprocess_invoker=self._invoker)
 
         # Environment snapshot (captured once at construction).
@@ -410,6 +412,38 @@ class Stage1Runner:
                 pair_id = compute_pair_id(
                     canonical_id=item.canonical_id, parser_id=parser_id
                 )
+
+                # Resume: skip this invocation if a valid record already exists.
+                record_path_candidate = (
+                    self._run_dir
+                    / item.corpus
+                    / item.canonical_id[:32]
+                    / parser_id
+                    / "execution_record.json"
+                )
+                if self._resume and record_path_candidate.exists():
+                    try:
+                        existing = json.loads(
+                            record_path_candidate.read_text(encoding="utf-8")
+                        )
+                        self._log(
+                            f"  [{done}/{total}] SKIP (resume) "
+                            f"{item.canonical_id[:24]}… × {parser_id} "
+                            f"[{existing.get('exit_status','?')}]"
+                        )
+                        pairs.append(PairResult(
+                            canonical_id=item.canonical_id,
+                            parser_id=parser_id,
+                            pair_id=pair_id,
+                            exit_status=existing.get("exit_status", "EXECUTED"),
+                            wall_clock_seconds=existing.get("wall_clock_seconds", 0.0),
+                            record_path=record_path_candidate,
+                            defect_reason=existing.get("defect_reason"),
+                        ))
+                        continue
+                    except Exception:  # noqa: BLE001
+                        pass  # corrupt record — re-run this invocation
+
                 self._log(
                     f"  [{done}/{total}] {item.canonical_id[:24]}…"
                     f" × {parser_id}"
