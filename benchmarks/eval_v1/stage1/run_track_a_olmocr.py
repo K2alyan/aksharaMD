@@ -30,7 +30,7 @@ MANIFEST_PATH = ROOT / "docs" / "evaluation" / "STAGE1_EXECUTION_MANIFEST.json"
 # and VLM model artifact SHAs added (checks 1–11 all green).
 # This is the provenance anchor embedded in every Stage 1 execution record.
 MANIFEST_SHA = (
-    "b0b844bd629ecf112a94e6ecdf019a4943057f6f2d21cfecf5a481674f8aff86"
+    "e69b65baef4a30eaa019912ba9048d45be1155d64727143ed3531e841807b13e"
 )
 
 OLMOCR_PDFS_DIR = ROOT / "tmp" / "olmocr-full-data" / "bench_data" / "pdfs"
