@@ -89,7 +89,7 @@ requires document-level cluster sampling should re-implement accordingly.
 
 ---
 
-## 3. FinTabNet.c (Track A — table cell fidelity GT, TEDS metric)
+## 3. FinTabNet.c (Track A — table cell fidelity GT, TEDS metric) — NOT_EXECUTABLE_V1
 
 | Field | Value |
 |---|---|
@@ -128,6 +128,41 @@ full correction record and frozen tier definitions.
 |---|---|---|
 | Selection manifest | `docs/evaluation/STAGE1_FINTABNET_C_SELECTION.json` | `f8ec903aecdae4a0c49484d42539b220d941d19ce79e5489f62796c02062427e` |
 
+**NOT_EXECUTABLE_V1 — source-PDF provenance investigation (B1a-8c, 2026-09-16):**
+
+Pre-execution inspection confirmed that both downloaded archives contain only annotation
+data, not source PDF files:
+- `FinTabNet.c-PDF_Annotations.tar.gz`: 77,437 JSON files (cell/row/column annotations)
+- `FinTabNet.c-Structure.tar.gz`: XML structural annotations only
+
+The annotation JSON fields `pdf_folder` (e.g., `SBUX/2017/`) and `pdf_file_name`
+(e.g., `page_23.pdf`) reference page-level PDFs from the original IBM Research FinTabNet
+dataset hosted on IBM's Data Asset Exchange (DAX, license CDLA-Permissive 1.0).  IBM DAX
+is deprecated and the CDN is unreachable.  The only identified working source is a
+community Kaggle mirror (`kaggle.com/datasets/jiongjiong/fintabnet`) referenced by NVIDIA
+Nemotron documentation, but this mirror cannot be cryptographically or otherwise
+sufficiently verified against the original IBM-distributed bytes.  No hash, EDGAR accession
+number, or other identifier is embedded in the FinTabNet.c annotations to establish a
+verifiable provenance bridge.
+
+**Scope of PDFs that would have been required:**
+
+| Metric | Value |
+|---|---|
+| Frozen selected tables | 500 |
+| Unique (pdf_folder, pdf_file_name) pairs | 496 |
+| Unique company+year folders | 280 |
+| All pdf_page_index values | 0 (all are single-page PDFs) |
+
+**Execution status:** NOT_EXECUTABLE_V1. No parser execution was performed on FinTabNet.c
+before or after this determination.  TEDS endpoint = NOT_MEASURED_V1.
+
+**What is retained:** HF annotation revision, both byte-verified archives, 9,650-table
+eligible population, frozen 500-table selection with SHA-256
+`f8ec903aecdae4a0c49484d42539b220d941d19ce79e5489f62796c02062427e`, and this investigation
+record are all preserved as provenance evidence.  No replacement corpus or metric is
+authorized (Option C not authorized).  See §6.3 of STUDY_FREEZE_MANIFEST_V1.md.
+
 ---
 
 ## 4. OmniDocBench — excluded from Track A
@@ -164,12 +199,13 @@ Track C corpus provenance is recorded in the Track C execution manifest at execu
 |---|---|---|---|
 | olmOCR-Bench | `54a96a6` | File-level SHA-256 (1,412 verified) | COMPLETE |
 | DocLayNet val | `0daf931` | Selection manifest SHA-256 | COMPLETE |
-| FinTabNet.c | `e5673a9` | LFS OID (= archive SHA-256) + selection manifest SHA-256 | COMPLETE |
+| FinTabNet.c | `e5673a9` | LFS OID (= archive SHA-256) + selection manifest SHA-256 | COMPLETE (annotations); NOT_EXECUTABLE_V1 (source PDFs unavailable) |
 | OmniDocBench | `91fe284` | N/A | EXCLUDED |
 
 **All corpus pins were resolved and verified before any parser execution.** Both FinTabNet.c
 archives were downloaded and byte-verified against their LFS OIDs on 2026-09-16.
 500-table selection is complete; selection manifest SHA-256 recorded in §3 above.
+FinTabNet.c parser execution is NOT_EXECUTABLE_V1; see §3 and STUDY_FREEZE_MANIFEST_V1.md §6.3.
 
 ---
 
@@ -189,6 +225,16 @@ Manifest V1 without altering the methodological design:
    PubTabNet excluded (image-only; no PDFs).  Version pinned in §8 of
    STUDY_FREEZE_MANIFEST_V1.md.
 
+4. **FinTabNet.c NOT_EXECUTABLE_V1** (B1a-8c, pre-execution source-PDF provenance investigation):
+   The FinTabNet.c HF distribution contains corrected annotations but not the source page
+   PDFs required by the four frozen parsers.  The original IBM DAX distribution is
+   deprecated and unreachable; the only identified alternative (Kaggle community mirror)
+   cannot be cryptographically verified against the original IBM-distributed bytes.  Parser
+   execution is not performed.  TEDS endpoint = NOT_MEASURED_V1.  The frozen 500-table
+   selection is retained as provenance evidence.  No replacement corpus or metric authorized.
+   This affects the evidentiary scope of V1: the table-cell-fidelity/TEDS component of
+   Claim 2 is not evaluated.  See §3 above and STUDY_FREEZE_MANIFEST_V1.md §6.3.
+
 3. **FinTabNet.c two-tier stratification** (B1a-8b, pre-execution corpus-capability correction):
    The original three-tier design (simple / compound / multi-page spanning) was reduced to
    two tiers.  Inspection of the FinTabNet.c V1 ground truth confirmed that cross-page
@@ -198,4 +244,6 @@ Manifest V1 without altering the methodological design:
    total), deterministic largest-remainder.  Full correction record in §6.3 of
    STUDY_FREEZE_MANIFEST_V1.md.  Selection complete; 500 tables frozen.
 
-All decisions were made and recorded before any parser execution began.
+Amendments 1–3 were made and recorded before any parser execution began.
+Amendment 4 (FinTabNet.c NOT_EXECUTABLE_V1) was determined and recorded by pre-execution
+provenance investigation before any parser execution began.
