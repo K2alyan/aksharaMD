@@ -275,7 +275,7 @@ The following values are recorded at freeze time and must not change after freez
 | SCORING_POLICY_VERSION | `"1.10"` | At freeze |
 | Track C LLM model ID | `claude-sonnet-4-6` | At freeze |
 | Track C competitor arm | `none` | At freeze |
-| Track C LLM prompt SHA256 | TO BE COMMITTED IN DEDICATED PROMPT FILE BEFORE STAGE 1 START | Stage 1 prerequisite — not a V1 amendment |
+| Track C LLM prompt SHA256 (canonical LF) | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` | Stage 1 prerequisite filled — `docs/evaluation/TRACK_C_PROMPT_V1.txt` |
 | olmOCR-Bench commit/release | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 | DocLayNet split + version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 | PubTabNet / FinTabNet version | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
@@ -283,7 +283,7 @@ The following values are recorded at freeze time and must not change after freez
 | Track A apparatus run directory | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 | Track C execution manifest path | TO BE RECORDED AT STAGE 1 START | Before any Stage 1 results |
 
-The freeze seed was generated at freeze authorization by `os.urandom(32).hex()`. The Track C prompt has not been drafted yet; it must be committed as a dedicated file (with its SHA-256 recorded here by amendment) before Stage 1 execution begins. That amendment does not constitute a methodological change to V1 — it fills a Stage 1 prerequisite that was explicitly left open in this document.
+The freeze seed was generated at freeze authorization by `os.urandom(32).hex()`. The Track C prompt is committed at `docs/evaluation/TRACK_C_PROMPT_V1.txt`; its canonical LF SHA-256 is recorded above. This fills the Stage 1 prerequisite that was explicitly left open in the original freeze commit. It does not constitute a methodological change to V1.
 
 ---
 
@@ -405,7 +405,7 @@ Every open parameter in this document is either (a) resolved before Stage 1 exec
 | SCORING_POLICY_VERSION | §8 | (a) RECORDED | `"1.10"` — no scoring changes permitted after freeze |
 | Track C LLM model ID | §8 | (a) RECORDED | `claude-sonnet-4-6` |
 | Track C competitor arm | §8 | (a) RECORDED | `none` |
-| Track C LLM prompt SHA256 | §8 | (a) Stage 1 prerequisite | Prompt file to be committed before Stage 1 start; SHA256 recorded by §8 amendment |
+| Track C LLM prompt SHA256 | §8 | (a) RECORDED | `af772e60f96c70a6601705eae49c039dd492b0050c0973821fe7575354c15b24` — `TRACK_C_PROMPT_V1.txt` |
 | Corpus versions | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start, before any results are observed |
 | Track A apparatus run directory | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |
 | Track C execution manifest | §8 | (a) Before Stage 1 results | Recorded at Stage 1 start |

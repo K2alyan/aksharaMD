@@ -1,0 +1,9 @@
+Answer the following question using only the information in the document below. If the answer cannot be found in the document, respond with exactly the word "unanswerable" and nothing else. Do not add information that is not stated in the document.
+
+Document:
+{document}
+
+Question:
+{question}
+
+Answer:
