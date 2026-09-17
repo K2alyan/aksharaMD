@@ -147,9 +147,9 @@ DOCLING_HERON_PATH: Path = Path(
 
 # Run-root definitions (pre-declared before any execution)
 RUN_ROOTS: dict[str, str] = {
-    "track_a_olmocr": "benchmarks/results/stage1-track-a-olmocr-2026-09-16",
-    "track_a_doclaynet": "benchmarks/results/stage1-track-a-doclaynet-2026-09-16",
-    "track_c": "benchmarks/results/stage1-track-c-2026-09-16",
+    "track_a_olmocr": "benchmarks/results/stage1-track-a-olmocr-2026-09-17",
+    "track_a_doclaynet": "benchmarks/results/stage1-track-a-doclaynet-2026-09-17",
+    "track_c": "benchmarks/results/stage1-track-c-2026-09-17",
 }
 
 

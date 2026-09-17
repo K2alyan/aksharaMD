@@ -36,7 +36,7 @@ MANIFEST_PATH = ROOT / "docs" / "evaluation" / "STAGE1_EXECUTION_MANIFEST.json"
 # Raw-byte SHA-256 of STAGE1_EXECUTION_MANIFEST.json as written by
 # execution_manifest.run().  Admission refuses to proceed if this drifts.
 EXPECTED_MANIFEST_SHA = (
-    "1b4609ef7f6fda8b8bd150b7926542145bd04f5a3bc7a466072646c86556d462"
+    "dfaefee79bd454e89fe2ecfd519c94dc767f88af6627be7f6b57f0fc4f220fda"
 )
 
 # ---------------------------------------------------------------------------
