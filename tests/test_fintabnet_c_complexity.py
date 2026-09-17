@@ -27,9 +27,6 @@ def test_simple_single_cell():
 
 def test_simple_multi_cell_all_non_spanning():
     cells = [_cell([0], [0]), _cell([0], [1]), _cell([1], [0]), _cell([1], [1])]
-    assert classify_table_complexity(cells) == TIER_COMPOUND or \
-           classify_table_complexity(cells) == TIER_SIMPLE
-    # All cells are non-spanning → SIMPLE
     assert classify_table_complexity(cells) == TIER_SIMPLE
 
 
