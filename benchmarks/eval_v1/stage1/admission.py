@@ -152,7 +152,7 @@ def _teardown_firewall(state: tuple[Any, str] | None) -> None:
         return
     backend, display_name = state
     try:
-        backend.remove_rule(display_name)
+        backend.remove_rule(display_name=display_name)
         print(f"  [firewall] egress-block rule removed ({display_name})")
     except Exception as exc:  # noqa: BLE001
         print(f"  [firewall] WARNING: could not remove rule {display_name!r}: {exc}")
