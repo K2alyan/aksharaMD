@@ -98,7 +98,7 @@ def _setup_firewall() -> tuple[Any, str]:
 
 def _teardown_firewall(backend: Any, display_name: str) -> None:
     try:
-        backend.remove_rule(display_name)
+        backend.remove_rule(display_name=display_name)
         print(f"  [firewall] rule removed: {display_name}")
     except Exception as exc:  # noqa: BLE001
         print(f"  [firewall] WARNING: rule removal failed: {exc}")
