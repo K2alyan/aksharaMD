@@ -453,7 +453,7 @@ class Stage1Runner:
                 record_path_candidate = (
                     self._run_dir
                     / item.corpus
-                    / item.canonical_id[:32]
+                    / item.canonical_id
                     / parser_id
                     / "execution_record.json"
                 )
@@ -569,7 +569,7 @@ class Stage1Runner:
                     record_path = (
                         self._run_dir
                         / item.corpus
-                        / item.canonical_id[:32]
+                        / item.canonical_id
                         / parser_id
                         / "execution_record.json"
                     )
