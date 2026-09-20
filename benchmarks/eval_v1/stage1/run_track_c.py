@@ -137,11 +137,19 @@ def _is_phase2_result_compatible(
 
     Checks:
       - llm_evaluated must be True (unevaluated records are never skipped)
+      - no retryable LLM infrastructure errors may remain
       - metric_schema_version, prompt_sha256, scoring_contract_id must all match
       - If existing record carries input_sha256, it must equal current_input_sha256
         (None current hash means the markdown file is absent → reject)
     """
     if not existing.get("llm_evaluated"):
+        return False
+    if int(existing.get("n_llm_errors") or 0) != 0:
+        return False
+    if any(
+        row.get("status") == "llm_error"
+        for row in existing.get("qa_results", [])
+    ):
         return False
     if existing.get("metric_schema_version") != METRIC_SCHEMA_VERSION:
         return False
@@ -155,6 +163,44 @@ def _is_phase2_result_compatible(
     if stored_hash is None or current_input_sha256 != stored_hash:
         return False
     return True
+
+
+def _restorable_phase2_qa_results(
+    existing: dict[str, Any],
+    current_input_sha256: str,
+) -> dict[int, dict[str, Any]]:
+    """Return durable question results that can be reused without another API call.
+
+    Only successful answers and deterministic no-gold skips are reusable.  An
+    ``llm_error`` is evidence that no answer was obtained, so it must always be
+    retried after the external service recovers.
+    """
+    if existing.get("input_sha256") != current_input_sha256:
+        return {}
+    if existing.get("metric_schema_version") != METRIC_SCHEMA_VERSION:
+        return {}
+    if existing.get("prompt_sha256") != PROMPT_SHA256:
+        return {}
+    if existing.get("scoring_contract_id") != SCORING_CONTRACT_ID:
+        return {}
+
+    reusable: dict[int, dict[str, Any]] = {}
+    for row in existing.get("qa_results", []):
+        question_id = row.get("question_id")
+        if question_id is None or row.get("status") not in {"answered", "no_gold"}:
+            continue
+        reusable[int(question_id)] = row
+    return reusable
+
+
+def _is_terminal_llm_error(exc: Exception) -> bool:
+    """Return True for deterministic provider errors that should abort the run."""
+    message = str(exc).lower()
+    return (
+        "credit balance is too low" in message
+        or "insufficient credit" in message
+        or "invalid_request_error" in message
+    )
 
 
 def _canonical_lf_sha256(path: Path) -> str:
@@ -1039,6 +1085,7 @@ def _run_phase2(
     done = 0
     n_evaluated = 0
     n_skipped = 0
+    consecutive_infra_errors = 0
 
     print()
     print(f"[Phase 2] LLM evaluation ({MODEL_ID}, temp={TEMPERATURE}) ...")
@@ -1200,21 +1247,16 @@ def _run_phase2(
             # Corpus-level primary metric label.
             primary_metric = "token_f1" if corpus == "qasper" else "numeric_em"
 
-            # Load partial checkpoint: if a previous run crashed mid-document, restore
-            # already-answered questions so we do not repeat paid LLM calls.
+            # Load any compatible checkpoint, including an older record that was
+            # incorrectly finalized despite infrastructure errors.  Reuse only
+            # answered/no-gold rows; llm_error rows are deliberately retried.
             partial_qa: dict[int, dict[str, Any]] = {}
             if result_p.exists():
                 try:
                     _chk = json.loads(result_p.read_text(encoding="utf-8"))
-                    if (
-                        not _chk.get("llm_evaluated")
-                        and _chk.get("input_sha256") == input_sha256
-                        and _chk.get("metric_schema_version") == METRIC_SCHEMA_VERSION
-                    ):
-                        for _r in _chk.get("qa_results", []):
-                            _qid = _r.get("question_id")
-                            if _qid is not None:
-                                partial_qa[_qid] = _r
+                    partial_qa = _restorable_phase2_qa_results(
+                        _chk, input_sha256
+                    )
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -1239,8 +1281,6 @@ def _run_phase2(
                         n_correct += cached.get("em_score") or 0.0
                         primary_sum += cached.get("primary_score") or 0.0
                         n_answered += 1
-                    elif cached.get("status") == "llm_error":
-                        n_llm_errors += 1
                     continue
 
                 # Skip pairs with no usable gold.
@@ -1283,6 +1323,37 @@ def _run_phase2(
                         "em_score": None,
                         "primary_score": None,
                     })
+                    # Persist the failure for audit, but keep the document incomplete
+                    # so resume retries this question rather than treating it as wrong.
+                    _write_track_c_result(
+                        result_p,
+                        corpus=corpus,
+                        canonical_id=canonical_id,
+                        parser_id=parser_id,
+                        execution_status="EXECUTED",
+                        n_qa_pairs=len(qa_pairs),
+                        n_answered=n_answered,
+                        n_llm_errors=n_llm_errors,
+                        em_score=(n_correct / n_answered if n_answered else None),
+                        primary_score=(primary_sum / n_answered if n_answered else None),
+                        primary_metric=primary_metric,
+                        readiness_score=None,
+                        warning_codes=[],
+                        llm_evaluated=False,
+                        input_sha256=input_sha256,
+                        qa_results=qa_results,
+                    )
+                    consecutive_infra_errors += 1
+                    if _is_terminal_llm_error(exc):
+                        raise SystemExit(
+                            "ABORT: non-retryable LLM provider error; checkpoint saved.\n"
+                            f"  {err_msg}"
+                        ) from exc
+                    if consecutive_infra_errors >= 3:
+                        raise SystemExit(
+                            "ABORT: 3 consecutive LLM infrastructure errors; "
+                            "checkpoint saved."
+                        ) from exc
                     continue  # infrastructure failure: do not count as answered
 
                 # Max over annotators — one LLM call, best gold match wins.
@@ -1303,6 +1374,7 @@ def _run_phase2(
                 n_correct += em
                 primary_sum += primary
                 n_answered += 1
+                consecutive_infra_errors = 0
                 qa_results.append({
                     "question_id": qa_idx,
                     "question": question,
@@ -1365,7 +1437,7 @@ def _run_phase2(
                 primary_metric=primary_metric,
                 readiness_score=None,   # filled in Phase 3
                 warning_codes=[],       # filled in Phase 3
-                llm_evaluated=True,
+                llm_evaluated=(n_llm_errors == 0),
                 input_sha256=input_sha256,
                 qa_results=qa_results,
             )

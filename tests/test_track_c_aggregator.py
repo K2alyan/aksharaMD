@@ -31,6 +31,8 @@ from benchmarks.eval_v1.stage1.run_track_c import (
     PROMPT_SHA256,
     SCORING_CONTRACT_ID,
     _is_phase2_result_compatible,
+    _is_terminal_llm_error,
+    _restorable_phase2_qa_results,
 )
 
 
@@ -378,6 +380,8 @@ class TestStaleRecordInvalidation:
         scoring_contract_id: str = SCORING_CONTRACT_ID,
         llm_evaluated: bool = True,
         input_sha256: str | None = "abc123def456",
+        n_llm_errors: int = 0,
+        qa_results: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         rec: dict[str, Any] = {
             "schema_version": "3",
@@ -385,6 +389,8 @@ class TestStaleRecordInvalidation:
             "prompt_sha256": prompt_sha256,
             "scoring_contract_id": scoring_contract_id,
             "llm_evaluated": llm_evaluated,
+            "n_llm_errors": n_llm_errors,
+            "qa_results": qa_results or [],
             "em_score": 0.5,
             "primary_score": 0.6,
             "readiness_score": 85,
@@ -414,6 +420,17 @@ class TestStaleRecordInvalidation:
         rec = self._make_result_record(llm_evaluated=False)
         assert not _is_phase2_result_compatible(rec, "abc123def456")
 
+    def test_record_with_llm_errors_rejected(self):
+        rec = self._make_result_record(n_llm_errors=1)
+        assert not _is_phase2_result_compatible(rec, "abc123def456")
+
+    def test_record_with_error_row_rejected_even_if_count_is_stale(self):
+        rec = self._make_result_record(qa_results=[{
+            "question_id": 0,
+            "status": "llm_error",
+        }])
+        assert not _is_phase2_result_compatible(rec, "abc123def456")
+
     def test_changed_input_hash_rejected(self):
         # Markdown file changed since last evaluation — must re-evaluate.
         rec = self._make_result_record(input_sha256="original_hash")
@@ -432,6 +449,34 @@ class TestStaleRecordInvalidation:
         # Markdown file absent (current_input_sha256=None) but record has a hash — reject.
         rec = self._make_result_record(input_sha256="some_hash")
         assert not _is_phase2_result_compatible(rec, None)
+
+    def test_partial_restore_reuses_answers_but_retries_errors(self):
+        rec = self._make_result_record(
+            llm_evaluated=True,
+            n_llm_errors=1,
+            qa_results=[
+                {"question_id": 0, "status": "answered", "prediction": "saved"},
+                {"question_id": 1, "status": "llm_error", "prediction": None},
+                {"question_id": 2, "status": "no_gold", "prediction": None},
+            ],
+        )
+        restored = _restorable_phase2_qa_results(rec, "abc123def456")
+        assert set(restored) == {0, 2}
+        assert restored[0]["prediction"] == "saved"
+
+    def test_partial_restore_rejects_wrong_input_hash(self):
+        rec = self._make_result_record(qa_results=[{
+            "question_id": 0,
+            "status": "answered",
+        }])
+        assert _restorable_phase2_qa_results(rec, "different") == {}
+
+    def test_low_credit_error_is_terminal(self):
+        exc = RuntimeError("Your credit balance is too low to access the Anthropic API")
+        assert _is_terminal_llm_error(exc)
+
+    def test_transient_network_error_is_not_terminal(self):
+        assert not _is_terminal_llm_error(RuntimeError("connection reset by peer"))
 
     def test_all_fields_present_in_written_record(self, tmp_path):
         """_write_track_c_result must include all provenance fields."""
