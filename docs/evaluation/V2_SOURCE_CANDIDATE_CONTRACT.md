@@ -15,7 +15,10 @@ The receipt deliberately has no combined scalar. It keeps two evidence groups:
 Each detector reports its ID and version, scope, eligibility, whether it was
 activated or abstained, a verdict, a detector-local score when activated, raw
 measurements, and finding codes. An abstention always contains a reason and is
-never assigned a score.
+never assigned a score. Receipt models are frozen, strict, and reject unknown
+fields or unsupported schema/policy/implementation identifiers. The assessment
+boundary revalidates both artifacts' current byte length and SHA-256, even if a
+caller mutates a historically mutable `Artifact` after construction.
 
 ## Policy v2 exploratory thresholds
 
@@ -25,11 +28,31 @@ least 20 tokens. Retention of at least 95% passes, 80–95% is a concern, and
 less than 80% fails. This proves bounded token retention, not reading order or
 semantic equivalence.
 
-PDF table retention compares the number of tables found from source geometry
-by PyMuPDF with the number of Markdown tables parsed by markdown-it. It
-activates only when at least one source table is detected. Candidate table
-count at least equal to source table count passes; a deficit fails. This is a
-count-preservation signal and does not establish cell-level fidelity.
+PDF table retention uses PyMuPDF source geometry and exact one-to-one matching
+of normalized table cell-sequence signatures against Markdown tables parsed by
+markdown-it. Equal counts with unrelated content fail. A duplicated candidate
+table is a concern rather than a pass. Signature matching still does not prove
+reading order, semantics, or visual fidelity.
+
+## Work limits and abstention
+
+Inspection is local and bounded. The policy abstains rather than returning a
+partial score when any applicable limit is exceeded:
+
+- source PDF bytes: 50 MiB;
+- PDF pages: 500;
+- extracted PDF text: 2,000,000 characters and 250,000 tokens;
+- table-geometry pages: 100;
+- PDF drawing paths: 20,000;
+- source or candidate tables: 200;
+- source or candidate table cells: 10,000;
+- candidate bytes: 20 MiB and candidate tokens: 250,000.
+
+Text extraction and table geometry have separate error/limit states. A table
+failure on one page causes the table detector to abstain but does not discard
+valid text-retention evidence, and vice versa. Missing-token evidence reports a
+count and at most 20 sample tokens; it never materializes an unbounded missing
+token list.
 
 ## API
 

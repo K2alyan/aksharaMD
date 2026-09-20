@@ -7,9 +7,14 @@ independent, auditable groups.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections import Counter
+from dataclasses import dataclass
 from enum import StrEnum
+from itertools import islice
+from typing import Literal
 
 from markdown_it import MarkdownIt
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -25,6 +30,20 @@ _TEXT_RETENTION_MIN_TOKENS = 20
 _TEXT_RETENTION_PASS = 0.95
 _TEXT_RETENTION_FAIL = 0.80
 _TOKEN_RE = re.compile(r"[^\W_]+(?:[-./][^\W_]+)*", re.UNICODE)
+_HASH_PATTERN = r"^[0-9a-f]{64}$"
+
+# Hard work limits are part of the policy contract, not tuning hints. A limit
+# breach produces a stable abstention instead of partial evidence.
+MAX_SOURCE_BYTES = 50 * 1024 * 1024
+MAX_PDF_PAGES = 500
+MAX_EXTRACTED_CHARS = 2_000_000
+MAX_SOURCE_TOKENS = 250_000
+MAX_TABLE_GEOMETRY_PAGES = 100
+MAX_DRAWING_PATHS = 20_000
+MAX_SOURCE_TABLES = 200
+MAX_TABLE_CELLS = 10_000
+MAX_CANDIDATE_BYTES = 20 * 1024 * 1024
+MAX_CANDIDATE_TOKENS = 250_000
 
 
 class EvidenceScope(StrEnum):
@@ -40,7 +59,7 @@ class DetectorStatus(StrEnum):
 class DetectorResult(BaseModel):
     """One detector receipt, including explicit activation or abstention."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     detector_id: str
     detector_version: str
@@ -69,24 +88,30 @@ class DetectorResult(BaseModel):
 
 
 class EvidenceGroup(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     scope: EvidenceScope
     verdict: Verdict
     detectors: list[DetectorResult]
 
+    @model_validator(mode="after")
+    def _detector_scopes_match(self):
+        if any(detector.scope != self.scope for detector in self.detectors):
+            raise ValueError("all detector scopes must match their evidence group")
+        return self
+
 
 class SourceCandidateProvenance(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    implementation: str = "aksharamd.assessment.source_candidate"
-    implementation_version: str = SOURCE_CANDIDATE_IMPLEMENTATION_VERSION
-    policy_id: str = SOURCE_CANDIDATE_POLICY_ID
-    source_hash: str
+    implementation: Literal["aksharamd.assessment.source_candidate"] = "aksharamd.assessment.source_candidate"
+    implementation_version: Literal["1"] = SOURCE_CANDIDATE_IMPLEMENTATION_VERSION
+    policy_id: Literal["source-candidate-preservation-v2-exploratory"] = SOURCE_CANDIDATE_POLICY_ID
+    source_hash: str = Field(pattern=_HASH_PATTERN)
     source_media_type: str
-    candidate_hash: str
+    candidate_hash: str = Field(pattern=_HASH_PATTERN)
     candidate_media_type: str
-    candidate_declared_source_hash: str | None = None
+    candidate_declared_source_hash: str | None = Field(default=None, pattern=_HASH_PATTERN)
     parser_name: str | None = None
     parser_version: str | None = None
     parser_configuration_id: str | None = None
@@ -95,13 +120,23 @@ class SourceCandidateProvenance(BaseModel):
 class SourceCandidateAssessment(BaseModel):
     """Deterministic receipt with no combined source/candidate scalar."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: str = SOURCE_CANDIDATE_SCHEMA_VERSION
-    policy_id: str = SOURCE_CANDIDATE_POLICY_ID
+    schema_version: Literal["2.0-exploratory"] = SOURCE_CANDIDATE_SCHEMA_VERSION
+    policy_id: Literal["source-candidate-preservation-v2-exploratory"] = SOURCE_CANDIDATE_POLICY_ID
     provenance: SourceCandidateProvenance
     candidate_intrinsic: EvidenceGroup
     source_comparison: EvidenceGroup
+
+    @model_validator(mode="after")
+    def _groups_and_policy_are_coherent(self):
+        if self.candidate_intrinsic.scope != EvidenceScope.CANDIDATE_INTRINSIC:
+            raise ValueError("candidate_intrinsic has the wrong scope")
+        if self.source_comparison.scope != EvidenceScope.SOURCE_COMPARISON:
+            raise ValueError("source_comparison has the wrong scope")
+        if self.provenance.policy_id != self.policy_id:
+            raise ValueError("provenance policy_id must match assessment policy_id")
+        return self
 
 
 def _group(scope: EvidenceScope, detectors: list[DetectorResult]) -> EvidenceGroup:
@@ -115,6 +150,22 @@ def _group(scope: EvidenceScope, detectors: list[DetectorResult]) -> EvidenceGro
     else:
         verdict = Verdict.PASS
     return EvidenceGroup(scope=scope, verdict=verdict, detectors=detectors)
+
+
+def _revalidate_artifact_identity(artifact: SourceArtifact | CandidateArtifact, label: str) -> None:
+    """Recheck mutable input models at the trust boundary.
+
+    ``Artifact`` validates at construction, but its historical model is not
+    frozen. Callers can therefore reassign fields before invoking this newer
+    API. Never trust the earlier validation here.
+    """
+    if not isinstance(artifact.data, bytes):
+        raise ValueError(f"{label}.data must be bytes at assessment time")
+    if artifact.byte_size != len(artifact.data):
+        raise ValueError(f"{label}.byte_size does not match artifact data at assessment time")
+    digest = hashlib.sha256(artifact.data).hexdigest()
+    if not re.fullmatch(_HASH_PATTERN, artifact.content_hash) or artifact.content_hash != digest:
+        raise ValueError(f"{label}.content_hash does not match artifact data at assessment time")
 
 
 def _mapped_candidate_detector(detector_id: str, dimension) -> DetectorResult:
@@ -150,9 +201,23 @@ def _mapped_candidate_detector(detector_id: str, dimension) -> DetectorResult:
     )
 
 
-def _candidate_intrinsic(candidate: CandidateArtifact) -> EvidenceGroup:
+def _candidate_intrinsic(candidate: CandidateArtifact, candidate_error: str | None) -> EvidenceGroup:
     # Reuse the established checks, but intentionally ignore its source-fidelity
     # dimension: the source-comparison group below owns that evidence.
+    if candidate_error is not None:
+        detectors = [
+            DetectorResult(
+                detector_id=detector_id,
+                detector_version="1",
+                scope=EvidenceScope.CANDIDATE_INTRINSIC,
+                status=DetectorStatus.ABSTAINED,
+                eligible=False,
+                verdict=Verdict.UNDETERMINED,
+                abstention_reason=candidate_error,
+            )
+            for detector_id in ("candidate.markdown_structure", "candidate.text_integrity")
+        ]
+        return _group(EvidenceScope.CANDIDATE_INTRINSIC, detectors)
     assessment = Assessor().assess(candidate=candidate)
     detectors = [
         _mapped_candidate_detector(
@@ -195,75 +260,190 @@ def _source_identity(source: SourceArtifact, candidate: CandidateArtifact) -> De
     )
 
 
-def _candidate_text(candidate: CandidateArtifact) -> str | None:
+def _candidate_text(candidate: CandidateArtifact) -> tuple[str | None, str | None]:
     if candidate.media_type not in {"text/markdown", "text/plain"}:
-        return None
+        return None, "candidate must be UTF-8 text/markdown or text/plain"
+    if candidate.byte_size > MAX_CANDIDATE_BYTES:
+        return None, f"candidate byte size exceeds limit {MAX_CANDIDATE_BYTES}"
     try:
-        return candidate.data.decode("utf-8")
+        return candidate.data.decode("utf-8"), None
     except UnicodeDecodeError:
-        return None
+        return None, "candidate must be valid UTF-8"
 
 
-def _tokens(text: str) -> list[str]:
-    return [match.group(0).casefold() for match in _TOKEN_RE.finditer(text)]
+def _token_counts(text: str, limit: int) -> tuple[Counter[str], int, bool]:
+    counts: Counter[str] = Counter()
+    total = 0
+    for match in _TOKEN_RE.finditer(text):
+        total += 1
+        if total > limit:
+            return Counter(), total, True
+        counts[match.group(0).casefold()] += 1
+    return counts, total, False
 
 
-def _pdf_observations(source: SourceArtifact) -> tuple[list[str], list[int], str | None]:
-    """Return source text fragments, one-based table pages, or an error."""
+@dataclass(frozen=True)
+class _TextObservation:
+    text: str = ""
+    page_count: int = 0
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class _TableSignature:
+    cells: tuple[str, ...]
+
+    @property
+    def digest(self) -> str:
+        payload = json.dumps(self.cells, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(payload).hexdigest()
+
+
+@dataclass(frozen=True)
+class _TableObservation:
+    signatures: tuple[_TableSignature, ...] = ()
+    pages: tuple[int, ...] = ()
+    page_count: int = 0
+    error: str | None = None
+
+
+def _normalize_cell(value: object) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def _pdf_observations(source: SourceArtifact) -> tuple[_TextObservation, _TableObservation]:
+    """Inspect bounded PDF evidence with independent text/table failures."""
     if source.media_type != "application/pdf":
-        return [], [], "source media type is not application/pdf"
+        error = "source media type is not application/pdf"
+        return _TextObservation(error=error), _TableObservation(error=error)
+    if source.byte_size > MAX_SOURCE_BYTES:
+        error = f"source byte size exceeds limit {MAX_SOURCE_BYTES}"
+        return _TextObservation(error=error), _TableObservation(error=error)
     try:
         import pymupdf
     except ImportError:
-        return [], [], "PyMuPDF is unavailable"
+        error = "PyMuPDF is unavailable"
+        return _TextObservation(error=error), _TableObservation(error=error)
 
     fragments: list[str] = []
+    signatures: list[_TableSignature] = []
     table_pages: list[int] = []
     try:
         with pymupdf.open(stream=source.data, filetype="pdf") as pdf:
+            page_count = len(pdf)
+            if page_count > MAX_PDF_PAGES:
+                error = f"PDF page count {page_count} exceeds limit {MAX_PDF_PAGES}"
+                return (_TextObservation(page_count=page_count, error=error),
+                        _TableObservation(page_count=page_count, error=error))
+
+            text_error: str | None = None
+            table_error = (f"PDF page count {page_count} exceeds table geometry limit "
+                           f"{MAX_TABLE_GEOMETRY_PAGES}"
+                           if page_count > MAX_TABLE_GEOMETRY_PAGES else None)
+            extracted_chars = 0
+            drawing_paths = 0
+            table_cells = 0
             for page_number, page in enumerate(pdf, start=1):
-                fragments.append(page.get_text("text") or "")
-                # PyMuPDF's table finder is source geometry evidence.  Failure
-                # on any page makes this detector abstain rather than silently
-                # treating the page as table-free.
-                tables = page.find_tables(paths=page.get_drawings())
-                if len(tables.tables) > 0:
-                    table_pages.extend([page_number] * len(tables.tables))
+                if text_error is None:
+                    try:
+                        fragment = page.get_text("text") or ""
+                    except Exception as exc:  # detector-specific failure
+                        text_error = f"PDF text extraction failed on page {page_number}: {type(exc).__name__}"
+                        fragments.clear()
+                    else:
+                        extracted_chars += len(fragment)
+                        if extracted_chars > MAX_EXTRACTED_CHARS:
+                            text_error = f"PDF extracted characters exceed limit {MAX_EXTRACTED_CHARS}"
+                            fragments.clear()
+                        else:
+                            fragments.append(fragment)
+
+                if table_error is None:
+                    try:
+                        drawings = page.get_drawings()
+                        drawing_paths += len(drawings)
+                        if drawing_paths > MAX_DRAWING_PATHS:
+                            raise OverflowError(f"drawing path count exceeds limit {MAX_DRAWING_PATHS}")
+                        tables = page.find_tables(paths=drawings).tables
+                        for table in tables:
+                            rows = table.extract()
+                            cells = tuple(_normalize_cell(cell) for row in rows for cell in row)
+                            table_cells += len(cells)
+                            if len(signatures) + 1 > MAX_SOURCE_TABLES:
+                                raise OverflowError(f"source table count exceeds limit {MAX_SOURCE_TABLES}")
+                            if table_cells > MAX_TABLE_CELLS:
+                                raise OverflowError(f"source table cells exceed limit {MAX_TABLE_CELLS}")
+                            signatures.append(_TableSignature(cells=cells))
+                            table_pages.append(page_number)
+                    except Exception as exc:  # table failure never suppresses text evidence
+                        detail = str(exc) if isinstance(exc, OverflowError) else type(exc).__name__
+                        table_error = f"PDF table inspection failed on page {page_number}: {detail}"
+                        signatures.clear()
+                        table_pages.clear()
     except Exception as exc:  # malformed/encrypted sources cannot be compared
-        return [], [], f"PDF source inspection failed: {type(exc).__name__}"
-    return fragments, table_pages, None
+        error = f"PDF source open failed: {type(exc).__name__}"
+        return _TextObservation(error=error), _TableObservation(error=error)
+    return (
+        _TextObservation(text="\n".join(fragments), page_count=page_count, error=text_error),
+        _TableObservation(
+            signatures=tuple(signatures), pages=tuple(table_pages), page_count=page_count,
+            error=table_error,
+        ),
+    )
 
 
-def _text_retention(source_text: str, candidate_text: str | None, source_error: str | None) -> DetectorResult:
+def _text_retention(
+    observation: _TextObservation,
+    candidate_text: str | None,
+    candidate_error: str | None,
+) -> DetectorResult:
     detector_id = "source.pdf_text_token_retention"
-    if source_error is not None:
+    if observation.error is not None:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=False, verdict=Verdict.UNDETERMINED,
-            abstention_reason=source_error,
+            abstention_reason=observation.error,
+            raw_evidence={"pdf_page_count": observation.page_count},
         )
     if candidate_text is None:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=False, verdict=Verdict.UNDETERMINED,
-            abstention_reason="candidate must be UTF-8 text/markdown or text/plain",
+            abstention_reason=candidate_error or "candidate text unavailable",
         )
 
-    source_tokens = _tokens(source_text)
-    if len(source_tokens) < _TEXT_RETENTION_MIN_TOKENS:
+    source_counts, source_total, source_over_limit = _token_counts(observation.text, MAX_SOURCE_TOKENS)
+    if source_over_limit:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=True, verdict=Verdict.UNDETERMINED,
-            abstention_reason=(f"source text has {len(source_tokens)} tokens; "
+            abstention_reason=f"PDF source token count exceeds limit {MAX_SOURCE_TOKENS}",
+            raw_evidence={"pdf_page_count": observation.page_count},
+        )
+    if source_total < _TEXT_RETENTION_MIN_TOKENS:
+        return DetectorResult(
+            detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
+            status=DetectorStatus.ABSTAINED, eligible=True, verdict=Verdict.UNDETERMINED,
+            abstention_reason=(f"source text has {source_total} tokens; "
                                f"minimum is {_TEXT_RETENTION_MIN_TOKENS}"),
-            raw_evidence={"source_token_count": len(source_tokens)},
+            raw_evidence={"source_token_count": source_total, "pdf_page_count": observation.page_count},
         )
 
-    source_counts = Counter(source_tokens)
-    candidate_counts = Counter(_tokens(candidate_text))
+    candidate_counts, candidate_total, candidate_over_limit = _token_counts(
+        candidate_text, MAX_CANDIDATE_TOKENS,
+    )
+    if candidate_over_limit:
+        return DetectorResult(
+            detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
+            status=DetectorStatus.ABSTAINED, eligible=True, verdict=Verdict.UNDETERMINED,
+            abstention_reason=f"candidate token count exceeds limit {MAX_CANDIDATE_TOKENS}",
+            raw_evidence={"source_token_count": source_total, "pdf_page_count": observation.page_count},
+        )
     retained = sum(min(count, candidate_counts[token]) for token, count in source_counts.items())
-    coverage = retained / len(source_tokens)
-    missing = list((source_counts - candidate_counts).elements())
+    coverage = retained / source_total
+    missing_counts = source_counts - candidate_counts
+    missing_count = sum(missing_counts.values())
+    missing_sample = list(islice(missing_counts.elements(), 20))
     verdict = (Verdict.PASS if coverage >= _TEXT_RETENTION_PASS else
                Verdict.CONCERN if coverage >= _TEXT_RETENTION_FAIL else Verdict.FAIL)
     return DetectorResult(
@@ -275,50 +455,104 @@ def _text_retention(source_text: str, candidate_text: str | None, source_error: 
         verdict=verdict,
         score=round(coverage * 100),
         raw_evidence={
-            "source_token_count": len(source_tokens),
-            "candidate_token_count": sum(candidate_counts.values()),
+            "source_token_count": source_total,
+            "candidate_token_count": candidate_total,
             "retained_source_token_count": retained,
             "retention_ratio": coverage,
             "pass_threshold": _TEXT_RETENTION_PASS,
             "fail_threshold": _TEXT_RETENTION_FAIL,
-            "missing_source_token_count": len(missing),
-            "missing_token_sample": missing[:20],
+            "missing_source_token_count": missing_count,
+            "missing_token_sample": missing_sample,
+            "pdf_page_count": observation.page_count,
             "tokenization": "unicode_alphanumeric_casefolded_multiset_v1",
         },
         finding_codes=[] if verdict == Verdict.PASS else ["SOURCE_TEXT_TOKEN_LOSS"],
     )
 
 
-def _markdown_table_count(text: str) -> int:
-    return sum(1 for token in MarkdownIt().enable("table").parse(text) if token.type == "table_open")
+def _markdown_table_signatures(text: str) -> tuple[tuple[_TableSignature, ...], str | None]:
+    signatures: list[_TableSignature] = []
+    cells: list[str] | None = None
+    total_cells = 0
+    try:
+        tokens = MarkdownIt().enable("table").parse(text)
+    except Exception as exc:
+        return (), f"candidate Markdown table parsing failed: {type(exc).__name__}"
+    for token in tokens:
+        if token.type == "table_open":
+            cells = []
+        elif token.type == "inline" and cells is not None:
+            cells.append(_normalize_cell(token.content))
+            total_cells += 1
+            if total_cells > MAX_TABLE_CELLS:
+                return (), f"candidate table cells exceed limit {MAX_TABLE_CELLS}"
+        elif token.type == "table_close" and cells is not None:
+            signatures.append(_TableSignature(cells=tuple(cells)))
+            cells = None
+            if len(signatures) > MAX_SOURCE_TABLES:
+                return (), f"candidate table count exceeds limit {MAX_SOURCE_TABLES}"
+    return tuple(signatures), None
 
 
-def _table_retention(table_pages: list[int], candidate_text: str | None, source_error: str | None) -> DetectorResult:
+def _table_retention(
+    observation: _TableObservation,
+    candidate_text: str | None,
+    candidate_error: str | None,
+) -> DetectorResult:
     detector_id = "source.pdf_table_structure_retention"
-    if source_error is not None:
+    if observation.error is not None:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=False, verdict=Verdict.UNDETERMINED,
-            abstention_reason=source_error,
+            abstention_reason=observation.error,
+            raw_evidence={"pdf_page_count": observation.page_count},
         )
     if candidate_text is None:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=False, verdict=Verdict.UNDETERMINED,
-            abstention_reason="candidate must be UTF-8 text/markdown or text/plain",
+            abstention_reason=candidate_error or "candidate text unavailable",
         )
-    if not table_pages:
+    if not observation.signatures:
         return DetectorResult(
             detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
             status=DetectorStatus.ABSTAINED, eligible=True, verdict=Verdict.UNDETERMINED,
             abstention_reason="no source tables were detected",
-            raw_evidence={"source_table_count": 0, "source_table_pages": []},
+            raw_evidence={
+                "source_table_count": 0, "source_table_pages": [],
+                "pdf_page_count": observation.page_count,
+            },
         )
 
-    source_count = len(table_pages)
-    candidate_count = _markdown_table_count(candidate_text)
-    ratio = min(1.0, candidate_count / source_count)
-    verdict = Verdict.PASS if candidate_count >= source_count else Verdict.FAIL
+    candidate_signatures, candidate_table_error = _markdown_table_signatures(candidate_text)
+    if candidate_table_error is not None:
+        return DetectorResult(
+            detector_id=detector_id, detector_version="1", scope=EvidenceScope.SOURCE_COMPARISON,
+            status=DetectorStatus.ABSTAINED, eligible=True, verdict=Verdict.UNDETERMINED,
+            abstention_reason=candidate_table_error,
+            raw_evidence={"source_table_count": len(observation.signatures)},
+        )
+
+    source_counter = Counter(signature.cells for signature in observation.signatures)
+    candidate_counter = Counter(signature.cells for signature in candidate_signatures)
+    matched = sum((source_counter & candidate_counter).values())
+    source_count = len(observation.signatures)
+    candidate_count = len(candidate_signatures)
+    missing = source_count - matched
+    extra = candidate_count - matched
+    denominator = max(source_count, candidate_count)
+    ratio = matched / denominator if denominator else 0.0
+    if missing:
+        verdict = Verdict.FAIL
+        finding_codes = ["SOURCE_TABLE_STRUCTURE_MISSING"]
+        if extra:
+            finding_codes.append("CANDIDATE_UNMATCHED_TABLE_STRUCTURE")
+    elif extra:
+        verdict = Verdict.CONCERN
+        finding_codes = ["CANDIDATE_EXTRA_TABLE_STRUCTURE"]
+    else:
+        verdict = Verdict.PASS
+        finding_codes = []
     return DetectorResult(
         detector_id=detector_id,
         detector_version="1",
@@ -329,14 +563,22 @@ def _table_retention(table_pages: list[int], candidate_text: str | None, source_
         score=round(ratio * 100),
         raw_evidence={
             "source_table_count": source_count,
-            "source_table_pages": table_pages,
+            "source_table_pages": list(observation.pages),
             "candidate_markdown_table_count": candidate_count,
+            "matched_source_table_count": matched,
+            "missing_source_table_count": missing,
+            "unmatched_candidate_table_count": extra,
             "retention_ratio": ratio,
+            "source_table_signature_sha256": [item.digest for item in observation.signatures],
+            "candidate_table_signature_sha256": [item.digest for item in candidate_signatures],
             "source_backend": "pymupdf.find_tables",
             "candidate_syntax": "markdown_it_table_v1",
-            "scope_note": "Count preservation only; cell-level fidelity is not established.",
+            "scope_note": (
+                "Exact normalized cell-sequence signature matching; reading order, semantics, "
+                "and visual fidelity are not established."
+            ),
         },
-        finding_codes=[] if verdict == Verdict.PASS else ["SOURCE_TABLE_STRUCTURE_MISSING"],
+        finding_codes=finding_codes,
     )
 
 
@@ -344,12 +586,14 @@ def assess_source_candidate(
     *, source: SourceArtifact, candidate: CandidateArtifact,
 ) -> SourceCandidateAssessment:
     """Assess exact source/candidate bytes under the exploratory V2 policy."""
-    candidate_text = _candidate_text(candidate)
-    source_fragments, table_pages, source_error = _pdf_observations(source)
+    _revalidate_artifact_identity(source, "source")
+    _revalidate_artifact_identity(candidate, "candidate")
+    candidate_text, candidate_error = _candidate_text(candidate)
+    text_observation, table_observation = _pdf_observations(source)
     comparison = _group(EvidenceScope.SOURCE_COMPARISON, [
         _source_identity(source, candidate),
-        _text_retention("\n".join(source_fragments), candidate_text, source_error),
-        _table_retention(table_pages, candidate_text, source_error),
+        _text_retention(text_observation, candidate_text, candidate_error),
+        _table_retention(table_observation, candidate_text, candidate_error),
     ])
     provenance = SourceCandidateProvenance(
         source_hash=source.content_hash,
@@ -363,6 +607,6 @@ def assess_source_candidate(
     )
     return SourceCandidateAssessment(
         provenance=provenance,
-        candidate_intrinsic=_candidate_intrinsic(candidate),
+        candidate_intrinsic=_candidate_intrinsic(candidate, candidate_error),
         source_comparison=comparison,
     )

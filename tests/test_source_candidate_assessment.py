@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 
 import pymupdf
+import pytest
+from pydantic import ValidationError
 
 from aksharamd.assessment import (
     CandidateArtifact,
@@ -11,6 +13,7 @@ from aksharamd.assessment import (
     Verdict,
     assess_source_candidate,
 )
+from aksharamd.assessment import source_candidate as source_candidate_module
 
 
 def _source(pdf_bytes: bytes) -> SourceArtifact:
@@ -170,3 +173,149 @@ def test_declared_source_identity_mismatch_is_a_source_comparison_failure():
     assert detector.verdict == Verdict.FAIL
     assert detector.finding_codes == ["SOURCE_IDENTITY_MISMATCH"]
     assert result.source_comparison.verdict == Verdict.FAIL
+
+
+@pytest.mark.parametrize("field,value", [
+    ("data", b"tampered"),
+    ("byte_size", 1),
+    ("content_hash", "0" * 64),
+])
+def test_assessment_boundary_revalidates_mutated_artifact_identity(field, value):
+    pdf_bytes, table_markdown = _table_pdf()
+    source = _source(pdf_bytes)
+    setattr(source, field, value)
+
+    with pytest.raises(ValueError, match=r"source\.(data|byte_size|content_hash)"):
+        assess_source_candidate(source=source, candidate=_candidate(table_markdown))
+
+
+def test_assessment_boundary_revalidates_mutated_candidate_identity():
+    pdf_bytes, table_markdown = _table_pdf()
+    candidate = _candidate(table_markdown)
+    candidate.content_hash = "f" * 64
+
+    with pytest.raises(ValueError, match="candidate.content_hash"):
+        assess_source_candidate(source=_source(pdf_bytes), candidate=candidate)
+
+
+def test_receipt_models_are_frozen_and_reject_spoofed_contract_identifiers():
+    pdf_bytes, first, second = _text_pdf()
+    result = assess_source_candidate(
+        source=_source(pdf_bytes), candidate=_candidate(f"{first}\n{second}"),
+    )
+    with pytest.raises(ValidationError, match="frozen"):
+        result.policy_id = "replacement-policy"
+
+    payload = result.model_dump(mode="python")
+    payload["schema_version"] = "999"
+    with pytest.raises(ValidationError, match="2.0-exploratory"):
+        type(result).model_validate(payload)
+
+    payload = result.model_dump(mode="python")
+    payload["provenance"]["source_hash"] = "not-a-hash"
+    with pytest.raises(ValidationError, match="string_pattern_mismatch"):
+        type(result).model_validate(payload)
+
+
+def test_unrelated_table_with_equal_count_does_not_pass():
+    pdf_bytes, _ = _table_pdf()
+    unrelated = "\n".join([
+        "| Product | Units | Owner |",
+        "| --- | ---: | --- |",
+        "| Widget | 400 | Alice |",
+        "| Gear | 700 | Bob |",
+    ])
+    result = assess_source_candidate(source=_source(pdf_bytes), candidate=_candidate(unrelated))
+    detector = _detector(result, "source.pdf_table_structure_retention")
+
+    assert detector.raw_evidence["source_table_count"] == 1
+    assert detector.raw_evidence["candidate_markdown_table_count"] == 1
+    assert detector.raw_evidence["matched_source_table_count"] == 0
+    assert detector.verdict == Verdict.FAIL
+
+
+def test_duplicated_matching_table_is_a_concern_not_a_pass():
+    pdf_bytes, table_markdown = _table_pdf()
+    result = assess_source_candidate(
+        source=_source(pdf_bytes), candidate=_candidate(f"{table_markdown}\n\n{table_markdown}"),
+    )
+    detector = _detector(result, "source.pdf_table_structure_retention")
+
+    assert detector.verdict == Verdict.CONCERN
+    assert detector.score == 50
+    assert detector.raw_evidence["matched_source_table_count"] == 1
+    assert detector.raw_evidence["unmatched_candidate_table_count"] == 1
+    assert detector.finding_codes == ["CANDIDATE_EXTRA_TABLE_STRUCTURE"]
+
+
+def test_source_byte_limit_has_stable_explicit_abstentions(monkeypatch):
+    pdf_bytes, table_markdown = _table_pdf()
+    monkeypatch.setattr(source_candidate_module, "MAX_SOURCE_BYTES", 10)
+    result = assess_source_candidate(source=_source(pdf_bytes), candidate=_candidate(table_markdown))
+
+    text = _detector(result, "source.pdf_text_token_retention")
+    table = _detector(result, "source.pdf_table_structure_retention")
+    assert text.status == table.status == DetectorStatus.ABSTAINED
+    assert text.abstention_reason == table.abstention_reason == "source byte size exceeds limit 10"
+
+
+def test_page_and_token_limits_abstain_instead_of_partial_scoring(monkeypatch):
+    pdf_bytes, first, second = _text_pdf()
+    source = _source(pdf_bytes)
+    candidate = _candidate(f"{first}\n{second}")
+    monkeypatch.setattr(source_candidate_module, "MAX_PDF_PAGES", 0)
+    page_limited = assess_source_candidate(source=source, candidate=candidate)
+    assert "page count 1 exceeds limit 0" in _detector(
+        page_limited, "source.pdf_text_token_retention",
+    ).abstention_reason
+
+    monkeypatch.setattr(source_candidate_module, "MAX_PDF_PAGES", 500)
+    monkeypatch.setattr(source_candidate_module, "MAX_SOURCE_TOKENS", 10)
+    token_limited = assess_source_candidate(source=source, candidate=candidate)
+    assert _detector(token_limited, "source.pdf_text_token_retention").abstention_reason == (
+        "PDF source token count exceeds limit 10"
+    )
+
+
+def test_text_character_limit_does_not_disable_table_detector(monkeypatch):
+    pdf_bytes, table_markdown = _table_pdf()
+    monkeypatch.setattr(source_candidate_module, "MAX_EXTRACTED_CHARS", 5)
+    result = assess_source_candidate(source=_source(pdf_bytes), candidate=_candidate(table_markdown))
+
+    text = _detector(result, "source.pdf_text_token_retention")
+    table = _detector(result, "source.pdf_table_structure_retention")
+    assert text.status == DetectorStatus.ABSTAINED
+    assert text.abstention_reason == "PDF extracted characters exceed limit 5"
+    assert table.status == DetectorStatus.ACTIVATED
+    assert table.verdict == Verdict.PASS
+
+
+def test_table_geometry_limit_does_not_disable_text_detector(monkeypatch):
+    pdf_bytes, first, second = _text_pdf()
+    monkeypatch.setattr(source_candidate_module, "MAX_TABLE_GEOMETRY_PAGES", 0)
+    result = assess_source_candidate(
+        source=_source(pdf_bytes), candidate=_candidate(f"{first}\n{second}"),
+    )
+
+    text = _detector(result, "source.pdf_text_token_retention")
+    table = _detector(result, "source.pdf_table_structure_retention")
+    assert text.status == DetectorStatus.ACTIVATED
+    assert text.verdict == Verdict.PASS
+    assert table.status == DetectorStatus.ABSTAINED
+    assert table.abstention_reason == "PDF page count 1 exceeds table geometry limit 0"
+
+
+def test_table_page_failure_is_isolated_from_text_evidence(monkeypatch):
+    pdf_bytes, first, second = _text_pdf()
+    monkeypatch.setattr(source_candidate_module, "MAX_DRAWING_PATHS", -1)
+    result = assess_source_candidate(
+        source=_source(pdf_bytes), candidate=_candidate(f"{first}\n{second}"),
+    )
+
+    text = _detector(result, "source.pdf_text_token_retention")
+    table = _detector(result, "source.pdf_table_structure_retention")
+    assert text.status == DetectorStatus.ACTIVATED
+    assert table.status == DetectorStatus.ABSTAINED
+    assert table.abstention_reason == (
+        "PDF table inspection failed on page 1: drawing path count exceeds limit -1"
+    )
