@@ -504,8 +504,13 @@ def _visible_inline_text(token) -> str:
             visible.append(" ")
         elif child.type == "image":
             visible.append(child.content)
-        # Emphasis/link wrappers and inline HTML tags are representation only;
-        # their rendered text arrives in nested or adjacent text tokens.
+        elif child.type == "html_inline" and re.fullmatch(
+            r"<br\s*/?>", child.content.strip(), flags=re.IGNORECASE,
+        ):
+            visible.append(" ")
+        # Emphasis/link wrappers and non-separating inline HTML tags are
+        # representation only; their rendered text arrives in nested or
+        # adjacent text tokens.
     return "".join(visible)
 
 

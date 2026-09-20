@@ -363,6 +363,29 @@ def test_markdown_escapes_and_wrappers_have_equivalent_visible_signatures():
     assert plain_signatures == formatted_signatures
 
 
+@pytest.mark.parametrize("line_break", ["<br>", "<br/>", "<br />", "<BR />"])
+def test_html_line_breaks_are_visible_whitespace_in_table_signatures(line_break):
+    plain = "| Location |\n| --- |\n| North East |"
+    with_break = f"| Location |\n| --- |\n| North{line_break}East |"
+
+    plain_signatures, plain_error = source_candidate_module._markdown_table_signatures(plain)
+    break_signatures, break_error = source_candidate_module._markdown_table_signatures(with_break)
+
+    assert plain_error is break_error is None
+    assert plain_signatures == break_signatures
+
+
+def test_nonseparating_html_wrappers_remain_representation_only():
+    plain = "| Location |\n| --- |\n| North East |"
+    wrapped = "| <strong>Location</strong> |\n| --- |\n| North <em>East</em> |"
+
+    plain_signatures, plain_error = source_candidate_module._markdown_table_signatures(plain)
+    wrapped_signatures, wrapped_error = source_candidate_module._markdown_table_signatures(wrapped)
+
+    assert plain_error is wrapped_error is None
+    assert plain_signatures == wrapped_signatures
+
+
 def test_matching_identity_cannot_turn_candidate_decode_abstentions_into_quality_pass():
     pdf_bytes, _, _ = _text_pdf()
     source = _source(pdf_bytes)

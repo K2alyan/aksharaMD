@@ -37,9 +37,11 @@ PDF table retention uses PyMuPDF source geometry and exact one-to-one matching
 of normalized table cell-sequence signatures against Markdown tables parsed by
 markdown-it. Candidate signatures use parsed visible inline text: emphasis,
 link destinations/wrappers, code delimiters, and Markdown escapes do not alter
-the signature. Equal counts with unrelated visible content fail. A duplicated
-candidate table is a concern rather than a pass. Signature matching still does
-not prove reading order, semantics, or visual fidelity.
+the signature. Recognized HTML line breaks (`<br>`, `<br/>`, and `<br />`) are
+normalized to whitespace; non-separating inline wrapper tags remain
+representation-only. Equal counts with unrelated visible content fail. A
+duplicated candidate table is a concern rather than a pass. Signature matching
+still does not prove reading order, semantics, or visual fidelity.
 
 ## Work limits and abstention
 
