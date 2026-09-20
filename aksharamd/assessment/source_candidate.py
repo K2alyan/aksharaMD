@@ -32,14 +32,15 @@ _TEXT_RETENTION_FAIL = 0.80
 _TOKEN_RE = re.compile(r"[^\W_]+(?:[-./][^\W_]+)*", re.UNICODE)
 _HASH_PATTERN = r"^[0-9a-f]{64}$"
 
-# Hard work limits are part of the policy contract, not tuning hints. A limit
-# breach produces a stable abstention instead of partial evidence.
+# Deterministic policy ceilings for cooperative/local inputs. PyMuPDF may
+# allocate inside get_text/get_drawings before these post-call checks run, so
+# these are not a hostile-input memory or time sandbox.
 MAX_SOURCE_BYTES = 50 * 1024 * 1024
 MAX_PDF_PAGES = 500
 MAX_EXTRACTED_CHARS = 2_000_000
 MAX_SOURCE_TOKENS = 250_000
 MAX_TABLE_GEOMETRY_PAGES = 100
-MAX_DRAWING_PATHS = 20_000
+MAX_DRAWING_COMMANDS = 20_000
 MAX_SOURCE_TABLES = 200
 MAX_TABLE_CELLS = 10_000
 MAX_CANDIDATE_BYTES = 20 * 1024 * 1024
@@ -71,9 +72,13 @@ class DetectorResult(BaseModel):
     abstention_reason: str | None = None
     raw_evidence: dict[str, object] = Field(default_factory=dict)
     finding_codes: list[str] = Field(default_factory=list)
+    quality_role: Literal["substantive", "provenance"] = "substantive"
+    required_for_group: bool = True
 
     @model_validator(mode="after")
     def _status_is_coherent(self):
+        if self.quality_role == "provenance" and self.required_for_group:
+            raise ValueError("provenance detectors cannot be required for a quality verdict")
         if self.status == DetectorStatus.ACTIVATED:
             if not self.eligible or self.abstention_reason is not None:
                 raise ValueError("activated detectors must be eligible and cannot have an abstention reason")
@@ -140,11 +145,23 @@ class SourceCandidateAssessment(BaseModel):
 
 
 def _group(scope: EvidenceScope, detectors: list[DetectorResult]) -> EvidenceGroup:
-    activated = [item for item in detectors if item.status == DetectorStatus.ACTIVATED]
+    considered = (
+        [item for item in detectors if item.quality_role == "substantive"]
+        if scope == EvidenceScope.SOURCE_COMPARISON else detectors
+    )
+    activated = [item for item in considered if item.status == DetectorStatus.ACTIVATED]
+    incomplete = any(
+        item.required_for_group and item.status == DetectorStatus.ABSTAINED
+        for item in considered
+    )
     if not activated:
         verdict = Verdict.UNDETERMINED
     elif any(item.verdict == Verdict.FAIL for item in activated):
         verdict = Verdict.FAIL
+    elif incomplete:
+        # A provenance-only PASS or one partial quality signal cannot establish
+        # source preservation when another applicable detector abstained.
+        verdict = Verdict.UNDETERMINED
     elif any(item.verdict == Verdict.CONCERN for item in activated):
         verdict = Verdict.CONCERN
     else:
@@ -245,6 +262,8 @@ def _source_identity(source: SourceArtifact, candidate: CandidateArtifact) -> De
             verdict=Verdict.UNDETERMINED,
             abstention_reason="candidate did not declare original_source_hash",
             raw_evidence={"source_hash": source.content_hash, "declared_source_hash": None},
+            quality_role="provenance",
+            required_for_group=False,
         )
     matches = declared == source.content_hash
     return DetectorResult(
@@ -257,6 +276,8 @@ def _source_identity(source: SourceArtifact, candidate: CandidateArtifact) -> De
         score=100 if matches else 0,
         raw_evidence={"source_hash": source.content_hash, "declared_source_hash": declared},
         finding_codes=[] if matches else ["SOURCE_IDENTITY_MISMATCH"],
+        quality_role="provenance",
+        required_for_group=False,
     )
 
 
@@ -341,7 +362,7 @@ def _pdf_observations(source: SourceArtifact) -> tuple[_TextObservation, _TableO
                            f"{MAX_TABLE_GEOMETRY_PAGES}"
                            if page_count > MAX_TABLE_GEOMETRY_PAGES else None)
             extracted_chars = 0
-            drawing_paths = 0
+            drawing_commands = 0
             table_cells = 0
             for page_number, page in enumerate(pdf, start=1):
                 if text_error is None:
@@ -361,9 +382,11 @@ def _pdf_observations(source: SourceArtifact) -> tuple[_TextObservation, _TableO
                 if table_error is None:
                     try:
                         drawings = page.get_drawings()
-                        drawing_paths += len(drawings)
-                        if drawing_paths > MAX_DRAWING_PATHS:
-                            raise OverflowError(f"drawing path count exceeds limit {MAX_DRAWING_PATHS}")
+                        drawing_commands += sum(len(drawing.get("items", ())) for drawing in drawings)
+                        if drawing_commands > MAX_DRAWING_COMMANDS:
+                            raise OverflowError(
+                                f"drawing command count exceeds limit {MAX_DRAWING_COMMANDS}"
+                            )
                         tables = page.find_tables(paths=drawings).tables
                         for table in tables:
                             rows = table.extract()
@@ -470,6 +493,22 @@ def _text_retention(
     )
 
 
+def _visible_inline_text(token) -> str:
+    """Return rendered inline text, excluding Markdown representation tokens."""
+    children = token.children or []
+    visible: list[str] = []
+    for child in children:
+        if child.type in {"text", "code_inline"}:
+            visible.append(child.content)
+        elif child.type in {"softbreak", "hardbreak"}:
+            visible.append(" ")
+        elif child.type == "image":
+            visible.append(child.content)
+        # Emphasis/link wrappers and inline HTML tags are representation only;
+        # their rendered text arrives in nested or adjacent text tokens.
+    return "".join(visible)
+
+
 def _markdown_table_signatures(text: str) -> tuple[tuple[_TableSignature, ...], str | None]:
     signatures: list[_TableSignature] = []
     cells: list[str] | None = None
@@ -482,7 +521,7 @@ def _markdown_table_signatures(text: str) -> tuple[tuple[_TableSignature, ...], 
         if token.type == "table_open":
             cells = []
         elif token.type == "inline" and cells is not None:
-            cells.append(_normalize_cell(token.content))
+            cells.append(_normalize_cell(_visible_inline_text(token)))
             total_cells += 1
             if total_cells > MAX_TABLE_CELLS:
                 return (), f"candidate table cells exceed limit {MAX_TABLE_CELLS}"
@@ -522,6 +561,7 @@ def _table_retention(
                 "source_table_count": 0, "source_table_pages": [],
                 "pdf_page_count": observation.page_count,
             },
+            required_for_group=False,
         )
 
     candidate_signatures, candidate_table_error = _markdown_table_signatures(candidate_text)
