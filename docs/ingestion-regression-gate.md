@@ -11,7 +11,9 @@ Create a manifest whose paths are relative to the manifest:
   "schema_version": "1.0",
   "policy": {
     "required_disposition": "ACCEPT",
-    "required_invariants": ["schema_version", "policy_id", "source_hash"],
+    "required_invariants": [
+      "schema_version", "policy_id", "source_hash", "task_profile_sha256"
+    ],
     "deny_new_warnings": true,
     "allow_new_warning_codes": [],
     "deny_warning_codes": ["CRITICAL_LITERAL_MISSING"]
@@ -31,6 +33,12 @@ stable machine-readable report. Exit code `0` means every comparison passed,
 `2` means the policy denied at least one comparison, and `1` means an input was
 invalid. Reports include SHA-256 identities for the manifest and both evidence
 artifacts.
+
+The default invariants also compare the canonical task-profile SHA-256. An
+assessment with no task profile is bound to the explicit `none` sentinel.
+Direct `assess --json` artifacts are accepted only when task suitability was
+not requested; task-scoped evidence must use the compiler binding envelope so
+the profile itself is available for verification.
 
 Finding codes in assessment dimensions are exposed as warning codes. New codes
 fail closed by default. An allow rule applies only to newly introduced codes;

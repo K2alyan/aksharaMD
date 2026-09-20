@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
 
 from .models import (
     ASSESSMENT_SCHEMA_VERSION,
@@ -22,14 +22,14 @@ from .models import (
     AssessmentDisposition,
     EvidenceStatus,
     NextAction,
-    TaskProfile,
     Verdict,
 )
 from .text_preservation import SOURCE_TEXT_PRESERVATION_POLICY_ID
 
 GATE_MANIFEST_SCHEMA_VERSION = "1.0"
 GATE_REPORT_SCHEMA_VERSION = "1.0"
-_INVARIANT_FIELDS = ("schema_version", "policy_id", "source_hash")
+_INVARIANT_FIELDS = ("schema_version", "policy_id", "source_hash", "task_profile_sha256")
+_TASK_PROFILE_NONE = "none"
 _DIMENSIONS = frozenset({
     "conversion_fidelity",
     "structural_usability",
@@ -70,12 +70,63 @@ class GateEvidenceItem(BaseModel):
             raise ValueError("must be finite")
         return value
 
+    @field_validator("measurement", "denominator", mode="before")
+    @classmethod
+    def _number_is_a_json_number(cls, value):
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+            raise ValueError("must be a JSON number or null")
+        return value
+
     @field_validator("denominator")
     @classmethod
     def _denominator_is_nonnegative(cls, value: float | None) -> float | None:
         if value is not None and value < 0:
             raise ValueError("must be nonnegative")
         return value
+
+    @model_validator(mode="after")
+    def _details_match_the_versioned_check(self):
+        if self.check_id == "critical_literal_coverage":
+            if set(self.details) != {"missing"} or not isinstance(self.details["missing"], list):
+                raise ValueError("critical_literal_coverage details are malformed")
+            if any(not isinstance(item, str) for item in self.details["missing"]):
+                raise ValueError("critical_literal_coverage missing values must be strings")
+        elif self.check_id in {"markdown_fence_balance", "candidate_text_integrity"}:
+            if self.details:
+                raise ValueError(f"{self.check_id} details must be empty")
+        elif self.check_id == "source_text_preservation":
+            if set(self.details) != {"match_method", "semantic_fidelity_established", "scope"}:
+                raise ValueError("source_text_preservation details are malformed")
+            match = self.details["match_method"]
+            if match is not None and not isinstance(match, str):
+                raise ValueError("match_method must be a string or null")
+            if self.details["semantic_fidelity_established"] is not False:
+                raise ValueError("semantic_fidelity_established must be false")
+            if not isinstance(self.details["scope"], str):
+                raise ValueError("scope must be a string")
+        elif self.check_id == "task_profile_literal_requirements":
+            expected = {"task_profile_schema_version", "missing_literals", "missing_relationships"}
+            if set(self.details) != expected or self.details["task_profile_schema_version"] != "1.0":
+                raise ValueError("task_profile_literal_requirements details are malformed")
+            if (not isinstance(self.details["missing_literals"], list)
+                    or any(not isinstance(item, str) for item in self.details["missing_literals"])):
+                raise ValueError("missing_literals must be a list of strings")
+            relationships = self.details["missing_relationships"]
+            if not isinstance(relationships, list):
+                raise ValueError("missing_relationships must be a list")
+            for relationship in relationships:
+                if not isinstance(relationship, dict) or set(relationship) != {
+                    "first_literal", "second_literal", "max_characters_between",
+                }:
+                    raise ValueError("missing relationship is malformed")
+                if (not isinstance(relationship["first_literal"], str)
+                        or not isinstance(relationship["second_literal"], str)
+                        or type(relationship["max_characters_between"]) is not int
+                        or relationship["max_characters_between"] < 0):
+                    raise ValueError("missing relationship values have invalid primitive types")
+        else:
+            raise ValueError(f"unsupported evidence check_id: {self.check_id}")
+        return self
 
 
 class GateFinding(BaseModel):
@@ -90,6 +141,53 @@ class GateFinding(BaseModel):
     evidence_ids: list[str]
     origin: Literal["unknown", "conversion", "representation"]
     region: str | None
+
+
+class GateRequiredLiteralRelationship(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    first_literal: str = Field(min_length=1)
+    second_literal: str = Field(min_length=1)
+    max_characters_between: StrictInt = Field(default=160, ge=0)
+    case_sensitive: StrictBool = False
+
+    @field_validator("first_literal", "second_literal")
+    @classmethod
+    def _literal_is_not_whitespace(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("literal must contain non-whitespace characters")
+        return value
+
+
+class GateTaskProfile(BaseModel):
+    """Non-coercing replay schema for the task contract bound to an assessment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1.0"]
+    purpose: str = Field(min_length=1)
+    required_literals: list[str]
+    required_relationships: list[GateRequiredLiteralRelationship]
+
+    @field_validator("purpose")
+    @classmethod
+    def _purpose_is_not_whitespace(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("purpose must contain non-whitespace characters")
+        return value
+
+    @field_validator("required_literals")
+    @classmethod
+    def _required_literals_are_not_blank(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("required_literals must not contain blank values")
+        return values
+
+    @model_validator(mode="after")
+    def _has_requirement(self):
+        if not self.required_literals and not self.required_relationships:
+            raise ValueError("task profile requires at least one requirement")
+        return self
 
 
 class GateDimensionResult(BaseModel):
@@ -184,7 +282,7 @@ class GateBoundSource(BaseModel):
 
     logical_id: str
     capture_id: str
-    byte_size: int = Field(ge=0)
+    byte_size: StrictInt = Field(ge=0)
     media_type: str = Field(min_length=1)
     storage_reference: str
 
@@ -196,7 +294,7 @@ class GateBoundCandidate(BaseModel):
 
     logical_id: str
     content_hash: str
-    byte_size: int = Field(ge=0)
+    byte_size: StrictInt = Field(ge=0)
     media_type: str = Field(min_length=1)
     storage_reference: str
     original_source_hash: str
@@ -217,7 +315,7 @@ class GateAssessmentEnvelope(BaseModel):
     assessment: GateAssessmentResult
     source: GateBoundSource
     candidate: GateBoundCandidate
-    task_profile: TaskProfile | None = None
+    task_profile: GateTaskProfile | None = None
 
     @model_validator(mode="after")
     def _binding_is_consistent(self):
@@ -226,6 +324,17 @@ class GateAssessmentEnvelope(BaseModel):
             raise ValueError("inconsistent source provenance")
         if self.assessment.candidate_hash != self.candidate.content_hash:
             raise ValueError("inconsistent candidate provenance")
+        task_dimension = self.assessment.dimensions["task_suitability"]
+        no_profile_state = (
+            task_dimension.status == EvidenceStatus.NOT_REQUESTED
+            and task_dimension.verdict == Verdict.UNDETERMINED
+            and not task_dimension.findings
+            and not task_dimension.evidence
+        )
+        if self.task_profile is None and not no_profile_state:
+            raise ValueError("task-suitability evidence has no bound task profile")
+        if self.task_profile is not None and no_profile_state:
+            raise ValueError("bound task profile was not reflected in task-suitability evidence")
         return self
 
 
@@ -235,10 +344,12 @@ class GatePolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     required_disposition: AssessmentDisposition = AssessmentDisposition.ACCEPT
-    required_invariants: list[Literal["schema_version", "policy_id", "source_hash"]] = Field(
+    required_invariants: list[
+        Literal["schema_version", "policy_id", "source_hash", "task_profile_sha256"]
+    ] = Field(
         default_factory=lambda: list(_INVARIANT_FIELDS)
     )
-    deny_new_warnings: bool = True
+    deny_new_warnings: StrictBool = True
     allow_new_warning_codes: set[str] = Field(default_factory=set)
     deny_warning_codes: set[str] = Field(default_factory=set)
 
@@ -304,6 +415,26 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _task_profile_sha256(profile: GateTaskProfile) -> str:
+    canonical = json.dumps(
+        profile.model_dump(mode="json"),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return _sha256(canonical)
+
+
+def _is_no_task_profile_state(assessment: GateAssessmentResult) -> bool:
+    dimension = assessment.dimensions["task_suitability"]
+    return (
+        dimension.status == EvidenceStatus.NOT_REQUESTED
+        and dimension.verdict == Verdict.UNDETERMINED
+        and not dimension.findings
+        and not dimension.evidence
+    )
+
+
 def _read_json(path: Path, *, kind: str) -> tuple[dict, str]:
     try:
         data = path.read_bytes()
@@ -327,18 +458,29 @@ def load_gate_manifest(path: Path) -> tuple[GateManifest, str]:
         raise GateInputError(f"Invalid gate manifest {path}: {exc}") from exc
 
 
-def _load_assessment(path: Path) -> tuple[GateAssessmentResult, str]:
+def _load_assessment(path: Path) -> tuple[GateAssessmentResult, str, str]:
     payload, digest = _read_json(path, kind="assessment artifact")
     # Compiler output wraps the versioned assessment; ``aksharamd assess
     # --json`` emits the assessment directly.  Both are immutable evidence.
     try:
         if "assessment" in payload:
-            assessment = GateAssessmentEnvelope.model_validate(payload).assessment
+            envelope = GateAssessmentEnvelope.model_validate(payload)
+            assessment = envelope.assessment
+            task_profile_identity = (
+                _task_profile_sha256(envelope.task_profile)
+                if envelope.task_profile is not None
+                else _TASK_PROFILE_NONE
+            )
         else:
             assessment = GateAssessmentResult.model_validate(payload)
+            if not _is_no_task_profile_state(assessment):
+                raise ValueError(
+                    "direct assessment has task-suitability evidence without a bound task profile"
+                )
+            task_profile_identity = _TASK_PROFILE_NONE
     except (ValueError, TypeError) as exc:
         raise GateInputError(f"Invalid assessment artifact {path}: {exc}") from exc
-    return assessment, digest
+    return assessment, digest, task_profile_identity
 
 
 def _warning_codes(assessment: GateAssessmentResult) -> set[str]:
@@ -359,8 +501,8 @@ def evaluate_gate(manifest_path: Path) -> dict:
     for comparison in manifest.comparisons:
         baseline_path = (root / comparison.baseline).resolve()
         candidate_path = (root / comparison.candidate).resolve()
-        baseline, baseline_digest = _load_assessment(baseline_path)
-        candidate, candidate_digest = _load_assessment(candidate_path)
+        baseline, baseline_digest, baseline_task_profile = _load_assessment(baseline_path)
+        candidate, candidate_digest, candidate_task_profile = _load_assessment(candidate_path)
         baseline_warnings = _warning_codes(baseline)
         candidate_warnings = _warning_codes(candidate)
         new_warnings = candidate_warnings - baseline_warnings
@@ -374,8 +516,12 @@ def evaluate_gate(manifest_path: Path) -> dict:
             })
 
         for field in manifest.policy.required_invariants:
-            baseline_value = getattr(baseline, field)
-            candidate_value = getattr(candidate, field)
+            if field == "task_profile_sha256":
+                baseline_value = baseline_task_profile
+                candidate_value = candidate_task_profile
+            else:
+                baseline_value = getattr(baseline, field)
+                candidate_value = getattr(candidate, field)
             if baseline_value != candidate_value or candidate_value is None:
                 failures.append({
                     "code": "PROVENANCE_INVARIANT_MISMATCH",
@@ -400,12 +546,14 @@ def evaluate_gate(manifest_path: Path) -> dict:
             "baseline": {
                 "path": comparison.baseline,
                 "sha256": baseline_digest,
+                "task_profile_sha256": baseline_task_profile,
                 "disposition": baseline.disposition.value,
                 "warning_codes": sorted(baseline_warnings),
             },
             "candidate": {
                 "path": comparison.candidate,
                 "sha256": candidate_digest,
+                "task_profile_sha256": candidate_task_profile,
                 "disposition": candidate.disposition.value,
                 "warning_codes": sorted(candidate_warnings),
             },

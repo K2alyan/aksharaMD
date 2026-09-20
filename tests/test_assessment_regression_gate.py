@@ -4,7 +4,7 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from aksharamd.assessment import Assessor, CandidateArtifact, SourceArtifact
+from aksharamd.assessment import Assessor, CandidateArtifact, SourceArtifact, TaskProfile
 from aksharamd.cli import main
 
 
@@ -21,11 +21,50 @@ def _artifact(kind, text, *, source_hash=None):
     return kind(**values)
 
 
-def _assessment_payload(source_text, candidate_text, *, policy_id="general-ingestion-v2"):
+def _assessment_payload(
+    source_text,
+    candidate_text,
+    *,
+    policy_id="general-ingestion-v2",
+    task_profile=None,
+):
     source = _artifact(SourceArtifact, source_text)
     candidate = _artifact(CandidateArtifact, candidate_text, source_hash=source.content_hash)
-    result = Assessor().assess(source=source, candidate=candidate, policy_id=policy_id)
+    result = Assessor().assess(
+        source=source,
+        candidate=candidate,
+        policy_id=policy_id,
+        task_profile=task_profile,
+    )
     return result.model_dump(mode="json")
+
+
+def _envelope(payload, text, *, task_profile=None):
+    wrapped = {
+        "binding_schema_version": "1.0",
+        "assessment": payload,
+        "source": {
+            "logical_id": "invoice-source",
+            "capture_id": payload["source_hash"],
+            "byte_size": len(text.encode()),
+            "media_type": "text/markdown",
+            "storage_reference": "invoice.md",
+        },
+        "candidate": {
+            "logical_id": "invoice-candidate",
+            "content_hash": payload["candidate_hash"],
+            "byte_size": len(text.encode()),
+            "media_type": "text/markdown",
+            "storage_reference": "document.md",
+            "original_source_hash": payload["source_hash"],
+            "parser_name": "parser",
+            "parser_version": "1",
+            "parser_configuration_id": None,
+        },
+    }
+    if task_profile is not None:
+        wrapped["task_profile"] = task_profile.model_dump(mode="json")
+    return wrapped
 
 
 def _write_assessment(path, source_text, candidate_text):
@@ -59,6 +98,8 @@ def test_gate_passes_equivalent_assessment_artifacts(tmp_path):
     assert report["status"] == "PASS"
     assert report["summary"] == {"comparisons": 1, "denied": 0, "passed": 1}
     assert len(report["manifest_sha256"]) == 64
+    assert report["results"][0]["baseline"]["task_profile_sha256"] == "none"
+    assert report["results"][0]["candidate"]["task_profile_sha256"] == "none"
     assert "QA prediction" in report["scope"]
 
 
@@ -168,34 +209,73 @@ def test_gate_rejects_internally_inconsistent_binding_artifact(tmp_path):
 def test_gate_accepts_strict_compiler_binding_artifacts(tmp_path):
     text = "Invoice 42: $18"
     direct = _assessment_payload(text, text)
-    wrapped = {
-        "binding_schema_version": "1.0",
-        "assessment": direct,
-        "source": {
-            "logical_id": "invoice-source",
-            "capture_id": direct["source_hash"],
-            "byte_size": len(text.encode()),
-            "media_type": "text/markdown",
-            "storage_reference": "invoice.md",
-        },
-        "candidate": {
-            "logical_id": "invoice-candidate",
-            "content_hash": direct["candidate_hash"],
-            "byte_size": len(text.encode()),
-            "media_type": "text/markdown",
-            "storage_reference": "document.md",
-            "original_source_hash": direct["source_hash"],
-            "parser_name": "parser",
-            "parser_version": "1",
-            "parser_configuration_id": None,
-        },
-    }
+    wrapped = _envelope(direct, text)
     for name in ("baseline.json", "candidate.json"):
         (tmp_path / name).write_text(json.dumps(wrapped), encoding="utf-8")
 
     result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
 
     assert result.exit_code == 0, result.output
+
+
+def test_gate_rejects_task_evidence_when_profile_identity_is_omitted(tmp_path):
+    text = "Invoice 42: $18"
+    profile = TaskProfile(purpose="invoice", required_literals=["Invoice 42"])
+    payload = _assessment_payload(text, text, task_profile=profile)
+    _write_assessment(tmp_path / "baseline.json", text, text)
+    # A direct result cannot prove which profile produced observed task evidence.
+    (tmp_path / "candidate.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    assert "without a bound task profile" in json.loads(result.output)["error"]["message"]
+
+
+def test_gate_rejects_compiler_envelope_that_omits_observed_task_profile(tmp_path):
+    text = "Invoice 42: $18"
+    profile = TaskProfile(purpose="invoice", required_literals=["Invoice 42"])
+    payload = _assessment_payload(text, text, task_profile=profile)
+    _write_assessment(tmp_path / "baseline.json", text, text)
+    (tmp_path / "candidate.json").write_text(
+        json.dumps(_envelope(payload, text)), encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    assert "no bound task profile" in json.loads(result.output)["error"]["message"]
+
+
+def test_gate_denies_changed_task_profile_by_default(tmp_path):
+    text = "Invoice 42: $18"
+    baseline_profile = TaskProfile(purpose="invoice-id", required_literals=["Invoice 42"])
+    candidate_profile = TaskProfile(purpose="amount", required_literals=["$18"])
+    baseline = _envelope(
+        _assessment_payload(text, text, task_profile=baseline_profile),
+        text,
+        task_profile=baseline_profile,
+    )
+    candidate = _envelope(
+        _assessment_payload(text, text, task_profile=candidate_profile),
+        text,
+        task_profile=candidate_profile,
+    )
+    (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+    (tmp_path / "candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 2, result.output
+    report = json.loads(result.output)
+    mismatch = report["results"][0]["failures"]
+    assert mismatch == [{
+        "code": "PROVENANCE_INVARIANT_MISMATCH",
+        "invariant": "task_profile_sha256",
+        "baseline": report["results"][0]["baseline"]["task_profile_sha256"],
+        "candidate": report["results"][0]["candidate"]["task_profile_sha256"],
+    }]
+    assert mismatch[0]["baseline"] != mismatch[0]["candidate"]
 
 
 @pytest.mark.parametrize("corruption", [
@@ -229,6 +309,77 @@ def test_gate_rejects_malformed_assessment_results(tmp_path, corruption):
     assert report["status"] == "ERROR"
     assert report["error"]["code"] == "INVALID_INPUT"
     assert "Invalid assessment artifact" in report["error"]["message"]
+
+
+def test_gate_rejects_string_boolean_in_manifest_policy(tmp_path):
+    _write_assessment(tmp_path / "baseline.json", "Invoice 42: $18", "Invoice 42: $18")
+    _write_assessment(tmp_path / "candidate.json", "Invoice 42: $18", "Invoice 42: $18")
+    manifest = _write_manifest(tmp_path, policy={"deny_new_warnings": "false"})
+
+    result = CliRunner().invoke(main, ["gate", str(manifest), "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["error"]["code"] == "INVALID_INPUT"
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("measurement", "2"),
+    ("denominator", True),
+])
+def test_gate_rejects_non_numeric_evidence_primitives(tmp_path, field, value):
+    text = "Invoice 42: $18"
+    _write_assessment(tmp_path / "baseline.json", text, text)
+    payload = _assessment_payload(text, text)
+    payload["dimensions"]["conversion_fidelity"]["evidence"][0][field] = value
+    (tmp_path / "candidate.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["error"]["code"] == "INVALID_INPUT"
+
+
+@pytest.mark.parametrize("value", ["15", True])
+def test_gate_rejects_coerced_binding_byte_sizes(tmp_path, value):
+    text = "Invoice 42: $18"
+    payload = _assessment_payload(text, text)
+    baseline = _envelope(payload, text)
+    candidate = _envelope(payload, text)
+    candidate["candidate"]["byte_size"] = value
+    (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+    (tmp_path / "candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["error"]["code"] == "INVALID_INPUT"
+
+
+@pytest.mark.parametrize(("field", "value"), [
+    ("max_characters_between", "20"),
+    ("case_sensitive", "false"),
+])
+def test_gate_rejects_coerced_task_profile_primitives(tmp_path, field, value):
+    text = "Invoice 42: $18"
+    profile = TaskProfile.model_validate({
+        "purpose": "invoice relationship",
+        "required_relationships": [{
+            "first_literal": "Invoice 42",
+            "second_literal": "$18",
+            "max_characters_between": 20,
+        }],
+    })
+    payload = _assessment_payload(text, text, task_profile=profile)
+    baseline = _envelope(payload, text, task_profile=profile)
+    candidate = _envelope(payload, text, task_profile=profile)
+    candidate["task_profile"]["required_relationships"][0][field] = value
+    (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+    (tmp_path / "candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.output)["error"]["code"] == "INVALID_INPUT"
 
 
 def test_gate_missing_manifest_is_machine_readable_input_error(tmp_path):
