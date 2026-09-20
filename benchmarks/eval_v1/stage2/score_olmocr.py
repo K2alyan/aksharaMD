@@ -12,7 +12,9 @@ this module:
 Public API
 ----------
 load_all_unit_tests(bench_data_dir) -> dict[str, list]
-replay_and_score(record_path, pdf_dir, unit_tests, root) -> dict
+replay_and_score(
+    record_path, pdf_dir, unit_tests, root, benchmark_test_inventory_sha256
+) -> dict
 """
 from __future__ import annotations
 
@@ -24,6 +26,10 @@ import traceback
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from benchmarks.eval_v1.stage2.olmocr_hygiene import (
+    STAGE2_SCORER_CONTRACT_ID,
+)
 
 # ---------------------------------------------------------------------------
 # Constants.
@@ -45,9 +51,9 @@ _CATEGORY_PREFIX: dict[str, str] = {
 }
 
 # Readiness band thresholds (inclusive lower bound).
-_BAND_HIGH = 0.85
-_BAND_OK = 0.70
-_BAND_RISKY = 0.50
+_BAND_HIGH = 85
+_BAND_OK = 70
+_BAND_RISKY = 50
 
 # Adapter construction mirrors Stage 1 runner.build_adapters().
 _PENDING_SHA = "0" * 64
@@ -93,7 +99,7 @@ _OFFLINE_ENV = {
     "DOCLING_ARTIFACTS_OFFLINE": "1",
 }
 
-STAGE2_SCHEMA_VERSION = "1"
+STAGE2_SCHEMA_VERSION = "2"
 
 
 # ---------------------------------------------------------------------------
@@ -252,8 +258,7 @@ def _run_aksharamd_scoring(markdown: str) -> tuple[float | None, list[str], str 
 
         try:
             ctx = Compiler().compile(str(tmp_path))
-            # compute_readiness_score() returns int 0-100; normalize to [0,1]
-            score: float = float(compute_readiness_score(ctx)) / 100.0
+            score: float = float(compute_readiness_score(ctx))
             codes: list[str] = [w.code for w in ctx.validation.warnings]
             return score, codes, None
         finally:
@@ -274,6 +279,7 @@ def replay_and_score(
     pdf_dir: Path,
     unit_tests: dict[str, list],
     root: Path,
+    benchmark_test_inventory_sha256: str,
 ) -> dict[str, Any]:
     """Replay a Stage 1 execution record and produce a Stage 2 result dict.
 
@@ -319,10 +325,13 @@ def replay_and_score(
             "n_failed": 0,
             "test_results": [],
             "scored_at": _now_utc(),
+            "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
+            "benchmark_test_inventory_sha256": benchmark_test_inventory_sha256,
             "stage1_execution_manifest_sha256": record.get(
                 "stage1_execution_manifest_sha256"
             ),
             "stage1_output_sha256": record.get("output_sha256"),
+            "stage1_exit_status": exit_status,
             "source_pdf_sha256": source_pdf_sha256,
         }
 
@@ -430,7 +439,12 @@ def replay_and_score(
     # ------------------------------------------------------------------ #
     # 9. Assemble result.
     # ------------------------------------------------------------------ #
-    result = _base("SCORED")
+    status = "SCORED"
+    if not test_results:
+        status = "NO_BENCHMARK_TESTS"
+    elif scoring_error is not None:
+        status = "SCORING_ERROR"
+    result = _base(status)
     result["sha_verified"] = True
     result["readiness_score"] = readiness_score
     result["readiness_band"] = (

@@ -33,9 +33,18 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from benchmarks.eval_v1.stage1.execution_manifest import (
+    FROZEN_OLMOCR_ACQUISITION_SHA,
+    OLMOCR_ACQUISITION_PATH,
+)
 from benchmarks.eval_v1.stage1.run_track_a_olmocr import MANIFEST_SHA
 from benchmarks.eval_v1.stage2.olmocr_hygiene import (
+    FROZEN_OLMOCR_N_PDFS,
+    STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
+    benchmark_test_inventory_sha256,
+    expected_pairs_from_frozen_acquisition,
+    is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
 )
@@ -48,9 +57,6 @@ OLMOCR_PDFS_DIR = ROOT / "tmp" / "olmocr-full-data" / "bench_data" / "pdfs"
 BENCH_DATA_DIR = ROOT / "tmp" / "olmocr-full-data" / "bench_data"
 
 RESULT_FILENAME = "stage2_olmocr_result.json"
-RESUMABLE_STATUSES = {"SCORED", "SKIPPED_DEFECT"}
-
-
 # ---------------------------------------------------------------------------
 # Helpers.
 # ---------------------------------------------------------------------------
@@ -107,12 +113,29 @@ def main(argv: list[str] | None = None) -> int:
         print("Loading olmOCR unit tests …", flush=True)
         from benchmarks.eval_v1.stage2.score_olmocr import load_all_unit_tests  # noqa: PLC0415
         unit_tests = load_all_unit_tests(BENCH_DATA_DIR)
-        print(
-            f"  Loaded tests for {len(unit_tests)} canonical_ids.",
-            flush=True,
-        )
     else:
         unit_tests = {}
+    try:
+        test_inventory_sha256 = benchmark_test_inventory_sha256(BENCH_DATA_DIR)
+    except OlmocrHygieneError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    try:
+        expected_pairs_from_frozen_acquisition(
+            OLMOCR_ACQUISITION_PATH,
+            OLMOCR_PDFS_DIR,
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
+            expected_pdf_count=FROZEN_OLMOCR_N_PDFS,
+        )
+    except OlmocrHygieneError as exc:
+        print(f"ERROR: frozen corpus inventory check failed: {exc}", file=sys.stderr)
+        return 1
+    if not args.dry_run:
+        print(
+            f"  Loaded tests for {len(unit_tests)} canonical_ids "
+            f"(inventory {test_inventory_sha256[:12]}...).",
+            flush=True,
+        )
 
     # ------------------------------------------------------------------ #
     # Collect records.
@@ -122,7 +145,10 @@ def main(argv: list[str] | None = None) -> int:
             STAGE1_RUN_DIR, expected_manifest_sha=MANIFEST_SHA
         )
         existing_results, result_dedup = load_unique_stage2_results(
-            STAGE1_RUN_DIR, expected_manifest_sha=MANIFEST_SHA
+            STAGE1_RUN_DIR,
+            expected_manifest_sha=MANIFEST_SHA,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
         )
     except OlmocrHygieneError as exc:
         print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
@@ -130,7 +156,11 @@ def main(argv: list[str] | None = None) -> int:
     completed_results = {
         (r["canonical_id"], r["parser_id"]): r
         for r in existing_results
-        if r.get("status") in RESUMABLE_STATUSES
+        if is_terminal_stage2_result(
+            r,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
+        )
     }
     all_records = unique_records
     if args.parser_id_filter:
@@ -186,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
                 pdf_dir=OLMOCR_PDFS_DIR,
                 unit_tests=unit_tests,
                 root=ROOT,
+                benchmark_test_inventory_sha256=test_inventory_sha256,
             )
         except Exception as exc:  # noqa: BLE001
             elapsed = time.monotonic() - t0
@@ -214,9 +245,11 @@ def main(argv: list[str] | None = None) -> int:
     # Summary.
     # ------------------------------------------------------------------ #
     summary = {
-        "stage2_summary_schema_version": "1",
+        "stage2_summary_schema_version": "2",
         "run_date": _now_date(),
         "stage1_run_dir": str(STAGE1_RUN_DIR),
+        "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
+        "benchmark_test_inventory_sha256": test_inventory_sha256,
         "total_records": total,
         "status_counts": counters,
         "wall_clock_seconds": round(wall_total, 2),

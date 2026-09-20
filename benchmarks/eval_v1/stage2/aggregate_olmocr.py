@@ -38,14 +38,22 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from benchmarks.eval_v1.stage1.execution_manifest import (
+    FROZEN_OLMOCR_ACQUISITION_SHA,
+    OLMOCR_ACQUISITION_PATH,
+)
 from benchmarks.eval_v1.stage1.run_track_a_olmocr import (
     MANIFEST_SHA,
     OLMOCR_PDFS_DIR,
 )
 from benchmarks.eval_v1.stage2.olmocr_hygiene import (
+    FROZEN_OLMOCR_N_PDFS,
+    STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
+    benchmark_test_inventory_sha256,
     build_completeness_report,
-    expected_pairs_from_pdfs,
+    expected_pairs_from_frozen_acquisition,
+    is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
 )
@@ -90,9 +98,9 @@ FREEZE_SEED = "6c270ac293b348ca27279bdd012375aa6c707be494085e70781637a99a6322fa"
 TRACK_B_N_RECRUIT = 178
 TRACK_B_N_TARGET = 151
 
-BAND_HIGH = 0.85
-BAND_OK = 0.70
-BAND_RISKY = 0.50
+BAND_HIGH = 85
+BAND_OK = 70
+BAND_RISKY = 50
 
 RESULT_FILENAME = "stage2_olmocr_result.json"
 
@@ -384,6 +392,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Frozen PDF inventory used to prove expected pair completeness.",
     )
     p.add_argument(
+        "--acquisition-receipt",
+        default=str(OLMOCR_ACQUISITION_PATH),
+        help="Receipt whose raw hash and 1,403 PDF identities are frozen.",
+    )
+    p.add_argument(
         "--allow-incomplete",
         action="store_true",
         help=(
@@ -404,14 +417,30 @@ def main(argv: list[str] | None = None) -> int:
 
     print("[1/5] Loading stage2_olmocr_result.json files ...")
     try:
+        test_inventory_sha256 = benchmark_test_inventory_sha256(
+            Path(args.pdf_dir).parent
+        )
         _, execution_dedup = load_unique_execution_records(
             run_dir, expected_manifest_sha=MANIFEST_SHA
         )
         all_results, dedup = load_unique_stage2_results(
-            run_dir, expected_manifest_sha=MANIFEST_SHA
+            run_dir,
+            expected_manifest_sha=MANIFEST_SHA,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
         )
-        expected_pairs = expected_pairs_from_pdfs(Path(args.pdf_dir))
-        completeness = build_completeness_report(all_results, expected_pairs)
+        expected_pairs = expected_pairs_from_frozen_acquisition(
+            Path(args.acquisition_receipt),
+            Path(args.pdf_dir),
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
+            expected_pdf_count=FROZEN_OLMOCR_N_PDFS,
+        )
+        completeness = build_completeness_report(
+            all_results,
+            expected_pairs,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
+        )
     except OlmocrHygieneError as exc:
         print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
         return 1
@@ -424,7 +453,15 @@ def main(argv: list[str] | None = None) -> int:
         f"  {dedup.files_seen} files -> {dedup.unique_pairs} unique pairs "
         f"({dedup.duplicate_files} duplicates removed)"
     )
-    scored = [r for r in all_results if r.get("status") == "SCORED"]
+    scored = [
+        r for r in all_results
+        if r.get("status") == "SCORED"
+        and is_terminal_stage2_result(
+            r,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
+        )
+    ]
     statuses: dict[str, int] = defaultdict(int)
     for r in all_results:
         statuses[r.get("status", "UNKNOWN")] += 1
@@ -490,6 +527,8 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": "1",
         "generated_at": datetime.now(UTC).isoformat(),
         "run_dir": str(run_dir),
+        "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
+        "benchmark_test_inventory_sha256": test_inventory_sha256,
         "n_total_execution_files": execution_dedup.files_seen,
         "n_unique_execution_pairs": execution_dedup.unique_pairs,
         "n_duplicate_execution_files_removed": execution_dedup.duplicate_files,
