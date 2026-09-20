@@ -1,6 +1,7 @@
 import hashlib
 import json
 
+import pytest
 from click.testing import CliRunner
 
 from aksharamd.assessment import Assessor, CandidateArtifact, SourceArtifact
@@ -20,11 +21,15 @@ def _artifact(kind, text, *, source_hash=None):
     return kind(**values)
 
 
-def _write_assessment(path, source_text, candidate_text):
+def _assessment_payload(source_text, candidate_text, *, policy_id="general-ingestion-v2"):
     source = _artifact(SourceArtifact, source_text)
     candidate = _artifact(CandidateArtifact, candidate_text, source_hash=source.content_hash)
-    result = Assessor().assess(source=source, candidate=candidate)
-    path.write_text(json.dumps(result.model_dump(mode="json")), encoding="utf-8")
+    result = Assessor().assess(source=source, candidate=candidate, policy_id=policy_id)
+    return result.model_dump(mode="json")
+
+
+def _write_assessment(path, source_text, candidate_text):
+    path.write_text(json.dumps(_assessment_payload(source_text, candidate_text)), encoding="utf-8")
 
 
 def _write_manifest(tmp_path, *, policy=None):
@@ -55,6 +60,21 @@ def test_gate_passes_equivalent_assessment_artifacts(tmp_path):
     assert report["summary"] == {"comparisons": 1, "denied": 0, "passed": 1}
     assert len(report["manifest_sha256"]) == 64
     assert "QA prediction" in report["scope"]
+
+
+@pytest.mark.parametrize("policy_id", [
+    "general-ingestion-v1",
+    "general-ingestion-v2",
+    "source-text-preservation-v1",
+])
+def test_gate_strict_replay_supports_every_version_one_policy(tmp_path, policy_id):
+    payload = _assessment_payload("Invoice 42: $18", "Invoice 42: $18", policy_id=policy_id)
+    for name in ("baseline.json", "candidate.json"):
+        (tmp_path / name).write_text(json.dumps(payload), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 0, result.output
 
 
 def test_gate_denies_new_warning_and_failed_disposition(tmp_path):
@@ -118,10 +138,23 @@ def test_gate_rejects_internally_inconsistent_binding_artifact(tmp_path):
     wrapped = {
         "binding_schema_version": "1.0",
         "assessment": direct,
-        "source": {"capture_id": direct["source_hash"]},
+        "source": {
+            "logical_id": "invoice-source",
+            "capture_id": direct["source_hash"],
+            "byte_size": 15,
+            "media_type": "text/markdown",
+            "storage_reference": "invoice.md",
+        },
         "candidate": {
+            "logical_id": "invoice-candidate",
             "content_hash": direct["candidate_hash"],
+            "byte_size": 15,
+            "media_type": "text/markdown",
+            "storage_reference": "document.md",
             "original_source_hash": "0" * 64,
+            "parser_name": None,
+            "parser_version": None,
+            "parser_configuration_id": None,
         },
     }
     (tmp_path / "candidate.json").write_text(json.dumps(wrapped), encoding="utf-8")
@@ -130,6 +163,72 @@ def test_gate_rejects_internally_inconsistent_binding_artifact(tmp_path):
 
     assert result.exit_code == 1
     assert "inconsistent source provenance" in json.loads(result.output)["error"]["message"]
+
+
+def test_gate_accepts_strict_compiler_binding_artifacts(tmp_path):
+    text = "Invoice 42: $18"
+    direct = _assessment_payload(text, text)
+    wrapped = {
+        "binding_schema_version": "1.0",
+        "assessment": direct,
+        "source": {
+            "logical_id": "invoice-source",
+            "capture_id": direct["source_hash"],
+            "byte_size": len(text.encode()),
+            "media_type": "text/markdown",
+            "storage_reference": "invoice.md",
+        },
+        "candidate": {
+            "logical_id": "invoice-candidate",
+            "content_hash": direct["candidate_hash"],
+            "byte_size": len(text.encode()),
+            "media_type": "text/markdown",
+            "storage_reference": "document.md",
+            "original_source_hash": direct["source_hash"],
+            "parser_name": "parser",
+            "parser_version": "1",
+            "parser_configuration_id": None,
+        },
+    }
+    for name in ("baseline.json", "candidate.json"):
+        (tmp_path / name).write_text(json.dumps(wrapped), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 0, result.output
+
+
+@pytest.mark.parametrize("corruption", [
+    "empty_dimensions",
+    "invalid_hash",
+    "unexpected_nested_field",
+    "unsupported_policy",
+    "inconsistent_disposition",
+])
+def test_gate_rejects_malformed_assessment_results(tmp_path, corruption):
+    source = "Invoice 42: $18"
+    _write_assessment(tmp_path / "baseline.json", source, source)
+    payload = _assessment_payload(source, source)
+    if corruption == "empty_dimensions":
+        payload["dimensions"] = {}
+    elif corruption == "invalid_hash":
+        payload["candidate_hash"] = "A" * 64
+    elif corruption == "unexpected_nested_field":
+        payload["dimensions"]["conversion_fidelity"]["evidence"][0]["unexpected"] = True
+    elif corruption == "unsupported_policy":
+        payload["policy_id"] = "general-ingestion-future"
+    else:
+        payload["disposition"] = "HOLD"
+        payload["next_action"] = "REVIEW"
+    (tmp_path / "candidate.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    report = json.loads(result.output)
+    assert report["status"] == "ERROR"
+    assert report["error"]["code"] == "INVALID_INPUT"
+    assert "Invalid assessment artifact" in report["error"]["message"]
 
 
 def test_gate_missing_manifest_is_machine_readable_input_error(tmp_path):

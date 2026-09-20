@@ -8,16 +8,225 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import re
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .models import AssessmentDisposition, AssessmentResult
+from .models import (
+    ASSESSMENT_SCHEMA_VERSION,
+    DEFAULT_ASSESSMENT_POLICY_ID,
+    GENERAL_INGESTION_POLICY_ID,
+    AssessmentDisposition,
+    EvidenceStatus,
+    NextAction,
+    TaskProfile,
+    Verdict,
+)
+from .text_preservation import SOURCE_TEXT_PRESERVATION_POLICY_ID
 
 GATE_MANIFEST_SCHEMA_VERSION = "1.0"
 GATE_REPORT_SCHEMA_VERSION = "1.0"
 _INVARIANT_FIELDS = ("schema_version", "policy_id", "source_hash")
+_DIMENSIONS = frozenset({
+    "conversion_fidelity",
+    "structural_usability",
+    "content_integrity",
+    "task_suitability",
+})
+_SUPPORTED_POLICY_IDS = frozenset({
+    GENERAL_INGESTION_POLICY_ID,
+    DEFAULT_ASSESSMENT_POLICY_ID,
+    SOURCE_TEXT_PRESERVATION_POLICY_ID,
+})
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+def _valid_sha256(value: str) -> str:
+    if _SHA256.fullmatch(value) is None:
+        raise ValueError("must be a lowercase SHA-256 digest")
+    return value
+
+
+class GateEvidenceItem(BaseModel):
+    """Strict replay schema for one version-1 evidence item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    check_id: str = Field(min_length=1)
+    check_version: str = Field(min_length=1)
+    status: EvidenceStatus
+    measurement: float | None
+    unit: str | None
+    denominator: float | None
+    details: dict[str, object]
+
+    @field_validator("measurement", "denominator")
+    @classmethod
+    def _number_is_finite(cls, value: float | None) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("must be finite")
+        return value
+
+    @field_validator("denominator")
+    @classmethod
+    def _denominator_is_nonnegative(cls, value: float | None) -> float | None:
+        if value is not None and value < 0:
+            raise ValueError("must be nonnegative")
+        return value
+
+
+class GateFinding(BaseModel):
+    """Strict replay schema for one version-1 finding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1)
+    dimension: str = Field(min_length=1)
+    severity: Literal["warning", "major", "critical"]
+    message: str = Field(min_length=1)
+    evidence_ids: list[str]
+    origin: Literal["unknown", "conversion", "representation"]
+    region: str | None
+
+
+class GateDimensionResult(BaseModel):
+    """Strict replay schema with local evidence/finding consistency checks."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: EvidenceStatus
+    verdict: Verdict
+    findings: list[GateFinding]
+    evidence: list[GateEvidenceItem]
+
+    @model_validator(mode="after")
+    def _status_and_verdict_are_consistent(self):
+        if self.verdict in {Verdict.PASS, Verdict.CONCERN} and self.status != EvidenceStatus.OBSERVED:
+            raise ValueError(f"{self.verdict.value} verdict requires observed evidence")
+        if self.verdict == Verdict.FAIL and self.status not in {
+            EvidenceStatus.OBSERVED, EvidenceStatus.FAILED,
+        }:
+            raise ValueError("fail verdict requires observed or failed evidence")
+        if self.verdict == Verdict.UNDETERMINED and self.status == EvidenceStatus.OBSERVED:
+            raise ValueError("undetermined verdict cannot claim observed evidence")
+        evidence_ids = [item.check_id for item in self.evidence]
+        if len(set(evidence_ids)) != len(evidence_ids):
+            raise ValueError("evidence check_id values must be unique within a dimension")
+        known = set(evidence_ids)
+        for finding in self.findings:
+            missing = set(finding.evidence_ids) - known
+            if missing:
+                raise ValueError(f"finding references unknown evidence ids: {sorted(missing)}")
+        return self
+
+
+class GateAssessmentResult(BaseModel):
+    """Closed version-1 result schema used only at the release-gate boundary."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[ASSESSMENT_SCHEMA_VERSION]
+    policy_id: str
+    source_hash: str | None
+    candidate_hash: str
+    execution: Literal["complete"]
+    dimensions: dict[str, GateDimensionResult]
+    disposition: AssessmentDisposition
+    next_action: NextAction
+
+    @field_validator("policy_id")
+    @classmethod
+    def _policy_is_supported(cls, value: str) -> str:
+        if value not in _SUPPORTED_POLICY_IDS:
+            raise ValueError(f"unsupported policy_id: {value}")
+        return value
+
+    @field_validator("source_hash")
+    @classmethod
+    def _source_hash_is_valid(cls, value: str | None) -> str | None:
+        return _valid_sha256(value) if value is not None else None
+
+    @field_validator("candidate_hash")
+    @classmethod
+    def _candidate_hash_is_valid(cls, value: str) -> str:
+        return _valid_sha256(value)
+
+    @model_validator(mode="after")
+    def _result_is_internally_consistent(self):
+        if set(self.dimensions) != _DIMENSIONS:
+            missing = sorted(_DIMENSIONS - set(self.dimensions))
+            unexpected = sorted(set(self.dimensions) - _DIMENSIONS)
+            raise ValueError(f"dimension set mismatch; missing={missing}, unexpected={unexpected}")
+        for name, dimension in self.dimensions.items():
+            if any(finding.dimension != name for finding in dimension.findings):
+                raise ValueError(f"finding dimension does not match dimension key: {name}")
+
+        if any(dimension.verdict == Verdict.FAIL for dimension in self.dimensions.values()):
+            expected = (AssessmentDisposition.HOLD, NextAction.REVIEW)
+        elif any(dimension.status in {EvidenceStatus.UNKNOWN, EvidenceStatus.FAILED}
+                 for dimension in self.dimensions.values()):
+            expected = (AssessmentDisposition.ABSTAIN, NextAction.REVIEW)
+        else:
+            expected = (AssessmentDisposition.ACCEPT, NextAction.NONE)
+        if (self.disposition, self.next_action) != expected:
+            raise ValueError(
+                "disposition/next_action inconsistent with dimensions; "
+                f"expected {expected[0].value}/{expected[1].value}"
+            )
+        return self
+
+
+class GateBoundSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    logical_id: str
+    capture_id: str
+    byte_size: int = Field(ge=0)
+    media_type: str = Field(min_length=1)
+    storage_reference: str
+
+    _capture_id_is_valid = field_validator("capture_id")(_valid_sha256)
+
+
+class GateBoundCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    logical_id: str
+    content_hash: str
+    byte_size: int = Field(ge=0)
+    media_type: str = Field(min_length=1)
+    storage_reference: str
+    original_source_hash: str
+    parser_name: str | None
+    parser_version: str | None
+    parser_configuration_id: str | None
+
+    _content_hash_is_valid = field_validator("content_hash")(_valid_sha256)
+    _original_source_hash_is_valid = field_validator("original_source_hash")(_valid_sha256)
+
+
+class GateAssessmentEnvelope(BaseModel):
+    """Closed schema for compiler-produced ``quality_assessment.json``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    binding_schema_version: Literal["1.0"]
+    assessment: GateAssessmentResult
+    source: GateBoundSource
+    candidate: GateBoundCandidate
+    task_profile: TaskProfile | None = None
+
+    @model_validator(mode="after")
+    def _binding_is_consistent(self):
+        if (self.assessment.source_hash != self.source.capture_id
+                or self.candidate.original_source_hash != self.source.capture_id):
+            raise ValueError("inconsistent source provenance")
+        if self.assessment.candidate_hash != self.candidate.content_hash:
+            raise ValueError("inconsistent candidate provenance")
+        return self
 
 
 class GatePolicy(BaseModel):
@@ -118,46 +327,21 @@ def load_gate_manifest(path: Path) -> tuple[GateManifest, str]:
         raise GateInputError(f"Invalid gate manifest {path}: {exc}") from exc
 
 
-def _binding_value(payload: dict, section: str, field: str, path: Path):
-    value = payload.get(section)
-    if not isinstance(value, dict) or field not in value:
-        raise GateInputError(f"Assessment artifact {path} is missing {section}.{field}")
-    return value[field]
-
-
-def _load_assessment(path: Path) -> tuple[AssessmentResult, str]:
+def _load_assessment(path: Path) -> tuple[GateAssessmentResult, str]:
     payload, digest = _read_json(path, kind="assessment artifact")
     # Compiler output wraps the versioned assessment; ``aksharamd assess
     # --json`` emits the assessment directly.  Both are immutable evidence.
-    if "assessment" in payload:
-        if payload.get("binding_schema_version") != "1.0":
-            raise GateInputError(
-                f"Assessment artifact {path} has an unsupported binding_schema_version"
-            )
-        assessment_payload = payload["assessment"]
-    else:
-        assessment_payload = payload
     try:
-        assessment = AssessmentResult.model_validate(assessment_payload)
+        if "assessment" in payload:
+            assessment = GateAssessmentEnvelope.model_validate(payload).assessment
+        else:
+            assessment = GateAssessmentResult.model_validate(payload)
     except (ValueError, TypeError) as exc:
         raise GateInputError(f"Invalid assessment artifact {path}: {exc}") from exc
-
-    if assessment.execution != "complete":
-        raise GateInputError(f"Assessment artifact {path} is not a complete execution")
-    if assessment.schema_version != "1.0":
-        raise GateInputError(f"Assessment artifact {path} has an unsupported schema_version")
-    if "assessment" in payload:
-        source_hash = _binding_value(payload, "source", "capture_id", path)
-        candidate_hash = _binding_value(payload, "candidate", "content_hash", path)
-        original_source_hash = _binding_value(payload, "candidate", "original_source_hash", path)
-        if assessment.source_hash != source_hash or original_source_hash != source_hash:
-            raise GateInputError(f"Assessment artifact {path} has inconsistent source provenance")
-        if assessment.candidate_hash != candidate_hash:
-            raise GateInputError(f"Assessment artifact {path} has inconsistent candidate provenance")
     return assessment, digest
 
 
-def _warning_codes(assessment: AssessmentResult) -> set[str]:
+def _warning_codes(assessment: GateAssessmentResult) -> set[str]:
     return {
         finding.code
         for dimension in assessment.dimensions.values()
