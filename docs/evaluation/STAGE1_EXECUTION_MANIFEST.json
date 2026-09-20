@@ -141,7 +141,7 @@
     },
     "temperature": 0.0,
     "phase2_evaluation": {
-      "runner_commit": "8834dc4bdb376dbad9a34d7d9c820294ee55410e",
+      "runner_commit": "1010e61444c206a05371374da80ccc2ce7cf7b65",
       "metric_schema_version": "3",
       "scoring_contract_id": "markdown_only_v1",
       "prompt_sha256": "2bf3f2511d9346adfe626018b64888a0e84de6ff97ccfdbd1a28604f8954b601",
@@ -149,7 +149,7 @@
       "reference_parser": "aksharamd-reference",
       "exploratory_endpoint": "primary_score",
       "corpus_gold_arm": "corpus_gold",
-      "note": "Runner commit locks evaluation code before any paid LLM calls. All resume decisions validated against this commit's METRIC_SCHEMA_VERSION, PROMPT_SHA256, SCORING_CONTRACT_ID, and per-document input_sha256."
+      "note": "Runner commit locks evaluation code, preserves successful question checkpoints, retries infrastructure failures, and fails fast on terminal provider errors. All resume decisions are validated against this commit's METRIC_SCHEMA_VERSION, PROMPT_SHA256, SCORING_CONTRACT_ID, and per-document input_sha256."
     }
   },
   "written_utc": "2026-09-17T19:32:10+00:00"
