@@ -92,6 +92,7 @@ class TatDqaV1Adapter(V1CorpusAdapter):
                 "question": question_text,
                 "gold_answer": str(answer),
                 "answer_type": q.get("answer_type", "numeric"),
+                "scale": q.get("scale") or "",
             })
         return GroundTruth(
             doc_id=doc_id,

@@ -49,48 +49,49 @@ def _load_dev_index() -> dict[str, Any]:
     return json.loads(json_path.read_text(encoding="utf-8"))
 
 
-def _extract_qa_pairs(paper: dict[str, Any]) -> list[dict[str, str]]:
-    """Flatten a QASPER paper into (question, gold_answer) pairs."""
+def _extract_qa_pairs(paper: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten a QASPER paper into one pair per question.
+
+    Each pair carries ``gold_annotations`` — one entry per annotator — so the
+    Phase 2 scorer can compute max F1 across annotators (official QASPER metric)
+    with a single LLM call per question.
+    ``gold_answer`` / ``answer_type`` are the first annotator's values kept for
+    backward compatibility with any code that reads only those fields.
+    """
     qas = paper.get("qas", []) or []
-    pairs: list[dict[str, str]] = []
+    pairs: list[dict[str, Any]] = []
     for qa in qas:
         question = qa.get("question", "")
+        annotations: list[dict[str, str]] = []
         for ans in qa.get("answers", []) or []:
             a = ans.get("answer", {}) or {}
             if a.get("unanswerable"):
-                pairs.append({"question": question, "gold_answer": "unanswerable", "answer_type": "unanswerable"})
-                continue
-            if a.get("free_form_answer"):
-                pairs.append({
-                    "question": question,
-                    "gold_answer": a["free_form_answer"],
-                    "answer_type": "abstractive",
-                })
-                continue
-            if a.get("yes_no") is not None:
-                pairs.append({
-                    "question": question,
-                    "gold_answer": "yes" if a["yes_no"] else "no",
-                    "answer_type": "boolean",
-                })
-                continue
-            spans = a.get("extractive_spans") or []
-            if spans:
-                pairs.append({
-                    "question": question,
-                    "gold_answer": " | ".join(spans),
-                    "answer_type": "extractive",
-                })
-    # Deduplicate identical (question, gold_answer) tuples per paper.
-    seen: set[tuple[str, str]] = set()
-    unique: list[dict[str, str]] = []
-    for p in pairs:
-        key = (p["question"], p["gold_answer"])
-        if key in seen:
+                annotations.append({"gold_answer": "unanswerable", "answer_type": "unanswerable"})
+            elif a.get("free_form_answer"):
+                annotations.append({"gold_answer": a["free_form_answer"], "answer_type": "abstractive"})
+            elif a.get("yes_no") is not None:
+                annotations.append({"gold_answer": "yes" if a["yes_no"] else "no", "answer_type": "boolean"})
+            else:
+                spans = a.get("extractive_spans") or []
+                if spans:
+                    annotations.append({"gold_answer": " | ".join(spans), "answer_type": "extractive"})
+        if not annotations:
             continue
-        seen.add(key)
-        unique.append(p)
-    return unique
+        # Deduplicate annotations with identical (gold_answer, answer_type).
+        seen_ann: set[tuple[str, str]] = set()
+        unique_ann: list[dict[str, str]] = []
+        for ann in annotations:
+            key = (ann["gold_answer"], ann["answer_type"])
+            if key not in seen_ann:
+                seen_ann.add(key)
+                unique_ann.append(ann)
+        pairs.append({
+            "question": question,
+            "gold_answer": unique_ann[0]["gold_answer"],
+            "answer_type": unique_ann[0]["answer_type"],
+            "gold_annotations": unique_ann,
+        })
+    return pairs
 
 
 class QasperV1Adapter(V1CorpusAdapter):
