@@ -33,6 +33,13 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+from benchmarks.eval_v1.stage1.run_track_a_olmocr import MANIFEST_SHA
+from benchmarks.eval_v1.stage2.olmocr_hygiene import (
+    OlmocrHygieneError,
+    load_unique_execution_records,
+    load_unique_stage2_results,
+)
+
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 STAGE1_RUN_DIR = (
     ROOT / "benchmarks" / "results" / "stage1-track-a-olmocr-2026-09-17" / "olmocr_bench"
@@ -50,26 +57,6 @@ RESUMABLE_STATUSES = {"SCORED", "SKIPPED_DEFECT"}
 
 def _now_date() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d")
-
-
-def _collect_record_paths(run_dir: Path) -> list[Path]:
-    """Return all execution_record.json paths under run_dir, sorted."""
-    return sorted(run_dir.rglob("execution_record.json"))
-
-
-def _should_skip(record_path: Path) -> tuple[bool, str]:
-    """Return (skip, existing_status) if a valid resumable result exists."""
-    result_path = record_path.parent / RESULT_FILENAME
-    if not result_path.exists():
-        return False, ""
-    try:
-        data = json.loads(result_path.read_text(encoding="utf-8"))
-        status = data.get("status", "")
-        if status in RESUMABLE_STATUSES:
-            return True, status
-        return False, status
-    except Exception:  # noqa: BLE001
-        return False, ""
 
 
 def _progress_line(i: int, total: int, canonical_id: str, parser_id: str,
@@ -130,15 +117,39 @@ def main(argv: list[str] | None = None) -> int:
     # ------------------------------------------------------------------ #
     # Collect records.
     # ------------------------------------------------------------------ #
-    all_records = _collect_record_paths(STAGE1_RUN_DIR)
+    try:
+        unique_records, execution_dedup = load_unique_execution_records(
+            STAGE1_RUN_DIR, expected_manifest_sha=MANIFEST_SHA
+        )
+        existing_results, result_dedup = load_unique_stage2_results(
+            STAGE1_RUN_DIR, expected_manifest_sha=MANIFEST_SHA
+        )
+    except OlmocrHygieneError as exc:
+        print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
+        return 1
+    completed_results = {
+        (r["canonical_id"], r["parser_id"]): r
+        for r in existing_results
+        if r.get("status") in RESUMABLE_STATUSES
+    }
+    all_records = unique_records
     if args.parser_id_filter:
         all_records = [
-            p for p in all_records
-            if p.parent.name == args.parser_id_filter
+            entry for entry in all_records
+            if entry[1]["parser_id"] == args.parser_id_filter
         ]
 
     total = len(all_records)
-    print(f"Found {total} execution records.", flush=True)
+    print(
+        f"Found {execution_dedup.files_seen} execution files -> "
+        f"{total} unique pairs ({execution_dedup.duplicate_files} duplicates removed).",
+        flush=True,
+    )
+    if result_dedup.duplicate_files:
+        print(
+            f"Found and collapsed {result_dedup.duplicate_files} duplicate Stage 2 results.",
+            flush=True,
+        )
 
     # ------------------------------------------------------------------ #
     # Process.
@@ -148,19 +159,15 @@ def main(argv: list[str] | None = None) -> int:
     counters: dict[str, int] = {}
     wall_total = 0.0
 
-    for i, record_path in enumerate(all_records, 1):
+    for i, (record_path, record) in enumerate(all_records, 1):
         # Derive identifiers for progress display.
         # Layout: STAGE1_RUN_DIR/{canonical_id}/{parser_id}/execution_record.json
-        parser_id = record_path.parent.name
-        # canonical_id may be multi-segment (e.g. arxiv_math/2502.15977_pg21)
-        # Reconstruct from path relative to STAGE1_RUN_DIR.
-        rel = record_path.relative_to(STAGE1_RUN_DIR)
-        # rel = canonical_id_parts... / parser_id / execution_record.json
-        parts = list(rel.parts)
-        # last part is "execution_record.json", second-to-last is parser_id
-        canonical_id = "/".join(parts[:-2])
+        parser_id = record["parser_id"]
+        canonical_id = record["canonical_id"]
 
-        skip, existing_status = _should_skip(record_path)
+        existing = completed_results.get((canonical_id, parser_id))
+        skip = existing is not None
+        existing_status = existing.get("status", "") if existing else ""
         if skip:
             counters[existing_status] = counters.get(existing_status, 0) + 1
             print(_progress_line(i, total, canonical_id, parser_id,

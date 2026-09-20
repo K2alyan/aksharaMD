@@ -38,6 +38,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from benchmarks.eval_v1.stage1.run_track_a_olmocr import (
+    MANIFEST_SHA,
+    OLMOCR_PDFS_DIR,
+)
+from benchmarks.eval_v1.stage2.olmocr_hygiene import (
+    OlmocrHygieneError,
+    build_completeness_report,
+    expected_pairs_from_pdfs,
+    load_unique_execution_records,
+    load_unique_stage2_results,
+)
+
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 # ---------------------------------------------------------------------------
@@ -161,16 +173,6 @@ def _bootstrap_spearman_ci(
 # ---------------------------------------------------------------------------
 # Data loading.
 # ---------------------------------------------------------------------------
-
-def _load_results(run_dir: Path) -> list[dict]:
-    results = []
-    for path in run_dir.rglob(RESULT_FILENAME):
-        try:
-            results.append(json.loads(path.read_text(encoding="utf-8")))
-        except Exception as exc:  # noqa: BLE001
-            print(f"  WARN: could not read {path}: {exc}", file=sys.stderr)
-    return results
-
 
 def _band(score: float | None) -> str:
     if score is None:
@@ -376,6 +378,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--n-bootstrap", type=int, default=10_000)
     p.add_argument("--out-dir", default=str(ROOT / "benchmarks" / "results"))
+    p.add_argument(
+        "--pdf-dir",
+        default=str(OLMOCR_PDFS_DIR),
+        help="Frozen PDF inventory used to prove expected pair completeness.",
+    )
+    p.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help=(
+            "Write provisional claim aggregates for an incomplete run. "
+            "Track B allocation is still withheld."
+        ),
+    )
     args = p.parse_args(argv)
 
     run_dir = Path(args.run_dir)
@@ -388,14 +403,48 @@ def main(argv: list[str] | None = None) -> int:
     print()
 
     print("[1/5] Loading stage2_olmocr_result.json files ...")
-    all_results = _load_results(run_dir)
+    try:
+        _, execution_dedup = load_unique_execution_records(
+            run_dir, expected_manifest_sha=MANIFEST_SHA
+        )
+        all_results, dedup = load_unique_stage2_results(
+            run_dir, expected_manifest_sha=MANIFEST_SHA
+        )
+        expected_pairs = expected_pairs_from_pdfs(Path(args.pdf_dir))
+        completeness = build_completeness_report(all_results, expected_pairs)
+    except OlmocrHygieneError as exc:
+        print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"  {execution_dedup.files_seen} execution files -> "
+        f"{execution_dedup.unique_pairs} unique pairs "
+        f"({execution_dedup.duplicate_files} duplicates removed)"
+    )
+    print(
+        f"  {dedup.files_seen} files -> {dedup.unique_pairs} unique pairs "
+        f"({dedup.duplicate_files} duplicates removed)"
+    )
     scored = [r for r in all_results if r.get("status") == "SCORED"]
     statuses: dict[str, int] = defaultdict(int)
     for r in all_results:
         statuses[r.get("status", "UNKNOWN")] += 1
     for k, v in sorted(statuses.items()):
         print(f"  {k:20s}: {v}")
+    print(
+        "  completeness          : "
+        f"{completeness['n_complete_pairs']}/"
+        f"{completeness['n_expected_pairs']} terminal pairs"
+    )
     print()
+
+    if not completeness["is_complete"] and not args.allow_incomplete:
+        print(
+            "ERROR: Stage 2 olmOCR run is incomplete; aggregation and Track B "
+            "allocation are blocked. Re-run the scorer, or use --allow-incomplete "
+            "for explicitly provisional claim aggregates only.",
+            file=sys.stderr,
+        )
+        return 2
 
     if not scored:
         print("ERROR: no SCORED results found. Run run_score_olmocr first.", file=sys.stderr)
@@ -418,18 +467,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {parser_id:30s}  rho={rho_s}  CI95=[{lo_s},{hi_s}]  n={m['n']}")
     print()
 
-    print("[4/5] Generating Track B Allocation Manifest ...")
-    track_b = build_track_b_manifest(scored)
-    for band_name, bdata in track_b["bands"].items():
-        flags = ""
-        if bdata["underpowered"]:
-            flags += " [UNDERPOWERED]"
-        if bdata["sparse_band"]:
-            flags += " [SPARSE]"
-        print(f"  {band_name:6s}: {bdata['n_selected']:3d}/{bdata['n_eligible']:3d} eligible{flags}")
-    track_b_path = out_dir / f"track-b-allocation-manifest-{date_str}.json"
-    track_b_path.write_text(json.dumps(track_b, indent=2), encoding="utf-8")
-    print(f"  Written: {track_b_path}")
+    track_b_path: Path | None = None
+    if completeness["is_complete"]:
+        print("[4/5] Generating Track B Allocation Manifest ...")
+        track_b = build_track_b_manifest(scored)
+        for band_name, bdata in track_b["bands"].items():
+            flags = ""
+            if bdata["underpowered"]:
+                flags += " [UNDERPOWERED]"
+            if bdata["sparse_band"]:
+                flags += " [SPARSE]"
+            print(f"  {band_name:6s}: {bdata['n_selected']:3d}/{bdata['n_eligible']:3d} eligible{flags}")
+        track_b_path = out_dir / f"track-b-allocation-manifest-{date_str}.json"
+        track_b_path.write_text(json.dumps(track_b, indent=2), encoding="utf-8")
+        print(f"  Written: {track_b_path}")
+    else:
+        print("[4/5] Track B Allocation Manifest WITHHELD (incomplete run)")
     print()
 
     print("[5/5] Writing aggregated output ...")
@@ -437,11 +490,19 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": "1",
         "generated_at": datetime.now(UTC).isoformat(),
         "run_dir": str(run_dir),
+        "n_total_execution_files": execution_dedup.files_seen,
+        "n_unique_execution_pairs": execution_dedup.unique_pairs,
+        "n_duplicate_execution_files_removed": execution_dedup.duplicate_files,
+        "n_total_result_files": dedup.files_seen,
         "n_total_results": len(all_results),
+        "n_duplicate_result_files_removed": dedup.duplicate_files,
         "n_scored": len(scored),
+        "completeness": completeness,
         "claim_1_detector_precision_recall": claim1,
         "claim_2_spearman_rho": claim2,
-        "track_b_allocation_manifest_path": str(track_b_path),
+        "track_b_allocation_manifest_path": (
+            str(track_b_path) if track_b_path is not None else None
+        ),
     }
     out_path = out_dir / f"stage2-olmocr-{date_str}-aggregated.json"
     out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")

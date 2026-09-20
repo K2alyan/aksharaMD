@@ -301,6 +301,8 @@ def replay_and_score(
     parser_id: str = record["parser_id"]
     exit_status: str = record.get("exit_status", "")
 
+    source_pdf_sha256: str | None = None
+
     def _base(status: str) -> dict[str, Any]:
         return {
             "stage2_schema_version": STAGE2_SCHEMA_VERSION,
@@ -317,6 +319,11 @@ def replay_and_score(
             "n_failed": 0,
             "test_results": [],
             "scored_at": _now_utc(),
+            "stage1_execution_manifest_sha256": record.get(
+                "stage1_execution_manifest_sha256"
+            ),
+            "stage1_output_sha256": record.get("output_sha256"),
+            "source_pdf_sha256": source_pdf_sha256,
         }
 
     # ------------------------------------------------------------------ #
@@ -339,6 +346,7 @@ def replay_and_score(
         return result
 
     pdf_bytes = pdf_path.read_bytes()
+    source_pdf_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
 
     # ------------------------------------------------------------------ #
     # 4. Build adapter.
