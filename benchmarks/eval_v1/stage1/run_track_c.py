@@ -64,11 +64,11 @@ PROMPT_PATH = ROOT / "docs" / "evaluation" / "TRACK_C_PROMPT_V1.txt"
 
 # Raw-byte SHA-256 of STAGE1_EXECUTION_MANIFEST.json after admission PASSED,
 # VLM model artifact SHAs, and the Phase 2 evaluation anchor were added.  The
-# manifest records 8834dc4 as the evaluation-logic commit; this pin is the
+# manifest records 1010e61 as the evaluation-logic commit; this pin is the
 # final link in that provenance chain and intentionally does not require the
 # manifest to refer to the commit that updates this constant.
 MANIFEST_SHA = (
-    "cf8f9f4fbd4bcb9d4df5e816638afbbcf3ab6e955a4f4888508da49552ceb360"
+    "2f41c640a5d7d786abef1bbddb43ea7b0e52224b5f36f1018c5c54707aa95975"
 )
 
 # Canonical-LF SHA-256 of docs/evaluation/TRACK_C_PROMPT_V1.txt (preregistered).
