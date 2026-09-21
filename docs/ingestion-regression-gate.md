@@ -28,6 +28,10 @@ Create a manifest whose paths are relative to the manifest:
 }
 ```
 
+Each comparison must name two distinct resolved artifacts. The gate rejects a
+baseline compared with itself, including equivalent paths containing aliases
+such as `subdirectory/../assessment.json`.
+
 Run `aksharamd gate gate.json` for a concise report or add `--json` for a
 stable machine-readable report. Exit code `0` means every comparison passed,
 `2` means the policy denied at least one comparison, and `1` means an input was

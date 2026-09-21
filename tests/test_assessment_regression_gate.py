@@ -3,8 +3,10 @@ import json
 
 import pytest
 from click.testing import CliRunner
+from pydantic import ValidationError
 
 from aksharamd.assessment import Assessor, CandidateArtifact, SourceArtifact, TaskProfile
+from aksharamd.assessment.gate import GateComparison, GateInputError, evaluate_gate
 from aksharamd.cli import main
 
 
@@ -188,6 +190,46 @@ def test_gate_rejects_malformed_manifest_with_input_exit_code(tmp_path):
     assert report["status"] == "ERROR"
     assert report["error"]["code"] == "INVALID_INPUT"
     assert "Invalid gate manifest" in report["error"]["message"]
+
+
+def test_gate_comparison_model_rejects_identical_artifact_paths():
+    with pytest.raises(ValidationError, match="must be distinct"):
+        GateComparison.model_validate({
+            "id": "self-comparison",
+            "baseline": "assessment.json",
+            "candidate": "assessment.json",
+        })
+
+
+def test_gate_evaluator_rejects_resolved_alias_to_same_artifact(tmp_path):
+    text = "Invoice 42: $18"
+    _write_assessment(tmp_path / "assessment.json", text, text)
+    manifest = _write_manifest(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["comparisons"][0]["baseline"] = "assessment.json"
+    payload["comparisons"][0]["candidate"] = "alias/../assessment.json"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(GateInputError, match="resolve to the same assessment artifact"):
+        evaluate_gate(manifest)
+
+
+def test_gate_cli_reports_same_artifact_alias_as_invalid_input(tmp_path):
+    text = "Invoice 42: $18"
+    _write_assessment(tmp_path / "assessment.json", text, text)
+    manifest = _write_manifest(tmp_path)
+    payload = json.loads(manifest.read_text())
+    payload["comparisons"][0]["baseline"] = "assessment.json"
+    payload["comparisons"][0]["candidate"] = "nested/../assessment.json"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(manifest), "--json"])
+
+    assert result.exit_code == 1
+    report = json.loads(result.output)
+    assert report["status"] == "ERROR"
+    assert report["error"]["code"] == "INVALID_INPUT"
+    assert "resolve to the same assessment artifact" in report["error"]["message"]
 
 
 def test_gate_rejects_internally_inconsistent_binding_artifact(tmp_path):

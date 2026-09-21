@@ -401,6 +401,12 @@ class GateComparison(BaseModel):
             raise ValueError("value must contain non-whitespace characters")
         return value
 
+    @model_validator(mode="after")
+    def _artifact_paths_are_distinct(self):
+        if self.baseline == self.candidate:
+            raise ValueError("baseline and candidate assessment paths must be distinct")
+        return self
+
 
 class GateManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -490,6 +496,11 @@ def evaluate_gate(manifest_path: Path) -> dict:
     for comparison in manifest.comparisons:
         baseline_path = (root / comparison.baseline).resolve()
         candidate_path = (root / comparison.candidate).resolve()
+        if baseline_path == candidate_path:
+            raise GateInputError(
+                f"Comparison {comparison.id!r} baseline and candidate resolve to the same "
+                f"assessment artifact: {baseline_path}"
+            )
         baseline, baseline_digest, baseline_task_profile = _load_assessment(baseline_path)
         candidate, candidate_digest, candidate_task_profile = _load_assessment(candidate_path)
         baseline_warnings = _warning_codes(baseline)
