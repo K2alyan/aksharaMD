@@ -20,10 +20,14 @@ matches. A directly observed substantive failure remains a failure.
 Each detector reports its ID and version, scope, eligibility, whether it was
 activated or abstained, a verdict, a detector-local score when activated, raw
 measurements, and finding codes. An abstention always contains a reason and is
-never assigned a score. Receipt models are frozen, strict, and reject unknown
-fields or unsupported schema/policy/implementation identifiers. The assessment
-boundary revalidates both artifacts' current byte length and SHA-256, even if a
-caller mutates a historically mutable `Artifact` after construction.
+never assigned a score. Receipt model field bindings are frozen and strict, and
+reject unknown fields or unsupported schema/policy/implementation identifiers.
+This is shallow immutability: JSON-shaped lists and dictionaries inside raw
+evidence remain mutable Python containers. Callers that need a durable receipt
+must serialize it before exposing those containers to mutable application code.
+The assessment boundary revalidates both artifacts' current byte length and
+SHA-256, even if a caller mutates a historically mutable `Artifact` after
+construction.
 
 ## Policy v2 exploratory thresholds
 
