@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
+import types
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -13,15 +16,17 @@ from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     FROZEN_PARSER_IDS,
     STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
-    benchmark_test_inventory_sha256,
     build_completeness_report,
     expected_pairs_from_frozen_acquisition,
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    verified_benchmark_test_inventory_sha256,
 )
 from benchmarks.eval_v1.stage2.score_olmocr import (
+    _load_assertion_rows,
     _readiness_band,
+    load_all_unit_tests,
     replay_and_score,
 )
 
@@ -42,16 +47,20 @@ def _execution(
     output_sha: str = "a" * 64,
     manifest_sha: str = MANIFEST_SHA,
     finished: str = "2026-09-20T01:00:00+00:00",
+    exit_status: str = "EXECUTED",
 ) -> Path:
     path = root / copy / parser_id / "execution_record.json"
-    _write_json(path, {
-        "canonical_id": canonical_id,
-        "parser_id": parser_id,
-        "exit_status": "EXECUTED",
-        "output_sha256": output_sha,
-        "stage1_execution_manifest_sha256": manifest_sha,
-        "pair_finished_at": finished,
-    })
+    _write_json(
+        path,
+        {
+            "canonical_id": canonical_id,
+            "parser_id": parser_id,
+            "exit_status": exit_status,
+            "output_sha256": output_sha,
+            "stage1_execution_manifest_sha256": manifest_sha,
+            "pair_finished_at": finished,
+        },
+    )
     return path
 
 
@@ -68,23 +77,26 @@ def _result(
     test_inventory_sha: str = TEST_INVENTORY_SHA,
 ) -> Path:
     path = execution_path.parent / "stage2_olmocr_result.json"
-    _write_json(path, {
-        "stage2_schema_version": "2",
-        "canonical_id": canonical_id,
-        "parser_id": parser_id,
-        "status": status,
-        "sha_verified": status == "SCORED",
-        "source_pdf_sha256": source_sha,
-        "readiness_score": readiness_score,
-        "stage2_scorer_contract_id": scorer_contract_id,
-        "benchmark_test_inventory_sha256": test_inventory_sha,
-        "warning_codes": [],
-        "n_tests": 1,
-        "n_passed": 1,
-        "n_failed": 0,
-        "test_results": [{"test_id": "t1", "test_type": "present", "passed": True}],
-        "scored_at": scored_at,
-    })
+    _write_json(
+        path,
+        {
+            "stage2_schema_version": "2",
+            "canonical_id": canonical_id,
+            "parser_id": parser_id,
+            "status": status,
+            "sha_verified": status == "SCORED",
+            "source_pdf_sha256": source_sha,
+            "readiness_score": readiness_score,
+            "stage2_scorer_contract_id": scorer_contract_id,
+            "benchmark_test_inventory_sha256": test_inventory_sha,
+            "warning_codes": [],
+            "n_tests": 1,
+            "n_passed": 1,
+            "n_failed": 0,
+            "test_results": [{"test_id": "t1", "test_type": "present", "passed": True}],
+            "scored_at": scored_at,
+        },
+    )
     return path
 
 
@@ -117,18 +129,69 @@ def _make_frozen_inventory(
         pdf_path = pdf_dir / f"{canonical_id}.pdf"
         pdf_path.parent.mkdir(parents=True, exist_ok=True)
         pdf_path.write_bytes(canonical_id.encode())
-        receipt_files.append({
-            "path": f"bench_data/pdfs/{canonical_id}.pdf",
-            "status": "verified",
-            "sha256": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
-        })
+        receipt_files.append(
+            {
+                "path": f"bench_data/pdfs/{canonical_id}.pdf",
+                "status": "verified",
+                "sha256": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
+            }
+        )
     for filename in BENCHMARK_TEST_FILENAMES:
-        (bench_data / filename).write_text(f"{filename}\n", encoding="utf-8")
+        test_path = bench_data / filename
+        test_path.write_text(f"{filename}\n", encoding="utf-8")
+        receipt_files.append(
+            {
+                "path": f"bench_data/{filename}",
+                "status": "verified",
+                "sha256": hashlib.sha256(test_path.read_bytes()).hexdigest(),
+            }
+        )
     receipt = root / "acquisition.json"
     _write_json(receipt, {"files": receipt_files})
     receipt_sha = hashlib.sha256(receipt.read_bytes()).hexdigest()
-    inventory_sha = benchmark_test_inventory_sha256(bench_data)
+    inventory_sha = verified_benchmark_test_inventory_sha256(
+        receipt,
+        bench_data,
+        expected_receipt_sha256=receipt_sha,
+    )
     return receipt, pdf_dir, receipt_sha, inventory_sha
+
+
+def _load_results(root: Path) -> tuple[list[dict], object]:
+    records, _ = load_unique_execution_records(root, expected_manifest_sha=MANIFEST_SHA)
+    return load_unique_stage2_results(
+        root,
+        expected_manifest_sha=MANIFEST_SHA,
+        expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+        expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        authoritative_execution_records=records,
+    )
+
+
+def _make_assertion_inventory(root: Path) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    prefixes = {
+        "arxiv_math.jsonl": "arxiv_math",
+        "headers_footers.jsonl": "headers_footers",
+        "long_tiny_text.jsonl": "long_tiny_text",
+        "multi_column.jsonl": "multi_column",
+        "old_scans.jsonl": "old_scans",
+        "old_scans_math.jsonl": "old_scans_math",
+        "table_tests.jsonl": "tables",
+    }
+    for index, (filename, prefix) in enumerate(prefixes.items()):
+        (root / filename).write_text(
+            json.dumps(
+                {
+                    "id": f"assertion-{index}",
+                    "pdf": f"{prefix}/doc-{index}.pdf",
+                    "type": "present",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    return root
 
 
 def test_identical_duplicates_collapse_to_latest_valid_completion(tmp_path: Path) -> None:
@@ -137,15 +200,8 @@ def test_identical_duplicates_collapse_to_latest_valid_completion(tmp_path: Path
     _result(old, scored_at="2026-09-20T02:00:00+00:00", readiness_score=80)
     _result(new, scored_at="2026-09-20T04:00:00+00:00", readiness_score=90)
 
-    records, execution_report = load_unique_execution_records(
-        tmp_path, expected_manifest_sha=MANIFEST_SHA
-    )
-    results, result_report = load_unique_stage2_results(
-        tmp_path,
-        expected_manifest_sha=MANIFEST_SHA,
-        expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
-        expected_test_inventory_sha256=TEST_INVENTORY_SHA,
-    )
+    records, execution_report = load_unique_execution_records(tmp_path, expected_manifest_sha=MANIFEST_SHA)
+    results, result_report = _load_results(tmp_path)
 
     assert [path for path, _ in records] == [new]
     assert execution_report.duplicate_files == 1
@@ -163,9 +219,7 @@ def test_stale_provenance_is_never_authoritative(tmp_path: Path) -> None:
         output_sha="c" * 64,
         finished="2099-01-01T00:00:00+00:00",
     )
-    records, _ = load_unique_execution_records(
-        tmp_path, expected_manifest_sha=MANIFEST_SHA
-    )
+    records, _ = load_unique_execution_records(tmp_path, expected_manifest_sha=MANIFEST_SHA)
     assert [path for path, _ in records] == [frozen]
 
 
@@ -182,12 +236,7 @@ def test_conflicting_duplicate_input_hashes_fail_loudly(tmp_path: Path) -> None:
     _result(one, source_sha="b" * 64)
     _result(two, source_sha="d" * 64)
     with pytest.raises(OlmocrHygieneError, match="conflicting duplicate input"):
-        load_unique_stage2_results(
-            tmp_path,
-            expected_manifest_sha=MANIFEST_SHA,
-            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
-            expected_test_inventory_sha256=TEST_INVENTORY_SHA,
-        )
+        _load_results(tmp_path)
 
 
 def test_result_provenance_must_match_colocated_execution(tmp_path: Path) -> None:
@@ -196,25 +245,39 @@ def test_result_provenance_must_match_colocated_execution(tmp_path: Path) -> Non
     result = json.loads(result_path.read_text(encoding="utf-8"))
     result["stage1_output_sha256"] = "c" * 64
     _write_json(result_path, result)
-    with pytest.raises(OlmocrHygieneError, match="disagrees with colocated"):
-        load_unique_stage2_results(
-            tmp_path,
-            expected_manifest_sha=MANIFEST_SHA,
-            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
-            expected_test_inventory_sha256=TEST_INVENTORY_SHA,
-        )
+    with pytest.raises(OlmocrHygieneError, match="disagrees with authoritative"):
+        _load_results(tmp_path)
 
 
 def test_orphan_result_cannot_claim_terminal_status(tmp_path: Path) -> None:
     orphan = tmp_path / "orphan" / "stage2_olmocr_result.json"
     _write_json(orphan, _valid_result_dict())
-    with pytest.raises(OlmocrHygieneError, match="missing colocated"):
+    with pytest.raises(OlmocrHygieneError, match="no authoritative"):
         load_unique_stage2_results(
             tmp_path,
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+            authoritative_execution_records=[],
         )
+
+
+def test_stage2_result_validates_selected_authoritative_stage1(tmp_path: Path) -> None:
+    _execution(tmp_path, "authoritative", finished="2026-09-20T02:00:00+00:00")
+    phantom_record = tmp_path / "result-only" / "execution_record.json"
+    result_path = _result(phantom_record, status="SKIPPED_DEFECT")
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["stage1_exit_status"] = "DEFECT"
+    _write_json(result_path, result)
+    with pytest.raises(OlmocrHygieneError, match="authoritative Stage 1"):
+        _load_results(tmp_path)
+
+
+def test_conflicting_stage1_terminal_statuses_fail_loudly(tmp_path: Path) -> None:
+    _execution(tmp_path, "executed", exit_status="EXECUTED")
+    _execution(tmp_path, "defect", exit_status="DEFECT")
+    with pytest.raises(OlmocrHygieneError, match="terminal statuses"):
+        load_unique_execution_records(tmp_path, expected_manifest_sha=MANIFEST_SHA)
 
 
 def test_completeness_uses_unique_terminal_pairs() -> None:
@@ -299,14 +362,17 @@ def test_skipped_defect_requires_matching_stage1_defect() -> None:
 
 def test_scorer_emits_v2_contract_for_stage1_defect(tmp_path: Path) -> None:
     record_path = tmp_path / "execution_record.json"
-    _write_json(record_path, {
-        "canonical_id": "tables/doc",
-        "parser_id": "marker",
-        "exit_status": "DEFECT",
-        "defect_reason": "timeout",
-        "output_sha256": "a" * 64,
-        "stage1_execution_manifest_sha256": MANIFEST_SHA,
-    })
+    _write_json(
+        record_path,
+        {
+            "canonical_id": "tables/doc",
+            "parser_id": "marker",
+            "exit_status": "DEFECT",
+            "defect_reason": "timeout",
+            "output_sha256": "a" * 64,
+            "stage1_execution_manifest_sha256": MANIFEST_SHA,
+        },
+    )
     result = replay_and_score(
         record_path=record_path,
         pdf_dir=tmp_path / "pdfs",
@@ -358,19 +424,12 @@ def test_dedup_prefers_current_metric_contract_over_newer_stale_result(
         readiness_score=10,
         scorer_contract_id="olmocr_stage2_v1",
     )
-    results, _ = load_unique_stage2_results(
-        tmp_path,
-        expected_manifest_sha=MANIFEST_SHA,
-        expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
-        expected_test_inventory_sha256=TEST_INVENTORY_SHA,
-    )
+    results, _ = _load_results(tmp_path)
     assert results[0]["readiness_score"] == 90
 
 
 def test_frozen_inventory_rejects_removed_and_stray_pdf(tmp_path: Path) -> None:
-    receipt, pdf_dir, receipt_sha, _ = _make_frozen_inventory(
-        tmp_path, ("tables/a", "tables/b")
-    )
+    receipt, pdf_dir, receipt_sha, _ = _make_frozen_inventory(tmp_path, ("tables/a", "tables/b"))
     pairs = expected_pairs_from_frozen_acquisition(
         receipt,
         pdf_dir,
@@ -400,11 +459,101 @@ def test_frozen_inventory_rejects_removed_and_stray_pdf(tmp_path: Path) -> None:
         )
 
 
-def test_benchmark_inventory_hash_changes_with_assertions(tmp_path: Path) -> None:
-    _, pdf_dir, _, original = _make_frozen_inventory(tmp_path, ("tables/a",))
+def test_frozen_inventory_rejects_tampered_pdf_bytes(tmp_path: Path) -> None:
+    receipt, pdf_dir, receipt_sha, _ = _make_frozen_inventory(tmp_path, ("tables/a",))
+    (pdf_dir / "tables" / "a.pdf").write_bytes(b"tampered")
+    with pytest.raises(OlmocrHygieneError, match="PDF bytes differ"):
+        expected_pairs_from_frozen_acquisition(
+            receipt,
+            pdf_dir,
+            expected_receipt_sha256=receipt_sha,
+            expected_pdf_count=1,
+        )
+
+
+def test_benchmark_inventory_rejects_tampered_assertions(tmp_path: Path) -> None:
+    _, pdf_dir, _, _ = _make_frozen_inventory(tmp_path, ("tables/a",))
     test_file = pdf_dir.parent / BENCHMARK_TEST_FILENAMES[0]
     test_file.write_text("changed assertion\n", encoding="utf-8")
-    assert benchmark_test_inventory_sha256(pdf_dir.parent) != original
+    with pytest.raises(OlmocrHygieneError, match="benchmark test bytes differ"):
+        verified_benchmark_test_inventory_sha256(
+            tmp_path / "acquisition.json",
+            pdf_dir.parent,
+            expected_receipt_sha256=hashlib.sha256((tmp_path / "acquisition.json").read_bytes()).hexdigest(),
+        )
+
+
+@pytest.mark.parametrize("failure", ["malformed", "missing_field", "missing_file"])
+def test_assertion_row_loader_fails_closed(tmp_path: Path, failure: str) -> None:
+    bench_data = _make_assertion_inventory(tmp_path / "bench_data")
+    target = bench_data / "arxiv_math.jsonl"
+    if failure == "malformed":
+        target.write_text("{not json}\n", encoding="utf-8")
+        match = "malformed"
+    elif failure == "missing_field":
+        target.write_text(
+            json.dumps({"id": "x", "pdf": "arxiv_math/x.pdf"}) + "\n",
+            encoding="utf-8",
+        )
+        match = "missing 'type'"
+    else:
+        target.unlink()
+        match = "missing benchmark assertion file"
+    with pytest.raises(RuntimeError, match=match):
+        _load_assertion_rows(bench_data, expected_document_count=7)
+
+
+def test_benchmark_loader_rejects_unsupported_assertion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bench_data = _make_assertion_inventory(tmp_path / "bench_data")
+    olmocr_module = types.ModuleType("olmocr")
+    bench_module = types.ModuleType("olmocr.bench")
+    tests_module = types.ModuleType("olmocr.bench.tests")
+
+    def reject(_data: dict) -> object:
+        raise ValueError("unsupported type")
+
+    tests_module.load_single_test = reject  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "olmocr", olmocr_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench", bench_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench.tests", tests_module)
+    with pytest.raises(RuntimeError, match="unsupported benchmark assertion"):
+        load_all_unit_tests(bench_data, expected_document_count=7)
+
+
+def test_benchmark_loader_preserves_all_frozen_ids_and_counts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bench_data = _make_assertion_inventory(tmp_path / "bench_data")
+    olmocr_module = types.ModuleType("olmocr")
+    bench_module = types.ModuleType("olmocr.bench")
+    tests_module = types.ModuleType("olmocr.bench.tests")
+    tests_module.load_single_test = lambda data: SimpleNamespace(id=data["id"])  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "olmocr", olmocr_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench", bench_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench.tests", tests_module)
+    loaded = load_all_unit_tests(bench_data, expected_document_count=7)
+    assert len(loaded) == 7
+    assert sum(len(tests) for tests in loaded.values()) == 7
+
+
+def test_benchmark_loader_rejects_loaded_identity_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bench_data = _make_assertion_inventory(tmp_path / "bench_data")
+    olmocr_module = types.ModuleType("olmocr")
+    bench_module = types.ModuleType("olmocr.bench")
+    tests_module = types.ModuleType("olmocr.bench.tests")
+    tests_module.load_single_test = lambda _data: SimpleNamespace(id="wrong")  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "olmocr", olmocr_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench", bench_module)
+    monkeypatch.setitem(sys.modules, "olmocr.bench.tests", tests_module)
+    with pytest.raises(RuntimeError, match="identity drift"):
+        load_all_unit_tests(bench_data, expected_document_count=7)
 
 
 def test_incomplete_aggregation_blocks_by_default_and_withholds_track_b(
@@ -413,20 +562,23 @@ def test_incomplete_aggregation_blocks_by_default_and_withholds_track_b(
 ) -> None:
     run_dir = tmp_path / "run"
     out_dir = tmp_path / "out"
-    receipt, pdf_dir, receipt_sha, inventory_sha = _make_frozen_inventory(
-        tmp_path, ("tables/doc-1",)
-    )
+    receipt, pdf_dir, receipt_sha, inventory_sha = _make_frozen_inventory(tmp_path, ("tables/doc-1",))
     monkeypatch.setattr(aggregate_olmocr, "FROZEN_OLMOCR_ACQUISITION_SHA", receipt_sha)
     monkeypatch.setattr(aggregate_olmocr, "FROZEN_OLMOCR_N_PDFS", 1)
     execution = _execution(run_dir, "copy")
     _result(execution, test_inventory_sha=inventory_sha)
 
     base_args = [
-        "--run-dir", str(run_dir),
-        "--pdf-dir", str(pdf_dir),
-        "--acquisition-receipt", str(receipt),
-        "--out-dir", str(out_dir),
-        "--n-bootstrap", "1",
+        "--run-dir",
+        str(run_dir),
+        "--pdf-dir",
+        str(pdf_dir),
+        "--acquisition-receipt",
+        str(receipt),
+        "--out-dir",
+        str(out_dir),
+        "--n-bootstrap",
+        "1",
     ]
     assert aggregate_olmocr.main(base_args) == 2
     assert not list(out_dir.glob("stage2-olmocr-*-aggregated.json"))

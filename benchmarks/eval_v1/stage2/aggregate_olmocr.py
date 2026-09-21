@@ -25,6 +25,7 @@ Usage
     python -m benchmarks.eval_v1.stage2.aggregate_olmocr \\
         --n-bootstrap 1000
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,12 +51,12 @@ from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     FROZEN_OLMOCR_N_PDFS,
     STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
-    benchmark_test_inventory_sha256,
     build_completeness_report,
     expected_pairs_from_frozen_acquisition,
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    verified_benchmark_test_inventory_sha256,
 )
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -108,6 +109,7 @@ RESULT_FILENAME = "stage2_olmocr_result.json"
 # ---------------------------------------------------------------------------
 # Statistics helpers.
 # ---------------------------------------------------------------------------
+
 
 def _wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     if n == 0:
@@ -182,6 +184,7 @@ def _bootstrap_spearman_ci(
 # Data loading.
 # ---------------------------------------------------------------------------
 
+
 def _band(score: float | None) -> str:
     if score is None:
         return "UNKNOWN"
@@ -197,6 +200,7 @@ def _band(score: float | None) -> str:
 # ---------------------------------------------------------------------------
 # Claim 1 — Detector precision / recall / FPR.
 # ---------------------------------------------------------------------------
+
 
 def _relevant_tests(
     test_results: list[dict],
@@ -217,10 +221,7 @@ def _relevant_tests(
 
 
 def compute_claim1(scored: list[dict]) -> dict:
-    ref = [
-        r for r in scored
-        if r.get("parser_id") == "aksharamd-reference" and r.get("status") == "SCORED"
-    ]
+    ref = [r for r in scored if r.get("parser_id") == "aksharamd-reference" and r.get("status") == "SCORED"]
     results: dict[str, dict] = {}
     for detector in DETECTOR_GT_MAPPING:
         tp = fp = fn = tn = 0
@@ -243,7 +244,10 @@ def compute_claim1(scored: list[dict]) -> dict:
         rec = tp / (tp + fn) if (tp + fn) > 0 else float("nan")
         fpr = fp / (fp + tn) if (fp + tn) > 0 else float("nan")
         results[detector] = {
-            "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "tn": tn,
             "n_in_scope": tp + fp + fn + tn,
             "precision": prec,
             "recall": rec,
@@ -258,6 +262,7 @@ def compute_claim1(scored: list[dict]) -> dict:
 # ---------------------------------------------------------------------------
 # Claim 2 — Spearman ρ(readiness_score, benchmark_pass_rate).
 # ---------------------------------------------------------------------------
+
 
 def compute_claim2(scored: list[dict], n_bootstrap: int = 10_000) -> dict:
     groups: dict[tuple[str, str], list[tuple[float, float]]] = defaultdict(list)
@@ -317,16 +322,14 @@ def compute_claim2(scored: list[dict], n_bootstrap: int = 10_000) -> dict:
 # Track B Allocation Manifest.
 # ---------------------------------------------------------------------------
 
+
 def _pair_sort_key(canonical_id: str, parser_id: str) -> str:
     raw = f"{canonical_id}||{parser_id}||{FREEZE_SEED}".encode()
     return hashlib.sha256(raw).hexdigest()
 
 
 def build_track_b_manifest(scored: list[dict]) -> dict:
-    ref = [
-        r for r in scored
-        if r.get("parser_id") == "aksharamd-reference" and r.get("status") == "SCORED"
-    ]
+    ref = [r for r in scored if r.get("parser_id") == "aksharamd-reference" and r.get("status") == "SCORED"]
     bands: dict[str, list[dict]] = defaultdict(list)
     for r in ref:
         bands[_band(r.get("readiness_score"))].append(r)
@@ -340,9 +343,7 @@ def build_track_b_manifest(scored: list[dict]) -> dict:
         n_eligible = len(band_records)
         selected = band_records[:TRACK_B_N_RECRUIT]
         n_selected = len(selected)
-        achievable_ci = (
-            math.sqrt(1.96 ** 2 * 0.25 / n_selected) if n_selected >= 20 else None
-        )
+        achievable_ci = math.sqrt(1.96**2 * 0.25 / n_selected) if n_selected >= 20 else None
         allocation[band_name] = {
             "n_eligible": n_eligible,
             "n_selected": n_selected,
@@ -376,13 +377,12 @@ def build_track_b_manifest(scored: list[dict]) -> dict:
 # Main.
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--run-dir",
-        default=str(
-            ROOT / "benchmarks" / "results" / "stage1-track-a-olmocr-2026-09-17"
-        ),
+        default=str(ROOT / "benchmarks" / "results" / "stage1-track-a-olmocr-2026-09-17"),
     )
     p.add_argument("--n-bootstrap", type=int, default=10_000)
     p.add_argument("--out-dir", default=str(ROOT / "benchmarks" / "results"))
@@ -400,8 +400,7 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-incomplete",
         action="store_true",
         help=(
-            "Write provisional claim aggregates for an incomplete run. "
-            "Track B allocation is still withheld."
+            "Write provisional claim aggregates for an incomplete run. Track B allocation is still withheld."
         ),
     )
     args = p.parse_args(argv)
@@ -417,10 +416,12 @@ def main(argv: list[str] | None = None) -> int:
 
     print("[1/5] Loading stage2_olmocr_result.json files ...")
     try:
-        test_inventory_sha256 = benchmark_test_inventory_sha256(
-            Path(args.pdf_dir).parent
+        test_inventory_sha256 = verified_benchmark_test_inventory_sha256(
+            Path(args.acquisition_receipt),
+            Path(args.pdf_dir).parent,
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
         )
-        _, execution_dedup = load_unique_execution_records(
+        unique_records, execution_dedup = load_unique_execution_records(
             run_dir, expected_manifest_sha=MANIFEST_SHA
         )
         all_results, dedup = load_unique_stage2_results(
@@ -428,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            authoritative_execution_records=unique_records,
         )
         expected_pairs = expected_pairs_from_frozen_acquisition(
             Path(args.acquisition_receipt),
@@ -454,7 +456,8 @@ def main(argv: list[str] | None = None) -> int:
         f"({dedup.duplicate_files} duplicates removed)"
     )
     scored = [
-        r for r in all_results
+        r
+        for r in all_results
         if r.get("status") == "SCORED"
         and is_terminal_stage2_result(
             r,
@@ -539,9 +542,7 @@ def main(argv: list[str] | None = None) -> int:
         "completeness": completeness,
         "claim_1_detector_precision_recall": claim1,
         "claim_2_spearman_rho": claim2,
-        "track_b_allocation_manifest_path": (
-            str(track_b_path) if track_b_path is not None else None
-        ),
+        "track_b_allocation_manifest_path": (str(track_b_path) if track_b_path is not None else None),
     }
     out_path = out_dir / f"stage2-olmocr-{date_str}-aggregated.json"
     out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")

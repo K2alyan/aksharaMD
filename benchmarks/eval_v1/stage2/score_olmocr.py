@@ -16,6 +16,7 @@ replay_and_score(
     record_path, pdf_dir, unit_tests, root, benchmark_test_inventory_sha256
 ) -> dict
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -90,7 +91,9 @@ _PARSER_CONFIGS = {
 }
 
 _WORKER_ARGV_PREFIX = [
-    "python", "-m", "benchmarks.eval_v1.smoke_b1a_7b.workers.main",
+    "python",
+    "-m",
+    "benchmarks.eval_v1.smoke_b1a_7b.workers.main",
 ]
 
 _OFFLINE_ENV = {
@@ -105,6 +108,7 @@ STAGE2_SCHEMA_VERSION = "2"
 # ---------------------------------------------------------------------------
 # Helpers.
 # ---------------------------------------------------------------------------
+
 
 def _now_utc() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
@@ -128,7 +132,66 @@ def _readiness_band(score: float) -> str:
 # Unit-test loader.
 # ---------------------------------------------------------------------------
 
-def load_all_unit_tests(bench_data_dir: Path) -> dict[str, list]:
+
+def _load_assertion_rows(
+    bench_data_dir: Path,
+    *,
+    expected_document_count: int = 1403,
+) -> dict[str, list[tuple[dict[str, Any], Path, int]]]:
+    """Parse every frozen assertion row without any skip-on-error path."""
+    rows: dict[str, list[tuple[dict[str, Any], Path, int]]] = {}
+    assertion_ids: set[str] = set()
+    for jsonl_name, canonical_prefix in _CATEGORY_PREFIX.items():
+        jsonl_path = bench_data_dir / f"{jsonl_name}.jsonl"
+        if not jsonl_path.is_file():
+            raise RuntimeError(f"missing benchmark assertion file: {jsonl_path}")
+        with jsonl_path.open(encoding="utf-8") as fh:
+            for line_number, line in enumerate(fh, 1):
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise RuntimeError(
+                        f"malformed benchmark assertion at {jsonl_path}:{line_number}: {exc}"
+                    ) from exc
+                if not isinstance(data, dict):
+                    raise RuntimeError(f"benchmark assertion is not an object at {jsonl_path}:{line_number}")
+                for field in ("id", "pdf", "type"):
+                    if not isinstance(data.get(field), str) or not data[field]:
+                        raise RuntimeError(
+                            f"benchmark assertion missing {field!r} at {jsonl_path}:{line_number}"
+                        )
+                assertion_id = data["id"]
+                if assertion_id in assertion_ids:
+                    raise RuntimeError(
+                        f"duplicate benchmark assertion id {assertion_id!r} at {jsonl_path}:{line_number}"
+                    )
+                assertion_ids.add(assertion_id)
+                pdf_field = data["pdf"]
+                if not pdf_field.endswith(".pdf"):
+                    raise RuntimeError(
+                        f"benchmark assertion PDF lacks .pdf suffix at {jsonl_path}:{line_number}"
+                    )
+                canonical_id = pdf_field.removesuffix(".pdf")
+                if not canonical_id.startswith(canonical_prefix):
+                    raise RuntimeError(
+                        f"benchmark assertion category mismatch at "
+                        f"{jsonl_path}:{line_number}: {canonical_id!r}"
+                    )
+                rows.setdefault(canonical_id, []).append((data, jsonl_path, line_number))
+    if len(rows) != expected_document_count:
+        raise RuntimeError(
+            f"benchmark assertion inventory covers {len(rows)} documents; expected {expected_document_count}"
+        )
+    return rows
+
+
+def load_all_unit_tests(
+    bench_data_dir: Path,
+    *,
+    expected_document_count: int = 1403,
+) -> dict[str, list]:
     """Load all olmOCR benchmark unit tests.
 
     Returns a mapping from canonical_id (e.g. ``arxiv_math/2502.15977_pg21``)
@@ -164,42 +227,47 @@ def load_all_unit_tests(bench_data_dir: Path) -> dict[str, list]:
             f"Detail: {exc}"
         ) from exc
 
+    expected_rows = _load_assertion_rows(bench_data_dir, expected_document_count=expected_document_count)
     unit_tests: dict[str, list] = {}
 
-    for jsonl_name, canonical_prefix in _CATEGORY_PREFIX.items():
-        jsonl_path = bench_data_dir / f"{jsonl_name}.jsonl"
-        if not jsonl_path.exists():
-            continue
-        with jsonl_path.open(encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                # pdf field like "arxiv_math/2502.15977_pg21.pdf"
-                pdf_field: str = data.get("pdf", "")
-                if not pdf_field:
-                    continue
-                # canonical_id = pdf field without ".pdf"
-                canonical_id = pdf_field.removesuffix(".pdf")
-                # Ensure the category prefix is correct (table_tests → tables/).
-                # The canonical_id derived from the pdf field already has the
-                # right prefix (the JSONL stores the on-disk path).
-                try:
-                    test_obj = load_single_test(data)
-                except Exception:  # noqa: BLE001
-                    continue
-                unit_tests.setdefault(canonical_id, []).append(test_obj)
+    for canonical_id, rows in expected_rows.items():
+        for data, jsonl_path, line_number in rows:
+            # pdf field like "arxiv_math/2502.15977_pg21.pdf"
+            # canonical_id = pdf field without ".pdf"
+            # Ensure the category prefix is correct (table_tests → tables/).
+            # The canonical_id derived from the pdf field already has the
+            # right prefix (the JSONL stores the on-disk path).
+            try:
+                test_obj = load_single_test(data)
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError(
+                    f"unsupported benchmark assertion at {jsonl_path}:{line_number} id={data['id']!r}: {exc}"
+                ) from exc
+            loaded_id = getattr(test_obj, "id", None)
+            if loaded_id != data["id"]:
+                raise RuntimeError(
+                    f"loaded assertion identity drift at "
+                    f"{jsonl_path}:{line_number}: expected={data['id']!r} "
+                    f"actual={loaded_id!r}"
+                )
+            unit_tests.setdefault(canonical_id, []).append(test_obj)
 
+    expected_signatures = {
+        canonical_id: [data["id"] for data, _, _ in rows] for canonical_id, rows in expected_rows.items()
+    }
+    loaded_signatures = {
+        canonical_id: [getattr(test, "id", None) for test in tests]
+        for canonical_id, tests in unit_tests.items()
+    }
+    if loaded_signatures != expected_signatures:
+        raise RuntimeError("loaded benchmark assertion IDs/counts differ from frozen inventory")
     return unit_tests
 
 
 # ---------------------------------------------------------------------------
 # Adapter factory.
 # ---------------------------------------------------------------------------
+
 
 def _build_adapter(parser_id: str):
     """Build a SubprocessParserAdapter for the given parser_id."""
@@ -229,6 +297,7 @@ def _build_adapter(parser_id: str):
 # ---------------------------------------------------------------------------
 # Aksharamd scoring helper.
 # ---------------------------------------------------------------------------
+
 
 def _run_aksharamd_scoring(markdown: str) -> tuple[float | None, list[str], str | None]:
     """Write markdown to a temp file, compile, score.
@@ -273,6 +342,7 @@ def _run_aksharamd_scoring(markdown: str) -> tuple[float | None, list[str], str 
 # ---------------------------------------------------------------------------
 # Main scoring entry point.
 # ---------------------------------------------------------------------------
+
 
 def replay_and_score(
     record_path: Path,
@@ -327,9 +397,7 @@ def replay_and_score(
             "scored_at": _now_utc(),
             "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
             "benchmark_test_inventory_sha256": benchmark_test_inventory_sha256,
-            "stage1_execution_manifest_sha256": record.get(
-                "stage1_execution_manifest_sha256"
-            ),
+            "stage1_execution_manifest_sha256": record.get("stage1_execution_manifest_sha256"),
             "stage1_output_sha256": record.get("output_sha256"),
             "stage1_exit_status": exit_status,
             "source_pdf_sha256": source_pdf_sha256,
@@ -390,9 +458,7 @@ def replay_and_score(
     if not sha_verified:
         result = _base("SHA_MISMATCH")
         result["sha_verified"] = False
-        result["replay_defect_reason"] = (
-            f"expected={expected_sha} actual={actual_sha}"
-        )
+        result["replay_defect_reason"] = f"expected={expected_sha} actual={actual_sha}"
         return result
 
     # ------------------------------------------------------------------ #
@@ -424,12 +490,14 @@ def replay_and_score(
         else:
             n_failed += 1
 
-        test_results.append({
-            "test_id": test_id,
-            "test_type": test_type,
-            "passed": passed,
-            "error": error_msg,
-        })
+        test_results.append(
+            {
+                "test_id": test_id,
+                "test_type": test_type,
+                "passed": passed,
+                "error": error_msg,
+            }
+        )
 
     # ------------------------------------------------------------------ #
     # 8. AksharaMD readiness scoring.
@@ -447,9 +515,7 @@ def replay_and_score(
     result = _base(status)
     result["sha_verified"] = True
     result["readiness_score"] = readiness_score
-    result["readiness_band"] = (
-        _readiness_band(readiness_score) if readiness_score is not None else None
-    )
+    result["readiness_band"] = _readiness_band(readiness_score) if readiness_score is not None else None
     result["warning_codes"] = warning_codes
     result["n_tests"] = len(test_results)
     result["n_passed"] = n_passed

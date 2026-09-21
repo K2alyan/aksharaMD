@@ -24,6 +24,7 @@ A JSON summary is written to::
 
     benchmarks/results/stage2-olmocr-{YYYY-MM-DD}-summary.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,17 +43,15 @@ from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     FROZEN_OLMOCR_N_PDFS,
     STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
-    benchmark_test_inventory_sha256,
     expected_pairs_from_frozen_acquisition,
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    verified_benchmark_test_inventory_sha256,
 )
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
-STAGE1_RUN_DIR = (
-    ROOT / "benchmarks" / "results" / "stage1-track-a-olmocr-2026-09-17" / "olmocr_bench"
-)
+STAGE1_RUN_DIR = ROOT / "benchmarks" / "results" / "stage1-track-a-olmocr-2026-09-17" / "olmocr_bench"
 OLMOCR_PDFS_DIR = ROOT / "tmp" / "olmocr-full-data" / "bench_data" / "pdfs"
 BENCH_DATA_DIR = ROOT / "tmp" / "olmocr-full-data" / "bench_data"
 
@@ -61,20 +60,19 @@ RESULT_FILENAME = "stage2_olmocr_result.json"
 # Helpers.
 # ---------------------------------------------------------------------------
 
+
 def _now_date() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d")
 
 
-def _progress_line(i: int, total: int, canonical_id: str, parser_id: str,
-                   status: str, elapsed: float) -> str:
-    return (
-        f"[{i}/{total}] {canonical_id} x {parser_id} -> {status} ({elapsed:.1f}s)"
-    )
+def _progress_line(i: int, total: int, canonical_id: str, parser_id: str, status: str, elapsed: float) -> str:
+    return f"[{i}/{total}] {canonical_id} x {parser_id} -> {status} ({elapsed:.1f}s)"
 
 
 # ---------------------------------------------------------------------------
 # Main.
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -112,11 +110,16 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         print("Loading olmOCR unit tests …", flush=True)
         from benchmarks.eval_v1.stage2.score_olmocr import load_all_unit_tests  # noqa: PLC0415
+
         unit_tests = load_all_unit_tests(BENCH_DATA_DIR)
     else:
         unit_tests = {}
     try:
-        test_inventory_sha256 = benchmark_test_inventory_sha256(BENCH_DATA_DIR)
+        test_inventory_sha256 = verified_benchmark_test_inventory_sha256(
+            OLMOCR_ACQUISITION_PATH,
+            BENCH_DATA_DIR,
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
+        )
     except OlmocrHygieneError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
@@ -131,9 +134,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: frozen corpus inventory check failed: {exc}", file=sys.stderr)
         return 1
     if not args.dry_run:
+        n_loaded_assertions = sum(len(tests) for tests in unit_tests.values())
         print(
             f"  Loaded tests for {len(unit_tests)} canonical_ids "
-            f"(inventory {test_inventory_sha256[:12]}...).",
+            f"({n_loaded_assertions} assertions; "
+            f"inventory {test_inventory_sha256[:12]}...).",
             flush=True,
         )
 
@@ -149,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            authoritative_execution_records=unique_records,
         )
     except OlmocrHygieneError as exc:
         print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
@@ -164,10 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     }
     all_records = unique_records
     if args.parser_id_filter:
-        all_records = [
-            entry for entry in all_records
-            if entry[1]["parser_id"] == args.parser_id_filter
-        ]
+        all_records = [entry for entry in all_records if entry[1]["parser_id"] == args.parser_id_filter]
 
     total = len(all_records)
     print(
@@ -200,8 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         existing_status = existing.get("status", "") if existing else ""
         if skip:
             counters[existing_status] = counters.get(existing_status, 0) + 1
-            print(_progress_line(i, total, canonical_id, parser_id,
-                                 f"SKIP({existing_status})", 0.0))
+            print(_progress_line(i, total, canonical_id, parser_id, f"SKIP({existing_status})", 0.0))
             continue
 
         if args.dry_run:
@@ -255,12 +257,7 @@ def main(argv: list[str] | None = None) -> int:
         "wall_clock_seconds": round(wall_total, 2),
     }
 
-    summary_path = (
-        ROOT
-        / "benchmarks"
-        / "results"
-        / f"stage2-olmocr-{_now_date()}-summary.json"
-    )
+    summary_path = ROOT / "benchmarks" / "results" / f"stage2-olmocr-{_now_date()}-summary.json"
     if not args.dry_run:
         summary_path.write_text(
             json.dumps(summary, indent=2, ensure_ascii=False),

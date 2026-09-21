@@ -4,6 +4,7 @@ Filesystem paths are not study identities.  Interrupted/copy-forward runs can
 leave several files for the same ``(canonical_id, parser_id)`` pair, so all
 Stage 2 consumers must pass through this module before replay or aggregation.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -84,28 +85,76 @@ def _assert_no_hash_conflict(
                 values[str(value)].append(path)
         if len(values) > 1:
             detail = "; ".join(
-                f"{digest}: {', '.join(str(p) for p in paths)}"
-                for digest, paths in sorted(values.items())
+                f"{digest}: {', '.join(str(p) for p in paths)}" for digest, paths in sorted(values.items())
             )
-            raise OlmocrHygieneError(
-                f"conflicting duplicate {logical_name} hashes for pair {pair}: {detail}"
-            )
+            raise OlmocrHygieneError(f"conflicting duplicate {logical_name} hashes for pair {pair}: {detail}")
 
 
-def benchmark_test_inventory_sha256(bench_data_dir: Path) -> str:
-    """Hash the complete frozen benchmark assertion inventory."""
+def _load_verified_receipt(
+    acquisition_receipt: Path,
+    *,
+    expected_receipt_sha256: str,
+) -> dict[str, dict[str, Any]]:
+    if not acquisition_receipt.is_file():
+        raise OlmocrHygieneError(f"frozen acquisition receipt not found: {acquisition_receipt}")
+    receipt_bytes = acquisition_receipt.read_bytes()
+    actual_receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
+    if actual_receipt_sha != expected_receipt_sha256:
+        raise OlmocrHygieneError(
+            "acquisition receipt SHA mismatch; "
+            f"expected={expected_receipt_sha256} actual={actual_receipt_sha}"
+        )
+    try:
+        receipt = json.loads(receipt_bytes)
+    except Exception as exc:  # noqa: BLE001
+        raise OlmocrHygieneError(f"invalid acquisition receipt: {exc}") from exc
+    if not isinstance(receipt, dict) or not isinstance(receipt.get("files"), list):
+        raise OlmocrHygieneError("invalid acquisition receipt: files must be a list")
+    entries: dict[str, dict[str, Any]] = {}
+    for entry in receipt["files"]:
+        if not isinstance(entry, dict):
+            raise OlmocrHygieneError("invalid acquisition receipt file entry")
+        path = str(entry.get("path", "")).replace("\\", "/")
+        if not path or path in entries:
+            raise OlmocrHygieneError(f"invalid or duplicate acquisition receipt path: {path!r}")
+        if entry.get("status") != "verified":
+            raise OlmocrHygieneError(f"receipt file is not verified: {path}")
+        sha = entry.get("sha256")
+        if not isinstance(sha, str) or len(sha) != 64:
+            raise OlmocrHygieneError(f"receipt file has invalid sha256: {path}")
+        entries[path] = entry
+    return entries
+
+
+def verified_benchmark_test_inventory_sha256(
+    acquisition_receipt: Path,
+    bench_data_dir: Path,
+    *,
+    expected_receipt_sha256: str,
+) -> str:
+    """Verify assertion bytes and hash their frozen receipt identities."""
+    entries = _load_verified_receipt(
+        acquisition_receipt,
+        expected_receipt_sha256=expected_receipt_sha256,
+    )
     digest = hashlib.sha256()
     for filename in BENCHMARK_TEST_FILENAMES:
+        receipt_path = f"bench_data/{filename}"
+        entry = entries.get(receipt_path)
+        if entry is None:
+            raise OlmocrHygieneError(f"frozen receipt is missing benchmark inventory: {receipt_path}")
         path = bench_data_dir / filename
         if not path.is_file():
+            raise OlmocrHygieneError(f"benchmark test inventory is incomplete: missing {path}")
+        actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        if actual_sha != entry["sha256"]:
             raise OlmocrHygieneError(
-                f"benchmark test inventory is incomplete: missing {path}"
+                f"benchmark test bytes differ from frozen receipt: {path}; "
+                f"expected={entry['sha256']} actual={actual_sha}"
             )
-        payload = path.read_bytes()
         digest.update(filename.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(len(payload).to_bytes(8, "big"))
-        digest.update(payload)
+        digest.update(entry["sha256"].encode("ascii"))
     return digest.hexdigest()
 
 
@@ -149,16 +198,12 @@ def terminal_validation_error(
     test_results = data.get("test_results")
     if not isinstance(test_results, list) or not test_results:
         return "SCORED requires nonempty test_results"
-    if any(
-        not isinstance(test, dict) or not isinstance(test.get("passed"), bool)
-        for test in test_results
-    ):
+    if any(not isinstance(test, dict) or not isinstance(test.get("passed"), bool) for test in test_results):
         return "SCORED test_results require boolean passed fields"
     n_tests = data.get("n_tests")
     n_passed = data.get("n_passed")
     n_failed = data.get("n_failed")
-    if any(isinstance(value, bool) or not isinstance(value, int)
-           for value in (n_tests, n_passed, n_failed)):
+    if any(isinstance(value, bool) or not isinstance(value, int) for value in (n_tests, n_passed, n_failed)):
         return "SCORED test counts must be integers"
     actual_passed = sum(test["passed"] is True for test in test_results)
     actual_failed = sum(test["passed"] is False for test in test_results)
@@ -178,11 +223,14 @@ def is_terminal_stage2_result(
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
 ) -> bool:
-    return terminal_validation_error(
-        data,
-        expected_scorer_contract_id=expected_scorer_contract_id,
-        expected_test_inventory_sha256=expected_test_inventory_sha256,
-    ) is None
+    return (
+        terminal_validation_error(
+            data,
+            expected_scorer_contract_id=expected_scorer_contract_id,
+            expected_test_inventory_sha256=expected_test_inventory_sha256,
+        )
+        is None
+    )
 
 
 def _deduplicate(
@@ -201,27 +249,30 @@ def _deduplicate(
     selected: list[tuple[Path, dict[str, Any]]] = []
     for pair, group in sorted(groups.items()):
         frozen = [
-            entry for entry in group
+            entry
+            for entry in group
             if entry[1].get("stage1_execution_manifest_sha256") == expected_manifest_sha
-            and (
-                stage2
-                or entry[1].get("exit_status") in {"EXECUTED", "DEFECT"}
-            )
+            and (stage2 or entry[1].get("exit_status") in {"EXECUTED", "DEFECT"})
         ]
         if not frozen:
             paths = ", ".join(str(path) for path, _ in group)
             raise OlmocrHygieneError(
-                f"pair {pair} has no record anchored to frozen manifest "
-                f"{expected_manifest_sha}: {paths}"
+                f"pair {pair} has no record anchored to frozen manifest {expected_manifest_sha}: {paths}"
             )
+        if not stage2:
+            terminal_statuses = {entry[1].get("exit_status") for entry in frozen}
+            if len(terminal_statuses) > 1:
+                raise OlmocrHygieneError(
+                    f"conflicting duplicate Stage 1 terminal statuses for pair "
+                    f"{pair}: {sorted(str(s) for s in terminal_statuses)}"
+                )
         conflict_candidates = frozen
         if stage2:
             conflict_candidates = [
-                entry for entry in frozen
-                if entry[1].get("stage2_scorer_contract_id")
-                == expected_scorer_contract_id
-                and entry[1].get("benchmark_test_inventory_sha256")
-                == expected_test_inventory_sha256
+                entry
+                for entry in frozen
+                if entry[1].get("stage2_scorer_contract_id") == expected_scorer_contract_id
+                and entry[1].get("benchmark_test_inventory_sha256") == expected_test_inventory_sha256
             ]
         _assert_no_hash_conflict(conflict_candidates, pair)
 
@@ -229,18 +280,16 @@ def _deduplicate(
             path, data = entry
             if stage2:
                 current_contract = int(
-                    data.get("stage2_scorer_contract_id")
-                    == expected_scorer_contract_id
-                    and data.get("benchmark_test_inventory_sha256")
-                    == expected_test_inventory_sha256
+                    data.get("stage2_scorer_contract_id") == expected_scorer_contract_id
+                    and data.get("benchmark_test_inventory_sha256") == expected_test_inventory_sha256
                 )
-                terminal = int(is_terminal_stage2_result(
-                    data,
-                    expected_scorer_contract_id=str(expected_scorer_contract_id),
-                    expected_test_inventory_sha256=str(
-                        expected_test_inventory_sha256
-                    ),
-                ))
+                terminal = int(
+                    is_terminal_stage2_result(
+                        data,
+                        expected_scorer_contract_id=str(expected_scorer_contract_id),
+                        expected_test_inventory_sha256=str(expected_test_inventory_sha256),
+                    )
+                )
                 completed_at = str(data.get("scored_at") or "")
                 return current_contract, terminal, completed_at, path.as_posix()
             else:
@@ -262,13 +311,8 @@ def load_unique_execution_records(
     *,
     expected_manifest_sha: str,
 ) -> tuple[list[tuple[Path, dict[str, Any]]], DeduplicationReport]:
-    entries = [
-        (path, _read_json(path))
-        for path in sorted(run_dir.rglob("execution_record.json"))
-    ]
-    return _deduplicate(
-        entries, expected_manifest_sha=expected_manifest_sha, stage2=False
-    )
+    entries = [(path, _read_json(path)) for path in sorted(run_dir.rglob("execution_record.json"))]
+    return _deduplicate(entries, expected_manifest_sha=expected_manifest_sha, stage2=False)
 
 
 def load_unique_stage2_results(
@@ -277,35 +321,26 @@ def load_unique_stage2_results(
     expected_manifest_sha: str,
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
+    authoritative_execution_records: Iterable[tuple[Path, dict[str, Any]]],
     filename: str = "stage2_olmocr_result.json",
 ) -> tuple[list[dict[str, Any]], DeduplicationReport]:
+    authoritative = {_pair(data, path): data for path, data in authoritative_execution_records}
     entries: list[tuple[Path, dict[str, Any]]] = []
     for path in sorted(run_dir.rglob(filename)):
         data = _read_json(path)
-        # V1 results initially omitted provenance hashes.  Safely recover them
-        # from the colocated, frozen Stage 1 record without rewriting evidence.
-        execution_path = path.parent / "execution_record.json"
-        if not execution_path.is_file():
-            raise OlmocrHygieneError(
-                f"{path}: missing colocated frozen Stage 1 execution record"
-            )
-        execution = _read_json(execution_path)
-        if _pair(execution, execution_path) != _pair(data, path):
-            raise OlmocrHygieneError(
-                f"{path}: identity disagrees with colocated execution record"
-            )
+        pair = _pair(data, path)
+        execution = authoritative.get(pair)
+        if execution is None:
+            raise OlmocrHygieneError(f"{path}: no authoritative frozen Stage 1 execution record")
         recovered = {
-            "stage1_execution_manifest_sha256": execution.get(
-                "stage1_execution_manifest_sha256"
-            ),
+            "stage1_execution_manifest_sha256": execution.get("stage1_execution_manifest_sha256"),
             "stage1_output_sha256": execution.get("output_sha256"),
             "stage1_exit_status": execution.get("exit_status"),
         }
         for field, value in recovered.items():
             if data.get(field) is not None and data[field] != value:
                 raise OlmocrHygieneError(
-                    f"{path}: embedded {field} disagrees with colocated "
-                    "execution record"
+                    f"{path}: embedded {field} disagrees with authoritative Stage 1 record"
                 )
             data.setdefault(field, value)
         for field in _INPUT_HASH_FIELDS:
@@ -332,46 +367,26 @@ def expected_pairs_from_frozen_acquisition(
     expected_pdf_count: int = FROZEN_OLMOCR_N_PDFS,
 ) -> set[tuple[str, str]]:
     """Verify the pinned receipt and exact local canonical-ID inventory."""
-    if not acquisition_receipt.is_file():
-        raise OlmocrHygieneError(
-            f"cannot prove completeness: acquisition receipt not found: "
-            f"{acquisition_receipt}"
-        )
-    receipt_bytes = acquisition_receipt.read_bytes()
-    actual_receipt_sha = hashlib.sha256(receipt_bytes).hexdigest()
-    if actual_receipt_sha != expected_receipt_sha256:
-        raise OlmocrHygieneError(
-            "cannot prove completeness: acquisition receipt SHA mismatch; "
-            f"expected={expected_receipt_sha256} actual={actual_receipt_sha}"
-        )
-    try:
-        receipt = json.loads(receipt_bytes)
-    except Exception as exc:  # noqa: BLE001
-        raise OlmocrHygieneError(f"invalid acquisition receipt: {exc}") from exc
+    entries = _load_verified_receipt(
+        acquisition_receipt,
+        expected_receipt_sha256=expected_receipt_sha256,
+    )
     receipt_ids = []
-    for entry in receipt.get("files", []):
-        path = str(entry.get("path", "")).replace("\\", "/")
+    pdf_shas: dict[str, str] = {}
+    for path, entry in entries.items():
         prefix = "bench_data/pdfs/"
         if path.startswith(prefix) and path.endswith(".pdf"):
-            if entry.get("status") != "verified":
-                raise OlmocrHygieneError(f"receipt PDF is not verified: {path}")
-            receipt_ids.append(path[len(prefix):-4])
-    if len(receipt_ids) != len(set(receipt_ids)):
-        raise OlmocrHygieneError("acquisition receipt contains duplicate PDF IDs")
+            canonical_id = path[len(prefix) : -4]
+            receipt_ids.append(canonical_id)
+            pdf_shas[canonical_id] = str(entry["sha256"])
     expected_ids = set(receipt_ids)
     if len(expected_ids) != expected_pdf_count:
         raise OlmocrHygieneError(
-            f"frozen receipt has {len(expected_ids)} PDF IDs; "
-            f"expected {expected_pdf_count}"
+            f"frozen receipt has {len(expected_ids)} PDF IDs; expected {expected_pdf_count}"
         )
     if not pdf_dir.exists():
-        raise OlmocrHygieneError(
-            f"cannot prove completeness: PDF inventory not found: {pdf_dir}"
-        )
-    actual_ids = {
-        path.relative_to(pdf_dir).with_suffix("").as_posix()
-        for path in pdf_dir.rglob("*.pdf")
-    }
+        raise OlmocrHygieneError(f"cannot prove completeness: PDF inventory not found: {pdf_dir}")
+    actual_ids = {path.relative_to(pdf_dir).with_suffix("").as_posix() for path in pdf_dir.rglob("*.pdf")}
     missing = sorted(expected_ids - actual_ids)
     extra = sorted(actual_ids - expected_ids)
     if missing or extra:
@@ -380,8 +395,16 @@ def expected_pairs_from_frozen_acquisition(
             f"missing={missing[:5]} ({len(missing)} total), "
             f"extra={extra[:5]} ({len(extra)} total)"
         )
-    return {(canonical_id, parser_id) for canonical_id in expected_ids
-            for parser_id in FROZEN_PARSER_IDS}
+    for canonical_id in sorted(expected_ids):
+        pdf_path = pdf_dir / f"{canonical_id}.pdf"
+        actual_sha = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+        expected_sha = pdf_shas[canonical_id]
+        if actual_sha != expected_sha:
+            raise OlmocrHygieneError(
+                f"PDF bytes differ from frozen receipt: {canonical_id}; "
+                f"expected={expected_sha} actual={actual_sha}"
+            )
+    return {(canonical_id, parser_id) for canonical_id in expected_ids for parser_id in FROZEN_PARSER_IDS}
 
 
 def build_completeness_report(
@@ -394,7 +417,8 @@ def build_completeness_report(
     result_by_pair = {_pair(result, Path("<memory>")): result for result in results}
     observed = set(result_by_pair)
     complete = {
-        pair for pair, result in result_by_pair.items()
+        pair
+        for pair, result in result_by_pair.items()
         if is_terminal_stage2_result(
             result,
             expected_scorer_contract_id=expected_scorer_contract_id,
