@@ -256,7 +256,8 @@ def test_strict_frozen_inventory_rejects_incomplete_run(tmp_path: Path) -> None:
 
     assert exit_code == 2
     assert any(
-        item["category"] == "validation_failure" and "frozen V1 inventory mismatch" in item["reason"]
+        item["category"] == "validation_failure"
+        and "frozen V1 identity inventory mismatch" in item["reason"]
         for item in report["exclusions"]
     )
 
@@ -317,24 +318,36 @@ def test_build_report_records_abstention_and_unavailable_baselines() -> None:
 
 
 def _diagnostic_sidecar(doc: str, parser_id: str, evidence: int, qa: float) -> dict:
+    detector = {
+        "detector_id": "source.pdf_text_token_retention",
+        "status": "activated", "eligible": True, "verdict": "pass",
+        "score": evidence, "abstention_reason": None,
+    }
     return {
         "identity": {
             "corpus": "qasper", "canonical_id": doc, "parser_id": parser_id,
-            "arm_kind": "parser",
+            "arm_kind": "corpus_gold" if parser_id == "corpus_gold" else "parser",
         },
         "cached_qa_metrics": {"primary_score": qa},
         "assessment": {
             "candidate_intrinsic": {"verdict": "pass", "detectors": []},
             "source_comparison": {
                 "verdict": "pass",
-                "detectors": [{
-                    "detector_id": "source.pdf_text_token_retention",
-                    "status": "activated", "eligible": True, "verdict": "pass",
-                    "score": evidence, "abstention_reason": None,
-                }],
+                "detectors": [detector],
             },
         },
     }
+
+
+def _abstained_sidecar(doc: str, parser_id: str, qa: float) -> dict:
+    sidecar = _diagnostic_sidecar(doc, parser_id, 0, qa)
+    detector = sidecar["assessment"]["source_comparison"]["detectors"][0]
+    detector.update({
+        "status": "abstained", "eligible": False, "verdict": "undetermined",
+        "score": None, "abstention_reason": "synthetic abstention",
+    })
+    sidecar["assessment"]["source_comparison"]["verdict"] = "undetermined"
+    return sidecar
 
 
 def test_hand_computable_diagnostics_cover_ties_regret_and_false_accepts() -> None:
@@ -389,6 +402,125 @@ def test_hand_computable_diagnostics_cover_ties_regret_and_false_accepts() -> No
         assert len(result["coverage_document_bootstrap_95_ci"]) == 2
         assert len(result["risk_document_bootstrap_95_ci"]) == 2
         assert len(result["false_accept_rate_document_bootstrap_95_ci"]) == 2
+
+
+def test_abstentions_are_rejected_and_gold_arm_defines_document_oracle() -> None:
+    sidecars = [
+        _diagnostic_sidecar("doc-1", "aksharamd-reference", 100, 0.8),
+        _abstained_sidecar("doc-1", "docling", 0.9),
+        _diagnostic_sidecar("doc-1", "corpus_gold", 100, 1.0),
+        _abstained_sidecar("doc-2", "aksharamd-reference", 0.4),
+        _abstained_sidecar("doc-2", "docling", 0.6),
+        _diagnostic_sidecar("doc-2", "corpus_gold", 100, 1.0),
+    ]
+
+    report = build_report(
+        sidecars, [], 6, thresholds=(90,), bad_regret_margin=0.05, n_bootstrap=0,
+    )
+
+    selection = report["parser_selection"]
+    assert selection["n_documents"] == 1
+    assert selection["document_accounting"]["n_documents_observed"] == 2
+    assert selection["document_accounting"]["n_documents_lost"] == 1
+    assert selection["document_accounting"]["lost_documents"] == [{
+        "corpus": "qasper",
+        "canonical_id": "doc-2",
+        "reasons": ["no_scorable_parser_output"],
+    }]
+    # Gold is the 1.0 oracle: selecting the 0.8 parser incurs 0.2 regret.
+    assert selection["source_evidence_selector_mean_regret"] == 0.2
+    assert selection["source_evidence_selector_top_one_accuracy"] == 0.0
+
+    risk = report["risk_coverage"]
+    assert risk["document_accounting"]["n_documents_included"] == 2
+    threshold = risk["thresholds"][0]
+    assert threshold["n_eligible_outputs"] == 4
+    assert threshold["n_rejected_outputs"] == 3
+    assert threshold["n_scorable"] == 1
+    assert threshold["n_abstained_rejected"] == 3
+    assert threshold["n_accepted"] == 1
+    assert threshold["coverage"] == 0.25
+    assert threshold["conditional_on_scorable_coverage"] == 1.0
+    assert threshold["risk_mean_oracle_regret"] == 0.2
+    assert threshold["false_accept_rate"] == 1.0
+
+
+def test_same_count_identity_and_status_substitutions_fail_closed(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    run_dir, cache_root, _ = _fixture(tmp_path)
+    expected = frozenset({
+        ("qasper", "doc-a", "marker", "EXECUTED"),
+        ("qasper", "doc-a", "docling", "DEFECT"),  # observed status is EXECUTED
+        ("qasper", "doc-b", "marker", "EXECUTED"),
+        ("qasper", "substituted-doc", "docling", "EXECUTED"),
+    })
+    monkeypatch.setattr(
+        diagnostics_module, "_load_frozen_identity_manifest", lambda: expected,
+    )
+
+    report, exit_code = execute(
+        run_dir, cache_root, tmp_path / "v2", dry_run=True,
+    )
+
+    assert exit_code == 2
+    mismatch = next(
+        item for item in report["exclusions"]
+        if "frozen V1 identity inventory mismatch" in item["reason"]
+    )
+    assert "discovered=4" in mismatch["reason"]
+    assert "expected=4" in mismatch["reason"]
+    assert "substituted-doc" in mismatch["reason"]
+    assert "'docling', 'DEFECT'" in mismatch["reason"]
+
+def test_exact_inventory_difference_detects_every_adversarial_shape() -> None:
+    expected = frozenset({
+        ("qasper", "doc-a", "marker", "EXECUTED"),
+        ("qasper", "doc-b", "docling", "DEFECT"),
+    })
+    assert diagnostics_module._inventory_difference(expected, set(expected), 2) is None
+
+    cases = [
+        # omission
+        ({("qasper", "doc-a", "marker", "EXECUTED")}, 1),
+        # addition
+        (set(expected) | {("qasper", "doc-c", "marker", "EXECUTED")}, 3),
+        # identity substitution at unchanged count
+        ({
+            ("qasper", "doc-x", "marker", "EXECUTED"),
+            ("qasper", "doc-b", "docling", "DEFECT"),
+        }, 2),
+        # status change at unchanged count
+        ({
+            ("qasper", "doc-a", "marker", "DEFECT"),
+            ("qasper", "doc-b", "docling", "DEFECT"),
+        }, 2),
+        # duplicate path/record: unique set matches but discovery count does not
+        (set(expected), 3),
+    ]
+    for observed, discovered in cases:
+        assert diagnostics_module._inventory_difference(
+            expected, observed, discovered,
+        ) is not None
+
+
+def test_frozen_identity_manifest_is_pinned_and_complete(tmp_path: Path) -> None:
+    inventory = diagnostics_module._load_frozen_identity_manifest()
+    assert len(inventory) == 245
+    assert sum(item[3] == "EXECUTED" for item in inventory) == 239
+    assert sum(item[3] == "DEFECT" for item in inventory) == 6
+
+    payload = json.loads(
+        diagnostics_module.FROZEN_IDENTITY_MANIFEST_PATH.read_text(encoding="utf-8")
+    )
+    payload["identities"][0]["canonical_id"] = "substituted"
+    tampered = tmp_path / "tampered-manifest.json"
+    tampered.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(
+        diagnostics_module.EvidenceValidationError,
+        match="frozen identity manifest hash mismatch",
+    ):
+        diagnostics_module._load_frozen_identity_manifest(tampered)
 
 
 def test_cli_help_and_output_dir_guard(tmp_path: Path, capsys) -> None:

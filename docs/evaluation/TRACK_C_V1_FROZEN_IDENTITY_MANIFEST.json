@@ -1,0 +1,1479 @@
+{
+  "identities": [
+    {
+      "canonical_id": "1503.00841",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1503.00841",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1503.00841",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1503.00841",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1503.00841",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1601.02403",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1601.02403",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1601.02403",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1601.02403",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1601.02403",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1603.01514",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1603.01514",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1603.01514",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1603.01514",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1603.01514",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1603.01987",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1603.01987",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1603.01987",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1603.01987",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1603.01987",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1603.08594",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1603.08594",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1603.08594",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1603.08594",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1603.08594",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1603.09631",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1603.09631",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1603.09631",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1603.09631",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1603.09631",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1604.00400",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1604.00400",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1604.00400",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1604.00400",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1604.00400",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1604.00727",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1604.00727",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1604.00727",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1604.00727",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1604.00727",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1604.03114",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1604.03114",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1604.03114",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1604.03114",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1604.03114",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1604.05372",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1604.05372",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1604.05372",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1604.05372",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1604.05372",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1604.08504",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1604.08504",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1604.08504",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1604.08504",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1604.08504",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1605.03481",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1605.03481",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1605.03481",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1605.03481",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1605.03481",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1605.06083",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1605.06083",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1605.06083",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1605.06083",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1605.06083",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1605.07333",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1605.07333",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1605.07333",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1605.07333",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1605.07333",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1606.02891",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1606.02891",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1606.02891",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1606.02891",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1606.02891",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1606.03676",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1606.03676",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1606.03676",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1606.03676",
+      "corpus": "qasper",
+      "execution_status": "DEFECT",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1606.03676",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1608.01084",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1608.01084",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1608.01084",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1608.01084",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1608.01084",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1608.01884",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1608.01884",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1608.01884",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1608.01884",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1608.01884",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1608.06757",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1608.06757",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1608.06757",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1608.06757",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1608.06757",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1608.08188",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1608.08188",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1608.08188",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1608.08188",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1608.08188",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1609.00425",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1609.00425",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1609.00425",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1609.00425",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1609.00425",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1609.00559",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1609.00559",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1609.00559",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1609.00559",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1609.00559",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1610.00956",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1610.00956",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1610.00956",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1610.00956",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1610.00956",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1610.07809",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1610.07809",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1610.07809",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1610.07809",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1610.07809",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1610.08815",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1610.08815",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "corpus_gold"
+    },
+    {
+      "canonical_id": "1610.08815",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1610.08815",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1610.08815",
+      "corpus": "qasper",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "003755794bbbbcffd0667b9600aeb0be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "003755794bbbbcffd0667b9600aeb0be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "003755794bbbbcffd0667b9600aeb0be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "003755794bbbbcffd0667b9600aeb0be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0069c940cfca223b2789cbbcc846b038",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0069c940cfca223b2789cbbcc846b038",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0069c940cfca223b2789cbbcc846b038",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0069c940cfca223b2789cbbcc846b038",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0112773c37b09547b87270583b651784",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0112773c37b09547b87270583b651784",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0112773c37b09547b87270583b651784",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0112773c37b09547b87270583b651784",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "012e9f2fb194f89501f65735bc4aca62",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "012e9f2fb194f89501f65735bc4aca62",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "012e9f2fb194f89501f65735bc4aca62",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "012e9f2fb194f89501f65735bc4aca62",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "018ba3b4adee47eef3555fc300cbde94",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "018ba3b4adee47eef3555fc300cbde94",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "018ba3b4adee47eef3555fc300cbde94",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "018ba3b4adee47eef3555fc300cbde94",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "01cbb28d73f2117a2bf155814a46806c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "01cbb28d73f2117a2bf155814a46806c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "01cbb28d73f2117a2bf155814a46806c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "01cbb28d73f2117a2bf155814a46806c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "028ee763c1f90a74df4736ce7b5ffba4",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "028ee763c1f90a74df4736ce7b5ffba4",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "028ee763c1f90a74df4736ce7b5ffba4",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "028ee763c1f90a74df4736ce7b5ffba4",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0431c0120abe739c6a106cce515f3108",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0431c0120abe739c6a106cce515f3108",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0431c0120abe739c6a106cce515f3108",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0431c0120abe739c6a106cce515f3108",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "04517855d313cc5e0e3fa1b43dcfd99c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "04517855d313cc5e0e3fa1b43dcfd99c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "04517855d313cc5e0e3fa1b43dcfd99c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "04517855d313cc5e0e3fa1b43dcfd99c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "04aea9b8928c7258bd119ad0d4ac68be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "04aea9b8928c7258bd119ad0d4ac68be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "04aea9b8928c7258bd119ad0d4ac68be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "04aea9b8928c7258bd119ad0d4ac68be",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "06c4eb9cb8d88350a6ff50a7fccd996a",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "06c4eb9cb8d88350a6ff50a7fccd996a",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "06c4eb9cb8d88350a6ff50a7fccd996a",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "06c4eb9cb8d88350a6ff50a7fccd996a",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "072057b32a9b61def14de83615f8a0e5",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "072057b32a9b61def14de83615f8a0e5",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "072057b32a9b61def14de83615f8a0e5",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "072057b32a9b61def14de83615f8a0e5",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "07d61107df20d17a8b64eba82431c688",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "07d61107df20d17a8b64eba82431c688",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "07d61107df20d17a8b64eba82431c688",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "07d61107df20d17a8b64eba82431c688",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "087a56930baab9668c14df4cb1acf1d6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "087a56930baab9668c14df4cb1acf1d6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "087a56930baab9668c14df4cb1acf1d6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "087a56930baab9668c14df4cb1acf1d6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "08d181cb5431f91d9495afa4989d0906",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "08d181cb5431f91d9495afa4989d0906",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "08d181cb5431f91d9495afa4989d0906",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "08d181cb5431f91d9495afa4989d0906",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "09a6000ccf5038981fb89ae406302262",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "09a6000ccf5038981fb89ae406302262",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "09a6000ccf5038981fb89ae406302262",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "09a6000ccf5038981fb89ae406302262",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0ba33bc0610e557810de948f4248719e",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0ba33bc0610e557810de948f4248719e",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0ba33bc0610e557810de948f4248719e",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0ba33bc0610e557810de948f4248719e",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0cf6769516cf2a245aaed5fcf2bd9c21",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0cf6769516cf2a245aaed5fcf2bd9c21",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0cf6769516cf2a245aaed5fcf2bd9c21",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0cf6769516cf2a245aaed5fcf2bd9c21",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "0e2b9dbc14940f49d225762ca8970f03",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "0e2b9dbc14940f49d225762ca8970f03",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "0e2b9dbc14940f49d225762ca8970f03",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "0e2b9dbc14940f49d225762ca8970f03",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "11ba155b7577c83fe5f3c4f766039e93",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "11ba155b7577c83fe5f3c4f766039e93",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "11ba155b7577c83fe5f3c4f766039e93",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "11ba155b7577c83fe5f3c4f766039e93",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "13c5057e813cedb2666f3422749a2070",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "13c5057e813cedb2666f3422749a2070",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "13c5057e813cedb2666f3422749a2070",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "13c5057e813cedb2666f3422749a2070",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "157f7e96347013c41825141c4e9e75d9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "157f7e96347013c41825141c4e9e75d9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "157f7e96347013c41825141c4e9e75d9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "157f7e96347013c41825141c4e9e75d9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1596b597b42a2ac41d2f489f4a10eff6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1596b597b42a2ac41d2f489f4a10eff6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1596b597b42a2ac41d2f489f4a10eff6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1596b597b42a2ac41d2f489f4a10eff6",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "16662d6aec2ae9b193717adf03278ad9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "16662d6aec2ae9b193717adf03278ad9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "16662d6aec2ae9b193717adf03278ad9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "16662d6aec2ae9b193717adf03278ad9",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "168d8b4e350cd1466e20530e331c8765",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "168d8b4e350cd1466e20530e331c8765",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "168d8b4e350cd1466e20530e331c8765",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "168d8b4e350cd1466e20530e331c8765",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "17b157279164a85dd09c7500bec8174c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "17b157279164a85dd09c7500bec8174c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "17b157279164a85dd09c7500bec8174c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "17b157279164a85dd09c7500bec8174c",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "19b2d85c60a1fe383e066d90c64cb7c2",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "19b2d85c60a1fe383e066d90c64cb7c2",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "19b2d85c60a1fe383e066d90c64cb7c2",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "19b2d85c60a1fe383e066d90c64cb7c2",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1ab00922b8ffb4c7d4ae5dea80f45637",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1ab00922b8ffb4c7d4ae5dea80f45637",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1ab00922b8ffb4c7d4ae5dea80f45637",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1ab00922b8ffb4c7d4ae5dea80f45637",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1ac0f01d143b3789807888da03560a51",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1ac0f01d143b3789807888da03560a51",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1ac0f01d143b3789807888da03560a51",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1ac0f01d143b3789807888da03560a51",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    },
+    {
+      "canonical_id": "1b54b462b06a8786c7b0b63587f93122",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "aksharamd-reference"
+    },
+    {
+      "canonical_id": "1b54b462b06a8786c7b0b63587f93122",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "docling"
+    },
+    {
+      "canonical_id": "1b54b462b06a8786c7b0b63587f93122",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "marker"
+    },
+    {
+      "canonical_id": "1b54b462b06a8786c7b0b63587f93122",
+      "corpus": "tat_dqa",
+      "execution_status": "EXECUTED",
+      "parser_id": "markitdown"
+    }
+  ],
+  "schema_version": "track-c-v1-frozen-identity-manifest-1",
+  "stage1_execution_manifest_sha256": "4b5116f4a965f2b4e653705827d3f0a4115b2b4b4e3a1b2af4f7e234bd26b3db",
+  "v1_metric_schema_version": "3",
+  "v1_result_schema_version": "3",
+  "v1_scoring_contract_id": "markdown_only_v1"
+}

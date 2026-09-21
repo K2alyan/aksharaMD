@@ -34,8 +34,14 @@ this destination too. Output may not overlap either V1 inputs or the source
 cache. The command has no API
 client, does not read an API key, and does not execute a parser or QA model.
 
-The required real V1 inventory is exactly 245 records: 239 executable records
-and the six pinned frozen `DEFECT` identities. Each defect's result identity,
+The required real V1 inventory is pinned in
+`TRACK_C_V1_FROZEN_IDENTITY_MANIFEST.json`; its canonical JSON SHA-256 is
+`c9649a4169c72aaeb85677b39e5419e686abe3256d0ade7c1567274a5714974d`.
+It contains exactly 245 `(corpus, canonical_id, parser_id, execution_status)`
+identities: 239 executable records and six frozen `DEFECT` records. The tool
+compares the complete observed set to this manifest, so identity substitution,
+duplicate discovery, omission, addition, and status changes fail closed even
+when record counts remain unchanged. Each defect's result identity,
 source, null evaluation state, execution receipt, empty output, manifest hash,
 and parser-contract hash are verified before it is accepted as ineligible.
 Missing, extra, or substituted records fail the inventory gate. Declared
@@ -56,8 +62,9 @@ The tool verifies before reuse:
 - the exact current source and candidate bytes passed to the V2 API.
 
 `corpus_gold` is an annotation-derived virtual arm and therefore has no Phase 1
-execution receipt. It is assessed and reported, but excluded from parser
-selection diagnostics.
+execution receipt. It is not an eligible parser selection, but its cached QA
+score is included when constructing the per-document QA oracle. This prevents
+the parser under evaluation from defining its own best-achievable comparator.
 
 V1 did not record source-PDF hashes in per-pair execution receipts. The V2
 sidecar therefore binds the exact canonical cache PDF resolved at execution
@@ -76,9 +83,9 @@ activation, eligibility, verdict, score, and abstention evidence separately.
 - **Pairwise concordance:** among non-tied evidence and QA pairs, the fraction
   where the higher text-retention score also has the higher cached primary QA
   score. Confidence intervals resample documents, not parser pairs.
-- **Top-one regret:** document-oracle cached primary QA score minus the score
-  of the parser selected by maximum text retention. Parser ID breaks ties
-  deterministically.
+- **Top-one regret:** best cached primary QA score across every document arm,
+  including `corpus_gold` when present, minus the score of the parser selected
+  by maximum text retention. Parser ID breaks ties deterministically.
 - **Top-one accuracy:** fraction of documents where that selected parser ties
   for the best cached primary QA score.
 - **Best fixed:** lowest mean regret among parsers available for every included
@@ -87,12 +94,19 @@ activation, eligibility, verdict, score, and abstention evidence separately.
 - **Random:** expected regret from a uniform choice among assessed parser arms
   available for that document.
 - **False accept:** an accepted output whose cached primary score is at least
-  `--bad-regret-margin` below the best assessed parser for that document.
+  `--bad-regret-margin` below the best cached QA arm for that document.
 - **Risk/coverage:** mean oracle regret and accepted fraction at each requested
-  text-retention threshold. Documents need at least two scorable parser arms
-  for these comparative quantities. Coverage, risk, false-accept rate,
+  text-retention threshold. The deployment-style coverage denominator is every
+  eligible parser output; detector abstentions are rejected and remain in that
+  denominator. A separate `conditional_on_scorable_coverage` value is reported
+  only as a detector-behavior diagnostic. Coverage, risk, false-accept rate,
   concordance, selection regret, and selection accuracy carry deterministic
   document-bootstrap intervals when there is enough evidence.
+
+Selection and risk sections include document accounting with every lost
+document and its reason. Risk analysis retains documents whose parser outputs
+all abstain (all such outputs are rejected); selection cannot choose on those
+documents and reports them as lost due to `no_scorable_parser_output`.
 
 Results are emitted pooled, by corpus, and by corpus/parser. QASPER token F1
 and TAT-DQA numeric EM must not be interpreted as a single homogeneous metric;

@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean
-from typing import Any
+from typing import Any, cast
 
 from aksharamd.assessment import CandidateArtifact, SourceArtifact, assess_source_candidate
 from aksharamd.assessment.source_candidate import (
@@ -31,9 +31,16 @@ from aksharamd.assessment.source_candidate import (
     SOURCE_CANDIDATE_SCHEMA_VERSION,
 )
 
-DIAGNOSTIC_SCHEMA_VERSION = "track-c-v2-diagnostics-1"
-DIAGNOSTIC_CONTRACT_ID = "track-c-source-candidate-diagnostics-v2-exploratory-1"
+DIAGNOSTIC_SCHEMA_VERSION = "track-c-v2-diagnostics-2"
+DIAGNOSTIC_CONTRACT_ID = "track-c-source-candidate-diagnostics-v2-exploratory-2"
 SOURCE_RESOLUTION_CONTRACT_ID = "track-c-canonical-cache-layout-v1"
+ROOT = Path(__file__).resolve().parents[3]
+FROZEN_IDENTITY_MANIFEST_PATH = (
+    ROOT / "docs" / "evaluation" / "TRACK_C_V1_FROZEN_IDENTITY_MANIFEST.json"
+)
+FROZEN_IDENTITY_MANIFEST_SHA256 = (
+    "c9649a4169c72aaeb85677b39e5419e686abe3256d0ade7c1567274a5714974d"
+)
 V1_RESULT_SCHEMA_VERSION = "3"
 V1_METRIC_SCHEMA_VERSION = "3"
 V1_SCORING_CONTRACT_ID = "markdown_only_v1"
@@ -51,14 +58,6 @@ DEFAULT_BOOTSTRAP = 2_000
 DEFAULT_BAD_REGRET_MARGIN = 0.05
 PARSER_ARMS = frozenset({"aksharamd-reference", "marker", "docling", "markitdown"})
 KNOWN_ARMS = PARSER_ARMS | {"corpus_gold"}
-FROZEN_V1_DEFECTS = frozenset({
-    ("qasper", "1601.02403", "marker"),
-    ("qasper", "1603.01514", "aksharamd-reference"),
-    ("qasper", "1603.01514", "marker"),
-    ("qasper", "1603.08594", "marker"),
-    ("qasper", "1604.00400", "marker"),
-    ("qasper", "1606.03676", "marker"),
-})
 SHA256_ZERO = "0" * 64
 
 
@@ -108,6 +107,81 @@ def _load_json_object(path: Path) -> tuple[dict[str, Any], bytes, str]:
     if not isinstance(value, dict):
         raise EvidenceValidationError("JSON root must be an object")
     return value, raw, _sha256(raw)
+
+
+def _canonical_json_sha256(payload: dict[str, Any]) -> str:
+    raw = json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True,
+    ).encode("utf-8")
+    return _sha256(raw)
+
+
+def _load_frozen_identity_manifest(
+    path: Path = FROZEN_IDENTITY_MANIFEST_PATH,
+) -> frozenset[tuple[str, str, str, str]]:
+    payload, _, _ = _load_json_object(path)
+    actual_hash = _canonical_json_sha256(payload)
+    if actual_hash != FROZEN_IDENTITY_MANIFEST_SHA256:
+        raise EvidenceValidationError(
+            "frozen identity manifest hash mismatch: "
+            f"expected {FROZEN_IDENTITY_MANIFEST_SHA256}, got {actual_hash}"
+        )
+    expected_metadata = {
+        "schema_version": "track-c-v1-frozen-identity-manifest-1",
+        "stage1_execution_manifest_sha256": V1_STAGE1_EXECUTION_MANIFEST_SHA256,
+        "v1_result_schema_version": V1_RESULT_SCHEMA_VERSION,
+        "v1_metric_schema_version": V1_METRIC_SCHEMA_VERSION,
+        "v1_scoring_contract_id": V1_SCORING_CONTRACT_ID,
+    }
+    for field, expected in expected_metadata.items():
+        if payload.get(field) != expected:
+            raise EvidenceValidationError(f"frozen identity manifest {field} mismatch")
+    identities = _require_exact(payload.get("identities"), list, "manifest identities")
+    parsed: list[tuple[str, str, str, str]] = []
+    required_fields = {"corpus", "canonical_id", "parser_id", "execution_status"}
+    for index, row in enumerate(identities):
+        if not isinstance(row, dict) or set(row) != required_fields:
+            raise EvidenceValidationError(
+                f"manifest identities[{index}] must contain exactly {sorted(required_fields)!r}"
+            )
+        corpus = _require_exact(row["corpus"], str, "manifest corpus")
+        canonical_id = _require_exact(row["canonical_id"], str, "manifest canonical_id")
+        parser_id = _require_exact(row["parser_id"], str, "manifest parser_id")
+        status = _require_exact(row["execution_status"], str, "manifest execution_status")
+        if corpus not in {"qasper", "tat_dqa"} or parser_id not in KNOWN_ARMS:
+            raise EvidenceValidationError(f"unsupported manifest identity at index {index}")
+        if status not in {"EXECUTED", "DEFECT"}:
+            raise EvidenceValidationError(f"unsupported manifest status at index {index}")
+        parsed.append((corpus, canonical_id, parser_id, status))
+    inventory = frozenset(parsed)
+    if len(parsed) != 245 or len(inventory) != 245:
+        raise EvidenceValidationError("frozen identity manifest must contain 245 unique identities")
+    if sum(identity[3] == "EXECUTED" for identity in inventory) != 239:
+        raise EvidenceValidationError("frozen identity manifest must contain 239 EXECUTED identities")
+    if sum(identity[3] == "DEFECT" for identity in inventory) != 6:
+        raise EvidenceValidationError("frozen identity manifest must contain six DEFECT identities")
+    return inventory
+
+
+def _inventory_difference(
+    expected: frozenset[tuple[str, str, str, str]],
+    observed: set[tuple[str, str, str, str]],
+    discovered_count: int,
+) -> dict[str, Any] | None:
+    """Describe any exact-set/count mismatch, including duplicate discovery."""
+    missing = sorted(expected - observed)
+    unexpected = sorted(observed - expected)
+    duplicate_count = discovered_count - len(observed)
+    if not missing and not unexpected and duplicate_count == 0:
+        return None
+    return {
+        "expected_count": len(expected),
+        "discovered_count": discovered_count,
+        "validated_unique_count": len(observed),
+        "duplicate_or_unvalidated_count": duplicate_count,
+        "missing": missing,
+        "unexpected": unexpected,
+    }
 
 
 def _require_exact(value: Any, expected_type: type, name: str) -> Any:
@@ -179,8 +253,14 @@ def _validate_qa_cache(record: dict[str, Any]) -> None:
         status = row.get("status")
         if status not in {"answered", "no_gold"}:
             raise EvidenceValidationError(f"qa_results[{index}] has non-reusable status {status!r}")
-        question_id = row.get("question_id")
-        if type(question_id) not in {int, str} or question_id in seen_ids:
+        raw_question_id = row.get("question_id")
+        if type(raw_question_id) is int:
+            question_id: int | str = int(raw_question_id)
+        elif type(raw_question_id) is str:
+            question_id = str(raw_question_id)
+        else:
+            raise EvidenceValidationError("question_id values must be unique strings or integers")
+        if question_id in seen_ids:
             raise EvidenceValidationError("question_id values must be unique strings or integers")
         seen_ids.add(question_id)
         if status == "answered":
@@ -227,11 +307,12 @@ def _validate_execution_contract(execution: dict[str, Any]) -> None:
 def _validate_frozen_defect(
     record: dict[str, Any], pair_dir: Path, cache_root: Path,
     *, corpus: str, canonical_id: str, parser_id: str,
+    frozen_inventory: frozenset[tuple[str, str, str, str]],
 ) -> None:
-    identity = (corpus, canonical_id, parser_id)
-    if identity not in FROZEN_V1_DEFECTS:
+    identity = (corpus, canonical_id, parser_id, "DEFECT")
+    if identity not in frozen_inventory:
         raise EvidenceValidationError(f"unexpected V1 DEFECT identity: {identity!r}")
-    expected_values = {
+    expected_values: dict[str, object] = {
         "n_answered": 0,
         "n_llm_errors": 0,
         "em_score": None,
@@ -242,9 +323,11 @@ def _validate_frozen_defect(
         "llm_evaluated": False,
         "qa_results": [],
     }
-    for field, expected in expected_values.items():
-        if record.get(field) != expected:
-            raise EvidenceValidationError(f"DEFECT record {field} must equal {expected!r}")
+    for field, expected_value in expected_values.items():
+        if record.get(field) != expected_value:
+            raise EvidenceValidationError(
+                f"DEFECT record {field} must equal {expected_value!r}"
+            )
     n_pairs = _require_exact(record.get("n_qa_pairs"), int, "DEFECT n_qa_pairs")
     if n_pairs < 0:
         raise EvidenceValidationError("DEFECT n_qa_pairs must be nonnegative")
@@ -254,11 +337,11 @@ def _validate_frozen_defect(
     if not execution_path.is_file():
         raise EvidenceValidationError("DEFECT execution_record.json is missing")
     execution, _, _ = _load_json_object(execution_path)
-    for field, expected in (
+    for field, expected_value in (
         ("corpus", corpus), ("canonical_id", canonical_id),
         ("parser_id", parser_id), ("exit_status", "DEFECT"),
     ):
-        if execution.get(field) != expected:
+        if execution.get(field) != expected_value:
             raise EvidenceValidationError(f"DEFECT execution {field} mismatch")
     reason = _require_exact(execution.get("defect_reason"), str, "defect_reason")
     if not reason:
@@ -271,7 +354,12 @@ def _validate_frozen_defect(
     _resolve_source(cache_root, corpus, canonical_id)
 
 
-def _validate_pair(result_path: Path, run_dir: Path, cache_root: Path) -> ValidPair:
+def _validate_pair(
+    result_path: Path,
+    run_dir: Path,
+    cache_root: Path,
+    frozen_inventory: frozenset[tuple[str, str, str, str]] | None,
+) -> ValidPair:
     record, _, record_sha = _load_json_object(result_path)
     for name, expected in (
         ("schema_version", V1_RESULT_SCHEMA_VERSION),
@@ -298,9 +386,12 @@ def _validate_pair(result_path: Path, run_dir: Path, cache_root: Path) -> ValidP
         raise EvidenceValidationError("result path does not match record identity")
     execution_status = record.get("execution_status")
     if execution_status == "DEFECT":
+        if frozen_inventory is None:
+            raise EvidenceValidationError("DEFECT validation requires the frozen identity manifest")
         _validate_frozen_defect(
             record, pair_dir, cache_root,
             corpus=corpus, canonical_id=canonical_id, parser_id=parser_id,
+            frozen_inventory=frozen_inventory,
         )
         raise IneligibleV1Record("validated frozen V1 execution_status=DEFECT")
     if execution_status != "EXECUTED":
@@ -327,17 +418,18 @@ def _validate_pair(result_path: Path, run_dir: Path, cache_root: Path) -> ValidP
     if phase2_sha != _require_sha(record.get("input_sha256"), "input_sha256"):
         raise EvidenceValidationError("input_sha256 mismatch")
 
-    execution_path: Path | None = pair_dir / "execution_record.json"
+    receipt_path = pair_dir / "execution_record.json"
+    execution_path: Path | None = receipt_path
     execution_sha: str | None = None
     if parser_id == "corpus_gold":
         # This is a virtual annotation-derived ceiling arm, not a parser run.
-        if execution_path.exists():
+        if receipt_path.exists():
             raise EvidenceValidationError("corpus_gold unexpectedly has an execution receipt")
         execution_path = None
     else:
-        if not execution_path.is_file():
+        if not receipt_path.is_file():
             raise EvidenceValidationError("execution_record.json is missing")
-        execution, _, execution_sha = _load_json_object(execution_path)
+        execution, _, execution_sha = _load_json_object(receipt_path)
         for field, expected in (
             ("corpus", corpus), ("canonical_id", canonical_id),
             ("parser_id", parser_id), ("exit_status", "EXECUTED"),
@@ -366,7 +458,9 @@ def _validate_pair(result_path: Path, run_dir: Path, cache_root: Path) -> ValidP
 
 
 def discover_and_validate(
-    run_dir: Path, cache_root: Path,
+    run_dir: Path,
+    cache_root: Path,
+    frozen_inventory: frozenset[tuple[str, str, str, str]] | None = None,
 ) -> tuple[list[ValidPair], list[dict[str, str]], int]:
     """Return valid reusable records, exclusions, and discovered record count."""
     run_dir = run_dir.resolve()
@@ -376,7 +470,9 @@ def discover_and_validate(
     seen: set[tuple[str, str, str]] = set()
     for path in candidates:
         try:
-            pair = _validate_pair(path.resolve(), run_dir, cache_root.resolve())
+            pair = _validate_pair(
+                path.resolve(), run_dir, cache_root.resolve(), frozen_inventory,
+            )
             key = (pair.corpus, pair.canonical_id, pair.parser_id)
             if key in seen:
                 raise EvidenceValidationError("duplicate corpus/document/parser identity")
@@ -538,6 +634,68 @@ def _usable_rows(sidecars: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
+def _document_bundles(
+    sidecars: list[dict[str, Any]],
+) -> dict[tuple[str, str], dict[str, list[dict[str, Any]]]]:
+    """Group every cached QA arm and every eligible parser output by document."""
+    bundles: dict[tuple[str, str], dict[str, list[dict[str, Any]]]] = defaultdict(
+        lambda: {"oracle_rows": [], "eligible_rows": []}
+    )
+    for sidecar in sidecars:
+        identity = sidecar["identity"]
+        key = (identity["corpus"], identity["canonical_id"])
+        bundle = bundles[key]
+        qa = sidecar["cached_qa_metrics"].get("primary_score")
+        if qa is None:
+            continue
+        row = {
+            **identity,
+            "qa_score": float(qa),
+            "evidence_score": _text_score(sidecar),
+        }
+        bundle["oracle_rows"].append(row)
+        if identity["parser_id"] in PARSER_ARMS:
+            bundle["eligible_rows"].append(row)
+    for bundle in bundles.values():
+        bundle["oracle_rows"].sort(key=lambda row: row["parser_id"])
+        bundle["eligible_rows"].sort(key=lambda row: row["parser_id"])
+    return dict(sorted(bundles.items()))
+
+
+def _comparison_documents(
+    sidecars: list[dict[str, Any]], *, require_scorable: bool,
+) -> tuple[dict[tuple[str, str], dict[str, list[dict[str, Any]]]], dict[str, Any]]:
+    bundles = _document_bundles(sidecars)
+    included: dict[tuple[str, str], dict[str, list[dict[str, Any]]]] = {}
+    lost: list[dict[str, Any]] = []
+    for (corpus, canonical_id), bundle in bundles.items():
+        reasons: list[str] = []
+        if not bundle["oracle_rows"]:
+            reasons.append("no_cached_qa_oracle_arm")
+        if not bundle["eligible_rows"]:
+            reasons.append("no_eligible_parser_output")
+        if require_scorable and not any(
+            row["evidence_score"] is not None for row in bundle["eligible_rows"]
+        ):
+            reasons.append("no_scorable_parser_output")
+        if reasons:
+            lost.append({
+                "corpus": corpus,
+                "canonical_id": canonical_id,
+                "reasons": reasons,
+            })
+        else:
+            included[(corpus, canonical_id)] = bundle
+    reason_counts = Counter(reason for item in lost for reason in item["reasons"])
+    return included, {
+        "n_documents_observed": len(bundles),
+        "n_documents_included": len(included),
+        "n_documents_lost": len(lost),
+        "lost_reason_counts": dict(sorted(reason_counts.items())),
+        "lost_documents": lost,
+    }
+
+
 def _by_document(rows: list[dict[str, Any]]) -> dict[tuple[str, str], list[dict[str, Any]]]:
     result: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -570,7 +728,7 @@ def _pairwise_counts(documents: dict[tuple[str, str], list[dict[str, Any]]]) -> 
 
 
 def _bootstrap_documents(
-    documents: dict[tuple[str, str], list[dict[str, Any]]],
+    documents: dict[tuple[str, str], Any],
     statistic,
     *,
     n_bootstrap: int,
@@ -620,17 +778,24 @@ def _concordance(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, 
 
 
 def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, Any]:
-    documents = _by_document(_usable_rows(sidecars))
-    complete = {key: rows for key, rows in documents.items() if len(rows) >= 2}
+    documents, accounting = _comparison_documents(sidecars, require_scorable=True)
 
-    def document_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        oracle = max(row["qa_score"] for row in rows)
-        selected = min(rows, key=lambda row: (-row["evidence_score"], row["parser_id"]))
-        random_regret = mean(oracle - row["qa_score"] for row in rows)
-        fixed_regret = {row["parser_id"]: oracle - row["qa_score"] for row in rows}
+    def document_metrics(bundle: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+        oracle = max(row["qa_score"] for row in bundle["oracle_rows"])
+        scorable = [
+            row for row in bundle["eligible_rows"] if row["evidence_score"] is not None
+        ]
+        selected = min(
+            scorable, key=lambda row: (-float(row["evidence_score"]), row["parser_id"]),
+        )
+        random_regret = mean(oracle - row["qa_score"] for row in bundle["eligible_rows"])
+        fixed_regret = {
+            row["parser_id"]: oracle - row["qa_score"]
+            for row in bundle["eligible_rows"]
+        }
         fixed_correct = {
             row["parser_id"]: float(math.isclose(row["qa_score"], oracle, abs_tol=1e-12))
-            for row in rows
+            for row in bundle["eligible_rows"]
         }
         return {
             "selector_regret": oracle - selected["qa_score"],
@@ -647,8 +812,8 @@ def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, An
     random_accuracy: list[float] = []
     fixed_regrets: dict[str, list[float]] = defaultdict(list)
     fixed_correct: dict[str, list[float]] = defaultdict(list)
-    for rows in complete.values():
-        metrics = document_metrics(rows)
+    for bundle in documents.values():
+        metrics = document_metrics(bundle)
         selector_regrets.append(metrics["selector_regret"])
         selector_correct.append(metrics["selector_correct"])
         random_regrets.append(metrics["random_regret"])
@@ -659,7 +824,7 @@ def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, An
             fixed_correct[parser_id].append(correct)
     eligible_fixed = {
         parser_id: values for parser_id, values in fixed_regrets.items()
-        if len(values) == len(complete)
+        if len(values) == len(documents)
     }
     fixed_means = {parser_id: mean(values) for parser_id, values in eligible_fixed.items()}
     fixed_accuracy = {
@@ -667,24 +832,27 @@ def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, An
     }
     best_fixed = min(fixed_means, key=lambda parser_id: (fixed_means[parser_id], parser_id)) if fixed_means else None
 
-    def statistic(sample: list[list[dict[str, Any]]]) -> float | None:
-        return mean(document_metrics(rows)["selector_regret"] for rows in sample) if sample else None
+    def statistic(sample: list[dict[str, list[dict[str, Any]]]]) -> float | None:
+        return mean(document_metrics(bundle)["selector_regret"] for bundle in sample) if sample else None
 
-    def accuracy_statistic(sample: list[list[dict[str, Any]]]) -> float | None:
-        return mean(document_metrics(rows)["selector_correct"] for rows in sample) if sample else None
+    def accuracy_statistic(sample: list[dict[str, list[dict[str, Any]]]]) -> float | None:
+        return mean(document_metrics(bundle)["selector_correct"] for bundle in sample) if sample else None
 
     ci_low, ci_high = _bootstrap_documents(
-        complete, statistic, n_bootstrap=n_bootstrap, seed=2718,
+        documents, statistic, n_bootstrap=n_bootstrap, seed=2718,
     )
     accuracy_ci_low, accuracy_ci_high = _bootstrap_documents(
-        complete, accuracy_statistic, n_bootstrap=n_bootstrap, seed=3141,
+        documents, accuracy_statistic, n_bootstrap=n_bootstrap, seed=3141,
     )
     return {
         "definition": (
             f"Select max {TEXT_DETECTOR_ID} score; break ties by parser_id. Regret is the "
-            "document oracle cached primary_score minus selected cached primary_score."
+            "best cached primary_score across every arm (including corpus_gold when present) "
+            "minus selected cached primary_score. Random and fixed baselines use eligible parser "
+            "arms only and are evaluated on the same documents as the source-evidence selector."
         ),
-        "n_documents": len(complete),
+        "document_accounting": accounting,
+        "n_documents": len(documents),
         "source_evidence_selector_mean_regret": (
             round(mean(selector_regrets), 6) if selector_regrets else None
         ),
@@ -711,8 +879,8 @@ def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, An
         "random_parser_expected_top_one_accuracy": (
             round(mean(random_accuracy), 6) if random_accuracy else None
         ),
-        "oracle_mean_regret": 0.0 if complete else None,
-        "oracle_top_one_accuracy": 1.0 if complete else None,
+        "oracle_mean_regret": 0.0 if documents else None,
+        "oracle_top_one_accuracy": 1.0 if documents else None,
         "baseline_limitation": (
             "Best-fixed is estimated in-sample and is descriptive, not an out-of-sample policy estimate."
         ),
@@ -723,40 +891,49 @@ def _selection(sidecars: list[dict[str, Any]], n_bootstrap: int) -> dict[str, An
 def _risk_coverage(
     sidecars: list[dict[str, Any]], thresholds: tuple[int, ...], bad_regret_margin: float,
     n_bootstrap: int,
-) -> list[dict[str, Any]]:
-    documents = {
-        key: values
-        for key, values in _by_document(_usable_rows(sidecars)).items()
-        if len(values) >= 2
-    }
-    def metrics(sample: list[list[dict[str, Any]]], threshold: int) -> dict[str, float | int | None]:
-        total = sum(len(values) for values in sample)
+) -> dict[str, Any]:
+    documents, accounting = _comparison_documents(sidecars, require_scorable=False)
+
+    def metrics(
+        sample: list[dict[str, list[dict[str, Any]]]], threshold: int,
+    ) -> dict[str, float | int | None]:
+        eligible = sum(len(bundle["eligible_rows"]) for bundle in sample)
+        scorable = sum(
+            row["evidence_score"] is not None
+            for bundle in sample for row in bundle["eligible_rows"]
+        )
         accepted: list[tuple[dict[str, Any], float]] = []
-        for values in sample:
-            oracle = max(row["qa_score"] for row in values)
+        for bundle in sample:
+            oracle = max(row["qa_score"] for row in bundle["oracle_rows"])
             accepted.extend(
                 (row, oracle - row["qa_score"])
-                for row in values if row["evidence_score"] >= threshold
+                for row in bundle["eligible_rows"]
+                if row["evidence_score"] is not None and row["evidence_score"] >= threshold
             )
         regrets = [regret for _, regret in accepted]
         false_accepts = sum(regret >= bad_regret_margin for regret in regrets)
         return {
             "n_accepted": len(accepted),
-            "n_scorable": total,
-            "coverage": len(accepted) / total if total else None,
+            "n_eligible": eligible,
+            "n_scorable": scorable,
+            "n_abstained": eligible - scorable,
+            "coverage": len(accepted) / eligible if eligible else None,
+            "conditional_coverage": len(accepted) / scorable if scorable else None,
             "risk": mean(regrets) if regrets else None,
             "false_accepts": false_accepts,
             "false_accept_rate": false_accepts / len(accepted) if accepted else None,
         }
 
-    document_rows = list(documents.values())
+    document_bundles = list(documents.values())
     reports: list[dict[str, Any]] = []
     for threshold in thresholds:
-        observed = metrics(document_rows, threshold)
+        observed = metrics(document_bundles, threshold)
         cis: dict[str, list[float | None]] = {}
-        for offset, metric_name in enumerate(("coverage", "risk", "false_accept_rate")):
+        for offset, metric_name in enumerate(
+            ("coverage", "conditional_coverage", "risk", "false_accept_rate"),
+        ):
             def statistic(
-                sample: list[list[dict[str, Any]]], *, name: str = metric_name,
+                sample: list[dict[str, list[dict[str, Any]]]], *, name: str = metric_name,
             ) -> float | None:
                 value = metrics(sample, threshold)[name]
                 return float(value) if value is not None else None
@@ -770,12 +947,27 @@ def _risk_coverage(
             "threshold": threshold,
             "n_documents": len(documents),
             "n_accepted": observed["n_accepted"],
+            "n_eligible_outputs": observed["n_eligible"],
+            "n_rejected_outputs": (
+                cast(int, observed["n_eligible"]) - cast(int, observed["n_accepted"])
+            ),
             "n_scorable": observed["n_scorable"],
+            "n_abstained_rejected": observed["n_abstained"],
             "coverage": (
                 round(float(observed["coverage"]), 6)
                 if observed["coverage"] is not None else None
             ),
             "coverage_document_bootstrap_95_ci": cis["coverage"],
+            "coverage_definition": (
+                "accepted / all eligible parser outputs; detector abstentions are rejected"
+            ),
+            "conditional_on_scorable_coverage": (
+                round(float(observed["conditional_coverage"]), 6)
+                if observed["conditional_coverage"] is not None else None
+            ),
+            "conditional_on_scorable_coverage_document_bootstrap_95_ci": (
+                cis["conditional_coverage"]
+            ),
             "risk_mean_oracle_regret": (
                 round(float(observed["risk"]), 6) if observed["risk"] is not None else None
             ),
@@ -788,7 +980,10 @@ def _risk_coverage(
             "false_accept_rate_document_bootstrap_95_ci": cis["false_accept_rate"],
             "n_bootstrap": n_bootstrap,
         })
-    return reports
+    return {
+        "document_accounting": accounting,
+        "thresholds": reports,
+    }
 
 
 def _bootstrap_mean_ci(
@@ -859,6 +1054,9 @@ def build_report(
     }
     fatal_exclusions = [item for item in exclusions if item.get("category") != "v1_ineligible"]
     ineligible = [item for item in exclusions if item.get("category") == "v1_ineligible"]
+    risk_coverage = _risk_coverage(
+        sidecars, thresholds, bad_regret_margin, n_bootstrap,
+    )
     return {
         "schema_version": DIAGNOSTIC_SCHEMA_VERSION,
         "contract_id": DIAGNOSTIC_CONTRACT_ID,
@@ -868,6 +1066,12 @@ def build_report(
             "schema_version": SOURCE_CANDIDATE_SCHEMA_VERSION,
             "policy_id": SOURCE_CANDIDATE_POLICY_ID,
             "implementation_version": SOURCE_CANDIDATE_IMPLEMENTATION_VERSION,
+        },
+        "frozen_v1_identity_contract": {
+            "manifest_path": str(FROZEN_IDENTITY_MANIFEST_PATH),
+            "canonical_manifest_sha256": FROZEN_IDENTITY_MANIFEST_SHA256,
+            "stage1_execution_manifest_sha256": V1_STAGE1_EXECUTION_MANIFEST_SHA256,
+            "n_identities": 245,
         },
         "sidecar_inventory": [
             {
@@ -915,12 +1119,10 @@ def build_report(
         "risk_coverage": {
             "bad_outcome_definition": (
                 "Accepted output has cached primary_score at least bad_regret_margin below the "
-                "best assessed parser for the same document."
+                "best cached QA arm for the same document, including corpus_gold when present."
             ),
             "bad_regret_margin": bad_regret_margin,
-            "thresholds": _risk_coverage(
-                sidecars, thresholds, bad_regret_margin, n_bootstrap,
-            ),
+            **risk_coverage,
             "by_corpus": {
                 corpus: _risk_coverage(items, thresholds, bad_regret_margin, n_bootstrap)
                 for corpus, items in by_corpus.items()
@@ -966,23 +1168,38 @@ def execute(
         raise EvidenceValidationError("output_dir must not overlap the frozen V1 run_dir")
     if _paths_overlap(output_dir, cache_root):
         raise EvidenceValidationError("output_dir must not overlap the source cache root")
-    valid, exclusions, discovered = discover_and_validate(run_dir, cache_root)
+    frozen_inventory = _load_frozen_identity_manifest() if enforce_frozen_inventory else None
+    valid, exclusions, discovered = discover_and_validate(
+        run_dir, cache_root, frozen_inventory,
+    )
     if enforce_frozen_inventory:
-        found_defects = {
-            tuple(item["identity"].split("/"))
-            for item in exclusions
-            if item.get("category") == "v1_ineligible" and item.get("identity")
+        assert frozen_inventory is not None
+        observed_inventory = {
+            (pair.corpus, pair.canonical_id, pair.parser_id, "EXECUTED")
+            for pair in valid
         }
-        missing_defects = sorted(FROZEN_V1_DEFECTS - found_defects)
-        unexpected_defects = sorted(found_defects - FROZEN_V1_DEFECTS)
-        if discovered != 245 or len(valid) != 239 or missing_defects or unexpected_defects:
+        for item in exclusions:
+            if item.get("category") != "v1_ineligible" or not item.get("identity"):
+                continue
+            parts = item["identity"].split("/")
+            if len(parts) != 3:
+                continue
+            observed_inventory.add((parts[0], parts[1], parts[2], "DEFECT"))
+        difference = _inventory_difference(
+            frozen_inventory, observed_inventory, discovered,
+        )
+        if difference is not None:
             exclusions.append({
                 "path": str(run_dir.resolve()),
                 "category": "validation_failure",
                 "reason": (
-                    "frozen V1 inventory mismatch: expected 245 discovered, 239 executable, "
-                    f"and exact six defects; got discovered={discovered}, executable={len(valid)}, "
-                    f"missing_defects={missing_defects!r}, unexpected_defects={unexpected_defects!r}"
+                    "frozen V1 identity inventory mismatch: "
+                    f"expected={difference['expected_count']}, "
+                    f"discovered={difference['discovered_count']}, "
+                    f"validated_unique={difference['validated_unique_count']}, "
+                    f"duplicate_or_unvalidated={difference['duplicate_or_unvalidated_count']}, "
+                    f"missing={difference['missing'][:10]!r}, "
+                    f"unexpected={difference['unexpected'][:10]!r}"
                 ),
             })
             exclusions.sort(key=lambda item: (item["path"], item["reason"]))
