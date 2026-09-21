@@ -16,13 +16,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
 
 from .models import (
-    ASSESSMENT_SCHEMA_VERSION,
     DEFAULT_ASSESSMENT_POLICY_ID,
     GENERAL_INGESTION_POLICY_ID,
     TASK_PROFILE_NONE,
     AssessmentDisposition,
     EvidenceStatus,
     NextAction,
+    TaskProfile,
     Verdict,
     canonical_task_profile_sha256,
 )
@@ -30,7 +30,10 @@ from .text_preservation import SOURCE_TEXT_PRESERVATION_POLICY_ID
 
 GATE_MANIFEST_SCHEMA_VERSION = "1.0"
 GATE_REPORT_SCHEMA_VERSION = "1.0"
-_INVARIANT_FIELDS = ("schema_version", "policy_id", "source_hash", "task_profile_sha256")
+GateInvariant = Literal["schema_version", "policy_id", "source_hash", "task_profile_sha256"]
+_INVARIANT_FIELDS: tuple[GateInvariant, ...] = (
+    "schema_version", "policy_id", "source_hash", "task_profile_sha256",
+)
 _DIMENSIONS = frozenset({
     "conversion_fidelity",
     "structural_usability",
@@ -227,7 +230,7 @@ class GateAssessmentResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal[ASSESSMENT_SCHEMA_VERSION]
+    schema_version: Literal["1.0"]
     policy_id: str
     source_hash: str | None
     candidate_hash: str
@@ -343,7 +346,12 @@ class GateAssessmentEnvelope(BaseModel):
             raise ValueError("inconsistent source provenance")
         if self.assessment.candidate_hash != self.candidate.content_hash:
             raise ValueError("inconsistent candidate provenance")
-        expected_profile_hash = canonical_task_profile_sha256(self.task_profile)
+        profile = (
+            TaskProfile.model_validate(self.task_profile.model_dump(mode="json"))
+            if self.task_profile is not None
+            else None
+        )
+        expected_profile_hash = canonical_task_profile_sha256(profile)
         if self.assessment.task_profile_sha256 != expected_profile_hash:
             raise ValueError("envelope task profile does not match assessment task-profile identity")
         return self
@@ -355,9 +363,7 @@ class GatePolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     required_disposition: AssessmentDisposition = AssessmentDisposition.ACCEPT
-    required_invariants: list[
-        Literal["schema_version", "policy_id", "source_hash", "task_profile_sha256"]
-    ] = Field(
+    required_invariants: list[GateInvariant] = Field(
         default_factory=lambda: list(_INVARIANT_FIELDS)
     )
     deny_new_warnings: StrictBool = True
@@ -457,11 +463,7 @@ def _load_assessment(path: Path) -> tuple[GateAssessmentResult, str, str]:
         if "assessment" in payload:
             envelope = GateAssessmentEnvelope.model_validate(payload)
             assessment = envelope.assessment
-            task_profile_identity = (
-                canonical_task_profile_sha256(envelope.task_profile)
-                if envelope.task_profile is not None
-                else TASK_PROFILE_NONE
-            )
+            task_profile_identity = assessment.task_profile_sha256
         else:
             assessment = GateAssessmentResult.model_validate(payload)
             task_profile_identity = assessment.task_profile_sha256
