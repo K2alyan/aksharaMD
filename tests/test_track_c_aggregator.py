@@ -12,20 +12,10 @@ from __future__ import annotations
 
 import json
 import math
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-from benchmarks.eval_v1.stage2.aggregate_track_c import (
-    EXPLORATORY_REFERENCE_BY_CORPUS,
-    PRIMARY_REFERENCE,
-    _build_pairs,
-    _get_score,
-    _run_analysis,
-    _score_summary,
-    aggregate,
-)
 from benchmarks.eval_v1.stage1.run_track_c import (
     METRIC_SCHEMA_VERSION,
     PROMPT_SHA256,
@@ -34,7 +24,13 @@ from benchmarks.eval_v1.stage1.run_track_c import (
     _is_terminal_llm_error,
     _restorable_phase2_qa_results,
 )
-
+from benchmarks.eval_v1.stage2.aggregate_track_c import (
+    EXPLORATORY_REFERENCE_BY_CORPUS,
+    PRIMARY_REFERENCE,
+    _build_pairs,
+    _get_score,
+    aggregate,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures.
@@ -345,7 +341,6 @@ class TestClusteredBootstrap:
     def test_fewer_than_3_docs_returns_nan(self):
         """With only 2 unique documents Spearman is undefined — expect (nan, nan)."""
         from benchmarks.eval_v1.stage2.aggregate_track_c import _bootstrap_ci_clustered
-        import math
         pairs = [
             {"canonical_id": "d1", "parser_id": "A", "readiness_score": 80.0, "degradation": 0.1},
             {"canonical_id": "d2", "parser_id": "A", "readiness_score": 60.0, "degradation": 0.3},
@@ -356,7 +351,6 @@ class TestClusteredBootstrap:
     def test_constant_readiness_returns_nan(self):
         """If all documents have the same readiness_score Spearman is undefined."""
         from benchmarks.eval_v1.stage2.aggregate_track_c import _bootstrap_ci_clustered
-        import math
         pairs = [
             {"canonical_id": f"d{i}", "parser_id": "A", "readiness_score": 80.0, "degradation": float(i) * 0.1}
             for i in range(5)

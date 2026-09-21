@@ -14,6 +14,9 @@ def test_compile_saves_source_bound_assessment_for_markdown(tmp_path):
     report = json.loads((output / "quality_assessment.json").read_text(encoding="utf-8"))
     document_bytes = (output / "document.md").read_bytes()
     source_bytes = source.read_bytes()
+    assert report["binding_schema_version"] == "1.0"
+    assert report["assessment"]["schema_version"] == "1.1"
+    assert report["assessment"]["task_profile_sha256"] == "none"
     assert report["assessment"]["candidate_hash"] == hashlib.sha256(document_bytes).hexdigest()
     assert report["assessment"]["source_hash"] == hashlib.sha256(source_bytes).hexdigest()
     assert report["source"]["capture_id"] == ctx.capture_id

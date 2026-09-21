@@ -1,9 +1,17 @@
 import hashlib
 import json
 
+import pytest
 from click.testing import CliRunner
+from pydantic import ValidationError
 
-from aksharamd.assessment import AssessmentDisposition, Assessor, CandidateArtifact, SourceArtifact
+from aksharamd.assessment import (
+    AssessmentDisposition,
+    AssessmentResult,
+    Assessor,
+    CandidateArtifact,
+    SourceArtifact,
+)
 from aksharamd.cli import main
 
 
@@ -42,6 +50,21 @@ def test_clean_text_candidate_is_accepted():
         candidate=_artifact(CandidateArtifact, "Due 2026-09-07: 12 kg"),
     )
     assert result.disposition == AssessmentDisposition.ACCEPT
+    assert result.schema_version == "1.1"
+    assert result.task_profile_sha256 == "none"
+
+
+def test_legacy_assessment_schema_requires_regeneration():
+    result = Assessor().assess(
+        source=_artifact(SourceArtifact, "Invoice 42: $18"),
+        candidate=_artifact(CandidateArtifact, "Invoice 42: $18"),
+    )
+    legacy = result.model_dump(mode="json")
+    legacy["schema_version"] = "1.0"
+    legacy.pop("task_profile_sha256")
+
+    with pytest.raises(ValidationError, match="lacks task-profile provenance"):
+        AssessmentResult.model_validate(legacy)
 
 
 def test_assess_cli_emits_machine_readable_report(tmp_path):
@@ -51,4 +74,6 @@ def test_assess_cli_emits_machine_readable_report(tmp_path):
     candidate.write_text("Invoice 42: $18", encoding="utf-8")
     result = CliRunner().invoke(main, ["assess", str(candidate), "--source", str(source), "--json"])
     assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["disposition"] == "ACCEPT"
+    report = json.loads(result.output)
+    assert report["schema_version"] == "1.1"
+    assert report["disposition"] == "ACCEPT"

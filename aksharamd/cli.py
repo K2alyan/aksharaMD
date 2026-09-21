@@ -470,6 +470,53 @@ def assess(candidate: Path, source: Path | None, task_profile: Path | None, poli
         raise SystemExit(2)
 
 
+@main.command("gate")
+@click.argument("manifest", type=click.Path(dir_okay=False, path_type=Path))
+@click.option("--json", "output_json", is_flag=True, default=False,
+              help="Emit the versioned gate report as JSON.")
+def gate(manifest: Path, output_json: bool) -> None:
+    """Compare saved baseline and candidate assessments for CI releases.
+
+    Exit status is 0 when every comparison passes, 2 when policy denies a
+    regression, and 1 when the manifest or an assessment artifact is invalid.
+    This command is local and does not parse documents or call a model.
+    """
+    import json as _json
+
+    from .assessment.gate import GateInputError, evaluate_gate
+
+    try:
+        report = evaluate_gate(manifest)
+    except GateInputError as exc:
+        if output_json:
+            click.echo(_json.dumps({
+                "schema_version": "1.0",
+                "gate": "parser-regression",
+                "status": "ERROR",
+                "error": {"code": "INVALID_INPUT", "message": str(exc)},
+            }, sort_keys=True))
+            raise SystemExit(1) from exc
+        raise click.ClickException(str(exc)) from exc
+
+    if output_json:
+        click.echo(_json.dumps(report, sort_keys=True))
+    else:
+        summary = report["summary"]
+        click.echo(
+            f"Gate {report['status']}: {summary['passed']}/{summary['comparisons']} passed, "
+            f"{summary['denied']} denied"
+        )
+        for result in report["results"]:
+            click.echo(f"  {result['status']:4}  {result['id']}")
+            for failure in result["failures"]:
+                detail = failure.get("invariant") or ", ".join(failure.get("warning_codes", []))
+                click.echo(f"        {failure['code']}{f': {detail}' if detail else ''}")
+        click.echo("Scope: deterministic assessment regression evidence; not calibrated QA prediction.")
+
+    if report["status"] != "PASS":
+        raise SystemExit(2)
+
+
 @main.command()
 @click.argument("source", type=_SourceArg())
 @click.option("-o", "--output", default="output", show_default=True, help="Output directory")
