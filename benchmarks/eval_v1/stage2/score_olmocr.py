@@ -13,7 +13,8 @@ Public API
 ----------
 load_all_unit_tests(bench_data_dir) -> dict[str, list]
 replay_and_score(
-    record_path, pdf_dir, unit_tests, root, benchmark_test_inventory_sha256
+    record_path, pdf_dir, unit_tests, root, benchmark_test_inventory_sha256,
+    expected_assertions_by_document
 ) -> dict
 """
 
@@ -30,6 +31,8 @@ from typing import Any
 
 from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     STAGE2_SCORER_CONTRACT_ID,
+    AssertionInventory,
+    assertion_set_sha256,
 )
 
 # ---------------------------------------------------------------------------
@@ -102,7 +105,7 @@ _OFFLINE_ENV = {
     "DOCLING_ARTIFACTS_OFFLINE": "1",
 }
 
-STAGE2_SCHEMA_VERSION = "2"
+STAGE2_SCHEMA_VERSION = "3"
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +194,7 @@ def load_all_unit_tests(
     bench_data_dir: Path,
     *,
     expected_document_count: int = 1403,
+    expected_assertions_by_document: AssertionInventory | None = None,
 ) -> dict[str, list]:
     """Load all olmOCR benchmark unit tests.
 
@@ -228,6 +232,12 @@ def load_all_unit_tests(
         ) from exc
 
     expected_rows = _load_assertion_rows(bench_data_dir, expected_document_count=expected_document_count)
+    parsed_signatures = {
+        canonical_id: tuple((data["id"], data["type"]) for data, _, _ in rows)
+        for canonical_id, rows in expected_rows.items()
+    }
+    if expected_assertions_by_document is not None and parsed_signatures != expected_assertions_by_document:
+        raise RuntimeError("parsed assertion IDs/types differ from verified frozen inventory")
     unit_tests: dict[str, list] = {}
 
     for canonical_id, rows in expected_rows.items():
@@ -244,19 +254,20 @@ def load_all_unit_tests(
                     f"unsupported benchmark assertion at {jsonl_path}:{line_number} id={data['id']!r}: {exc}"
                 ) from exc
             loaded_id = getattr(test_obj, "id", None)
-            if loaded_id != data["id"]:
+            loaded_type = getattr(test_obj, "type", None)
+            if (loaded_id, loaded_type) != (data["id"], data["type"]):
                 raise RuntimeError(
-                    f"loaded assertion identity drift at "
-                    f"{jsonl_path}:{line_number}: expected={data['id']!r} "
-                    f"actual={loaded_id!r}"
+                    f"loaded assertion identity/type drift at "
+                    f"{jsonl_path}:{line_number}: expected={(data['id'], data['type'])!r} "
+                    f"actual={(loaded_id, loaded_type)!r}"
                 )
             unit_tests.setdefault(canonical_id, []).append(test_obj)
 
     expected_signatures = {
-        canonical_id: [data["id"] for data, _, _ in rows] for canonical_id, rows in expected_rows.items()
+        canonical_id: list(signatures) for canonical_id, signatures in parsed_signatures.items()
     }
     loaded_signatures = {
-        canonical_id: [getattr(test, "id", None) for test in tests]
+        canonical_id: [(getattr(test, "id", None), getattr(test, "type", None)) for test in tests]
         for canonical_id, tests in unit_tests.items()
     }
     if loaded_signatures != expected_signatures:
@@ -350,6 +361,7 @@ def replay_and_score(
     unit_tests: dict[str, list],
     root: Path,
     benchmark_test_inventory_sha256: str,
+    expected_assertions_by_document: AssertionInventory,
 ) -> dict[str, Any]:
     """Replay a Stage 1 execution record and produce a Stage 2 result dict.
 
@@ -376,6 +388,7 @@ def replay_and_score(
     canonical_id: str = record["canonical_id"]
     parser_id: str = record["parser_id"]
     exit_status: str = record.get("exit_status", "")
+    expected_assertions = expected_assertions_by_document.get(canonical_id, ())
 
     source_pdf_sha256: str | None = None
 
@@ -397,6 +410,8 @@ def replay_and_score(
             "scored_at": _now_utc(),
             "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
             "benchmark_test_inventory_sha256": benchmark_test_inventory_sha256,
+            "expected_assertion_count": len(expected_assertions),
+            "assertion_set_sha256": assertion_set_sha256(expected_assertions),
             "stage1_execution_manifest_sha256": record.get("stage1_execution_manifest_sha256"),
             "stage1_output_sha256": record.get("output_sha256"),
             "stage1_exit_status": exit_status,

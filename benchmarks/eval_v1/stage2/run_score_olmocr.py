@@ -29,7 +29,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,6 +49,7 @@ from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    load_verified_assertion_inventory,
     verified_benchmark_test_inventory_sha256,
 )
 
@@ -69,6 +72,28 @@ def _progress_line(i: int, total: int, canonical_id: str, parser_id: str, status
     return f"[{i}/{total}] {canonical_id} x {parser_id} -> {status} ({elapsed:.1f}s)"
 
 
+def _atomic_write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            json.dump(payload, handle, indent=2, ensure_ascii=False, allow_nan=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
+
+
 # ---------------------------------------------------------------------------
 # Main.
 # ---------------------------------------------------------------------------
@@ -89,6 +114,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Only process records for this parser_id.",
     )
+    parser.add_argument(
+        "--allow-partial-results",
+        action="store_true",
+        help="Return zero despite harness errors or nonterminal replay results.",
+    )
     args = parser.parse_args(argv)
 
     # ------------------------------------------------------------------ #
@@ -107,22 +137,32 @@ def main(argv: list[str] | None = None) -> int:
     # ------------------------------------------------------------------ #
     # Load unit tests (done once).
     # ------------------------------------------------------------------ #
-    if not args.dry_run:
-        print("Loading olmOCR unit tests …", flush=True)
-        from benchmarks.eval_v1.stage2.score_olmocr import load_all_unit_tests  # noqa: PLC0415
-
-        unit_tests = load_all_unit_tests(BENCH_DATA_DIR)
-    else:
-        unit_tests = {}
     try:
         test_inventory_sha256 = verified_benchmark_test_inventory_sha256(
             OLMOCR_ACQUISITION_PATH,
             BENCH_DATA_DIR,
             expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
         )
+        expected_assertions_by_document = load_verified_assertion_inventory(
+            OLMOCR_ACQUISITION_PATH,
+            BENCH_DATA_DIR,
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
+            expected_document_count=FROZEN_OLMOCR_N_PDFS,
+        )
     except OlmocrHygieneError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
+    if not args.dry_run:
+        print("Loading olmOCR unit tests …", flush=True)
+        from benchmarks.eval_v1.stage2.score_olmocr import load_all_unit_tests  # noqa: PLC0415
+
+        unit_tests = load_all_unit_tests(
+            BENCH_DATA_DIR,
+            expected_document_count=FROZEN_OLMOCR_N_PDFS,
+            expected_assertions_by_document=expected_assertions_by_document,
+        )
+    else:
+        unit_tests = {}
     try:
         expected_pairs_from_frozen_acquisition(
             OLMOCR_ACQUISITION_PATH,
@@ -154,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
             authoritative_execution_records=unique_records,
         )
     except OlmocrHygieneError as exc:
@@ -166,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             r,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
         )
     }
     all_records = unique_records
@@ -191,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
 
     counters: dict[str, int] = {}
     wall_total = 0.0
+    n_failures = 0
 
     for i, (record_path, record) in enumerate(all_records, 1):
         # Derive identifiers for progress display.
@@ -219,12 +262,14 @@ def main(argv: list[str] | None = None) -> int:
                 unit_tests=unit_tests,
                 root=ROOT,
                 benchmark_test_inventory_sha256=test_inventory_sha256,
+                expected_assertions_by_document=expected_assertions_by_document,
             )
         except Exception as exc:  # noqa: BLE001
             elapsed = time.monotonic() - t0
             wall_total += elapsed
             status = "HARNESS_ERROR"
             counters[status] = counters.get(status, 0) + 1
+            n_failures += 1
             print(_progress_line(i, total, canonical_id, parser_id, status, elapsed))
             print(f"  ERROR: {exc}", file=sys.stderr)
             continue
@@ -233,13 +278,17 @@ def main(argv: list[str] | None = None) -> int:
         wall_total += elapsed
         status = result.get("status", "UNKNOWN")
         counters[status] = counters.get(status, 0) + 1
+        if not is_terminal_stage2_result(
+            result,
+            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+            expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
+        ):
+            n_failures += 1
 
         # Write result.
         result_path = record_path.parent / RESULT_FILENAME
-        result_path.write_text(
-            json.dumps(result, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        _atomic_write_json(result_path, result)
 
         print(_progress_line(i, total, canonical_id, parser_id, status, elapsed))
 
@@ -247,7 +296,7 @@ def main(argv: list[str] | None = None) -> int:
     # Summary.
     # ------------------------------------------------------------------ #
     summary = {
-        "stage2_summary_schema_version": "2",
+        "stage2_summary_schema_version": "3",
         "run_date": _now_date(),
         "stage1_run_dir": str(STAGE1_RUN_DIR),
         "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
@@ -255,14 +304,12 @@ def main(argv: list[str] | None = None) -> int:
         "total_records": total,
         "status_counts": counters,
         "wall_clock_seconds": round(wall_total, 2),
+        "n_failures": n_failures,
     }
 
     summary_path = ROOT / "benchmarks" / "results" / f"stage2-olmocr-{_now_date()}-summary.json"
     if not args.dry_run:
-        summary_path.write_text(
-            json.dumps(summary, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        _atomic_write_json(summary_path, summary)
         print(f"\nSummary written to: {summary_path}")
 
     print("\nStatus counts:")
@@ -270,6 +317,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {status}: {count}")
     print(f"Total wall time: {wall_total:.1f}s")
 
+    if n_failures and not args.allow_partial_results:
+        print(
+            f"ERROR: {n_failures} harness/nonterminal result(s); "
+            "use --allow-partial-results only for intentional partial runs.",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

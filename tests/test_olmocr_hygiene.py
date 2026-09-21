@@ -10,19 +10,22 @@ from types import SimpleNamespace
 import pytest
 
 from benchmarks.eval_v1.stage1.run_track_a_olmocr import MANIFEST_SHA
-from benchmarks.eval_v1.stage2 import aggregate_olmocr
+from benchmarks.eval_v1.stage2 import aggregate_olmocr, run_score_olmocr
 from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     BENCHMARK_TEST_FILENAMES,
     FROZEN_PARSER_IDS,
     STAGE2_SCORER_CONTRACT_ID,
     OlmocrHygieneError,
+    assertion_set_sha256,
     build_completeness_report,
     expected_pairs_from_frozen_acquisition,
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    load_verified_assertion_inventory,
     verified_benchmark_test_inventory_sha256,
 )
+from benchmarks.eval_v1.stage2.run_score_olmocr import _atomic_write_json
 from benchmarks.eval_v1.stage2.score_olmocr import (
     _load_assertion_rows,
     _readiness_band,
@@ -31,6 +34,11 @@ from benchmarks.eval_v1.stage2.score_olmocr import (
 )
 
 TEST_INVENTORY_SHA = "d" * 64
+TEST_ASSERTIONS = {
+    "doc": (("t1", "present"),),
+    "tables/doc": (("t1", "present"),),
+    "tables/doc-1": (("t1", "present"),),
+}
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -80,7 +88,7 @@ def _result(
     _write_json(
         path,
         {
-            "stage2_schema_version": "2",
+            "stage2_schema_version": "3",
             "canonical_id": canonical_id,
             "parser_id": parser_id,
             "status": status,
@@ -89,6 +97,8 @@ def _result(
             "readiness_score": readiness_score,
             "stage2_scorer_contract_id": scorer_contract_id,
             "benchmark_test_inventory_sha256": test_inventory_sha,
+            "expected_assertion_count": len(TEST_ASSERTIONS[canonical_id]),
+            "assertion_set_sha256": assertion_set_sha256(TEST_ASSERTIONS[canonical_id]),
             "warning_codes": [],
             "n_tests": 1,
             "n_passed": 1,
@@ -102,19 +112,21 @@ def _result(
 
 def _valid_result_dict(parser_id: str = "aksharamd-reference") -> dict:
     return {
-        "stage2_schema_version": "2",
+        "stage2_schema_version": "3",
         "canonical_id": "doc",
         "parser_id": parser_id,
         "status": "SCORED",
         "stage1_exit_status": "EXECUTED",
         "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
         "benchmark_test_inventory_sha256": TEST_INVENTORY_SHA,
+        "expected_assertion_count": 1,
+        "assertion_set_sha256": assertion_set_sha256(TEST_ASSERTIONS["doc"]),
         "sha_verified": True,
         "readiness_score": 95,
         "n_tests": 1,
         "n_passed": 1,
         "n_failed": 0,
-        "test_results": [{"test_id": "t1", "passed": True}],
+        "test_results": [{"test_id": "t1", "test_type": "present", "passed": True}],
     }
 
 
@@ -164,6 +176,7 @@ def _load_results(root: Path) -> tuple[list[dict], object]:
         expected_manifest_sha=MANIFEST_SHA,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
         authoritative_execution_records=records,
     )
 
@@ -258,6 +271,7 @@ def test_orphan_result_cannot_claim_terminal_status(tmp_path: Path) -> None:
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+            expected_assertions_by_document=TEST_ASSERTIONS,
             authoritative_execution_records=[],
         )
 
@@ -288,6 +302,7 @@ def test_completeness_uses_unique_terminal_pairs() -> None:
         expected,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     assert report["is_complete"] is True
     assert report["n_expected_pairs"] == 4
@@ -300,6 +315,7 @@ def test_completeness_uses_unique_terminal_pairs() -> None:
         expected,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     assert report["n_missing_pairs"] == 0
     assert report["n_nonterminal_pairs"] == 1
@@ -323,15 +339,60 @@ def test_invalid_scored_terminal_is_replayable(field: str, value: object) -> Non
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     report = build_completeness_report(
         [result],
         {("doc", "aksharamd-reference")},
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     assert report["n_complete_pairs"] == 0
     assert report["n_nonterminal_pairs"] == 1
+
+
+@pytest.mark.parametrize(
+    "test_results",
+    [
+        [],
+        [{"test_id": "fabricated", "test_type": "present", "passed": True}],
+        [
+            {"test_id": "t1", "test_type": "present", "passed": True},
+            {"test_id": "t1", "test_type": "present", "passed": True},
+        ],
+        [{"test_id": "t1", "test_type": "table", "passed": True}],
+        [{"test_id": "other-doc-test", "test_type": "present", "passed": True}],
+    ],
+    ids=["missing", "fabricated", "duplicate", "wrong-type", "wrong-document"],
+)
+def test_scored_terminal_requires_exact_frozen_assertion_set(test_results: list[dict]) -> None:
+    result = _valid_result_dict()
+    result["test_results"] = test_results
+    result["n_tests"] = len(test_results)
+    result["n_passed"] = len(test_results)
+    result["n_failed"] = 0
+    assert not is_terminal_stage2_result(
+        result,
+        expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+        expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document={
+            **TEST_ASSERTIONS,
+            "other/doc": (("other-doc-test", "present"),),
+        },
+    )
+
+
+def test_assertion_set_provenance_is_required_and_auditable() -> None:
+    result = _valid_result_dict()
+    assert result["assertion_set_sha256"] == assertion_set_sha256(TEST_ASSERTIONS["doc"])
+    result["assertion_set_sha256"] = "0" * 64
+    assert not is_terminal_stage2_result(
+        result,
+        expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+        expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
+    )
 
 
 def test_scored_requires_nonempty_consistent_test_results() -> None:
@@ -341,6 +402,7 @@ def test_scored_requires_nonempty_consistent_test_results() -> None:
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
 
 
@@ -351,16 +413,18 @@ def test_skipped_defect_requires_matching_stage1_defect() -> None:
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     result["stage1_exit_status"] = "DEFECT"
     assert is_terminal_stage2_result(
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
 
 
-def test_scorer_emits_v2_contract_for_stage1_defect(tmp_path: Path) -> None:
+def test_scorer_emits_v3_contract_for_stage1_defect(tmp_path: Path) -> None:
     record_path = tmp_path / "execution_record.json"
     _write_json(
         record_path,
@@ -379,15 +443,19 @@ def test_scorer_emits_v2_contract_for_stage1_defect(tmp_path: Path) -> None:
         unit_tests={},
         root=tmp_path,
         benchmark_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
-    assert result["stage2_schema_version"] == "2"
+    assert result["stage2_schema_version"] == "3"
     assert result["stage2_scorer_contract_id"] == STAGE2_SCORER_CONTRACT_ID
     assert result["benchmark_test_inventory_sha256"] == TEST_INVENTORY_SHA
+    assert result["expected_assertion_count"] == 1
+    assert result["assertion_set_sha256"] == assertion_set_sha256(TEST_ASSERTIONS["tables/doc"])
     assert result["stage1_exit_status"] == "DEFECT"
     assert is_terminal_stage2_result(
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
 
 
@@ -402,13 +470,15 @@ def test_changed_scorer_or_test_inventory_invalidates_terminal() -> None:
     result = _valid_result_dict()
     assert not is_terminal_stage2_result(
         result,
-        expected_scorer_contract_id="olmocr_stage2_v3",
+        expected_scorer_contract_id="olmocr_stage2_v4",
         expected_test_inventory_sha256=TEST_INVENTORY_SHA,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
     assert not is_terminal_stage2_result(
         result,
         expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
         expected_test_inventory_sha256="e" * 64,
+        expected_assertions_by_document=TEST_ASSERTIONS,
     )
 
 
@@ -503,6 +573,30 @@ def test_assertion_row_loader_fails_closed(tmp_path: Path, failure: str) -> None
         _load_assertion_rows(bench_data, expected_document_count=7)
 
 
+def test_verified_assertion_inventory_pins_ids_types_and_documents(tmp_path: Path) -> None:
+    bench_data = _make_assertion_inventory(tmp_path / "bench_data")
+    files = []
+    for filename in BENCHMARK_TEST_FILENAMES:
+        path = bench_data / filename
+        files.append(
+            {
+                "path": f"bench_data/{filename}",
+                "status": "verified",
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    receipt = tmp_path / "acquisition.json"
+    _write_json(receipt, {"files": files})
+    inventory = load_verified_assertion_inventory(
+        receipt,
+        bench_data,
+        expected_receipt_sha256=hashlib.sha256(receipt.read_bytes()).hexdigest(),
+        expected_document_count=7,
+    )
+    assert inventory["tables/doc-6"] == (("assertion-6", "present"),)
+    assert len(inventory) == 7
+
+
 def test_benchmark_loader_rejects_unsupported_assertion(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -531,7 +625,9 @@ def test_benchmark_loader_preserves_all_frozen_ids_and_counts(
     olmocr_module = types.ModuleType("olmocr")
     bench_module = types.ModuleType("olmocr.bench")
     tests_module = types.ModuleType("olmocr.bench.tests")
-    tests_module.load_single_test = lambda data: SimpleNamespace(id=data["id"])  # type: ignore[attr-defined]
+    tests_module.load_single_test = lambda data: SimpleNamespace(  # type: ignore[attr-defined]
+        id=data["id"], type=data["type"]
+    )
     monkeypatch.setitem(sys.modules, "olmocr", olmocr_module)
     monkeypatch.setitem(sys.modules, "olmocr.bench", bench_module)
     monkeypatch.setitem(sys.modules, "olmocr.bench.tests", tests_module)
@@ -548,11 +644,13 @@ def test_benchmark_loader_rejects_loaded_identity_drift(
     olmocr_module = types.ModuleType("olmocr")
     bench_module = types.ModuleType("olmocr.bench")
     tests_module = types.ModuleType("olmocr.bench.tests")
-    tests_module.load_single_test = lambda _data: SimpleNamespace(id="wrong")  # type: ignore[attr-defined]
+    tests_module.load_single_test = lambda _data: SimpleNamespace(  # type: ignore[attr-defined]
+        id="wrong", type="present"
+    )
     monkeypatch.setitem(sys.modules, "olmocr", olmocr_module)
     monkeypatch.setitem(sys.modules, "olmocr.bench", bench_module)
     monkeypatch.setitem(sys.modules, "olmocr.bench.tests", tests_module)
-    with pytest.raises(RuntimeError, match="identity drift"):
+    with pytest.raises(RuntimeError, match="identity/type drift"):
         load_all_unit_tests(bench_data, expected_document_count=7)
 
 
@@ -565,6 +663,11 @@ def test_incomplete_aggregation_blocks_by_default_and_withholds_track_b(
     receipt, pdf_dir, receipt_sha, inventory_sha = _make_frozen_inventory(tmp_path, ("tables/doc-1",))
     monkeypatch.setattr(aggregate_olmocr, "FROZEN_OLMOCR_ACQUISITION_SHA", receipt_sha)
     monkeypatch.setattr(aggregate_olmocr, "FROZEN_OLMOCR_N_PDFS", 1)
+    monkeypatch.setattr(
+        aggregate_olmocr,
+        "load_verified_assertion_inventory",
+        lambda *args, **kwargs: {"tables/doc-1": (("t1", "present"),)},
+    )
     execution = _execution(run_dir, "copy")
     _result(execution, test_inventory_sha=inventory_sha)
 
@@ -590,3 +693,88 @@ def test_incomplete_aggregation_blocks_by_default_and_withholds_track_b(
     assert payload["completeness"]["is_complete"] is False
     assert payload["track_b_allocation_manifest_path"] is None
     assert not list(out_dir.glob("track-b-allocation-manifest-*.json"))
+
+
+def test_strict_aggregate_json_normalizes_nonfinite_values() -> None:
+    encoded = aggregate_olmocr._strict_json_text(  # noqa: SLF001
+        {"nan": float("nan"), "nested": [float("inf"), -float("inf"), 1.0]}
+    )
+    assert "NaN" not in encoded
+    assert "Infinity" not in encoded
+    assert json.loads(encoded) == {"nan": None, "nested": [None, None, 1.0]}
+
+
+def test_atomic_result_write_preserves_previous_file_on_publish_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "stage2_olmocr_result.json"
+    target.write_text('{"old": true}', encoding="utf-8")
+
+    def fail_replace(_source: Path, _target: Path) -> None:
+        raise OSError("simulated publish failure")
+
+    monkeypatch.setattr(run_score_olmocr.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="publish failure"):
+        _atomic_write_json(target, {"new": True})
+    assert json.loads(target.read_text(encoding="utf-8")) == {"old": True}
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_runner_fails_nonterminal_results_unless_partial_mode_is_explicit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "run"
+    pdf_dir = tmp_path / "bench_data" / "pdfs"
+    bench_dir = pdf_dir.parent
+    record_path = run_dir / "tables" / "doc-1" / "marker" / "execution_record.json"
+    for path in (run_dir, pdf_dir, bench_dir):
+        path.mkdir(parents=True, exist_ok=True)
+    record = {
+        "canonical_id": "tables/doc-1",
+        "parser_id": "marker",
+        "exit_status": "EXECUTED",
+    }
+    _write_json(record_path, record)
+    monkeypatch.setattr(run_score_olmocr, "STAGE1_RUN_DIR", run_dir)
+    monkeypatch.setattr(run_score_olmocr, "OLMOCR_PDFS_DIR", pdf_dir)
+    monkeypatch.setattr(run_score_olmocr, "BENCH_DATA_DIR", bench_dir)
+    monkeypatch.setattr(run_score_olmocr, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        run_score_olmocr, "verified_benchmark_test_inventory_sha256", lambda *a, **k: TEST_INVENTORY_SHA
+    )
+    monkeypatch.setattr(
+        run_score_olmocr,
+        "load_verified_assertion_inventory",
+        lambda *a, **k: {"tables/doc-1": (("t1", "present"),)},
+    )
+    monkeypatch.setattr(run_score_olmocr, "expected_pairs_from_frozen_acquisition", lambda *a, **k: set())
+    monkeypatch.setattr(
+        run_score_olmocr,
+        "load_unique_execution_records",
+        lambda *a, **k: ([(record_path, record)], SimpleNamespace(files_seen=1, duplicate_files=0)),
+    )
+    monkeypatch.setattr(
+        run_score_olmocr,
+        "load_unique_stage2_results",
+        lambda *a, **k: ([], SimpleNamespace(duplicate_files=0)),
+    )
+    monkeypatch.setattr(run_score_olmocr, "_atomic_write_json", lambda *a, **k: None)
+    monkeypatch.setattr(
+        sys.modules["benchmarks.eval_v1.stage2.score_olmocr"],
+        "load_all_unit_tests",
+        lambda *a, **k: {"tables/doc-1": [object()]},
+    )
+    monkeypatch.setattr(
+        sys.modules["benchmarks.eval_v1.stage2.score_olmocr"],
+        "replay_and_score",
+        lambda **kwargs: {
+            "canonical_id": "tables/doc-1",
+            "parser_id": "marker",
+            "status": "REPLAY_DEFECT",
+        },
+    )
+
+    assert run_score_olmocr.main([]) == 1
+    assert run_score_olmocr.main(["--allow-partial-results"]) == 0

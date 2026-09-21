@@ -23,7 +23,7 @@ FROZEN_PARSER_IDS = (
     "markitdown",
 )
 TERMINAL_STAGE2_STATUSES = frozenset({"SCORED", "SKIPPED_DEFECT"})
-STAGE2_SCORER_CONTRACT_ID = "olmocr_stage2_v2"
+STAGE2_SCORER_CONTRACT_ID = "olmocr_stage2_v3"
 FROZEN_OLMOCR_N_PDFS = 1403
 BENCHMARK_TEST_FILENAMES = (
     "arxiv_math.jsonl",
@@ -34,6 +34,16 @@ BENCHMARK_TEST_FILENAMES = (
     "old_scans_math.jsonl",
     "table_tests.jsonl",
 )
+_BENCHMARK_PREFIXES = {
+    "arxiv_math.jsonl": "arxiv_math/",
+    "headers_footers.jsonl": "headers_footers/",
+    "long_tiny_text.jsonl": "long_tiny_text/",
+    "multi_column.jsonl": "multi_column/",
+    "old_scans.jsonl": "old_scans/",
+    "old_scans_math.jsonl": "old_scans_math/",
+    "table_tests.jsonl": "tables/",
+}
+AssertionInventory = dict[str, tuple[tuple[str, str], ...]]
 _INPUT_HASH_FIELDS = ("source_pdf_sha256", "input_sha256", "pdf_sha256")
 _OUTPUT_HASH_FIELDS = ("stage1_output_sha256", "output_sha256")
 
@@ -158,11 +168,65 @@ def verified_benchmark_test_inventory_sha256(
     return digest.hexdigest()
 
 
+def assertion_set_sha256(assertions: Iterable[tuple[str, str]]) -> str:
+    payload = json.dumps(sorted(assertions), ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def load_verified_assertion_inventory(
+    acquisition_receipt: Path,
+    bench_data_dir: Path,
+    *,
+    expected_receipt_sha256: str,
+    expected_document_count: int = FROZEN_OLMOCR_N_PDFS,
+) -> AssertionInventory:
+    """Return exact per-document ``(assertion_id, type)`` tuples after byte verification."""
+    verified_benchmark_test_inventory_sha256(
+        acquisition_receipt,
+        bench_data_dir,
+        expected_receipt_sha256=expected_receipt_sha256,
+    )
+    inventory: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    seen_ids: set[str] = set()
+    for filename, prefix in _BENCHMARK_PREFIXES.items():
+        path = bench_data_dir / filename
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise OlmocrHygieneError(
+                    f"malformed frozen assertion at {path}:{line_number}: {exc}"
+                ) from exc
+            if not isinstance(row, dict):
+                raise OlmocrHygieneError(f"frozen assertion is not an object at {path}:{line_number}")
+            values = [row.get(field) for field in ("id", "pdf", "type")]
+            if any(not isinstance(value, str) or not value for value in values):
+                raise OlmocrHygieneError(f"frozen assertion missing id/pdf/type at {path}:{line_number}")
+            assertion_id, pdf_field, assertion_type = values
+            if assertion_id in seen_ids:
+                raise OlmocrHygieneError(f"duplicate frozen assertion id: {assertion_id}")
+            seen_ids.add(assertion_id)
+            if not pdf_field.endswith(".pdf"):
+                raise OlmocrHygieneError(f"invalid assertion PDF at {path}:{line_number}")
+            canonical_id = pdf_field.removesuffix(".pdf")
+            if not canonical_id.startswith(prefix):
+                raise OlmocrHygieneError(f"assertion category mismatch at {path}:{line_number}")
+            inventory[canonical_id].append((assertion_id, assertion_type))
+    if len(inventory) != expected_document_count:
+        raise OlmocrHygieneError(
+            f"frozen assertions cover {len(inventory)} documents; expected {expected_document_count}"
+        )
+    return {canonical_id: tuple(assertions) for canonical_id, assertions in inventory.items()}
+
+
 def terminal_validation_error(
     data: dict[str, Any],
     *,
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
+    expected_assertions_by_document: AssertionInventory,
 ) -> str | None:
     """Return why a claimed terminal result is unsafe, or ``None``."""
     status = data.get("status")
@@ -170,10 +234,18 @@ def terminal_validation_error(
         return f"status={status!r} is nonterminal"
     if data.get("stage2_scorer_contract_id") != expected_scorer_contract_id:
         return "stage2 scorer contract mismatch"
-    if data.get("stage2_schema_version") != "2":
+    if data.get("stage2_schema_version") != "3":
         return "stage2 schema version mismatch"
     if data.get("benchmark_test_inventory_sha256") != expected_test_inventory_sha256:
         return "benchmark test inventory mismatch"
+    canonical_id = data.get("canonical_id")
+    expected_assertions = expected_assertions_by_document.get(str(canonical_id))
+    if not expected_assertions:
+        return "canonical_id has no frozen assertion set"
+    if data.get("expected_assertion_count") != len(expected_assertions):
+        return "expected assertion count mismatch"
+    if data.get("assertion_set_sha256") != assertion_set_sha256(expected_assertions):
+        return "assertion set digest mismatch"
 
     if status == "SKIPPED_DEFECT":
         if data.get("stage1_exit_status") != "DEFECT":
@@ -200,6 +272,17 @@ def terminal_validation_error(
         return "SCORED requires nonempty test_results"
     if any(not isinstance(test, dict) or not isinstance(test.get("passed"), bool) for test in test_results):
         return "SCORED test_results require boolean passed fields"
+    actual_assertions = [(test.get("test_id"), test.get("test_type")) for test in test_results]
+    if any(
+        not isinstance(assertion_id, str)
+        or not assertion_id
+        or not isinstance(assertion_type, str)
+        or not assertion_type
+        for assertion_id, assertion_type in actual_assertions
+    ):
+        return "SCORED test_results require nonempty test_id/test_type fields"
+    if sorted(actual_assertions) != sorted(expected_assertions):
+        return "SCORED assertion IDs/types differ from frozen document inventory"
     n_tests = data.get("n_tests")
     n_passed = data.get("n_passed")
     n_failed = data.get("n_failed")
@@ -222,12 +305,14 @@ def is_terminal_stage2_result(
     *,
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
+    expected_assertions_by_document: AssertionInventory,
 ) -> bool:
     return (
         terminal_validation_error(
             data,
             expected_scorer_contract_id=expected_scorer_contract_id,
             expected_test_inventory_sha256=expected_test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
         )
         is None
     )
@@ -240,6 +325,7 @@ def _deduplicate(
     stage2: bool,
     expected_scorer_contract_id: str | None = None,
     expected_test_inventory_sha256: str | None = None,
+    expected_assertions_by_document: AssertionInventory | None = None,
 ) -> tuple[list[tuple[Path, dict[str, Any]]], DeduplicationReport]:
     entries = list(entries)
     groups: dict[tuple[str, str], list[tuple[Path, dict[str, Any]]]] = defaultdict(list)
@@ -288,6 +374,7 @@ def _deduplicate(
                         data,
                         expected_scorer_contract_id=str(expected_scorer_contract_id),
                         expected_test_inventory_sha256=str(expected_test_inventory_sha256),
+                        expected_assertions_by_document=expected_assertions_by_document or {},
                     )
                 )
                 completed_at = str(data.get("scored_at") or "")
@@ -321,6 +408,7 @@ def load_unique_stage2_results(
     expected_manifest_sha: str,
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
+    expected_assertions_by_document: AssertionInventory,
     authoritative_execution_records: Iterable[tuple[Path, dict[str, Any]]],
     filename: str = "stage2_olmocr_result.json",
 ) -> tuple[list[dict[str, Any]], DeduplicationReport]:
@@ -355,6 +443,7 @@ def load_unique_stage2_results(
         stage2=True,
         expected_scorer_contract_id=expected_scorer_contract_id,
         expected_test_inventory_sha256=expected_test_inventory_sha256,
+        expected_assertions_by_document=expected_assertions_by_document,
     )
     return [data for _, data in selected], report
 
@@ -413,6 +502,7 @@ def build_completeness_report(
     *,
     expected_scorer_contract_id: str,
     expected_test_inventory_sha256: str,
+    expected_assertions_by_document: AssertionInventory,
 ) -> dict[str, Any]:
     result_by_pair = {_pair(result, Path("<memory>")): result for result in results}
     observed = set(result_by_pair)
@@ -423,6 +513,7 @@ def build_completeness_report(
             result,
             expected_scorer_contract_id=expected_scorer_contract_id,
             expected_test_inventory_sha256=expected_test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
         )
     }
     missing = sorted(expected_pairs - observed)

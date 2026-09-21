@@ -32,8 +32,10 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
 import sys
+import tempfile
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,6 +58,7 @@ from benchmarks.eval_v1.stage2.olmocr_hygiene import (
     is_terminal_stage2_result,
     load_unique_execution_records,
     load_unique_stage2_results,
+    load_verified_assertion_inventory,
     verified_benchmark_test_inventory_sha256,
 )
 
@@ -104,6 +107,44 @@ BAND_OK = 70
 BAND_RISKY = 50
 
 RESULT_FILENAME = "stage2_olmocr_result.json"
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively replace non-finite floats with JSON ``null``."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+def _strict_json_text(value: Any) -> str:
+    return json.dumps(_json_safe(value), indent=2, allow_nan=False)
+
+
+def _atomic_write_strict_json(path: Path, value: Any) -> None:
+    """Atomically publish strict JSON without exposing a partial file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(_strict_json_text(value))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +462,12 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.pdf_dir).parent,
             expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
         )
+        expected_assertions_by_document = load_verified_assertion_inventory(
+            Path(args.acquisition_receipt),
+            Path(args.pdf_dir).parent,
+            expected_receipt_sha256=FROZEN_OLMOCR_ACQUISITION_SHA,
+            expected_document_count=FROZEN_OLMOCR_N_PDFS,
+        )
         unique_records, execution_dedup = load_unique_execution_records(
             run_dir, expected_manifest_sha=MANIFEST_SHA
         )
@@ -429,6 +476,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_manifest_sha=MANIFEST_SHA,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
             authoritative_execution_records=unique_records,
         )
         expected_pairs = expected_pairs_from_frozen_acquisition(
@@ -442,6 +490,7 @@ def main(argv: list[str] | None = None) -> int:
             expected_pairs,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
         )
     except OlmocrHygieneError as exc:
         print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
@@ -463,6 +512,7 @@ def main(argv: list[str] | None = None) -> int:
             r,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
+            expected_assertions_by_document=expected_assertions_by_document,
         )
     ]
     statuses: dict[str, int] = defaultdict(int)
@@ -519,7 +569,7 @@ def main(argv: list[str] | None = None) -> int:
                 flags += " [SPARSE]"
             print(f"  {band_name:6s}: {bdata['n_selected']:3d}/{bdata['n_eligible']:3d} eligible{flags}")
         track_b_path = out_dir / f"track-b-allocation-manifest-{date_str}.json"
-        track_b_path.write_text(json.dumps(track_b, indent=2), encoding="utf-8")
+        _atomic_write_strict_json(track_b_path, track_b)
         print(f"  Written: {track_b_path}")
     else:
         print("[4/5] Track B Allocation Manifest WITHHELD (incomplete run)")
@@ -545,7 +595,7 @@ def main(argv: list[str] | None = None) -> int:
         "track_b_allocation_manifest_path": (str(track_b_path) if track_b_path is not None else None),
     }
     out_path = out_dir / f"stage2-olmocr-{date_str}-aggregated.json"
-    out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    _atomic_write_strict_json(out_path, out)
     print(f"  Written: {out_path}")
     return 0
 
