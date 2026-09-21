@@ -459,7 +459,7 @@ def aggregate(
         "primary_analysis": {
             "metric": "em_score",
             "metric_note": (
-                "Frozen V1 endpoint per STUDY_FREEZE_MANIFEST_V1.md §4. "
+                "Frozen V1 endpoint per STUDY_FREEZE_MANIFEST_V1.md sec.4. "
                 "degradation = EM(aksharamd-reference) - EM(parser). "
                 "If EM is near-zero for all parsers, record Claim 4 as NOT ESTABLISHED under V1."
             ),
@@ -479,7 +479,7 @@ def aggregate(
         "exploratory_analysis": {
             "metric": "primary_score",
             "metric_note": (
-                "EXPLORATORY — NOT the V1 primary endpoint. Added post-observation. "
+                "EXPLORATORY - NOT the V1 primary endpoint. Added post-observation. "
                 "QASPER: max-annotator token F1. TAT-DQA: numeric-normalized EM. "
                 "Reference: corpus_gold for QASPER (gold-text ceiling), "
                 "aksharamd-reference for TAT-DQA. "
@@ -503,6 +503,53 @@ def aggregate(
             "reason": "No MMLongBench-Doc adapter in V1.",
         },
     }
+
+    # Determine V1 verdict.  EM is degenerate when all non-reference parsers
+    # score < 0.05 mean EM on both corpora (D-001); readiness compressed when
+    # ≥ 80% of observations are at the ceiling value (D-002).
+    _non_ref_em = [
+        v["mean_em_score"]
+        for corpus_s in (qasper_summary, tatdqa_summary)
+        for pid, v in corpus_s.items()
+        if pid not in (PRIMARY_REFERENCE, "corpus_gold")
+        and v.get("mean_em_score") is not None
+    ]
+    _em_degenerate = bool(_non_ref_em) and max(_non_ref_em) < 0.05
+
+    _rs_vals = [
+        rec.get("readiness_score")
+        for rec in records
+        if rec.get("parser_id") not in (PRIMARY_REFERENCE, "corpus_gold")
+        and rec.get("readiness_score") is not None
+        and rec.get("llm_evaluated")
+    ]
+    if _rs_vals:
+        _rs_ceil = max(_rs_vals)
+        _rs_ceil_frac = sum(1 for s in _rs_vals if s == _rs_ceil) / len(_rs_vals)
+        _rs_compressed = _rs_ceil_frac >= 0.80
+    else:
+        _rs_ceil = _rs_ceil_frac = None
+        _rs_compressed = False
+
+    _verdict_reasons: list[str] = []
+    if _em_degenerate:
+        _verdict_reasons.append(
+            f"EM degenerate: max mean_em={max(_non_ref_em):.4f} < 0.05 across all "
+            f"non-reference parsers on both corpora (D-001). "
+            "See V1_PROTOCOL_DEVIATIONS.md."
+        )
+    if _rs_compressed and _rs_ceil is not None:
+        _verdict_reasons.append(
+            f"Readiness compressed: {_rs_ceil_frac:.0%} of observations at ceiling "
+            f"{_rs_ceil}/100 (D-002). Spearman rho undefined with near-zero predictor variance."
+        )
+    _pooled_rho = primary.get("pooled", {}).get("rho")
+    result["claim4_v1_verdict"] = "NOT_ESTABLISHED" if _verdict_reasons else (
+        "FALSIFIED"
+        if (_pooled_rho is not None and _pooled_rho > 0)
+        else "NOT_ESTABLISHED"
+    )
+    result["claim4_v1_verdict_reasons"] = _verdict_reasons
 
     if output_path is None:
         results_dir = ROOT / "benchmarks" / "results"
@@ -540,14 +587,17 @@ def _print_report(result: dict[str, Any]) -> None:
     print()
     print("=== TRACK C AGGREGATION REPORT ===")
     print(f"  Claim 4  : {result['claim']}")
+    print(f"  V1 verdict : {result.get('claim4_v1_verdict', '?')}")
+    for reason in result.get("claim4_v1_verdict_reasons", []):
+        print(f"    * {reason}")
     print()
 
     for section_key, label in [
-        ("primary_analysis", "PRIMARY (frozen EM — V1 endpoint)"),
-        ("exploratory_analysis", "EXPLORATORY (corpus-appropriate metric — NOT V1 endpoint)"),
+        ("primary_analysis", "PRIMARY (frozen EM - V1 endpoint)"),
+        ("exploratory_analysis", "EXPLORATORY (corpus-appropriate metric - NOT V1 endpoint)"),
     ]:
         section = result.get(section_key, {})
-        print(f"  ── {label} ──")
+        print(f"  -- {label} --")
         print(f"  metric      : {section.get('metric')}")
         print(f"  note        : {section.get('metric_note', '')[:120]}...")
         print()
