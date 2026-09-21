@@ -18,6 +18,7 @@ from .models import (
     SourceArtifact,
     TaskProfile,
     Verdict,
+    canonical_task_profile_sha256,
 )
 from .text_preservation import SOURCE_TEXT_PRESERVATION_POLICY_ID, apply_text_preservation
 
@@ -86,7 +87,9 @@ class Assessor:
         }
         disposition, next_action = self._decide(dimensions)
         return AssessmentResult(policy_id=policy_id, source_hash=source.content_hash if source else None,
-                                candidate_hash=candidate.content_hash, dimensions=dimensions,
+                                candidate_hash=candidate.content_hash,
+                                task_profile_sha256=canonical_task_profile_sha256(task_profile),
+                                dimensions=dimensions,
                                 disposition=disposition, next_action=next_action)
 
     def _fidelity(self, source, source_text, source_supported, candidate, candidate_text, candidate_supported):

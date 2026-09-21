@@ -19,17 +19,18 @@ from .models import (
     ASSESSMENT_SCHEMA_VERSION,
     DEFAULT_ASSESSMENT_POLICY_ID,
     GENERAL_INGESTION_POLICY_ID,
+    TASK_PROFILE_NONE,
     AssessmentDisposition,
     EvidenceStatus,
     NextAction,
     Verdict,
+    canonical_task_profile_sha256,
 )
 from .text_preservation import SOURCE_TEXT_PRESERVATION_POLICY_ID
 
 GATE_MANIFEST_SCHEMA_VERSION = "1.0"
 GATE_REPORT_SCHEMA_VERSION = "1.0"
 _INVARIANT_FIELDS = ("schema_version", "policy_id", "source_hash", "task_profile_sha256")
-_TASK_PROFILE_NONE = "none"
 _DIMENSIONS = frozenset({
     "conversion_fidelity",
     "structural_usability",
@@ -230,6 +231,7 @@ class GateAssessmentResult(BaseModel):
     policy_id: str
     source_hash: str | None
     candidate_hash: str
+    task_profile_sha256: str
     execution: Literal["complete"]
     dimensions: dict[str, GateDimensionResult]
     disposition: AssessmentDisposition
@@ -252,6 +254,13 @@ class GateAssessmentResult(BaseModel):
     def _candidate_hash_is_valid(cls, value: str) -> str:
         return _valid_sha256(value)
 
+    @field_validator("task_profile_sha256")
+    @classmethod
+    def _task_profile_hash_is_valid(cls, value: str) -> str:
+        if value == TASK_PROFILE_NONE:
+            return value
+        return _valid_sha256(value)
+
     @model_validator(mode="after")
     def _result_is_internally_consistent(self):
         if set(self.dimensions) != _DIMENSIONS:
@@ -261,6 +270,16 @@ class GateAssessmentResult(BaseModel):
         for name, dimension in self.dimensions.items():
             if any(finding.dimension != name for finding in dimension.findings):
                 raise ValueError(f"finding dimension does not match dimension key: {name}")
+
+        task_dimension = self.dimensions["task_suitability"]
+        no_profile_state = (
+            task_dimension.status == EvidenceStatus.NOT_REQUESTED
+            and task_dimension.verdict == Verdict.UNDETERMINED
+            and not task_dimension.findings
+            and not task_dimension.evidence
+        )
+        if no_profile_state != (self.task_profile_sha256 == TASK_PROFILE_NONE):
+            raise ValueError("task-profile identity is inconsistent with task-suitability evidence")
 
         if any(dimension.verdict == Verdict.FAIL for dimension in self.dimensions.values()):
             expected = (AssessmentDisposition.HOLD, NextAction.REVIEW)
@@ -324,17 +343,9 @@ class GateAssessmentEnvelope(BaseModel):
             raise ValueError("inconsistent source provenance")
         if self.assessment.candidate_hash != self.candidate.content_hash:
             raise ValueError("inconsistent candidate provenance")
-        task_dimension = self.assessment.dimensions["task_suitability"]
-        no_profile_state = (
-            task_dimension.status == EvidenceStatus.NOT_REQUESTED
-            and task_dimension.verdict == Verdict.UNDETERMINED
-            and not task_dimension.findings
-            and not task_dimension.evidence
-        )
-        if self.task_profile is None and not no_profile_state:
-            raise ValueError("task-suitability evidence has no bound task profile")
-        if self.task_profile is not None and no_profile_state:
-            raise ValueError("bound task profile was not reflected in task-suitability evidence")
+        expected_profile_hash = canonical_task_profile_sha256(self.task_profile)
+        if self.assessment.task_profile_sha256 != expected_profile_hash:
+            raise ValueError("envelope task profile does not match assessment task-profile identity")
         return self
 
 
@@ -415,26 +426,6 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _task_profile_sha256(profile: GateTaskProfile) -> str:
-    canonical = json.dumps(
-        profile.model_dump(mode="json"),
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    return _sha256(canonical)
-
-
-def _is_no_task_profile_state(assessment: GateAssessmentResult) -> bool:
-    dimension = assessment.dimensions["task_suitability"]
-    return (
-        dimension.status == EvidenceStatus.NOT_REQUESTED
-        and dimension.verdict == Verdict.UNDETERMINED
-        and not dimension.findings
-        and not dimension.evidence
-    )
-
-
 def _read_json(path: Path, *, kind: str) -> tuple[dict, str]:
     try:
         data = path.read_bytes()
@@ -467,17 +458,13 @@ def _load_assessment(path: Path) -> tuple[GateAssessmentResult, str, str]:
             envelope = GateAssessmentEnvelope.model_validate(payload)
             assessment = envelope.assessment
             task_profile_identity = (
-                _task_profile_sha256(envelope.task_profile)
+                canonical_task_profile_sha256(envelope.task_profile)
                 if envelope.task_profile is not None
-                else _TASK_PROFILE_NONE
+                else TASK_PROFILE_NONE
             )
         else:
             assessment = GateAssessmentResult.model_validate(payload)
-            if not _is_no_task_profile_state(assessment):
-                raise ValueError(
-                    "direct assessment has task-suitability evidence without a bound task profile"
-                )
-            task_profile_identity = _TASK_PROFILE_NONE
+            task_profile_identity = assessment.task_profile_sha256
     except (ValueError, TypeError) as exc:
         raise GateInputError(f"Invalid assessment artifact {path}: {exc}") from exc
     return assessment, digest, task_profile_identity

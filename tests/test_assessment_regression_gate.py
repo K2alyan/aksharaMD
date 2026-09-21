@@ -218,18 +218,18 @@ def test_gate_accepts_strict_compiler_binding_artifacts(tmp_path):
     assert result.exit_code == 0, result.output
 
 
-def test_gate_rejects_task_evidence_when_profile_identity_is_omitted(tmp_path):
+def test_gate_rejects_task_evidence_when_result_profile_identity_is_omitted(tmp_path):
     text = "Invoice 42: $18"
     profile = TaskProfile(purpose="invoice", required_literals=["Invoice 42"])
     payload = _assessment_payload(text, text, task_profile=profile)
+    del payload["task_profile_sha256"]
     _write_assessment(tmp_path / "baseline.json", text, text)
-    # A direct result cannot prove which profile produced observed task evidence.
     (tmp_path / "candidate.json").write_text(json.dumps(payload), encoding="utf-8")
 
     result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
 
     assert result.exit_code == 1
-    assert "without a bound task profile" in json.loads(result.output)["error"]["message"]
+    assert "task_profile_sha256" in json.loads(result.output)["error"]["message"]
 
 
 def test_gate_rejects_compiler_envelope_that_omits_observed_task_profile(tmp_path):
@@ -244,7 +244,30 @@ def test_gate_rejects_compiler_envelope_that_omits_observed_task_profile(tmp_pat
     result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
 
     assert result.exit_code == 1
-    assert "no bound task profile" in json.loads(result.output)["error"]["message"]
+    assert "does not match assessment task-profile identity" in json.loads(result.output)["error"]["message"]
+
+
+def test_gate_rejects_envelope_profile_different_from_assessment_profile(tmp_path):
+    text = "Customer Acme; category Other"
+    acme = TaskProfile(purpose="customer", required_literals=["Acme"])
+    easier_other = TaskProfile(purpose="category", required_literals=["Other"])
+    baseline = _envelope(
+        _assessment_payload(text, text, task_profile=acme), text, task_profile=acme
+    )
+    # Candidate task evidence was actually produced under the easier Other
+    # contract, while the envelope falsely claims the baseline Acme contract.
+    candidate = _envelope(
+        _assessment_payload(text, text, task_profile=easier_other), text, task_profile=acme
+    )
+    (tmp_path / "baseline.json").write_text(json.dumps(baseline), encoding="utf-8")
+    (tmp_path / "candidate.json").write_text(json.dumps(candidate), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    report = json.loads(result.output)
+    assert report["status"] == "ERROR"
+    assert "does not match assessment task-profile identity" in report["error"]["message"]
 
 
 def test_gate_denies_changed_task_profile_by_default(tmp_path):

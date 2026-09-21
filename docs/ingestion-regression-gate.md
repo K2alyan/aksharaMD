@@ -36,9 +36,11 @@ artifacts.
 
 The default invariants also compare the canonical task-profile SHA-256. An
 assessment with no task profile is bound to the explicit `none` sentinel.
-Direct `assess --json` artifacts are accepted only when task suitability was
-not requested; task-scoped evidence must use the compiler binding envelope so
-the profile itself is available for verification.
+Every versioned assessment result binds the canonical profile identity used by
+the assessor. Compiler binding envelopes additionally carry the strict profile
+payload; the gate recomputes its identity and rejects the artifact unless it
+matches the assessment. Direct `assess --json` artifacts retain the bound
+identity, while envelopes provide the stronger payload-to-evidence check.
 
 Finding codes in assessment dimensions are exposed as warning codes. New codes
 fail closed by default. An allow rule applies only to newly introduced codes;

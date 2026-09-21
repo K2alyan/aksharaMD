@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 from enum import StrEnum
 from pathlib import Path
@@ -12,6 +13,7 @@ ASSESSMENT_SCHEMA_VERSION = "1.0"
 GENERAL_INGESTION_POLICY_ID = "general-ingestion-v1"  # Historical replay policy; do not retarget.
 DEFAULT_ASSESSMENT_POLICY_ID = "general-ingestion-v2"
 TASK_PROFILE_SCHEMA_VERSION = "1.0"
+TASK_PROFILE_NONE = "none"
 
 
 class EvidenceStatus(StrEnum):
@@ -158,6 +160,19 @@ class TaskProfile(BaseModel):
         return self
 
 
+def canonical_task_profile_sha256(task_profile: TaskProfile | None) -> str:
+    """Return the stable identity of a task contract, or the explicit no-profile sentinel."""
+    if task_profile is None:
+        return TASK_PROFILE_NONE
+    canonical = json.dumps(
+        task_profile.model_dump(mode="json"),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
 class EvidenceItem(BaseModel):
     check_id: str
     check_version: str = "1"
@@ -190,7 +205,17 @@ class AssessmentResult(BaseModel):
     policy_id: str = GENERAL_INGESTION_POLICY_ID
     source_hash: str | None = None
     candidate_hash: str
+    task_profile_sha256: str = TASK_PROFILE_NONE
     execution: str = "complete"
     dimensions: dict[str, DimensionResult]
     disposition: AssessmentDisposition
     next_action: NextAction
+
+    @field_validator("task_profile_sha256")
+    @classmethod
+    def _task_profile_identity_is_valid(cls, value: str) -> str:
+        if value != TASK_PROFILE_NONE and (
+            len(value) != 64 or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise ValueError("task_profile_sha256 must be 'none' or a lowercase SHA-256 digest")
+        return value
