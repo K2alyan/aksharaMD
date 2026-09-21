@@ -51,6 +51,8 @@ dependencies = [
     "pyasn1>=0.6.4",         # security-min override for transitive dep, tracks GHSA #26 / #25 / #24
     "cryptography>=50.0.0",  # security-min override for transitive dep, tracks GHSA #30 (PKCS#7 Bleichenbacher oracle)
     "setuptools>=83.0.0",    # security-min override for transitive dep, tracks GHSA #23 (MANIFEST.in Unicode bypass; also pinned in [build-system].requires)
+    "anyio>=4.14.2",         # security-min override for transitive dep, tracks GHSA #39 (critical TLS spoofing) / #37 (process group leak) / #38 (stderr block)
+    "soupsieve>=2.9.0",      # security-min override for transitive dep, tracks GHSA #36 / #35 (ReDoS in selector/whitespace regex; pulled via beautifulsoup4)
     # optional heavy deps — install separately for full support:
     # pip install openai-whisper   (audio transcription; also needs ffmpeg on PATH)
     # pip install pytesseract      (image OCR; also needs Tesseract binary)
