@@ -13,14 +13,11 @@ from __future__ import annotations
 import pytest
 
 from benchmarks.eval_v1.stage1.run_track_c import (
-    _compute_em,
     _compute_numeric_em,
     _compute_primary_score,
-    _compute_token_f1,
     _normalize_boolean,
     _to_float_numeric,
 )
-
 
 # ---------------------------------------------------------------------------
 # _compute_numeric_em

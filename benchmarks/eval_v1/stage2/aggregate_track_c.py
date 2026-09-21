@@ -561,14 +561,14 @@ def _print_report(result: dict[str, Any]) -> None:
             score_by = section.get("score_by_parser", {}).get(corpus_name, {})
             score_key = "mean_em_score" if section_key == "primary_analysis" else "mean_primary_score"
             if score_by:
-                print(f"      Scores by parser:")
+                print("      Scores by parser:")
                 for pid in sorted(score_by.keys()):
                     info = score_by[pid]
                     print(f"        {pid:30s}: {score_key}={info.get(score_key)}  n={info.get('n_docs')}")
             print()
 
         sp_pooled = section.get("pooled", {})
-        print(f"    [POOLED]")
+        print("    [POOLED]")
         _print_spearman(sp_pooled, indent="      ")
         print()
 

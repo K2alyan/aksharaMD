@@ -571,8 +571,8 @@ def _run_phase1(
     second pass is needed.
     """
     from benchmarks.eval_v1.smoke_b1a_7b.adapter_protocol import ParseStatus
-    from benchmarks.eval_v1.stage1.runner import build_adapters
     from benchmarks.eval_v1.smoke_b1a_7b.subprocess_runner import RealSubprocessInvoker
+    from benchmarks.eval_v1.stage1.runner import build_adapters
 
     model_artifact_shas: dict[str, str | None] = {
         "marker": manifest["model_artifact_shas"]["marker"],

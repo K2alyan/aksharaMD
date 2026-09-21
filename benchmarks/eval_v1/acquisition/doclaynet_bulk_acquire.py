@@ -74,8 +74,6 @@ def acquire_shard(
     Returns mapping of page_hash -> status ("acquired" | "cached" | "error:<msg>").
     """
     from benchmarks.eval_v1.acquisition.doclaynet_hf import (
-        AcquiredPage,
-        AcquisitionError,
         HfDatasetRef,
         acquire_page,
         build_page,
@@ -107,7 +105,7 @@ def acquire_shard(
         return results
 
     # Open the shard for streaming range reads (footer + selected row groups).
-    print(f"  Opening shard (streaming)...")
+    print("  Opening shard (streaming)...")
     pf = open_parquet_shard(shard_key, revision=revision)
     n_rg = pf.metadata.num_row_groups
     print(f"  {n_rg} row groups, {pf.metadata.num_rows} rows total")
@@ -136,8 +134,6 @@ def acquire_shard(
         rg_to_hashes[rg].append((row_i, ph))
 
     for rg, row_pairs in sorted(rg_to_hashes.items()):
-        target_row_indices = {row_i for row_i, _ in row_pairs}
-        row_i_to_hash = {row_i: ph for row_i, ph in row_pairs}
         print(f"  Row group {rg}: fetching {len(row_pairs)} page(s) (image+pdf columns)...")
 
         rows = list(iter_pages_in_row_group(pf, rg, include_image=True, include_pdf=True))
@@ -163,7 +159,7 @@ def acquire_shard(
                     "row_group": rg,
                     "row_index_in_rg": row_i,
                 }
-                acquired = acquire_page(
+                acquire_page(
                     page,
                     ref,
                     shard_key=shard_key,
