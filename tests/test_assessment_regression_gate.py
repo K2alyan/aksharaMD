@@ -103,6 +103,23 @@ def test_gate_passes_equivalent_assessment_artifacts(tmp_path):
     assert "QA prediction" in report["scope"]
 
 
+def test_gate_rejects_legacy_v1_assessment_without_profile_provenance(tmp_path):
+    text = "Invoice 42: $18"
+    _write_assessment(tmp_path / "baseline.json", text, text)
+    legacy = _assessment_payload(text, text)
+    legacy["schema_version"] = "1.0"
+    del legacy["task_profile_sha256"]
+    (tmp_path / "candidate.json").write_text(json.dumps(legacy), encoding="utf-8")
+
+    result = CliRunner().invoke(main, ["gate", str(_write_manifest(tmp_path)), "--json"])
+
+    assert result.exit_code == 1
+    report = json.loads(result.output)
+    assert report["status"] == "ERROR"
+    assert report["error"]["code"] == "INVALID_INPUT"
+    assert "schema_version" in report["error"]["message"]
+
+
 @pytest.mark.parametrize("policy_id", [
     "general-ingestion-v1",
     "general-ingestion-v2",

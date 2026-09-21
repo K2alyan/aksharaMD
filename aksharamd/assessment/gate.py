@@ -230,7 +230,7 @@ class GateAssessmentResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     policy_id: str
     source_hash: str | None
     candidate_hash: str

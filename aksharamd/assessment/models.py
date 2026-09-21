@@ -9,7 +9,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-ASSESSMENT_SCHEMA_VERSION = "1.0"
+ASSESSMENT_SCHEMA_VERSION = "1.1"
+LEGACY_ASSESSMENT_SCHEMA_VERSION = "1.0"
 GENERAL_INGESTION_POLICY_ID = "general-ingestion-v1"  # Historical replay policy; do not retarget.
 DEFAULT_ASSESSMENT_POLICY_ID = "general-ingestion-v2"
 TASK_PROFILE_SCHEMA_VERSION = "1.0"
@@ -210,6 +211,17 @@ class AssessmentResult(BaseModel):
     dimensions: dict[str, DimensionResult]
     disposition: AssessmentDisposition
     next_action: NextAction
+
+    @field_validator("schema_version")
+    @classmethod
+    def _assessment_schema_is_supported(cls, value: str) -> str:
+        if value != ASSESSMENT_SCHEMA_VERSION:
+            if value == LEGACY_ASSESSMENT_SCHEMA_VERSION:
+                raise ValueError(
+                    "assessment schema 1.0 lacks task-profile provenance; regenerate as 1.1"
+                )
+            raise ValueError(f"Unsupported assessment schema version: {value}")
+        return value
 
     @field_validator("task_profile_sha256")
     @classmethod

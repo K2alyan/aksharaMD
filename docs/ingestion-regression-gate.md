@@ -42,6 +42,14 @@ payload; the gate recomputes its identity and rejects the artifact unless it
 matches the assessment. Direct `assess --json` artifacts retain the bound
 identity, while envelopes provide the stronger payload-to-evidence check.
 
+Assessment results use schema `1.1`, which introduced the required
+`task_profile_sha256` identity. The gate deliberately rejects assessment schema
+`1.0`: those artifacts predate this provenance field, so treating them as
+equivalent would reopen the profile-substitution bypass. Regenerate legacy
+assessments before using them as a release baseline. The gate manifest,
+compiler binding envelope, and task-profile schemas remain independently
+versioned at `1.0`.
+
 Finding codes in assessment dimensions are exposed as warning codes. New codes
 fail closed by default. An allow rule applies only to newly introduced codes;
 a deny rule rejects a code even when it was already present in the baseline.
