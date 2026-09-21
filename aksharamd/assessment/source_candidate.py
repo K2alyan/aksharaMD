@@ -22,9 +22,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .models import CandidateArtifact, EvidenceStatus, SourceArtifact, Verdict
 from .service import Assessor
 
-SOURCE_CANDIDATE_SCHEMA_VERSION = "2.0-exploratory"
-SOURCE_CANDIDATE_POLICY_ID = "source-candidate-preservation-v2-exploratory"
-SOURCE_CANDIDATE_IMPLEMENTATION_VERSION = "1"
+SOURCE_CANDIDATE_SCHEMA_VERSION: Literal["2.0-exploratory"] = "2.0-exploratory"
+SOURCE_CANDIDATE_POLICY_ID: Literal["source-candidate-preservation-v2-exploratory"] = (
+    "source-candidate-preservation-v2-exploratory"
+)
+SOURCE_CANDIDATE_IMPLEMENTATION_VERSION: Literal["1"] = "1"
 
 _TEXT_RETENTION_MIN_TOKENS = 20
 _TEXT_RETENTION_PASS = 0.95
