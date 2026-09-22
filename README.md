@@ -15,62 +15,53 @@
 
 # AksharaMD
 
-**AksharaMD — per-document extraction-readiness scorer for LLM ingestion.**
+**AksharaMD — a local document compiler with explicit conversion diagnostics and regression evidence.**
 
-> **Evidence status:** Readiness is an uncalibrated heuristic, not a probability of correctness or a guarantee of downstream usefulness. Historical token and QA comparisons below describe the *bundled reference parser*, not the readiness score, and do not establish full-document answer preservation, billed savings, or measured GPU throughput. See [evaluation and claims policy](docs/evaluation-claims.md).
+AksharaMD compiles supported documents and checks saved parser outputs using named, bounded checks. Reports describe what was measured and what remains unknown. The legacy **AI Readiness Score** summarizes format baselines and modeled penalties; it does not measure whether a document's meaning survived conversion.
 
-AksharaMD grades the parser YOU chose. Point it at the source document plus your parser's Markdown output and it returns a per-document readiness verdict. The score answers two questions in the user's own words:
-
-1. **How well did your chosen parser parse the document into an AI-friendly Markdown option?**
-2. **How well did that conversion happen — not from a metric standpoint but from a substance standpoint?**
-
-"Not metric, substance" is the important part. The question is not "were the tokens counted right" — it is: did the actual meaning of the document survive the parse? Did columns collapse? Did tables flatten into a single line? Did numeric values drift by a digit? Did references get orphaned from what they cite? THAT is what the score grades.
+> **Evidence status:** Readiness is an uncalibrated heuristic, not a probability of correctness or approval to ingest. HIGH does not establish structural completeness or remove the need for workload-specific validation. Historical token and QA comparisons below describe the bundled reference parser and do not establish full-document answer preservation, billed savings, or measured GPU throughput. See [evaluation and claims policy](docs/evaluation-claims.md).
 
 Runs locally. Processing local files with the base install makes no network calls. Network access occurs only when explicitly using a remote source such as an HTTP/HTTPS URL or S3, or when an optional ML backend downloads model weights on first use. Once required weights are cached, those backends can run offline. Documents are never sent to an AksharaMD-operated service.
 
 ---
 
-## Why per-document matters
+## What the diagnostics report
 
-Parser vendors advertise average accuracy — "95% on our benchmark," "SOTA on OmniDocBench." You are not uploading average documents. You are uploading **this** document, right now. When this one lands in the tail 5% — the two-column layout the parser transposed, the merged-cell table it flattened, the scanned appendix it silently dropped — the average tells you nothing, and neither does the parser. No one else is going to warn you.
+- **Compilation diagnostics:** `compile` emits a 0–100 readiness score and HIGH (≥85), OK (≥70), RISKY (≥50), or POOR (<50) bands, named warnings, and EXTRACTED/INFERRED/AMBIGUOUS block provenance categories. These categories describe extraction origin, not calibrated confidence.
+- **Default saved-artifact assessment:** `assess` emits schema-1.1 dimension results, evidence, findings, and a disposition. It checks bounded UTF-8 text/Markdown preservation, selected literal coverage, Markdown fence balance, and text integrity. It does not return the compiler's readiness score or per-block provenance.
+- **Optional task requirements:** a task profile checks declared literals and literal ordering/proximity. It does not interpret table intersections, entity/period associations, negation, or source truth.
+- **Regression evidence:** the [saved-assessment gate](docs/ingestion-regression-gate.md) compares compatible schema-1.1 assessments under a declared policy. Passing it means those comparisons passed, not that ingestion or a parser upgrade is safe.
 
-AksharaMD is the layer that does. For every document you ingest, you get:
-
-- **AI Readiness Score 0–100** with quality bands — HIGH (≥85) / OK (≥70) / RISKY (≥50) / POOR (<50) — for the *specific* parser output you fed in
-- **Per-block extraction confidence** — every block is tagged EXTRACTED, INFERRED, or AMBIGUOUS before it hits your embedder
-- **Named warnings** such as `OCR_REQUIRED`, `LOW_TEXT_DENSITY`, `GLYPH_ARTIFACTS`, `REPEATED_CONTENT`, `W_MULTICOLUMN_ORDER`, `W_TABLE_MISSING`, `W_ENCODING_ARTIFACTS`, and `OCR_HALLUCINATION` for the risk categories AksharaMD observed on your document
-- **Source-grounded assessment gate** — a bounded check that key literals from the source (dates, IDs, currency amounts, named entities you declared) actually appear in the parser's Markdown, with an ACCEPT/REJECT verdict
-
-Missing warnings do not establish faithful extraction; the score is a diagnostic, not a certification. Validate downstream suitability against your workload before using a score to approve ingestion.
+Missing warnings do not establish faithful extraction. Checks can abstain, and an ACCEPT disposition establishes only the implemented policy's bounded checks.
 
 ---
 
 ## How it works
 
-Two artifacts in, one verdict out.
-
-1. Give AksharaMD **the source** (`report.pdf`, `filing.docx`, etc.).
-2. Give it **your parser's Markdown output** for that source.
-3. It returns a readiness score, provenance categories per block, warning codes, and — with a task profile — a source-grounded ACCEPT/REJECT verdict.
+For the default assessment, supply saved UTF-8 text or Markdown source and candidate artifacts:
 
 ```bash
-# Grade output your parser already produced (this is the primary flow).
-aksharamd assess parsed.md --source report.pdf
+# Compare saved text artifacts with the default general-ingestion-v2 policy.
+aksharamd assess parsed.md --source original.txt
 
-# With a task profile that declares literals that must survive the parse.
-aksharamd assess parsed.md --source report.pdf --task-profile invoice_v1.json
+# Add caller-declared literal and proximity requirements.
+aksharamd assess parsed.md --source original.txt --task-profile invoice_v1.json
 
-# Machine-readable JSON for CI gates.
-aksharamd assess parsed.md --source report.pdf --json
+# Emit a schema-1.1 assessment receipt.
+aksharamd assess parsed.md --source original.txt --json
 ```
 
-The score is per-document. There is no aggregate to hide behind.
+The default policy allows only specific textual formatting transformations; acceptance does not prove semantic preservation. PDF, DOCX, and other unsupported binary source evidence remains unassessed in this path. Supplying `--source report.pdf` does not run PDF extraction; source fidelity can remain unknown and the assessment can ABSTAIN (or HOLD if another check fails).
+
+A separate Python API, `aksharamd.assessment.source_candidate.assess_source_candidate`, produces **schema `2.0-exploratory`** receipts with PDF text-token retention, table-signature observations, intrinsic checks, and explicit abstentions. It defines no combined semantic score, and its receipts are not inputs to the schema-1.1 gate. Token retention does not prove ordering or meaning; table-signature matches do not establish correct table associations.
+
+Artifact hashes identify the supplied bytes. Parser names, versions, and configuration IDs record supplied identities and can be absent; they do not independently prove historical generation. In the exploratory API, source-identity checks are separate from quality-group verdicts: a quality PASS can coexist with an identity mismatch. Inspect both before interpreting a comparison.
 
 ---
 
 ## Bring your own parser
 
-AksharaMD is parser-agnostic. Grade output from whichever parser fits your stack:
+AksharaMD accepts saved Markdown from external parsers. Assessment coverage depends on the source format and policy described above:
 
 - [MarkItDown](https://github.com/microsoft/markitdown) — Microsoft, breadth-first
 - [Docling](https://github.com/DS4SD/docling) — IBM, layout-aware
@@ -80,7 +71,7 @@ AksharaMD is parser-agnostic. Grade output from whichever parser fits your stack
 - [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/) — PyMuPDF-based
 - Anything else that emits Markdown, including your own in-house parser
 
-For convenience, AksharaMD also ships a **bundled reference parser** (see below). The reference parser is a fallback for teams that don't already have a preferred parser — it is not the product. If you already have a parser you like, keep it and just grade its output.
+For convenience, AksharaMD also ships a **bundled reference parser** (see below). The reference parser is a fallback for teams that don't already have a preferred parser — it is one supported workflow. If you already have a parser, retain its output for explicit diagnostics and comparisons.
 
 ---
 
@@ -124,7 +115,7 @@ Specifically, AksharaMD makes no guarantee about:
 
 **Run source-preservation and retrieval evaluations before production deployment.** Readiness is one diagnostic input and cannot substitute for evaluation against your actual sources, queries, and expected answers.
 
-AksharaMD is also not a pixel-perfect visual layout reproduction engine. The goal is to give your LLM the semantic content of a document at minimum token cost — not to reproduce how the document looks on screen.
+AksharaMD is also not a pixel-perfect visual layout reproduction engine. Compilation transforms the document representation; inspect source-grounded evidence for the content your task needs.
 
 ---
 
@@ -136,11 +127,11 @@ Requires **Python 3.11 or later**.
 pip install aksharamd
 ```
 
-AksharaMD uses subcommands. The pattern is always `aksharamd <command> <file>`. The two commands most users need are `assess` (grade a parser you already ran — the product) and `compile` (run the bundled reference parser end-to-end):
+AksharaMD uses subcommands. The pattern is always `aksharamd <command> <file>`. The two commands most users need are `assess` (check saved artifacts under a bounded policy) and `compile` (run the bundled reference parser end-to-end):
 
 ```bash
-# Grade the output of a parser you already ran (primary flow).
-aksharamd assess parsed.md --source report.pdf
+# Check saved UTF-8 text/Markdown artifacts.
+aksharamd assess parsed.md --source original.txt
 
 # Run the bundled reference parser end-to-end. Useful if you don't have a preferred parser yet.
 aksharamd compile report.pdf
@@ -275,7 +266,7 @@ aksharamd compile <source> [options]
 | `-v`, `--verbose` | — | Enable debug logging |
 | `--chunk-size INTEGER` | `512` | Maximum tokens per chunk. Tune for your embedding model's context window. |
 | `--chunk-overlap INTEGER` | `0` | Tokens of overlap carried from the end of one chunk into the start of the next. Must be less than `--chunk-size`. |
-| `--min-readiness-score INTEGER` | — | Exit non-zero if readiness score is below this value. Output files are still written. Useful as a CI/CD ingestion gate. |
+| `--min-readiness-score INTEGER` | — | Exit non-zero if readiness score is below this value. Output files are still written. A diagnostic threshold, not approval to ingest. |
 | `--json` | — | Print a single JSON object to stdout (suppresses Rich panels). Compatible with `--min-readiness-score`. |
 
 **Examples:**
@@ -296,7 +287,7 @@ aksharamd compile report.pdf --timings
 # Suppress output (for scripting)
 aksharamd compile report.pdf --quiet
 
-# CI/CD ingestion gate — fail the build if readiness score is below 70
+# Diagnostic threshold — fail below 70; passing does not approve ingestion
 aksharamd compile report.pdf --min-readiness-score 70
 
 # Machine-readable JSON output (for scripting or CI)
@@ -540,7 +531,7 @@ AksharaMD operates as a **document ingestion layer** — it handles format conve
 
 ### LangChain
 
-Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document`. Check the readiness score before embedding — skip or flag documents that score RISKY or POOR. For a complete loader implementation with readiness gating and per-chunk metadata, see [docs/rag-integration.md](docs/rag-integration.md).
+Replace LangChain's built-in document loaders (`PyPDFLoader`, `UnstructuredFileLoader`, and others) with AksharaMD's extraction pipeline. The output maps directly to `langchain_core.documents.Document`. Use the readiness score as diagnostic metadata and apply independently validated acceptance criteria before embedding. For a loader illustration with an explicit application review hook and per-chunk metadata, see [docs/rag-integration.md](docs/rag-integration.md).
 
 ```python
 from aksharamd.compiler import Compiler
@@ -555,7 +546,8 @@ if ctx.manifest.readiness_score < 70:
     print(f"Below-threshold extraction ({ctx.manifest.readiness_score}/100) — skipping embedding")
     for w in ctx.validation.warnings:
         print(f"  [{w.code}] {w.message}")
-else:
+elif application_review_accepts("report.pdf", text, ctx):
+    # Application-supplied source/task validation; not an AksharaMD API.
     doc = Document(
         page_content=text,
         metadata={
@@ -570,7 +562,7 @@ else:
 
 ### LlamaIndex
 
-Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, replacing `SimpleDirectoryReader` for higher-fidelity extraction on complex formats. Store the readiness score as metadata so retrieval results can be filtered by extraction quality. For a complete `BaseReader` implementation, see [docs/rag-integration.md](docs/rag-integration.md).
+Use AksharaMD as a document reader ahead of LlamaIndex's indexing and retrieval pipeline, as an alternative to `SimpleDirectoryReader`. Store the readiness score as diagnostic metadata and validate source/task suitability before indexing. For a complete `BaseReader` implementation, see [docs/rag-integration.md](docs/rag-integration.md).
 
 ```python
 from aksharamd.compiler import Compiler
@@ -578,6 +570,10 @@ from llama_index.core import Document, VectorStoreIndex
 
 compiler = Compiler()
 text, ctx = compiler.compile_to_string("report.pdf")
+
+# Application-supplied source/task validation; not an AksharaMD API.
+if not application_review_accepts("report.pdf", text, ctx):
+    raise ValueError("Source/task review required before indexing")
 
 index = VectorStoreIndex.from_documents([
     Document(
@@ -593,7 +589,7 @@ index = VectorStoreIndex.from_documents([
 
 ### Vector stores (ChromaDB, Pinecone, Weaviate, Qdrant)
 
-`compile_corpus()` walks a directory, deduplicates near-identical documents via MinHash LSH, and returns token-budget-bounded chunks ready for embedding and upsert. The `token_budget` parameter should be set to match your embedding model's context window.
+`compile_corpus()` walks a directory, deduplicates near-identical documents via MinHash LSH, and returns token-budget-bounded groups. The `token_budget` parameter should be set to match your embedding model's context window. The following corpus examples assume each source and candidate has passed your application review before embedding or graph ingestion.
 
 ```python
 from aksharamd.compiler import Compiler
@@ -607,7 +603,7 @@ for chunk in chunks:
     collection.add(documents=texts, ids=ids)
 ```
 
-Each chunk carries a `confidence` breakdown (`extracted`, `inferred`, `ambiguous` block counts) that can be stored as metadata and used to filter retrieval results by extraction quality.
+Each chunk carries a `confidence` breakdown (`extracted`, `inferred`, `ambiguous` block counts). Store these provenance categories as metadata; filtering by them does not establish extraction correctness.
 
 ### Graphify
 
@@ -911,7 +907,7 @@ These are current boundaries of the system. They are not bugs.
 
 **No structured logging.** Log output is plain text. Per-request trace IDs, JSON-formatted logs, and Prometheus metrics (request count, latency histograms, token savings counters) are on the roadmap for the HTTP MCP server deployment path.
 
-**Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). The table content is preserved; only the header row is affected.
+**Complex multi-row table headers.** Financial tables with merged cells or multi-row headers may produce column name artefacts (`Col1`, `Col2`). Inspect cell values and their row/column associations; header artifacts do not establish that the remaining table is preserved.
 
 **Outlook `.msg` parsing.** Body text and attachments extract correctly in most cases, but embedded calendar objects, rich-text encoding edge cases, and S/MIME-signed messages may not parse completely.
 
@@ -936,7 +932,7 @@ python -c "from marker.models import create_model_dict; create_model_dict()"
 |----------|-------------|
 | [AI Readiness Score](docs/readiness-score.md) | Score bands, recommended ingestion policy, all warning codes, false positives |
 | [Output Schema](docs/output-schema.md) | `manifest.json`, `document.json`, `validation.json`, `chunks/*.json` — schema 1.0, field reference, compatibility guarantee |
-| [RAG Integration](docs/rag-integration.md) | Readiness-gated ingestion, per-block confidence filtering, LangChain and LlamaIndex loaders, corpus ingestion |
+| [RAG Integration](docs/rag-integration.md) | Diagnostic review hooks, per-block provenance filtering, LangChain and LlamaIndex loaders, corpus ingestion |
 | [Benchmark Methodology](benchmarks/LLM_QA_BENCHMARK.md) | Full results: corpus, scoring prompts, per-format accuracy, token tables, cost projections, reproduction instructions |
 
 ---

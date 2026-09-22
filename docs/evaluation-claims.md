@@ -1,7 +1,9 @@
 # Evaluation and claims policy
 
-The product target is lower total ingestion cost at a declared information and
-answer-quality target. Output-size reduction alone does not establish success.
+The current library exposes named diagnostics and bounded regression evidence.
+Lower total ingestion cost at a declared information and answer-quality target
+is an evaluation hypothesis, not an established capability. Output-size reduction
+alone does not establish success.
 
 ## Separate evidence
 
@@ -17,6 +19,31 @@ Keep native benchmark dimensions and denominators. Do not average unrelated
 benchmarks into a universal correctness percentage. Preserve old policies and
 run identities for replay; label historical evidence rather than rewriting it
 as a result for new code.
+
+## Interface and identity boundaries
+
+The compiler's readiness score is a format baseline plus heuristic adjustments.
+HIGH does not establish semantic preservation, structural completeness, safe
+ingestion, or that review is unnecessary. No-warning output is not proof either.
+
+Default `assess` uses `general-ingestion-v2` and schema 1.1. Its preservation
+check is bounded to supported UTF-8 text/Markdown; unsupported binary evidence
+remains unknown. Task-profile relationships are literal ordering/proximity,
+not table intersections, negation, entity/period association, or source truth.
+The saved-assessment gate compares compatible schema-1.1 artifacts; a pass
+establishes only its configured policy comparisons.
+
+The separate `assess_source_candidate` Python API emits `2.0-exploratory`
+receipts, including PDF token-retention and table-signature observations and
+abstentions. These receipts are not schema-1.1 gate inputs and define no combined
+semantic scalar. Describe a table result as a match or mismatch of the extracted
+signature, not a determination that the table's meaning survived or was lost.
+
+Present-byte hashes, historical generation identity, and correct source links
+are separate claims. Parser/version/configuration fields record supplied
+identities and may be absent. In exploratory assessments, provenance detectors
+do not determine quality-group verdicts: quality PASS can coexist with a source
+identity mismatch. Inspect identity evidence separately before using a comparison.
 
 ## Controlled comparison
 

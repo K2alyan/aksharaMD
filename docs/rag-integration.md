@@ -1,14 +1,14 @@
 # RAG Integration Guide
 
-AksharaMD is designed to sit directly in front of a vector store. Its primary value in a RAG pipeline is not just token reduction — it is the **AI Readiness Score**, which tells you whether a document's extraction is reliable enough to embed before you embed it.
+AksharaMD can compile documents and attach extraction diagnostics before indexing. Its **AI Readiness Score** summarizes format baselines and modeled penalties. It does not tell you whether the extraction is reliable enough to embed, whether meaning survived, or whether answers will be correct.
 
-Without a quality gate, bad extractions silently pollute your vector store. A scanned PDF, a table-heavy report with garbled OCR, or a document with CID font artifacts can produce output that looks complete and embeds without error — until your LLM gives a wrong answer, and by then the bad data is already indexed.
+Use diagnostics to prioritize investigation. Acceptance requires separately validated source/task criteria, including for HIGH outputs. The examples below use **application-supplied review hooks**; these are integration placeholders, not AksharaMD APIs or a validated acceptance policy. They should inspect the source, candidate, and task requirements independently of the score and decline when evidence is insufficient.
+
+The compiler score, default schema-1.1 saved-artifact assessment, and exploratory schema-2.0 PDF observations have different scopes. See [interface boundaries](../README.md#how-it-works) and the [evaluation policy](evaluation-claims.md). A saved-assessment gate pass only establishes the configured comparisons.
 
 ---
 
-## Basic readiness-gated ingestion
-
-The minimal integration: compile, check the score, then decide.
+## Diagnostic-assisted ingestion
 
 ```python
 from aksharamd.compiler import Compiler
@@ -18,31 +18,23 @@ compiler = Compiler(output_dir="output")
 def ingest_document(path: str) -> None:
     text, ctx = compiler.compile_to_string(path)
     m = ctx.manifest
+    print(f"DIAGNOSTICS {path}: score {m.readiness_score}/100 ({m.quality_band})")
+    for note in m.confidence_notes:
+        print(f"  {note}")
 
-    if m.quality_band == "POOR":
-        # Block — do not embed
-        print(f"BLOCKED {path}: score {m.readiness_score}/100 ({m.quality_band})")
-        for note in m.confidence_notes:
-            print(f"  {note}")
-        return
-
-    if m.quality_band == "RISKY":
-        # Flag for review rather than silently embedding
-        print(f"FLAGGED {path}: score {m.readiness_score}/100 — routing for review")
+    # Application-supplied source/task validation applies to every band.
+    if not application_review_accepts(path, text, ctx):
         route_to_review_queue(path, ctx)
         return
 
-    # HIGH or OK — embed
     embed_chunks(ctx)
-    print(f"INGESTED {path}: score {m.readiness_score}/100 ({m.quality_band}), "
-          f"{m.chunks} chunks, {m.optimized_tokens:,} tokens")
 ```
 
 ---
 
 ## Embedding chunks
 
-AksharaMD produces pre-sized semantic chunks in `ctx.chunks`. Each chunk carries its heading, page range, and block IDs — pass these as metadata to your vector store so you can cite the source at retrieval time.
+AksharaMD produces pre-sized semantic chunks in `ctx.chunks`. Each chunk carries heading, page-range, and block-ID metadata. Retain it for source inspection; metadata alone does not prove a citation or source association is correct. The following embedding example assumes the source/task review above has passed.
 
 **Configuring chunk size and overlap.** The default chunk size is 512 tokens with no overlap. Adjust these to match your embedding model's context window and your retrieval strategy. Both values are recorded in `manifest.json` so your output is reproducible.
 
@@ -82,17 +74,17 @@ for chunk in ctx.chunks:
 
 ---
 
-## Per-block confidence
+## Per-block provenance categories
 
-For stricter pipelines, you can filter blocks by extraction confidence before chunking or embedding.
+The `confidence` field describes how blocks were produced. EXTRACTED, INFERRED, and AMBIGUOUS are provenance categories, not calibrated probabilities or proof that the content is correct. Filtering them is an inspection aid and can omit required content; it does not approve ingestion.
 
 ```python
 from aksharamd.models.block import ExtractionConfidence
 
 text, ctx = compiler.compile_to_string("report.pdf")
 
-# Only embed content extracted with high confidence
-clean_blocks = [
+# Separate native-structure blocks for inspection, without approving ingestion.
+native_blocks = [
     b for b in ctx.document.blocks
     if b.confidence == ExtractionConfidence.EXTRACTED
 ]
@@ -106,10 +98,11 @@ if ambiguous_blocks:
     print(f"{len(ambiguous_blocks)} ambiguous blocks — review before indexing")
 ```
 
-Confidence values:
-- `EXTRACTED` — cleanly parsed from native structure (text layer, DOM, schema)
-- `INFERRED` — derived with moderate uncertainty (whitespace tables, font-size headings)
-- `AMBIGUOUS` — low-fidelity (OCR, olefile stream, binary fallback) — verify before relying on
+Provenance categories:
+
+- `EXTRACTED` — parsed from native structure (text layer, DOM, schema)
+- `INFERRED` — derived heuristically (whitespace tables, font-size headings)
+- `AMBIGUOUS` — extraction paths marked ambiguous (OCR, olefile stream, binary fallback); inspect their evidence
 
 ---
 
@@ -133,7 +126,9 @@ for group in chunks:
     print(f"Group {group['chunk_index']}: {len(group['documents'])} docs, "
           f"{group['token_count']:,} tokens")
     for doc in group["documents"]:
-        embed(doc["markdown"], metadata={"source": doc["source"]})
+        # Application hook must validate each source and its candidate.
+        if application_review_accepts(doc["source"], doc["markdown"], doc):
+            embed(doc["markdown"], metadata={"source": doc["source"]})
 ```
 
 Or from the CLI:
@@ -146,7 +141,7 @@ aksharamd corpus ./documents/ --budget 8000 -o corpus.json
 
 ## LangChain-style integration
 
-AksharaMD does not depend on LangChain, but the output format is compatible. Here is a minimal loader that wraps `compile_to_string` and returns LangChain `Document` objects:
+AksharaMD does not depend on LangChain, but the output format is compatible. Here is an illustrative loader that wraps `compile_to_string`, applies a caller-supplied review callback, and returns LangChain `Document` objects:
 
 ```python
 from __future__ import annotations
@@ -160,15 +155,17 @@ from aksharamd.compiler import Compiler
 
 
 class AksharaMDLoader(BaseLoader):
-    """LangChain document loader backed by AksharaMD with readiness gating."""
+    """LangChain document loader backed by AksharaMD with application review."""
 
     def __init__(
         self,
         file_path: str,
+        accept_candidate,        # callable(path, text, context) -> bool
         output_dir: str = "output",
-        min_score: int = 70,      # block documents scoring below this
+        min_score: int = 70,      # optional diagnostic floor; passing is insufficient
     ) -> None:
         self.file_path = file_path
+        self.accept_candidate = accept_candidate
         self.compiler = Compiler(output_dir=output_dir)
         self.min_score = min_score
 
@@ -182,6 +179,9 @@ class AksharaMDLoader(BaseLoader):
                 f"Quality band: {m.quality_band}. "
                 f"Warnings: {m.warning_codes}"
             )
+
+        if not self.accept_candidate(self.file_path, text, ctx):
+            raise ValueError("Source/task review required before indexing")
 
         for chunk in ctx.chunks:
             yield LCDocument(
@@ -201,7 +201,7 @@ class AksharaMDLoader(BaseLoader):
 
 
 # Usage:
-# loader = AksharaMDLoader("report.pdf", min_score=70)
+# loader = AksharaMDLoader("report.pdf", application_review_accepts, min_score=70)
 # docs = loader.load()
 # vectorstore = Chroma.from_documents(docs, embedding=OpenAIEmbeddings())
 ```
@@ -224,9 +224,10 @@ from aksharamd.compiler import Compiler
 
 
 class AksharaMDReader(BaseReader):
-    """LlamaIndex document reader backed by AksharaMD with readiness gating."""
+    """LlamaIndex document reader backed by AksharaMD with application review."""
 
-    def __init__(self, output_dir: str = "output", min_score: int = 70) -> None:
+    def __init__(self, accept_candidate, output_dir: str = "output", min_score: int = 70) -> None:
+        self.accept_candidate = accept_candidate  # callable(path, text, context) -> bool
         self.compiler = Compiler(output_dir=output_dir)
         self.min_score = min_score
 
@@ -239,6 +240,9 @@ class AksharaMDReader(BaseReader):
                 f"Readiness score {m.readiness_score}/100 is below threshold {self.min_score}. "
                 f"Quality band: {m.quality_band}."
             )
+
+        if not self.accept_candidate(str(file), text, ctx):
+            raise ValueError("Source/task review required before indexing")
 
         docs = []
         for chunk in ctx.chunks:
@@ -260,7 +264,7 @@ class AksharaMDReader(BaseReader):
 
 
 # Usage:
-# reader = AksharaMDReader(min_score=70)
+# reader = AksharaMDReader(application_review_accepts, min_score=70)
 # documents = reader.load_data(Path("report.pdf"))
 # index = VectorStoreIndex.from_documents(documents)
 ```
@@ -284,26 +288,27 @@ if m.quality_band == "RISKY" and "OCR_REQUIRED" in m.warning_codes:
         # OCR is installed — something else is wrong
         route_to_review_queue("scanned.pdf", m)
     else:
-        print("Install aksharamd[ocr] and rerun for full extraction.")
+        print("Install aksharamd[ocr], rerun, and inspect the result.")
 ```
 
-**Option 2: Ingest with a risk flag**
+**Option 2: Record diagnostics in the review queue**
 
 ```python
 if m.quality_band == "RISKY":
-    embed_chunks(ctx, extra_metadata={"needs_review": True, "warning_codes": m.warning_codes})
+    route_to_review_queue("scanned.pdf", ctx)
 ```
 
-**Option 3: Use per-block confidence to filter**
+**Option 3: Inspect blocks by provenance**
 
 ```python
 if m.quality_band == "RISKY":
-    # Only embed EXTRACTED blocks; skip AMBIGUOUS blocks
-    safe_content = "\n\n".join(
+    native_content = "\n\n".join(
         b.content for b in ctx.document.blocks
         if b.confidence.value == "extracted"
     )
-    embed(safe_content)
+    # Inspect this subset against the source. EXTRACTED does not mean safe,
+    # and dropping other blocks can remove facts required by your task.
+    route_to_review_queue("scanned.pdf", ctx)
 ```
 
 ---

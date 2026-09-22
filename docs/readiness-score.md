@@ -1,32 +1,23 @@
 # AI Readiness Score
 
-Every AksharaMD compilation returns a **0–100 AI Readiness Score** alongside the extracted content. The score measures how reliably the source document's content was extracted — not how well-written the document is, and not a prediction of downstream LLM accuracy. A clean text file should score 90+. A partially-scanned PDF typically scores 50–65.
+Every AksharaMD compilation returns a **0–100 AI Readiness Score** alongside the extracted content. This legacy heuristic combines a format baseline with adjustments for implemented extraction signals. It is not a measurement of semantic preservation, structural completeness, or downstream answer correctness. A high score can coexist with undetected omissions or incorrect associations.
 
----
+This score belongs to the compilation path. Default `assess` returns schema-1.1 bounded text/literal evidence and dispositions instead; the exploratory source/PDF API returns separate schema-2.0 observations. See the [interface boundaries](../README.md#how-it-works).
 
 ## Quality Bands
 
 | Band | Score range | Meaning |
 |------|-------------|---------|
-| **HIGH** | ≥ 85 | Extraction is reliable. Content is structurally complete and token-efficient. |
-| **OK** | 70–84 | Extraction is mostly complete. Minor issues present (e.g. some missing structure, low heading density). |
-| **RISKY** | 50–69 | Extraction is partial or degraded. The document may be scanned, have encoding issues, or contain significant boilerplate. |
-| **POOR** | < 50 | Extraction failed or produced unusable content. Do not ingest without manual review or remediation. |
+| **HIGH** | ≥ 85 | High heuristic score after the format baseline and modeled adjustments; unmodeled defects remain possible. |
+| **OK** | 70–84 | Intermediate heuristic score; inspect the warnings and evidence behind it. |
+| **RISKY** | 50–69 | Lower heuristic score; investigate the signals that contributed. |
+| **POOR** | < 50 | Lowest heuristic band; prioritize investigation or remediation. |
 
----
+The names and thresholds remain compatible with existing callers. They are not calibrated safety or completeness labels. HIGH does not mean no review is needed, and a low score does not prove the output is unusable for every task.
 
-## Recommended Ingestion Policy
+## Using diagnostics in an ingestion policy
 
-These are the defaults we recommend. Adjust thresholds to match your application's tolerance for imperfect extractions.
-
-| Band | Default action | Rationale |
-|------|---------------|-----------|
-| **HIGH** | Auto-ingest | Extraction is reliable; no review needed. |
-| **OK** | Ingest and flag | Acceptable quality; log the document for periodic audit. |
-| **RISKY** | Require review or rerun with extras | Extraction is degraded; embeddings may be unreliable. Rerun with `[ocr]`, `[vision]`, or `[math]` extras if applicable, or route to a human reviewer. |
-| **POOR** | Block ingestion | Do not embed. Surface the document for manual inspection. |
-
-Python example:
+Use the score to prioritize inspection or trigger a diagnostic threshold. Approve ingestion using source-grounded checks and task-specific evaluation that you have validated independently. No score-only auto-ingestion policy is established here. Missing warnings and EXTRACTED block labels do not supply that missing evidence.
 
 ```python
 from aksharamd.compiler import Compiler
@@ -34,16 +25,16 @@ from aksharamd.compiler import Compiler
 compiler = Compiler(output_dir="output")
 text, ctx = compiler.compile_to_string("report.pdf")
 
-band = ctx.manifest.quality_band   # "HIGH" | "OK" | "RISKY" | "POOR"
-score = ctx.manifest.readiness_score
+print(ctx.manifest.readiness_score, ctx.manifest.quality_band)
+for note in ctx.manifest.confidence_notes:
+    print(note)
 
-if band == "POOR":
-    raise ValueError(f"Ingestion blocked: score {score}/100 ({band})")
-elif band == "RISKY":
-    print(f"WARNING: score {score}/100 ({band}) — routing for review")
-    # log to review queue rather than embedding
+# Application hooks, not AksharaMD APIs. The review checks source/task
+# requirements independently of the readiness score, including for HIGH.
+if application_review_accepts("report.pdf", text, ctx):
+    embed(text)
 else:
-    embed(text)   # HIGH or OK: proceed
+    route_to_review_queue("report.pdf", ctx)
 ```
 
 ---
@@ -56,7 +47,7 @@ The score starts from a format-quality baseline, then adjustments are applied ba
 
 | Format | Baseline | Notes |
 |--------|----------|-------|
-| Markdown, plain text, source code | 93–95 | Lossless formats; near-perfect extraction expected |
+| Markdown, plain text, source code | 93–95 | High baseline for text inputs; transformations still need validation |
 | CSV, YAML, TOML | 90–95 | Structured data; all content is text |
 | PDF (text layer), HTML | 87 | Good but subject to layout and encoding issues |
 | XLSX | 85 | Spreadsheet; empty cells and merged ranges may be lost |
@@ -287,6 +278,6 @@ for note in ctx.manifest.confidence_notes:
 ## False Positives and Known Limitations
 
 - **Dense code documentation** (e.g. API reference PDFs with many pages of short function signatures) may score lower than the extraction quality warrants, because the low character-per-page ratio triggers `LOW_TEXT_DENSITY`.
-- **Slide decks** with heavy use of graphics and minimal text will score in the RISKY range even when the text that exists is extracted correctly. The score reflects missing content, not extraction error.
-- **Audio transcriptions** via Whisper start from a baseline of 72 and score based on token density. Whisper accuracy (typically 65–80% for clear speech) is not directly measured by the score.
+- **Slide decks** with heavy use of graphics and minimal text will score in the RISKY range even when the text that exists is extracted correctly. The score reflects modeled signals and cannot determine whether content is missing.
+- **Audio transcriptions** via Whisper start from a baseline of 72 and score based on token density. Transcription accuracy is not directly measured by the score.
 - **RTF** always starts at 63 because the `striprtf` library is inherently lossy. Even a perfect RTF conversion will not exceed OK.
