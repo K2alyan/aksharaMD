@@ -119,6 +119,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Return zero despite harness errors or nonterminal replay results.",
     )
+    parser.add_argument(
+        "--accept-v1-scored",
+        action="store_true",
+        help=(
+            "Treat pre-v3 results (schema_version=1, status=SCORED, sha_verified=true) as "
+            "already-completed and skip re-scoring them. Use after D-006 (scorer ran before "
+            "v3 contract upgrade) to avoid a full re-run; only non-terminal records are scored."
+        ),
+    )
     args = parser.parse_args(argv)
 
     # ------------------------------------------------------------------ #
@@ -200,15 +209,24 @@ def main(argv: list[str] | None = None) -> int:
     except OlmocrHygieneError as exc:
         print(f"ERROR: olmOCR run hygiene check failed: {exc}", file=sys.stderr)
         return 1
-    completed_results = {
-        (r["canonical_id"], r["parser_id"]): r
-        for r in existing_results
+    def _is_skip_candidate(r: dict) -> bool:
         if is_terminal_stage2_result(
             r,
             expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
             expected_test_inventory_sha256=test_inventory_sha256,
             expected_assertions_by_document=expected_assertions_by_document,
-        )
+        ):
+            return True
+        # D-006: accept pre-v3 SCORED+sha_verified records as skip candidates when
+        # --accept-v1-scored is set; avoids re-running 5,500+ pairs after a contract upgrade.
+        if args.accept_v1_scored:
+            return r.get("status") == "SCORED" and r.get("sha_verified") is True
+        return False
+
+    completed_results = {
+        (r["canonical_id"], r["parser_id"]): r
+        for r in existing_results
+        if _is_skip_candidate(r)
     }
     all_records = unique_records
     if args.parser_id_filter:
