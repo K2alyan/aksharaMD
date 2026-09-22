@@ -197,6 +197,55 @@ the time of correction (all Phase 2 records had `llm_evaluated=False`).
 
 ---
 
+---
+
+## D-006 — olmOCR Stage 2 scorer ran before v3 contract upgrade
+
+**Date:** 2026-09-22
+
+### Planned
+
+Stage 2 scorer results are cryptographically anchored via the v3 contract:
+- `stage2_scorer_contract_id = "olmocr_stage2_v3"`
+- `stage2_schema_version = "3"`
+- `benchmark_test_inventory_sha256` — hash of frozen JSONL assertion files
+- `assertion_set_sha256` per document — hash of the exact assertion IDs/types evaluated
+
+### Implemented
+
+The olmOCR Stage 2 scorer (`run_score_olmocr.py`) ran to completion before PR #211
+(`fix/olmocr-dedup-completeness`) was merged and pulled locally. The scorer produced
+6,904 SCORED results in schema version 1, which lack all v3 contract fields.
+
+### Why this occurred
+
+The scorer ran overnight (2026-09-19 → 2026-09-22, ~10.4 hours). PRs #209-213 were
+merged to GitHub during that window and pulled locally after the scorer finished. The
+aggregator (now at v3 contract) therefore rejected all v1 results as non-terminal.
+
+### Resolution
+
+`aggregate_olmocr.py` gained a `--legacy-v1` flag that accepts `status=SCORED`
+records without terminal validation. Results produced under this flag are marked
+`PROVISIONAL_LEGACY_V1` in the output JSON.
+
+Claim 1/2 numbers from the 2026-09-22 aggregation are provisional under this flag.
+The claim-relevant fields (`warning_codes`, `readiness_score`, `test_results`,
+`n_tests`, `n_passed`) are present and correct in v1 results; only the cryptographic
+anchoring is missing.
+
+### Evidentiary consequence
+
+- Claim 1 and Claim 2 numbers from `stage2-olmocr-2026-09-22-aggregated.json` are
+  labeled PROVISIONAL_LEGACY_V1. They are based on correct scorer outputs but lack
+  cryptographic provenance anchoring.
+- Track B allocation is withheld until the scorer is re-run with v3 contract.
+- **V2 action**: Re-run the scorer (`run_score_olmocr.py`) with current code to
+  produce v3-anchored results. Existing SCORED results will be skipped; only the
+  ~36 non-terminal records need re-scoring.
+
+---
+
 ## Planned V2 actions summary
 
 | Item | V2 action |
@@ -205,3 +254,4 @@ the time of correction (all Phase 2 records had `llm_evaluated=False`).
 | Source+candidate scoring | Implement and validate before Phase 1 |
 | Band boundary validation | Add automated test against freeze manifest values |
 | Spearman implementation | Add test for constant and tied predictors |
+| olmOCR v3 re-run | Re-run scorer for v3 contract anchoring + Track B allocation |

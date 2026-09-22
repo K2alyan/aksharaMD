@@ -444,7 +444,18 @@ def main(argv: list[str] | None = None) -> int:
             "Write provisional claim aggregates for an incomplete run. Track B allocation is still withheld."
         ),
     )
+    p.add_argument(
+        "--legacy-v1",
+        action="store_true",
+        help=(
+            "Accept pre-v3 scorer results (schema_version=1, no scorer contract / inventory anchoring). "
+            "Implies --allow-incomplete. Use only when the scorer ran before the v3 contract upgrade "
+            "(D-006). Results are marked PROVISIONAL_LEGACY_V1 in the output."
+        ),
+    )
     args = p.parse_args(argv)
+    if args.legacy_v1:
+        args.allow_incomplete = True
 
     run_dir = Path(args.run_dir)
     out_dir = Path(args.out_dir)
@@ -504,17 +515,22 @@ def main(argv: list[str] | None = None) -> int:
         f"  {dedup.files_seen} files -> {dedup.unique_pairs} unique pairs "
         f"({dedup.duplicate_files} duplicates removed)"
     )
-    scored = [
-        r
-        for r in all_results
-        if r.get("status") == "SCORED"
-        and is_terminal_stage2_result(
-            r,
-            expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
-            expected_test_inventory_sha256=test_inventory_sha256,
-            expected_assertions_by_document=expected_assertions_by_document,
-        )
-    ]
+    if args.legacy_v1:
+        # D-006: scorer ran with pre-v3 contract; skip terminal validation and
+        # accept any record with status=SCORED.  Results are provisional.
+        scored = [r for r in all_results if r.get("status") == "SCORED"]
+    else:
+        scored = [
+            r
+            for r in all_results
+            if r.get("status") == "SCORED"
+            and is_terminal_stage2_result(
+                r,
+                expected_scorer_contract_id=STAGE2_SCORER_CONTRACT_ID,
+                expected_test_inventory_sha256=test_inventory_sha256,
+                expected_assertions_by_document=expected_assertions_by_document,
+            )
+        ]
     statuses: dict[str, int] = defaultdict(int)
     for r in all_results:
         statuses[r.get("status", "UNKNOWN")] += 1
@@ -580,6 +596,10 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": "1",
         "generated_at": datetime.now(UTC).isoformat(),
         "run_dir": str(run_dir),
+        "provenance_note": (
+            "PROVISIONAL_LEGACY_V1: scored with pre-v3 contract; terminal validation bypassed (D-006). "
+            "Re-run scorer with current code for cryptographically anchored results."
+        ) if args.legacy_v1 else None,
         "stage2_scorer_contract_id": STAGE2_SCORER_CONTRACT_ID,
         "benchmark_test_inventory_sha256": test_inventory_sha256,
         "n_total_execution_files": execution_dedup.files_seen,
