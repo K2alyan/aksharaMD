@@ -1,0 +1,898 @@
+{
+  "format_version": 1,
+  "boundary": "Selected existing aggregate fields, not a rerun or proof of historical producer identity.",
+  "sources": {
+    "olmocr": {
+      "local_source_path": "benchmarks/results/stage2-olmocr-2026-09-22-aggregated.json",
+      "sha256": "90da2a739453c563d4668f65035b519ba79ef9d15f7a729440187534e90de956",
+      "selected_fields": {
+        "generated_at": "2026-09-22T03:22:47.166239+00:00",
+        "provenance_note": "PROVISIONAL_LEGACY_V1: scored with pre-v3 contract; terminal validation bypassed (D-006). Re-run scorer with current code for cryptographically anchored results.",
+        "n_total_result_files": 5876,
+        "n_total_results": 5612,
+        "n_duplicate_result_files_removed": 264,
+        "n_scored": 5587,
+        "completeness": {
+          "is_complete": false,
+          "n_expected_pairs": 5612,
+          "n_observed_unique_pairs": 5612,
+          "n_complete_pairs": 21,
+          "n_missing_pairs": 0,
+          "n_nonterminal_pairs": 5591,
+          "n_unexpected_pairs": 0
+        },
+        "claim_1_detector_precision_recall": {
+          "W_MULTICOLUMN_ORDER": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 206,
+            "tn": 25,
+            "n_in_scope": 231,
+            "precision": null,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": [
+              0.0,
+              0.018307142149125814
+            ],
+            "fpr_ci95": [
+              0.0,
+              0.13319649395317873
+            ]
+          },
+          "W_ENCODING_ARTIFACTS": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 81,
+            "tn": 14,
+            "n_in_scope": 95,
+            "precision": null,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": [
+              0.0,
+              0.04527967412212876
+            ],
+            "fpr_ci95": [
+              0.0,
+              0.21531701192718142
+            ]
+          },
+          "W_DROPPED_CONTENT": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 131,
+            "tn": 23,
+            "n_in_scope": 154,
+            "precision": null,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": [
+              0.0,
+              0.02848972423940386
+            ],
+            "fpr_ci95": [
+              0.0,
+              0.14312112541726274
+            ]
+          },
+          "W_HEADER_FOOTER_TABLE_GARBLED": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 188,
+            "tn": 75,
+            "n_in_scope": 263,
+            "precision": null,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": [
+              1.734723475976807e-18,
+              0.020024853837749476
+            ],
+            "fpr_ci95": [
+              0.0,
+              0.04872554590470005
+            ]
+          },
+          "W_GIBBERISH": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "tn": 9,
+            "n_in_scope": 9,
+            "precision": null,
+            "recall": null,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": null,
+            "fpr_ci95": [
+              0.0,
+              0.2991527535509594
+            ]
+          },
+          "W_TABLE_MISSING": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 159,
+            "tn": 28,
+            "n_in_scope": 187,
+            "precision": null,
+            "recall": 0.0,
+            "fpr": 0.0,
+            "precision_ci95": null,
+            "recall_ci95": [
+              0.0,
+              0.023591023423989943
+            ],
+            "fpr_ci95": [
+              0.0,
+              0.12064720365810762
+            ]
+          }
+        },
+        "claim_2_spearman_rho": {
+          "per_parser_per_category": {
+            "aksharamd-reference/arxiv_math": {
+              "parser_id": "aksharamd-reference",
+              "category": "arxiv_math",
+              "n": 522,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "aksharamd-reference/headers_footers": {
+              "parser_id": "aksharamd-reference",
+              "category": "headers_footers",
+              "n": 263,
+              "spearman_rho": 0.04788182059517816,
+              "ci95_lo": -0.0781019501700366,
+              "ci95_hi": 0.17677296172613494
+            },
+            "aksharamd-reference/long_tiny_text": {
+              "parser_id": "aksharamd-reference",
+              "category": "long_tiny_text",
+              "n": 59,
+              "spearman_rho": 0.37527658615412174,
+              "ci95_lo": 0.14007195882385448,
+              "ci95_hi": 0.5700064947161684
+            },
+            "aksharamd-reference/multi_column": {
+              "parser_id": "aksharamd-reference",
+              "category": "multi_column",
+              "n": 231,
+              "spearman_rho": 0.024467573671209723,
+              "ci95_lo": -0.10932539832313282,
+              "ci95_hi": 0.15612319072789055
+            },
+            "aksharamd-reference/old_scans": {
+              "parser_id": "aksharamd-reference",
+              "category": "old_scans",
+              "n": 95,
+              "spearman_rho": 0.07952432408482513,
+              "ci95_lo": -0.17406262166287415,
+              "ci95_hi": 0.32363150318913697
+            },
+            "aksharamd-reference/old_scans_math": {
+              "parser_id": "aksharamd-reference",
+              "category": "old_scans_math",
+              "n": 36,
+              "spearman_rho": 0.5908475701568313,
+              "ci95_lo": 0.33787140134742727,
+              "ci95_hi": 0.7848489535369876
+            },
+            "aksharamd-reference/tables": {
+              "parser_id": "aksharamd-reference",
+              "category": "tables",
+              "n": 187,
+              "spearman_rho": 0.28046939583159997,
+              "ci95_lo": 0.14558410651239923,
+              "ci95_hi": 0.4104322473319577
+            },
+            "docling/arxiv_math": {
+              "parser_id": "docling",
+              "category": "arxiv_math",
+              "n": 522,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "docling/headers_footers": {
+              "parser_id": "docling",
+              "category": "headers_footers",
+              "n": 266,
+              "spearman_rho": -0.07268604260642414,
+              "ci95_lo": -0.09939395255070366,
+              "ci95_hi": -0.04278015181098892
+            },
+            "docling/long_tiny_text": {
+              "parser_id": "docling",
+              "category": "long_tiny_text",
+              "n": 62,
+              "spearman_rho": -0.051973791910320914,
+              "ci95_lo": -0.21845428488296137,
+              "ci95_hi": 0.10708384340666376
+            },
+            "docling/multi_column": {
+              "parser_id": "docling",
+              "category": "multi_column",
+              "n": 231,
+              "spearman_rho": 0.18147210961707283,
+              "ci95_lo": 0.10281526145968714,
+              "ci95_hi": 0.2735856551358186
+            },
+            "docling/old_scans": {
+              "parser_id": "docling",
+              "category": "old_scans",
+              "n": 98,
+              "spearman_rho": 0.21152734308605606,
+              "ci95_lo": 0.035935783039374176,
+              "ci95_hi": 0.3669244778458819
+            },
+            "docling/old_scans_math": {
+              "parser_id": "docling",
+              "category": "old_scans_math",
+              "n": 36,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "docling/tables": {
+              "parser_id": "docling",
+              "category": "tables",
+              "n": 188,
+              "spearman_rho": 0.18464634966463359,
+              "ci95_lo": 0.04007135987183046,
+              "ci95_hi": 0.2906500369474937
+            },
+            "marker/arxiv_math": {
+              "parser_id": "marker",
+              "category": "arxiv_math",
+              "n": 522,
+              "spearman_rho": 0.05717842900143209,
+              "ci95_lo": -0.016363476988628153,
+              "ci95_hi": 0.12594468963502187
+            },
+            "marker/headers_footers": {
+              "parser_id": "marker",
+              "category": "headers_footers",
+              "n": 266,
+              "spearman_rho": 0.002848679091022995,
+              "ci95_lo": -0.11118196745399776,
+              "ci95_hi": 0.13070301514768942
+            },
+            "marker/long_tiny_text": {
+              "parser_id": "marker",
+              "category": "long_tiny_text",
+              "n": 62,
+              "spearman_rho": 0.23630674647664943,
+              "ci95_lo": -0.017104026079002625,
+              "ci95_hi": 0.47063456968855344
+            },
+            "marker/multi_column": {
+              "parser_id": "marker",
+              "category": "multi_column",
+              "n": 231,
+              "spearman_rho": -0.0720964762057274,
+              "ci95_lo": -0.1862229278658063,
+              "ci95_hi": 0.04916395228708202
+            },
+            "marker/old_scans": {
+              "parser_id": "marker",
+              "category": "old_scans",
+              "n": 98,
+              "spearman_rho": -0.06884412802855672,
+              "ci95_lo": -0.15215903471962336,
+              "ci95_hi": -0.03852422300507249
+            },
+            "marker/old_scans_math": {
+              "parser_id": "marker",
+              "category": "old_scans_math",
+              "n": 36,
+              "spearman_rho": 0.12961765852795828,
+              "ci95_lo": -0.1715675713471586,
+              "ci95_hi": 0.42572701325752876
+            },
+            "marker/tables": {
+              "parser_id": "marker",
+              "category": "tables",
+              "n": 188,
+              "spearman_rho": -0.05224330984787922,
+              "ci95_lo": -0.1861353365337543,
+              "ci95_hi": 0.0926448417185742
+            },
+            "markitdown/arxiv_math": {
+              "parser_id": "markitdown",
+              "category": "arxiv_math",
+              "n": 516,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "markitdown/headers_footers": {
+              "parser_id": "markitdown",
+              "category": "headers_footers",
+              "n": 266,
+              "spearman_rho": -0.3693282667245405,
+              "ci95_lo": -0.4550958323153976,
+              "ci95_hi": -0.2697940665802929
+            },
+            "markitdown/long_tiny_text": {
+              "parser_id": "markitdown",
+              "category": "long_tiny_text",
+              "n": 62,
+              "spearman_rho": 0.6232952455873677,
+              "ci95_lo": 0.48391993317428816,
+              "ci95_hi": 0.7533092343162462
+            },
+            "markitdown/multi_column": {
+              "parser_id": "markitdown",
+              "category": "multi_column",
+              "n": 222,
+              "spearman_rho": 0.21494304334759334,
+              "ci95_lo": 0.09545644808575737,
+              "ci95_hi": 0.3100895607234249
+            },
+            "markitdown/old_scans": {
+              "parser_id": "markitdown",
+              "category": "old_scans",
+              "n": 98,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "markitdown/old_scans_math": {
+              "parser_id": "markitdown",
+              "category": "old_scans_math",
+              "n": 36,
+              "spearman_rho": null,
+              "ci95_lo": null,
+              "ci95_hi": null
+            },
+            "markitdown/tables": {
+              "parser_id": "markitdown",
+              "category": "tables",
+              "n": 188,
+              "spearman_rho": 0.23810248928045338,
+              "ci95_lo": 0.17442348155945722,
+              "ci95_hi": 0.29764282680329357
+            }
+          },
+          "pooled": {
+            "aksharamd-reference": {
+              "parser_id": "aksharamd-reference",
+              "n": 1393,
+              "spearman_rho": 0.09510092149111858,
+              "ci95_lo": 0.04103376506960216,
+              "ci95_hi": 0.14877255285969962
+            },
+            "docling": {
+              "parser_id": "docling",
+              "n": 1403,
+              "spearman_rho": 0.037241831512226965,
+              "ci95_lo": -0.012459045389586814,
+              "ci95_hi": 0.08346816508340478
+            },
+            "marker": {
+              "parser_id": "marker",
+              "n": 1403,
+              "spearman_rho": -0.0553907417186692,
+              "ci95_lo": -0.10319189683591891,
+              "ci95_hi": -0.005352907157156031
+            },
+            "markitdown": {
+              "parser_id": "markitdown",
+              "n": 1388,
+              "spearman_rho": -0.007943690258923584,
+              "ci95_lo": -0.05972165543167522,
+              "ci95_hi": 0.04107940264882086
+            }
+          }
+        },
+        "track_b_allocation_manifest_path": null
+      }
+    },
+    "doclaynet": {
+      "local_source_path": "benchmarks/results/stage2-doclaynet-2026-09-20-aggregated.json",
+      "sha256": "6e3ff68f4210ec86a976a394fd0129416b944a2936da270b3b8614596192fdcd",
+      "selected_fields": {
+        "aggregated_utc": "2026-09-20T02:52:35+00:00",
+        "n_result_files": 1120,
+        "n_executed": 1116,
+        "n_defect": 4,
+        "per_parser": {
+          "aksharamd-reference": {
+            "n_results": 280,
+            "n_executed": 280,
+            "table_detection": {
+              "tp": 100,
+              "fp": 0,
+              "fn": 180,
+              "tn": 0,
+              "n_pos_gt": 280,
+              "n_neg_gt": 0,
+              "precision": 1.0,
+              "precision_ci95": [
+                0.9630065012310038,
+                1.0
+              ],
+              "recall": 0.35714285714285715,
+              "recall_ci95": [
+                0.3032999891665346,
+                0.4148525304995357
+              ],
+              "fpr": null,
+              "fpr_ci95": [
+                null,
+                null
+              ]
+            },
+            "detector_validation": {
+              "W_TABLE_MISSING": {
+                "detector_code": "W_TABLE_MISSING",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 180,
+                "n_fires": 0,
+                "n_missed_tables": 180,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.020895498244367063
+                ]
+              },
+              "W_HEADER_FOOTER_TABLE_GARBLED": {
+                "detector_code": "W_HEADER_FOOTER_TABLE_GARBLED",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 180,
+                "n_fires": 0,
+                "n_missed_tables": 180,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.020895498244367063
+                ]
+              }
+            },
+            "spearman_readiness_vs_table_extraction": {
+              "n_pairs": 276,
+              "spearman_rho": 0.10838052050512452,
+              "interpretation": "Higher readiness_score predicts correct table extraction (rho>0 = positive)."
+            }
+          },
+          "docling": {
+            "n_results": 280,
+            "n_executed": 280,
+            "table_detection": {
+              "tp": 237,
+              "fp": 0,
+              "fn": 43,
+              "tn": 0,
+              "n_pos_gt": 280,
+              "n_neg_gt": 0,
+              "precision": 1.0,
+              "precision_ci95": [
+                0.9840498438302959,
+                0.9999999999999999
+              ],
+              "recall": 0.8464285714285714,
+              "recall_ci95": [
+                0.7995357351825021,
+                0.8839444046272775
+              ],
+              "fpr": null,
+              "fpr_ci95": [
+                null,
+                null
+              ]
+            },
+            "detector_validation": {
+              "W_TABLE_MISSING": {
+                "detector_code": "W_TABLE_MISSING",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 43,
+                "n_fires": 0,
+                "n_missed_tables": 43,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.08200980441345543
+                ]
+              },
+              "W_HEADER_FOOTER_TABLE_GARBLED": {
+                "detector_code": "W_HEADER_FOOTER_TABLE_GARBLED",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 43,
+                "n_fires": 0,
+                "n_missed_tables": 43,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.08200980441345543
+                ]
+              }
+            },
+            "spearman_readiness_vs_table_extraction": {
+              "n_pairs": 277,
+              "spearman_rho": null,
+              "interpretation": "Higher readiness_score predicts correct table extraction (rho>0 = positive)."
+            }
+          },
+          "marker": {
+            "n_results": 280,
+            "n_executed": 276,
+            "table_detection": {
+              "tp": 226,
+              "fp": 0,
+              "fn": 50,
+              "tn": 0,
+              "n_pos_gt": 276,
+              "n_neg_gt": 0,
+              "precision": 1.0,
+              "precision_ci95": [
+                0.9832864840834483,
+                1.0
+              ],
+              "recall": 0.8188405797101449,
+              "recall_ci95": [
+                0.7691264900899826,
+                0.8598010487514163
+              ],
+              "fpr": null,
+              "fpr_ci95": [
+                null,
+                null
+              ]
+            },
+            "detector_validation": {
+              "W_TABLE_MISSING": {
+                "detector_code": "W_TABLE_MISSING",
+                "n_eligible": 276,
+                "tp": 0,
+                "fp": 0,
+                "fn": 50,
+                "n_fires": 0,
+                "n_missed_tables": 50,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.07134760017861413
+                ]
+              },
+              "W_HEADER_FOOTER_TABLE_GARBLED": {
+                "detector_code": "W_HEADER_FOOTER_TABLE_GARBLED",
+                "n_eligible": 276,
+                "tp": 0,
+                "fp": 0,
+                "fn": 50,
+                "n_fires": 0,
+                "n_missed_tables": 50,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.07134760017861413
+                ]
+              }
+            },
+            "spearman_readiness_vs_table_extraction": {
+              "n_pairs": 275,
+              "spearman_rho": 0.06495499879426164,
+              "interpretation": "Higher readiness_score predicts correct table extraction (rho>0 = positive)."
+            }
+          },
+          "markitdown": {
+            "n_results": 280,
+            "n_executed": 280,
+            "table_detection": {
+              "tp": 178,
+              "fp": 0,
+              "fn": 102,
+              "tn": 0,
+              "n_pos_gt": 280,
+              "n_neg_gt": 0,
+              "precision": 1.0,
+              "precision_ci95": [
+                0.9788746806975208,
+                1.0
+              ],
+              "recall": 0.6357142857142857,
+              "recall_ci95": [
+                0.5778636491038934,
+                0.6898914572133398
+              ],
+              "fpr": null,
+              "fpr_ci95": [
+                null,
+                null
+              ]
+            },
+            "detector_validation": {
+              "W_TABLE_MISSING": {
+                "detector_code": "W_TABLE_MISSING",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 102,
+                "n_fires": 0,
+                "n_missed_tables": 102,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.03629446269825417
+                ]
+              },
+              "W_HEADER_FOOTER_TABLE_GARBLED": {
+                "detector_code": "W_HEADER_FOOTER_TABLE_GARBLED",
+                "n_eligible": 280,
+                "tp": 0,
+                "fp": 0,
+                "fn": 102,
+                "n_fires": 0,
+                "n_missed_tables": 102,
+                "precision": null,
+                "precision_ci95": [
+                  null,
+                  null
+                ],
+                "recall": 0.0,
+                "recall_ci95": [
+                  0.0,
+                  0.03629446269825417
+                ]
+              }
+            },
+            "spearman_readiness_vs_table_extraction": {
+              "n_pairs": 277,
+              "spearman_rho": 0.11807917405139383,
+              "interpretation": "Higher readiness_score predicts correct table extraction (rho>0 = positive)."
+            }
+          }
+        }
+      }
+    },
+    "track_c": {
+      "local_source_path": "benchmarks/results/stage2-track-c-2026-09-21-aggregated.json",
+      "sha256": "f5765b207ae8d5386e51ab947d2f0a929aa3592b4a58120a8361e8bb90b45d10",
+      "selected_fields": {
+        "aggregated_at": "2026-09-21T04:57:52+00:00",
+        "primary_analysis": {
+          "metric": "em_score",
+          "metric_note": "Frozen V1 endpoint per STUDY_FREEZE_MANIFEST_V1.md sec.4. degradation = EM(aksharamd-reference) - EM(parser). If EM is near-zero for all parsers, record Claim 4 as NOT ESTABLISHED under V1.",
+          "reference_parser": "aksharamd-reference",
+          "corpora": {
+            "qasper": {
+              "n_pairs": 68,
+              "n_docs": 24,
+              "rho": 0.064886,
+              "p_value": 0.5991,
+              "ci_lower": 0.004035,
+              "ci_upper": 0.153218,
+              "n_bootstrap": 2000,
+              "hypothesis_falsified": true
+            },
+            "tat_dqa": {
+              "n_pairs": 90,
+              "n_docs": 30,
+              "rho": -0.01005,
+              "p_value": 0.925099,
+              "ci_lower": -0.068827,
+              "ci_upper": 0.055577,
+              "n_bootstrap": 2000,
+              "hypothesis_falsified": false
+            }
+          },
+          "pooled": {
+            "n_pairs": 158,
+            "n_docs": 54,
+            "rho": 0.038641,
+            "p_value": 0.62978,
+            "ci_lower": -0.064763,
+            "ci_upper": 0.123049,
+            "n_bootstrap": 2000,
+            "hypothesis_falsified": true
+          },
+          "score_by_parser": {
+            "qasper": {
+              "aksharamd-reference": {
+                "n_docs": 24,
+                "mean_em_score": 0.0083
+              },
+              "corpus_gold": {
+                "n_docs": 25,
+                "mean_em_score": 0.0213
+              },
+              "docling": {
+                "n_docs": 25,
+                "mean_em_score": 0.0133
+              },
+              "marker": {
+                "n_docs": 20,
+                "mean_em_score": 0.0167
+              },
+              "markitdown": {
+                "n_docs": 25,
+                "mean_em_score": 0.0213
+              }
+            },
+            "tat_dqa": {
+              "aksharamd-reference": {
+                "n_docs": 30,
+                "mean_em_score": 0.0111
+              },
+              "docling": {
+                "n_docs": 30,
+                "mean_em_score": 0.0278
+              },
+              "marker": {
+                "n_docs": 30,
+                "mean_em_score": 0.0111
+              },
+              "markitdown": {
+                "n_docs": 30,
+                "mean_em_score": 0.0
+              }
+            }
+          }
+        },
+        "exploratory_analysis": {
+          "metric": "primary_score",
+          "metric_note": "EXPLORATORY - NOT the V1 primary endpoint. Added post-observation. QASPER: max-annotator token F1. TAT-DQA: numeric-normalized EM. Reference: corpus_gold for QASPER (gold-text ceiling), aksharamd-reference for TAT-DQA. See V1_PROTOCOL_DEVIATIONS.md D-001.",
+          "reference_by_corpus": {
+            "qasper": "corpus_gold",
+            "tat_dqa": "aksharamd-reference"
+          },
+          "corpora": {
+            "qasper": {
+              "n_pairs": 94,
+              "n_docs": 25,
+              "rho": 0.113023,
+              "p_value": 0.278091,
+              "ci_lower": -0.074443,
+              "ci_upper": 0.306406,
+              "n_bootstrap": 2000,
+              "hypothesis_falsified": true
+            },
+            "tat_dqa": {
+              "n_pairs": 90,
+              "n_docs": 30,
+              "rho": -0.053842,
+              "p_value": 0.614248,
+              "ci_lower": -0.235281,
+              "ci_upper": 0.156404,
+              "n_bootstrap": 2000,
+              "hypothesis_falsified": false
+            }
+          },
+          "pooled": {
+            "n_pairs": 184,
+            "n_docs": 55,
+            "rho": -0.000578,
+            "p_value": 0.993784,
+            "ci_lower": -0.133791,
+            "ci_upper": 0.138459,
+            "n_bootstrap": 2000,
+            "hypothesis_falsified": false
+          },
+          "score_by_parser": {
+            "qasper": {
+              "aksharamd-reference": {
+                "n_docs": 24,
+                "mean_primary_score": 0.1695
+              },
+              "corpus_gold": {
+                "n_docs": 25,
+                "mean_primary_score": 0.2205
+              },
+              "docling": {
+                "n_docs": 25,
+                "mean_primary_score": 0.1981
+              },
+              "marker": {
+                "n_docs": 20,
+                "mean_primary_score": 0.1925
+              },
+              "markitdown": {
+                "n_docs": 25,
+                "mean_primary_score": 0.2019
+              }
+            },
+            "tat_dqa": {
+              "aksharamd-reference": {
+                "n_docs": 30,
+                "mean_primary_score": 0.1316
+              },
+              "docling": {
+                "n_docs": 30,
+                "mean_primary_score": 0.1477
+              },
+              "marker": {
+                "n_docs": 30,
+                "mean_primary_score": 0.1301
+              },
+              "markitdown": {
+                "n_docs": 30,
+                "mean_primary_score": 0.122
+              }
+            }
+          }
+        },
+        "mmlong_bench_doc": {
+          "status": "NOT_EXECUTABLE",
+          "reason": "No MMLongBench-Doc adapter in V1."
+        },
+        "claim4_v1_verdict": "NOT_ESTABLISHED",
+        "claim4_v1_verdict_reasons": [
+          "EM degenerate: max mean_em=0.0278 < 0.05 across all non-reference parsers on both corpora (D-001). See V1_PROTOCOL_DEVIATIONS.md.",
+          "Readiness compressed: 82% of observations at ceiling 95/100 (D-002). Spearman rho undefined with near-zero predictor variance."
+        ]
+      }
+    },
+    "selector_reconciliation": {
+      "local_source_path": "docs/research/product-direction-2026-09-21/independent/eval-selector-reconciliation.json",
+      "sha256": "9ac537642843817700fe4f6fda8a5016e9f29105aa88b6e81e3b8398c9daff89",
+      "selected_fields": {
+        "parser_only_oracle": {
+          "n_documents": 55,
+          "correct": 0.2727272727272727,
+          "regret": 0.030557182831386052,
+          "random_regret": 0.02705743099039518,
+          "random_accuracy": 0.3378787878787879,
+          "docling_regret": 0.017051066366101365
+        },
+        "all_arms_oracle": {
+          "n_documents": 55,
+          "correct": 0.21818181818181817,
+          "regret": 0.03597569883545556,
+          "random_regret": 0.03247594699446469,
+          "random_accuracy": 0.28939393939393937,
+          "docling_regret": 0.022469582370170875
+        }
+      }
+    }
+  }
+}
