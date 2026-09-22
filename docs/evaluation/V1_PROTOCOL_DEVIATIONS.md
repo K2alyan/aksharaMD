@@ -255,3 +255,48 @@ anchoring is missing.
 | Band boundary validation | Add automated test against freeze manifest values |
 | Spearman implementation | Add test for constant and tied predictors |
 | olmOCR v3 re-run | Re-run scorer for v3 contract anchoring + Track B allocation |
+
+---
+
+## D-007 - Correction to D-006 provenance and D-002 follow-up interpretation
+
+**Date:** 2026-09-22
+
+This appended correction preserves D-001 through D-006 and the historical action
+summary verbatim. It supersedes D-006's assurance that outputs are correct with
+only cryptographic anchoring missing, and its small-residual re-scoring remedy.
+
+The inspected September 22 olmOCR aggregate contains 5,876 raw result files,
+264 duplicate files removed, 5,612 unique expected/observed pairs, and 5,587
+SCORED rows. Its strict completeness audit has 21 terminal and 5,591 nonterminal
+pairs, zero missing and zero unexpected pairs. D-006's 6,904 count is not this
+unique-scored denominator. Terminal eligibility and scored status differ.
+
+In `run_score_olmocr.py`, `--accept-v1-scored` skips rows with `status=SCORED`
+and `sha_verified is True` after the strict terminal check; the fallback does
+not itself check schema 1. It does not add or validate the missing v3 contract,
+assertion inventory, assertion-set binding, or historical producer identity.
+Likewise, `aggregate_olmocr.py --legacy-v1` bypasses strict terminal selection.
+Skipping legacy results cannot establish completeness by re-scoring a small
+remainder. A future provenance repair needs its own declared method and evidence;
+current hashes cannot reconstruct missing historical generation receipts.
+
+Claims 1/2 remain PROVISIONAL_LEGACY_V1. Correctness of all legacy claim-relevant
+fields is not established merely by their presence. Deduplication, assertion
+inventory and task alignment, scoring-path limitations, and provenance all
+matter. Track B allocation remains null and Claim 3 human usability is unmeasured.
+No benchmark data was modified or rerun for this correction.
+
+D-002 correctly records Markdown-only scoring, but its proposed source-aware
+follow-up does not establish that the named legacy detectors become valid simply
+by supplying a PDF. Activation is not validation. The current exploratory
+source-candidate API and its detector identities require separate target-specific
+validation. DocLayNet's Caption-or-Table GT and output-syntax proxy do not measure
+structural association accuracy. Its warning false-positive accounting also
+omits warnings on GT-positive outputs with table syntax, so it cannot be reused
+unchanged for detector validation. Preserve V1 and use separately versioned
+outputs only after a bounded validation design is decided.
+
+See [V1_CLAIMS_SUMMARY.md](V1_CLAIMS_SUMMARY.md) and its committed evidence excerpt
+for frozen claim identities, unavailable endpoints, exact artifact hashes, and
+reconciled denominators. This correction makes no product acceptance decision.
